@@ -65,6 +65,7 @@ const FileSystem = (() => {
         if (!path || path.length === 0) return root;
         let current = root;
         for (const segment of path) {
+            if (segment === 'This PC') continue;
             if (current.type !== 'folder' || !current.children[segment]) {
                 return null;
             }
@@ -146,6 +147,8 @@ const FileSystem = (() => {
     }
 
     function isFolder(path) {
+        if (!path || path.length === 0) return true;
+        if (path.length === 1 && path[0] === 'This PC') return true;
         const node = getNode(path);
         return node !== null && node.type === 'folder';
     }
