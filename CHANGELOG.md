@@ -4,7 +4,36 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
-## [12.0.3822] - 2026-08-30
+## [12.0.3900] - 2026-08-30
+
+### Added
+- Calculator app with standard operations, chain calculations, and keyboard support
+- Photos app with gallery view and image file scanning from Pictures folder
+- Calendar app with monthly view, day navigation, and date details sidebar
+- Clock app with analog clock, timer, and stopwatch tabs
+- Paint app with drawing tools, color palette, brush sizes, undo, and save as PNG
+- Snap Assist: drag windows to screen edges to snap to halves/quadrants
+- File associations: right-click files to choose "Open With" different apps
+- Drag & drop files from File Explorer to Notepad to open them
+- Drag & drop files between folders in File Explorer
+- Notepad: Edit menu with undo/redo/cut/copy/paste/find/replace
+- Notepad: View menu with word wrap toggle and zoom in/out/reset
+- Notepad: Find & Replace bar (Ctrl+F) with match case and prev/next
+- Notepad: Keyboard shortcuts (Ctrl+S, Ctrl+F, Ctrl+H, Ctrl+A)
+- File Explorer: Copy/paste with Ctrl+C/Ctrl+V
+- File Explorer: Enhanced file type icons (50+ extensions)
+- File Explorer: Progress bar for file operations
+- File Explorer: Cut/copy/paste in context menus
+- Settings: System page sub-pages (Display, Sound, Notifications, Power, Storage, Multitasking)
+- Settings: Display brightness slider and resolution picker
+- Settings: Sound volume, output/input device selectors
+- Settings: Notification toggles per app
+- Settings: Power mode, sleep settings, battery display
+- Settings: Storage usage breakdown with color-coded categories
+- Settings: Snap layouts preview in Multitasking page
+- Task Manager: Kill process confirmation dialog
+- Task Manager: Additional system processes shown
+- Task Manager: Startup impact column
 
 ### Added
 - Calendar app with monthly view, day navigation, and date selection

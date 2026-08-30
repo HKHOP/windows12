@@ -91,22 +91,49 @@ const TaskManager = (() => {
         const processes = windows.map(w => ({
             id: w.id,
             name: w.title || 'Unknown',
+            appId: w.appId,
             cpu: (Math.random() * 15 + 0.5).toFixed(1),
             memory: (Math.random() * 80 + 5).toFixed(0),
             disk: (Math.random() * 2).toFixed(1),
             network: (Math.random() * 0.5).toFixed(2),
-            pid: Math.floor(Math.random() * 9000 + 1000)
+            pid: Math.floor(Math.random() * 9000 + 1000),
+            isSystem: false
         }));
 
         processes.unshift({
             id: 'system',
             name: 'Windows 12 Shell',
+            appId: 'system',
             cpu: (Math.random() * 5 + 0.2).toFixed(1),
             memory: '24',
             disk: '0.0',
             network: '0.00',
             pid: 4,
-            system: true
+            isSystem: true
+        });
+
+        processes.push({
+            id: 'fileSystem',
+            name: 'File System Service',
+            appId: 'system',
+            cpu: (Math.random() * 2 + 0.1).toFixed(1),
+            memory: '8',
+            disk: '0.0',
+            network: '0.00',
+            pid: 8,
+            isSystem: true
+        });
+
+        processes.push({
+            id: 'userActivity',
+            name: 'User Activity Tracker',
+            appId: 'system',
+            cpu: (Math.random() * 1 + 0.1).toFixed(1),
+            memory: '4',
+            disk: '0.0',
+            network: '0.00',
+            pid: 12,
+            isSystem: true
         });
 
         let selectedId = null;
@@ -125,7 +152,7 @@ const TaskManager = (() => {
                 </thead>
                 <tbody>
                     ${processes.map(p => `
-                        <tr class="tm-process" data-id="${p.id}" style="cursor:pointer;transition:background 0.1s;${p.system ? 'opacity:0.6;' : ''}">
+                        <tr class="tm-process" data-id="${p.id}" data-system="${p.isSystem}" style="cursor:pointer;transition:background 0.1s;${p.isSystem ? 'opacity:0.6;' : ''}">
                             <td style="padding:5px 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">${p.name}</td>
                             <td style="text-align:right;padding:5px 8px;color:${parseFloat(p.cpu) > 10 ? '#ff6b6b' : 'inherit'};">${p.cpu}%</td>
                             <td style="text-align:right;padding:5px 8px;">${p.memory} MB</td>
@@ -149,16 +176,56 @@ const TaskManager = (() => {
                 content.querySelectorAll('.tm-process').forEach(r => r.style.background = 'transparent');
                 row.style.background = 'rgba(0,120,212,0.2)';
                 selectedId = row.dataset.id;
-                endBtn.disabled = row.dataset.id === 'system';
+                endBtn.disabled = row.dataset.system === 'true';
             });
         });
 
         endBtn.onclick = () => {
             if (selectedId && selectedId !== 'system') {
-                WindowManager.closeWindow(selectedId);
-                showProcesses(win);
+                const row = content.querySelector(`.tm-process[data-id="${selectedId}"]`);
+                const processName = row ? row.querySelector('td').textContent : 'Unknown';
+                showKillConfirmation(win, selectedId, processName);
             }
         };
+    }
+
+    function showKillConfirmation(win, processId, processName) {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;border-radius:var(--radius);';
+
+        overlay.innerHTML = `
+            <div style="background:var(--window-bg);border:1px solid var(--window-border);border-radius:8px;padding:24px;max-width:400px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                    <div style="width:40px;height:40px;background:rgba(255,80,80,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;">
+                        <span style="font-size:20px;">⚠️</span>
+                    </div>
+                    <div>
+                        <div style="font-size:16px;font-weight:500;">End Process</div>
+                        <div style="font-size:13px;color:var(--text-secondary);">Are you sure you want to end this process?</div>
+                    </div>
+                </div>
+                <div style="background:var(--hover-bg);border-radius:6px;padding:12px;margin-bottom:16px;">
+                    <div style="font-size:13px;color:var(--text-secondary);">Process:</div>
+                    <div style="font-size:14px;font-weight:500;">${processName}</div>
+                </div>
+                <div style="display:flex;justify-content:flex-end;gap:8px;">
+                    <button class="tm-confirm-cancel" style="padding:6px 16px;border:1px solid var(--window-border);background:var(--hover-bg);color:var(--text-primary);border-radius:4px;cursor:pointer;font-size:13px;">Cancel</button>
+                    <button class="tm-confirm-end" style="padding:6px 16px;border:none;background:#E81123;color:white;border-radius:4px;cursor:pointer;font-size:13px;">End process</button>
+                </div>
+            </div>
+        `;
+
+        win.element.appendChild(overlay);
+
+        overlay.querySelector('.tm-confirm-cancel').addEventListener('click', () => overlay.remove());
+        overlay.querySelector('.tm-confirm-end').addEventListener('click', () => {
+            WindowManager.closeWindow(processId);
+            overlay.remove();
+            showProcesses(win);
+        });
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
     }
 
     function showPerformance(win) {
@@ -204,8 +271,10 @@ const TaskManager = (() => {
                     <div style="display:grid;grid-template-columns:120px 1fr;gap:6px;font-size:12px;">
                         <span style="color:var(--text-secondary);">OS:</span><span>Windows 12</span>
                         <span style="color:var(--text-secondary);">Uptime:</span><span>${getUptime()}</span>
-                        <span style="color:var(--text-secondary);">Processes:</span><span>${WindowManager.getAllWindows().length + 1}</span>
-                        <span style="color:var(--text-secondary);">Threads:</span><span>${(WindowManager.getAllWindows().length + 1) * 8}</span>
+                        <span style="color:var(--text-secondary);">Processes:</span><span>${WindowManager.getAllWindows().length + 3}</span>
+                        <span style="color:var(--text-secondary);">Threads:</span><span>${(WindowManager.getAllWindows().length + 3) * 8}</span>
+                        <span style="color:var(--text-secondary);">CPU Cores:</span><span>4</span>
+                        <span style="color:var(--text-secondary);">Total Memory:</span><span>8 GB</span>
                     </div>
                 </div>
             </div>
@@ -221,9 +290,9 @@ const TaskManager = (() => {
         endBtn.disabled = true;
 
         const startupItems = [
-            { name: 'System Config', status: 'Enabled', publisher: 'Windows 12' },
-            { name: 'User Activity Tracker', status: 'Enabled', publisher: 'Windows 12' },
-            { name: 'Desktop Icons Service', status: 'Enabled', publisher: 'Windows 12' }
+            { name: 'System Config', status: 'Enabled', publisher: 'Windows 12', impact: 'High' },
+            { name: 'User Activity Tracker', status: 'Enabled', publisher: 'Windows 12', impact: 'Low' },
+            { name: 'Desktop Icons Service', status: 'Enabled', publisher: 'Windows 12', impact: 'Low' }
         ];
 
         content.innerHTML = `
@@ -233,6 +302,7 @@ const TaskManager = (() => {
                         <th style="text-align:left;padding:8px 12px;font-weight:500;">Name</th>
                         <th style="text-align:left;padding:8px 12px;font-weight:500;">Publisher</th>
                         <th style="text-align:left;padding:8px 12px;font-weight:500;">Status</th>
+                        <th style="text-align:left;padding:8px 12px;font-weight:500;">Impact</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -241,6 +311,7 @@ const TaskManager = (() => {
                             <td style="padding:8px 12px;">${item.name}</td>
                             <td style="padding:8px 12px;color:var(--text-secondary);">${item.publisher}</td>
                             <td style="padding:8px 12px;color:#00b894;">${item.status}</td>
+                            <td style="padding:8px 12px;color:var(--text-secondary);">${item.impact}</td>
                         </tr>
                     `).join('')}
                 </tbody>

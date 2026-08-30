@@ -5,9 +5,48 @@ const WindowManager = (() => {
     let onFocusChanged = null;
     let onWindowCreated = null;
     let onWindowClosed = null;
+    let snapIndicator = null;
 
     function init() {
         container = document.getElementById('windows-container');
+        createSnapIndicator();
+    }
+
+    function createSnapIndicator() {
+        snapIndicator = document.createElement('div');
+        snapIndicator.id = 'snap-indicator';
+        snapIndicator.style.cssText = 'position:fixed;display:none;border:2px solid var(--accent-color);background:rgba(0,120,212,0.15);border-radius:8px;z-index:99999;pointer-events:none;transition:all 0.15s ease-out;';
+        document.body.appendChild(snapIndicator);
+    }
+
+    function showSnapIndicator(x, y, w, h) {
+        if (!snapIndicator) return;
+        snapIndicator.style.display = 'block';
+        snapIndicator.style.left = x + 'px';
+        snapIndicator.style.top = y + 'px';
+        snapIndicator.style.width = w + 'px';
+        snapIndicator.style.height = h + 'px';
+    }
+
+    function hideSnapIndicator() {
+        if (snapIndicator) snapIndicator.style.display = 'none';
+    }
+
+    function getSnapZone(clientX, clientY) {
+        const threshold = 20;
+        const w = window.innerWidth;
+        const h = window.innerHeight - 48;
+        const left = clientX <= threshold;
+        const right = clientX >= w - threshold;
+        const top = clientY <= threshold;
+
+        if (top && left) return { zone: 'top-left', x: 0, y: 0, width: w / 2, height: h / 2 };
+        if (top && right) return { zone: 'top-right', x: w / 2, y: 0, width: w / 2, height: h / 2 };
+        if (top) return { zone: 'top', x: 0, y: 0, width: w, height: h };
+        if (left) return { zone: 'left', x: 0, y: 0, width: w / 2, height: h };
+        if (right) return { zone: 'right', x: w / 2, y: 0, width: w / 2, height: h };
+
+        return null;
     }
 
     function setOnFocusChanged(cb) {
@@ -109,10 +148,22 @@ const WindowManager = (() => {
         const header = win.querySelector('.window-header');
         let isDragging = false;
         let startX, startY, startLeft, startTop;
+        let currentSnap = null;
 
         header.addEventListener('mousedown', (e) => {
             if (e.target.closest('.window-controls')) return;
-            if (data.isMaximized) return;
+            if (data.isMaximized) {
+                const ratio = e.clientX / window.innerWidth;
+                data.prevBounds = null;
+                data.isMaximized = false;
+                win.classList.remove('maximized');
+                const newW = 700;
+                const newH = 500;
+                win.style.width = newW + 'px';
+                win.style.height = newH + 'px';
+                win.style.left = (e.clientX - newW * ratio) + 'px';
+                win.style.top = Math.max(0, e.clientY - 18) + 'px';
+            }
 
             isDragging = true;
             startX = e.clientX;
@@ -129,12 +180,42 @@ const WindowManager = (() => {
             const dy = e.clientY - startY;
             win.style.left = `${startLeft + dx}px`;
             win.style.top = `${Math.max(0, startTop + dy)}px`;
+
+            const snap = getSnapZone(e.clientX, e.clientY);
+            if (snap) {
+                currentSnap = snap;
+                showSnapIndicator(snap.x, snap.y, snap.width, snap.height);
+            } else {
+                currentSnap = null;
+                hideSnapIndicator();
+            }
         });
 
         document.addEventListener('mouseup', () => {
             if (isDragging) {
                 isDragging = false;
                 header.classList.remove('dragging');
+
+                if (currentSnap) {
+                    if (!data.prevBounds) {
+                        data.prevBounds = {
+                            left: startLeft,
+                            top: startTop,
+                            width: win.offsetWidth,
+                            height: win.offsetHeight
+                        };
+                    }
+                    win.style.left = currentSnap.x + 'px';
+                    win.style.top = currentSnap.y + 'px';
+                    win.style.width = currentSnap.width + 'px';
+                    win.style.height = currentSnap.height + 'px';
+                    if (currentSnap.zone === 'top') {
+                        win.classList.add('maximized');
+                        data.isMaximized = true;
+                    }
+                    currentSnap = null;
+                }
+                hideSnapIndicator();
             }
         });
 

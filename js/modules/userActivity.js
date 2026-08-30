@@ -60,7 +60,12 @@ const UserActivity = (() => {
             settings: 'Settings',
             notepad: 'Notepad',
             fileExplorer: 'File Explorer',
-            photos: 'Photos'
+            photos: 'Photos',
+            calendar: 'Calendar',
+            calculator: 'Calculator',
+            clock: 'Clock',
+            paint: 'Paint',
+            taskManager: 'Task Manager'
         };
         return names[id] || id;
     }

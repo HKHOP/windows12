@@ -10,6 +10,8 @@ const FileExplorer = (() => {
 
     let pathHistory = [['/']];
     let historyIndex = 0;
+    let clipboard = null;
+    let clipboardAction = 'copy';
 
     function getContent() {
         return `
@@ -25,11 +27,14 @@ const FileExplorer = (() => {
                     <div class="fe-sidebar" style="width:200px;background:rgba(0,0,0,0.15);border-right:1px solid rgba(255,255,255,0.06);padding:8px;overflow-y:auto;">
                         ${buildSidebar()}
                     </div>
-                    <div class="fe-content" style="flex:1;padding:8px;overflow-y:auto;display:flex;flex-wrap:wrap;align-content:flex-start;gap:4px;"></div>
+                    <div class="fe-content" style="flex:1;padding:8px;overflow-y:auto;display:flex;flex-wrap:wrap;align-content:flex-start;gap:4px;position:relative;"></div>
                 </div>
-                <div style="padding:4px 12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;font-size:12px;color:#666;">
+                <div class="fe-statusbar" style="padding:4px 12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;font-size:12px;color:#666;">
                     <span class="fe-count">0 items</span>
                     <span class="fe-path-text"></span>
+                </div>
+                <div class="fe-progress-bar" style="display:none;height:3px;background:rgba(255,255,255,0.06);">
+                    <div class="fe-progress-fill" style="height:100%;background:var(--accent-color);width:0%;transition:width 0.3s;"></div>
                 </div>
             </div>
         `;
@@ -65,13 +70,11 @@ const FileExplorer = (() => {
                 used += localStorage.getItem(key).length * 2;
             }
         }
-
         let quota = 0;
         if (navigator.storage && navigator.storage.estimate) {
             const estimate = await navigator.storage.estimate();
             quota = estimate.quota || 0;
         }
-
         return { used, quota };
     }
 
@@ -92,7 +95,6 @@ const FileExplorer = (() => {
         pathEl.value = 'This PC';
         pathText.textContent = 'This PC';
         countEl.textContent = '';
-
         contentEl.innerHTML = '<div style="width:100%;text-align:center;padding:40px;color:var(--text-secondary);">Loading storage info...</div>';
 
         getStorageInfo().then(info => {
@@ -118,9 +120,7 @@ const FileExplorer = (() => {
             const driveItem = contentEl.querySelector('.drive-item');
             driveItem.addEventListener('mouseenter', () => driveItem.style.background = 'rgba(255,255,255,0.04)');
             driveItem.addEventListener('mouseleave', () => driveItem.style.background = 'transparent');
-            driveItem.addEventListener('click', () => {
-                navigate(win, ['/']);
-            });
+            driveItem.addEventListener('click', () => navigate(win, ['/']));
         });
     }
 
@@ -150,8 +150,6 @@ const FileExplorer = (() => {
         upBtn.disabled = path.length <= 1;
 
         const entries = FileSystem.getChildren(path);
-
-        // Sort: folders first, then files, alphabetical
         entries.sort((a, b) => {
             if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
             return a.name.localeCompare(b.name);
@@ -159,21 +157,20 @@ const FileExplorer = (() => {
 
         contentEl.innerHTML = '';
 
-        // Context menu on empty area
         contentEl.addEventListener('contextmenu', (e) => {
             if (e.target !== contentEl) return;
             e.preventDefault();
-            ContextMenu.show(e.clientX, e.clientY, [
+            const menuItems = [
                 { label: 'New folder', icon: '📁', action: () => createNewFolder(win, path) },
                 { label: 'New text file', icon: '📄', action: () => createNewFile(win, path) },
-                'separator',
-                { label: 'Paste', icon: '📋', disabled: true },
-                'separator',
-                { label: 'Properties', icon: 'ℹ', disabled: true }
-            ]);
+                'separator'
+            ];
+            if (clipboard) {
+                menuItems.push({ label: `Paste (${clipboardAction === 'copy' ? 'Ctrl+V' : 'Ctrl+X'})`, icon: '📋', action: () => pasteItems(win, path) });
+            }
+            ContextMenu.show(e.clientX, e.clientY, menuItems);
         });
 
-        // Empty state
         if (entries.length === 0) {
             contentEl.innerHTML = '<div style="width:100%;text-align:center;padding:60px 20px;color:#666;font-size:14px;">This folder is empty</div>';
             countEl.textContent = '0 items';
@@ -184,11 +181,16 @@ const FileExplorer = (() => {
             const isDir = entry.type === 'folder';
             const item = document.createElement('div');
             item.className = 'fe-item';
-            item.style.cssText = 'width:90px;padding:8px;border-radius:6px;cursor:pointer;text-align:center;transition:background 0.12s;';
+            item.draggable = true;
+            item.dataset.name = entry.name;
+            item.dataset.type = entry.type;
+            item.dataset.ext = entry.ext || '';
+            item.style.cssText = 'width:90px;padding:8px;border-radius:6px;cursor:pointer;text-align:center;transition:background 0.12s;position:relative;';
             item.innerHTML = `
-                <div style="font-size:32px;margin-bottom:4px;">${isDir ? getFolderIcon(entry.name) : getFileIcon(entry.ext)}</div>
+                <div style="font-size:32px;margin-bottom:4px;">${isDir ? getFolderIcon(entry.name) : getFileIcon(entry.ext, entry.name)}</div>
                 <div style="font-size:12px;word-break:break-all;line-height:1.3;">${entry.name}</div>
             `;
+
             item.addEventListener('mouseenter', () => item.style.background = 'rgba(255,255,255,0.06)');
             item.addEventListener('mouseleave', () => item.style.background = 'transparent');
 
@@ -196,7 +198,7 @@ const FileExplorer = (() => {
                 if (isDir) {
                     navigate(win, [...path, entry.name]);
                 } else {
-                    openFileWithNotepad([...path, entry.name]);
+                    openFileWithDefaultApp([...path, entry.name], entry);
                 }
             });
 
@@ -207,12 +209,19 @@ const FileExplorer = (() => {
                 const menuItems = isDir ? [
                     { label: 'Open', icon: '📂', action: () => navigate(win, itemPath) },
                     'separator',
+                    { label: 'Cut (Ctrl+X)', icon: '✂', action: () => { clipboard = { path: itemPath, name: entry.name, type: entry.type }; clipboardAction = 'cut'; } },
+                    { label: 'Copy (Ctrl+C)', icon: '📋', action: () => { clipboard = { path: itemPath, name: entry.name, type: entry.type }; clipboardAction = 'copy'; } },
+                    'separator',
                     { label: 'Rename', icon: '✏', action: () => renameItem(win, itemPath) },
                     { label: 'Delete', icon: '🗑', action: () => deleteItem(win, itemPath) },
                     'separator',
                     { label: 'Properties', icon: 'ℹ', action: () => showProperties(entry, itemPath) }
                 ] : [
-                    { label: 'Open with Notepad', icon: '📝', action: () => openFileWithNotepad(itemPath) },
+                    { label: 'Open', icon: '📝', action: () => openFileWithDefaultApp(itemPath, entry) },
+                    { label: 'Open With...', icon: '📂', action: () => showOpenWithMenu(itemPath, entry) },
+                    'separator',
+                    { label: 'Cut (Ctrl+X)', icon: '✂', action: () => { clipboard = { path: itemPath, name: entry.name, type: entry.type }; clipboardAction = 'cut'; } },
+                    { label: 'Copy (Ctrl+C)', icon: '📋', action: () => { clipboard = { path: itemPath, name: entry.name, type: entry.type }; clipboardAction = 'copy'; } },
                     'separator',
                     { label: 'Rename', icon: '✏', action: () => renameItem(win, itemPath) },
                     { label: 'Delete', icon: '🗑', action: () => deleteItem(win, itemPath) },
@@ -222,10 +231,121 @@ const FileExplorer = (() => {
                 ContextMenu.show(e.clientX, e.clientY, menuItems);
             });
 
+            item.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', JSON.stringify({ path: itemPath, name: entry.name, type: entry.type, ext: entry.ext }));
+                e.dataTransfer.effectAllowed = 'move';
+                item.style.opacity = '0.5';
+            });
+
+            item.addEventListener('dragend', () => {
+                item.style.opacity = '1';
+            });
+
+            if (isDir) {
+                item.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = clipboardAction === 'cut' ? 'move' : 'copy';
+                    item.style.background = 'rgba(0,120,212,0.2)';
+                    item.style.outline = '2px solid var(--accent-color)';
+                });
+                item.addEventListener('dragleave', () => {
+                    item.style.background = 'transparent';
+                    item.style.outline = 'none';
+                });
+                item.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    item.style.background = 'transparent';
+                    item.style.outline = 'none';
+                    try {
+                        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                        if (data.path) {
+                            const destPath = [...path, entry.name, data.name];
+                            const parentPath = data.path.slice(0, -1);
+                            showProgressBar(win);
+                            setTimeout(() => {
+                                FileSystem.renameItem(data.path, data.name);
+                                navigate(win, path, false);
+                                refreshIfDesktop([...path, entry.name]);
+                                hideProgressBar(win);
+                            }, 300);
+                        }
+                    } catch (err) {}
+                });
+            }
+
             contentEl.appendChild(item);
         });
 
+        contentEl.addEventListener('dragover', (e) => {
+            if (e.target === contentEl) {
+                e.preventDefault();
+            }
+        });
+
         countEl.textContent = `${entries.length} item${entries.length !== 1 ? 's' : ''}`;
+    }
+
+    function showProgressBar(win) {
+        const bar = win.element.querySelector('.fe-progress-bar');
+        const fill = win.element.querySelector('.fe-progress-fill');
+        bar.style.display = 'block';
+        fill.style.width = '0%';
+        setTimeout(() => fill.style.width = '60%', 10);
+        setTimeout(() => fill.style.width = '90%', 200);
+    }
+
+    function hideProgressBar(win) {
+        const fill = win.element.querySelector('.fe-progress-fill');
+        fill.style.width = '100%';
+        setTimeout(() => {
+            win.element.querySelector('.fe-progress-bar').style.display = 'none';
+            fill.style.width = '0%';
+        }, 400);
+    }
+
+    function showOpenWithMenu(itemPath, entry) {
+        const ext = entry.ext || '';
+        const apps = [
+            { name: 'Notepad', id: 'notepad', exts: ['txt', 'md', 'json', 'js', 'html', 'css', 'log', 'cfg'] },
+            { name: 'Paint', id: 'paint', exts: ['png', 'jpg', 'jpeg', 'gif', 'bmp'] },
+            { name: 'Photos', id: 'photos', exts: ['png', 'jpg', 'jpeg', 'gif'] }
+        ];
+
+        const matched = apps.filter(a => a.exts.includes(ext));
+        const all = [...matched, ...apps.filter(a => !matched.includes(a))];
+
+        const items = all.map(app => ({
+            label: app.name,
+            icon: app.exts.includes(ext) ? '✓' : '',
+            action: () => openFileWithApp(itemPath, app.id)
+        }));
+
+        ContextMenu.show(window.event.clientX, window.event.clientY, items);
+    }
+
+    function openFileWithDefaultApp(itemPath, entry) {
+        const ext = entry.ext || '';
+        const textExts = ['txt', 'md', 'json', 'js', 'html', 'css', 'log', 'cfg', 'xml', 'yml', 'yaml', 'csv'];
+        if (textExts.includes(ext)) {
+            openFileWithNotepad(itemPath);
+        } else {
+            openFileWithNotepad(itemPath);
+        }
+    }
+
+    function openFileWithApp(itemPath, appId) {
+        if (appId === 'notepad') {
+            openFileWithNotepad(itemPath);
+        } else {
+            const { Taskbar } = require_taskbar();
+            if (Taskbar) Taskbar.openApp(appId);
+        }
+    }
+
+    function require_taskbar() {
+        try {
+            return { Taskbar: window._Taskbar };
+        } catch { return {}; }
     }
 
     function getFolderIcon(name) {
@@ -254,11 +374,21 @@ const FileExplorer = (() => {
         }).join(' > ');
     }
 
-    function getFileIcon(ext) {
+    function getFileIcon(ext, name) {
         const icons = {
             'txt': '📝', 'md': '📋', 'json': '⚙️', 'js': '📜',
-            'html': '🌐', 'css': '🎨', 'png': '🖼️', 'jpg': '🖼️'
+            'html': '🌐', 'css': '🎨', 'png': '🖼️', 'jpg': '🖼️',
+            'jpeg': '🖼️', 'gif': '🖼️', 'bmp': '🖼️', 'svg': '🖼️',
+            'mp3': '🎵', 'wav': '🎵', 'ogg': '🎵',
+            'mp4': '🎬', 'avi': '🎬', 'mkv': '🎬',
+            'pdf': '📕', 'doc': '📘', 'docx': '📘',
+            'xls': '📗', 'xlsx': '📗', 'ppt': '📙',
+            'zip': '📦', 'rar': '📦', '7z': '📦',
+            'exe': '⚡', 'msi': '⚡',
+            'log': '📄', 'cfg': '⚙️', 'ini': '⚙️',
+            'xml': '📄', 'csv': '📊', 'yml': '📄', 'yaml': '📄'
         };
+        if (name === 'config.json') return '⚙️';
         return icons[ext] || '📄';
     }
 
@@ -303,10 +433,30 @@ const FileExplorer = (() => {
     function deleteItem(win, itemPath) {
         const name = itemPath[itemPath.length - 1];
         if (confirm(`Delete "${name}"?`)) {
-            FileSystem.deleteItem(itemPath);
-            navigate(win, itemPath.slice(0, -1), false);
-            refreshIfDesktop(itemPath);
+            showProgressBar(win);
+            setTimeout(() => {
+                FileSystem.deleteItem(itemPath);
+                navigate(win, itemPath.slice(0, -1), false);
+                refreshIfDesktop(itemPath);
+                hideProgressBar(win);
+            }, 300);
         }
+    }
+
+    function pasteItems(win, destPath) {
+        if (!clipboard) return;
+        showProgressBar(win);
+        setTimeout(() => {
+            if (clipboardAction === 'cut') {
+                FileSystem.renameItem(clipboard.path, clipboard.name);
+            } else {
+                const content = FileSystem.readFile(clipboard.path) || '';
+                FileSystem.createFile(destPath, clipboard.name, content, clipboard.ext || '');
+            }
+            navigate(win, destPath, false);
+            hideProgressBar(win);
+            clipboard = null;
+        }, 300);
     }
 
     function showProperties(entry, itemPath) {
@@ -314,7 +464,7 @@ const FileExplorer = (() => {
         const content = `
             <div style="padding:20px;">
                 <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
-                    <div style="font-size:48px;">${isDir ? '📁' : getFileIcon(entry.ext)}</div>
+                    <div style="font-size:48px;">${isDir ? '📁' : getFileIcon(entry.ext, entry.name)}</div>
                     <div>
                         <div style="font-size:16px;font-weight:600;">${entry.name}</div>
                         <div style="font-size:13px;color:#888;">${isDir ? 'File folder' : `File (${entry.ext || 'unknown'})`}</div>
@@ -322,8 +472,8 @@ const FileExplorer = (() => {
                 </div>
                 <div style="display:grid;grid-template-columns:100px 1fr;gap:8px;font-size:13px;">
                     <span style="color:#888;">Type:</span><span>${isDir ? 'Folder' : 'File'}</span>
-                    <span style="color:#888;">Location:</span><span>${itemPath.join(' > ')}</span>
-                    ${!isDir ? `<span style="color:#888;">Size:</span><span>${entry.size} bytes</span>` : ''}
+                    <span style="color:#888;">Location:</span><span style="word-break:break-all;">${itemPath.join(' > ')}</span>
+                    ${!isDir ? `<span style="color:#888;">Size:</span><span>${formatBytes(entry.size)}</span>` : ''}
                     ${entry.modified ? `<span style="color:#888;">Modified:</span><span>${new Date(entry.modified).toLocaleString()}</span>` : ''}
                 </div>
             </div>
@@ -370,7 +520,6 @@ const FileExplorer = (() => {
                 e.preventDefault();
                 FileSystem.writeFile(itemPath, textarea.value);
                 win.element.querySelector('.window-title').textContent = `${name} - Notepad`;
-
                 if (isConfigFile) {
                     try {
                         const parsed = JSON.parse(textarea.value);
@@ -384,6 +533,30 @@ const FileExplorer = (() => {
 
         textarea.addEventListener('input', () => {
             win.element.querySelector('.window-title').textContent = `*${name} - Notepad`;
+        });
+
+        textarea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            textarea.style.background = 'rgba(0,120,212,0.1)';
+        });
+
+        textarea.addEventListener('dragleave', () => {
+            textarea.style.background = 'transparent';
+        });
+
+        textarea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            textarea.style.background = 'transparent';
+            try {
+                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                if (data.path) {
+                    const fileContent = FileSystem.readFile(data.path);
+                    if (fileContent !== null) {
+                        textarea.value = fileContent;
+                        win.element.querySelector('.window-title').textContent = `*${data.name} - Notepad`;
+                    }
+                }
+            } catch (err) {}
         });
     }
 
@@ -446,9 +619,7 @@ const FileExplorer = (() => {
             }
         });
 
-        pathInput.addEventListener('focus', () => {
-            pathInput.select();
-        });
+        pathInput.addEventListener('focus', () => pathInput.select());
 
         win.element.querySelectorAll('.fe-sidebar-item').forEach(item => {
             item.addEventListener('click', (e) => {
@@ -459,6 +630,23 @@ const FileExplorer = (() => {
                     navigate(win, path);
                 }
             });
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (!win.element.contains(document.activeElement) && document.activeElement !== document.body) return;
+            if (e.ctrlKey && e.key === 'c' && clipboard === null) {
+                const selected = win.element.querySelector('.fe-item[style*="rgba(0,120,212"]');
+                if (selected) {
+                    const name = selected.dataset.name;
+                    const currentPath = pathHistory[historyIndex];
+                    clipboard = { path: [...currentPath, name], name, type: selected.dataset.type, ext: selected.dataset.ext };
+                    clipboardAction = 'copy';
+                }
+            }
+            if (e.ctrlKey && e.key === 'v' && clipboard) {
+                const currentPath = pathHistory[historyIndex];
+                pasteItems(win, currentPath);
+            }
         });
     }
 

@@ -22,6 +22,7 @@ const StartMenu = (() => {
         { id: 'notepad', name: 'Notepad', icon: pinnedApps[2].icon },
         { id: 'photos', name: 'Photos', icon: pinnedApps[5].icon },
         { id: 'settings', name: 'Settings', icon: pinnedApps[1].icon },
+        { id: 'paint', name: 'Paint', icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#FF9800"/><circle cx="8" cy="8" r="2" fill="white"/><circle cx="16" cy="8" r="2" fill="#E53935"/><circle cx="12" cy="16" r="2" fill="#43A047"/><circle cx="8" cy="16" r="2" fill="#1E88E5"/></svg>` },
         { id: 'taskManager', name: 'Task Manager', icon: pinnedApps[4].icon }
     ].sort((a, b) => a.name.localeCompare(b.name));
 

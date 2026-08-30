@@ -14,6 +14,7 @@ import Photos from './apps/photos.js';
 import Calendar from './apps/calendar.js';
 import Calculator from './apps/calculator.js';
 import Clock from './apps/clock.js';
+import Paint from './apps/paint.js';
 
 AppRegistry.register('settings', Settings);
 AppRegistry.register('notepad', Notepad);
@@ -23,6 +24,7 @@ AppRegistry.register('photos', Photos);
 AppRegistry.register('calendar', Calendar);
 AppRegistry.register('calculator', Calculator);
 AppRegistry.register('clock', Clock);
+AppRegistry.register('paint', Paint);
 
 document.addEventListener('DOMContentLoaded', () => {
     FileSystem.init();
