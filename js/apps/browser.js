@@ -1,10 +1,12 @@
 import WindowManager from '../modules/windowManager.js';
+import FileSystem from '../modules/fileSystem.js';
 
 const Browser = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#2196F3" stroke-width="2"/><path d="M2 12h20" stroke="#2196F3" stroke-width="1.5"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="#2196F3" stroke-width="1.5"/></svg>`;
 
     const CORS_PROXIES = [
-        url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+        url => `https://corsproxy.dev/${encodeURIComponent(url)}`,
+        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
         url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
         url => `https://thingproxy.freeboard.io/fetch/${url}`
     ];
@@ -107,6 +109,20 @@ const Browser = (() => {
                 <div class="browser-error-icon">⚠️</div>
                 <div class="browser-error-title">${title}</div>
                 <div class="browser-error-msg">${msg}</div>
+            </div>
+        `;
+    }
+
+    function getCorsErrorHtml(url) {
+        return `
+            <div class="browser-error">
+                <div class="browser-error-icon">🔒</div>
+                <div class="browser-error-title">Cannot load this page</div>
+                <div class="browser-error-msg">
+                    <p>This site blocked the request due to CORS (Cross-Origin Resource Sharing) restrictions.</p>
+                    <p style="margin-top:12px;"><strong>Try switching to Iframe mode</strong> (click the ⚙ button) — it loads pages directly without CORS restrictions.</p>
+                    <p style="margin-top:12px;font-size:11px;color:#888;">URL: ${url}</p>
+                </div>
             </div>
         `;
     }
@@ -277,8 +293,17 @@ const Browser = (() => {
             modeBtn.textContent = `⚙ ${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
             statusMode.textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
 
+            const tooltips = {
+                iframe: 'Iframe: Loads pages directly (works for most sites)',
+                sandbox: 'Sandbox: Fetches HTML, runs scripts in isolated iframe (may fail due to CORS)',
+                direct: 'Direct: Fetches HTML, runs scripts in host context (may fail due to CORS)'
+            };
+            modeBtn.title = tooltips[mode];
+
             if (mode === 'direct') {
                 showSecurityToast(el, 'Direct mode: scripts will have full access to the OS');
+            } else if (mode === 'sandbox') {
+                showSecurityToast(el, 'Sandbox mode: scripts run in isolated iframe');
             }
 
             if (tab.url) renderPage(tab);
@@ -391,7 +416,7 @@ const Browser = (() => {
                 statusText.textContent = 'Done';
                 tab.isLoading = false;
             } catch (err) {
-                contentEl.innerHTML = getErrorHtml('Failed to load page', `${err.message}<br><br>URL: ${tab.url}`);
+                contentEl.innerHTML = getCorsErrorHtml(tab.url);
                 statusDot.className = 'browser-status-dot error';
                 statusText.textContent = 'Error';
                 tab.isLoading = false;
