@@ -4,6 +4,17 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [0.5.0] - 2026-08-30
+
+### Added
+- Desktop icons render from the Desktop folder in the virtual filesystem
+- Desktop right-click: create new folder, create new text file
+- Desktop right-click: refresh icons
+- Desktop icons: double-click to open files, right-click to rename/delete
+- Desktop icons: click to select, click empty space to deselect
+- File Explorer changes to Desktop folder auto-refresh desktop icons
+- Auto-layout with grid positioning based on screen width
+
 ## [0.4.0] - 2026-08-30
 
 ### Added
