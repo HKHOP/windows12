@@ -46,37 +46,82 @@ const FileExplorer = (() => {
             { name: 'Videos', icon: '🎬', path: ['/', 'users', 'default', 'Videos'] },
             { name: 'Recycle Bin', icon: '🗑️', path: ['/', 'system', '$Recycle.Bin'] },
             'separator',
-            { name: 'This PC', icon: '💻', path: ['/', 'C:'], children: [
-                { name: 'Local Disk (C:)', icon: '💿', path: ['/'] }
-            ]},
-            { name: 'System', icon: '⚙️', path: ['/', 'system'] },
-            { name: 'Programs Data', icon: '📦', path: ['/', 'programs data'] }
+            { name: 'This PC', icon: '💻', path: ['__thispc__'] }
         ];
         return items.map(i => {
             if (i === 'separator') return '<div style="height:1px;background:rgba(255,255,255,0.06);margin:6px 0;"></div>';
-            if (i.children) {
-                return `
-                    <div class="fe-sidebar-section">
-                        <div class="fe-sidebar-item" style="padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background 0.12s;font-weight:500;" data-path='${JSON.stringify(i.path)}'>
-                            <span style="font-size:14px;">${i.icon}</span>${i.name}
-                            <span style="margin-left:auto;font-size:10px;color:#666;">▶</span>
-                        </div>
-                        <div class="fe-sidebar-children" style="padding-left:16px;display:none;">
-                            ${i.children.map(c => `
-                                <div class="fe-sidebar-item" style="padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background 0.12s;" data-path='${JSON.stringify(c.path)}'>
-                                    <span style="font-size:14px;">${c.icon}</span>${c.name}
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            }
             return `
                 <div class="fe-sidebar-item" style="padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background 0.12s;" data-path='${JSON.stringify(i.path)}'>
                     <span style="font-size:14px;">${i.icon}</span>${i.name}
                 </div>
             `;
         }).join('');
+    }
+
+    async function getStorageInfo() {
+        let used = 0;
+        for (let key in localStorage) {
+            if (localStorage.hasOwnProperty(key)) {
+                used += localStorage.getItem(key).length * 2;
+            }
+        }
+
+        let quota = 0;
+        if (navigator.storage && navigator.storage.estimate) {
+            const estimate = await navigator.storage.estimate();
+            quota = estimate.quota || 0;
+        }
+
+        return { used, quota };
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function showThisPC(win) {
+        const contentEl = win.element.querySelector('.fe-content');
+        const countEl = win.element.querySelector('.fe-count');
+        const pathEl = win.element.querySelector('.fe-path');
+        const pathText = win.element.querySelector('.fe-path-text');
+
+        pathEl.value = 'This PC';
+        pathText.textContent = 'This PC';
+        countEl.textContent = '';
+
+        contentEl.innerHTML = '<div style="width:100%;text-align:center;padding:40px;color:var(--text-secondary);">Loading storage info...</div>';
+
+        getStorageInfo().then(info => {
+            const usedPercent = info.quota > 0 ? ((info.used / info.quota) * 100).toFixed(1) : 0;
+            const freePercent = info.quota > 0 ? (100 - usedPercent).toFixed(1) : 0;
+
+            contentEl.innerHTML = `
+                <div style="width:100%;padding:16px;">
+                    <div style="font-size:14px;font-weight:600;margin-bottom:16px;color:var(--text-primary);">Devices and drives</div>
+                    <div class="drive-item" style="display:flex;align-items:center;gap:16px;padding:16px;border:1px solid var(--window-border);border-radius:8px;cursor:pointer;transition:background 0.12s;max-width:320px;">
+                        <div style="font-size:40px;">💿</div>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-size:13px;font-weight:500;margin-bottom:6px;color:var(--text-primary);">Local Disk (C:)</div>
+                            <div style="height:16px;background:rgba(255,255,255,0.06);border-radius:8px;overflow:hidden;margin-bottom:4px;">
+                                <div style="height:100%;width:${usedPercent}%;background:linear-gradient(90deg,#0078D4,#00a8e8);border-radius:8px;transition:width 0.3s;"></div>
+                            </div>
+                            <div style="font-size:11px;color:var(--text-secondary);">${formatBytes(info.used)} used of ${formatBytes(info.quota)} (${usedPercent}% used, ${freePercent}% free)</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const driveItem = contentEl.querySelector('.drive-item');
+            driveItem.addEventListener('mouseenter', () => driveItem.style.background = 'rgba(255,255,255,0.04)');
+            driveItem.addEventListener('mouseleave', () => driveItem.style.background = 'transparent');
+            driveItem.addEventListener('click', () => {
+                navigate(win, ['/']);
+            });
+        });
     }
 
     function navigate(win, path, addToHistory = true) {
@@ -407,16 +452,12 @@ const FileExplorer = (() => {
 
         win.element.querySelectorAll('.fe-sidebar-item').forEach(item => {
             item.addEventListener('click', (e) => {
-                const childrenEl = item.nextElementSibling;
-                if (childrenEl && childrenEl.classList.contains('fe-sidebar-children')) {
-                    const isExpanded = childrenEl.style.display !== 'none';
-                    childrenEl.style.display = isExpanded ? 'none' : 'block';
-                    const arrow = item.querySelector('span:last-child');
-                    if (arrow) arrow.textContent = isExpanded ? '▶' : '▼';
-                    return;
-                }
                 const path = JSON.parse(item.dataset.path);
-                navigate(win, path);
+                if (path[0] === '__thispc__') {
+                    showThisPC(win);
+                } else {
+                    navigate(win, path);
+                }
             });
         });
     }
