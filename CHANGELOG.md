@@ -4,6 +4,17 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [0.3.0] - 2026-08-30
+
+### Added
+- UserActivity module tracks recently opened files and apps
+- Start Menu Recommended section shows recent activity dynamically
+- Activity persists in localStorage across sessions
+- File opens from File Explorer are tracked
+- App opens from Start Menu are tracked
+- Clicking Recommended items reopens the file/app
+- Time-ago labels (Just now, 5m ago, 2h ago, etc.)
+
 ## [0.2.0] - 2026-08-30
 
 ### Added
