@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (loginScreen) {
                     loginScreen.classList.remove('hidden');
                     const config = SystemConfig.getAll();
-                    const username = config.user?.name || 'User';
+                    const username = config.userName || 'User';
                     document.getElementById('login-username').textContent = username;
 
                     setTimeout(() => {

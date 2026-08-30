@@ -29,6 +29,16 @@ const StartMenu = (() => {
         setupSearch();
         setupAllAppsButton();
         setupPowerButton();
+        updateUserInfo();
+    }
+
+    function updateUserInfo() {
+        const config = SystemConfig.getAll();
+        const username = config.userName || 'User';
+        const avatar = document.querySelector('.user-avatar');
+        const nameEl = document.querySelector('.user-info span');
+        if (avatar) avatar.textContent = username.charAt(0).toUpperCase();
+        if (nameEl) nameEl.textContent = username;
     }
 
     function setupPowerButton() {
@@ -153,7 +163,7 @@ const StartMenu = (() => {
         loginScreen.style.opacity = '0';
 
         const config = SystemConfig.getAll();
-        const username = config.user?.name || 'User';
+        const username = config.userName || 'User';
         document.getElementById('login-username').textContent = username;
 
         desktop.style.transition = 'opacity 0.4s ease-out';
