@@ -6,8 +6,12 @@ import FileExplorer from '../apps/fileExplorer.js';
 
 const DesktopIcons = (() => {
     const DESKTOP_PATH = ['/', 'users', 'default', 'Desktop'];
-    const RECYCLE_BIN_PATH = ['/', 'system', '$Recycle.Bin'];
+    const LAYOUT_PATH = ['/', 'system', 'desktop-layout.json'];
+    const ICON_W = 80;
+    const ICON_H = 90;
+    const PADDING = 16;
     let container;
+    let positions = {};
 
     const RECYCLE_BIN_ICON = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none">
         <path d="M4 6H20" stroke="#888" stroke-width="1.5" stroke-linecap="round"/>
@@ -19,7 +23,38 @@ const DesktopIcons = (() => {
 
     function init() {
         container = document.getElementById('desktop');
+        loadPositions();
         render();
+    }
+
+    function loadPositions() {
+        const data = FileSystem.readFile(LAYOUT_PATH);
+        if (data) {
+            try {
+                positions = JSON.parse(data);
+            } catch {
+                positions = {};
+            }
+        }
+    }
+
+    function savePositions() {
+        const content = JSON.stringify(positions, null, 2);
+        if (FileSystem.itemExists(LAYOUT_PATH)) {
+            FileSystem.writeFile(LAYOUT_PATH, content);
+        } else {
+            FileSystem.createFile(['/', 'system'], 'desktop-layout.json', content, 'json');
+        }
+    }
+
+    function getDefaultPosition(name, index) {
+        const cols = Math.floor((window.innerWidth - PADDING) / (ICON_W + PADDING));
+        const col = index % cols;
+        const row = Math.floor(index / cols);
+        return {
+            x: PADDING + col * (ICON_W + PADDING),
+            y: PADDING + row * (ICON_H + PADDING)
+        };
     }
 
     function render() {
@@ -34,21 +69,14 @@ const DesktopIcons = (() => {
             return a.name.localeCompare(b.name);
         });
 
-        const padding = 16;
-        const iconW = 80;
-        const iconH = 90;
-        const cols = Math.floor((window.innerWidth - padding) / (iconW + padding));
-
         entries.forEach((entry, i) => {
-            const col = i % cols;
-            const row = Math.floor(i / cols);
-            const x = padding + col * (iconW + padding);
-            const y = padding + row * (iconH + padding);
+            const pos = positions[entry.name] || getDefaultPosition(entry.name, i);
 
             const el = document.createElement('div');
             el.className = 'desktop-icon';
+            el.dataset.name = entry.name;
             el.style.cssText = `
-                position:absolute;left:${x}px;top:${y}px;width:${iconW}px;
+                position:absolute;left:${pos.x}px;top:${pos.y}px;width:${ICON_W}px;
                 padding:8px;border-radius:6px;cursor:pointer;text-align:center;
                 transition:background 0.12s;user-select:none;
             `;
@@ -61,8 +89,7 @@ const DesktopIcons = (() => {
                 <div style="font-size:12px;word-break:break-all;line-height:1.3;color:white;text-shadow:0 1px 4px rgba(0,0,0,0.9),0 0px 8px rgba(0,0,0,0.5);">${entry.name}</div>
             `;
 
-            el.addEventListener('mouseenter', () => el.style.background = 'rgba(255,255,255,0.1)');
-            el.addEventListener('mouseleave', () => el.style.background = 'transparent');
+            makeDraggable(el, entry.name);
 
             el.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
@@ -104,9 +131,60 @@ const DesktopIcons = (() => {
         });
     }
 
+    function makeDraggable(el, name) {
+        let isDragging = false;
+        let startX, startY, origX, origY;
+
+        el.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            if (e.target.closest('button')) return;
+
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            origX = parseInt(el.style.left) || 0;
+            origY = parseInt(el.style.top) || 0;
+
+            el.style.transition = 'none';
+            el.style.zIndex = '9999';
+            el.style.opacity = '0.85';
+
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+
+            const newX = Math.max(0, Math.min(window.innerWidth - ICON_W, origX + dx));
+            const newY = Math.max(0, Math.min(window.innerHeight - 100, origY + dy));
+
+            el.style.left = newX + 'px';
+            el.style.top = newY + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!isDragging) return;
+            isDragging = false;
+
+            el.style.transition = 'background 0.12s';
+            el.style.zIndex = '';
+            el.style.opacity = '';
+
+            const x = parseInt(el.style.left);
+            const y = parseInt(el.style.top);
+
+            positions[name] = { x, y };
+            savePositions();
+        });
+    }
+
     function renderRecycleBin() {
         const el = document.createElement('div');
         el.className = 'desktop-icon';
+        el.dataset.name = '$Recycle.Bin';
         el.style.cssText = `
             position:absolute;left:16px;top:16px;width:80px;
             padding:8px;border-radius:6px;cursor:pointer;text-align:center;
@@ -120,6 +198,8 @@ const DesktopIcons = (() => {
             <div style="font-size:32px;margin-bottom:4px;">${isEmpty ? RECYCLE_BIN_ICON : RECYCLE_BIN_ICON.replace('#888', '#FF6B6B')}</div>
             <div style="font-size:12px;word-break:break-all;line-height:1.3;color:white;text-shadow:0 1px 4px rgba(0,0,0,0.9),0 0px 8px rgba(0,0,0,0.5);">Recycle Bin</div>
         `;
+
+        makeDraggable(el, '$Recycle.Bin');
 
         el.addEventListener('mouseenter', () => el.style.background = 'rgba(255,255,255,0.1)');
         el.addEventListener('mouseleave', () => el.style.background = 'transparent');
@@ -292,6 +372,11 @@ const DesktopIcons = (() => {
         const oldName = path[path.length - 1];
         const newName = prompt('Enter new name:', oldName);
         if (newName && newName !== oldName) {
+            if (positions[oldName]) {
+                positions[newName] = positions[oldName];
+                delete positions[oldName];
+                savePositions();
+            }
             FileSystem.renameItem(path, newName);
             render();
         }
@@ -301,6 +386,8 @@ const DesktopIcons = (() => {
         const name = path[path.length - 1];
         if (confirm(`Delete "${name}"?`)) {
             FileSystem.deleteItem(path);
+            delete positions[name];
+            savePositions();
             render();
         }
     }
@@ -312,6 +399,14 @@ const DesktopIcons = (() => {
             name = `New Folder (${i++})`;
         }
         FileSystem.createFolder(DESKTOP_PATH, name);
+        const entries = FileSystem.getChildren(DESKTOP_PATH);
+        const cols = Math.floor((window.innerWidth - PADDING) / (ICON_W + PADDING));
+        const idx = entries.length - 1;
+        positions[name] = {
+            x: PADDING + (idx % cols) * (ICON_W + PADDING),
+            y: PADDING + Math.floor(idx / cols) * (ICON_H + PADDING)
+        };
+        savePositions();
         render();
     }
 
@@ -322,6 +417,14 @@ const DesktopIcons = (() => {
             name = `New Text Document (${i++}).txt`;
         }
         FileSystem.createFile(DESKTOP_PATH, name, '', 'txt');
+        const entries = FileSystem.getChildren(DESKTOP_PATH);
+        const cols = Math.floor((window.innerWidth - PADDING) / (ICON_W + PADDING));
+        const idx = entries.length - 1;
+        positions[name] = {
+            x: PADDING + (idx % cols) * (ICON_W + PADDING),
+            y: PADDING + Math.floor(idx / cols) * (ICON_H + PADDING)
+        };
+        savePositions();
         render();
     }
 

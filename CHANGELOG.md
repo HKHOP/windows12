@@ -4,6 +4,13 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.3780] - 2026-08-30
+
+### Added
+- Desktop icons are freely draggable
+- Icon positions saved to /system/desktop-layout.json
+- Positions persist across sessions
+
 ## [12.0.3770] - 2026-08-30
 
 ### Changed

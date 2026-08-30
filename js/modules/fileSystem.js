@@ -17,7 +17,8 @@ const FileSystem = (() => {
                             type: 'folder',
                             name: '$Recycle.Bin',
                             children: {}
-                        }
+                        },
+                        'desktop-layout.json': { type: 'file', name: 'desktop-layout.json', content: '{}', ext: 'json', modified: Date.now() }
                     }
                 },
                 'users': {
