@@ -53,22 +53,40 @@ const SystemConfig = (() => {
         const root = document.documentElement;
         root.style.setProperty('--accent-color', config.accentColor);
 
+        const isDark = config.darkMode;
+        root.setAttribute('data-theme', isDark ? 'dark' : 'light');
+
         const taskbar = document.getElementById('taskbar');
         if (taskbar) {
-            taskbar.style.background = `rgba(32, 32, 32, ${config.taskbarOpacity / 100})`;
+            const opacity = config.taskbarOpacity / 100;
+            taskbar.style.background = isDark
+                ? `rgba(32, 32, 32, ${opacity})`
+                : `rgba(240, 240, 240, ${opacity})`;
         }
 
         const desktop = document.getElementById('desktop');
         if (desktop) {
-            const wallpapers = {
-                gradient: 'linear-gradient(135deg, #0a1628 0%, #1a1a3e 30%, #2d1b4e 60%, #0a1628 100%)',
-                blue: 'linear-gradient(135deg, #001a33 0%, #003366 50%, #001a33 100%)',
-                purple: 'linear-gradient(135deg, #1a0033 0%, #4a0080 50%, #1a0033 100%)',
-                green: 'linear-gradient(135deg, #001a00 0%, #004d00 50%, #001a00 100%)',
-                sunset: 'linear-gradient(135deg, #1a0a00 0%, #663300 30%, #cc6600 60%, #1a0a00 100%)',
-                solid: '#1a1a2e'
-            };
-            desktop.style.background = wallpapers[config.backgroundStyle] || wallpapers.gradient;
+            if (isDark) {
+                const wallpapers = {
+                    gradient: 'linear-gradient(135deg, #0a1628 0%, #1a1a3e 30%, #2d1b4e 60%, #0a1628 100%)',
+                    blue: 'linear-gradient(135deg, #001a33 0%, #003366 50%, #001a33 100%)',
+                    purple: 'linear-gradient(135deg, #1a0033 0%, #4a0080 50%, #1a0033 100%)',
+                    green: 'linear-gradient(135deg, #001a00 0%, #004d00 50%, #001a00 100%)',
+                    sunset: 'linear-gradient(135deg, #1a0a00 0%, #663300 30%, #cc6600 60%, #1a0a00 100%)',
+                    solid: '#1a1a2e'
+                };
+                desktop.style.background = wallpapers[config.backgroundStyle] || wallpapers.gradient;
+            } else {
+                const wallpapers = {
+                    gradient: 'linear-gradient(135deg, #e8f0fe 0%, #d0e0f5 30%, #c5d5f0 60%, #e8f0fe 100%)',
+                    blue: 'linear-gradient(135deg, #e0f0ff 0%, #b0d4f1 50%, #e0f0ff 100%)',
+                    purple: 'linear-gradient(135deg, #f0e8ff 0%, #d5c0f0 50%, #f0e8ff 100%)',
+                    green: 'linear-gradient(135deg, #e8f5e8 0%, #c0e0c0 50%, #e8f5e8 100%)',
+                    sunset: 'linear-gradient(135deg, #fff5e8 0%, #f0d5b0 50%, #fff5e8 100%)',
+                    solid: '#e8e8f0'
+                };
+                desktop.style.background = wallpapers[config.backgroundStyle] || wallpapers.gradient;
+            }
         }
 
         if (onConfigChange) onConfigChange(config);

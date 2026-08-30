@@ -35,7 +35,7 @@
     background: var(--window-header);
     padding: 0 8px;
     flex-shrink: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid var(--window-border);
 }
 
 .window-header.dragging {
@@ -89,7 +89,7 @@
 }
 
 .window-controls button:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--hover-bg);
 }
 
 .window-controls .close-btn:hover {

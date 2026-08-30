@@ -86,6 +86,20 @@ const Settings = (() => {
             <h2 style="font-size:28px;font-weight:600;margin-bottom:24px;">Personalization</h2>
 
             <div class="settings-section" style="margin-bottom:24px;">
+                <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Theme</h3>
+                <div style="display:flex;gap:12px;">
+                    <div class="theme-option" data-theme="dark" style="flex:1;padding:16px;border-radius:8px;cursor:pointer;text-align:center;background:${config.darkMode ? 'var(--accent-color)' : 'rgba(255,255,255,0.04)'};border:1px solid ${config.darkMode ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'};">
+                        <div style="font-size:28px;margin-bottom:4px;">🌙</div>
+                        <div style="font-size:13px;">Dark</div>
+                    </div>
+                    <div class="theme-option" data-theme="light" style="flex:1;padding:16px;border-radius:8px;cursor:pointer;text-align:center;background:${!config.darkMode ? 'var(--accent-color)' : 'rgba(255,255,255,0.04)'};border:1px solid ${!config.darkMode ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'};">
+                        <div style="font-size:28px;margin-bottom:4px;">☀️</div>
+                        <div style="font-size:13px;">Light</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section" style="margin-bottom:24px;">
                 <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Accent Color</h3>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                     ${accentOption('#0078D4', 'Blue')}
@@ -126,14 +140,14 @@ const Settings = (() => {
             <div class="settings-section" style="margin-bottom:24px;">
                 <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">User Name</h3>
                 <div style="display:flex;gap:8px;">
-                    <input type="text" class="username-input" value="${config.userName}" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:8px 12px;color:white;font-size:14px;flex:1;max-width:300px;outline:none;">
+                    <input type="text" class="username-input" value="${config.userName}" style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;padding:8px 12px;color:var(--text-primary);font-size:14px;flex:1;max-width:300px;outline:none;">
                     <button class="username-save" style="background:var(--accent-color);border:none;border-radius:6px;padding:8px 16px;color:white;cursor:pointer;font-size:14px;">Save</button>
                 </div>
             </div>
 
             <div class="settings-section">
                 <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Config File</h3>
-                <p style="font-size:13px;color:#888;margin-bottom:8px;">Edit config.json in File Explorer > Documents > System to change settings directly.</p>
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">Edit config.json in File Explorer > Documents > System to change settings directly.</p>
                 <button class="reset-btn" style="background:rgba(255,80,80,0.2);border:1px solid rgba(255,80,80,0.3);border-radius:6px;padding:8px 16px;color:#ff6666;cursor:pointer;font-size:14px;">Reset to Defaults</button>
             </div>
         `;
@@ -226,6 +240,14 @@ const Settings = (() => {
     }
 
     function setupPersonalizationEvents() {
+        win.element.querySelectorAll('.theme-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                const isDark = opt.dataset.theme === 'dark';
+                SystemConfig.set('darkMode', isDark);
+                renderPersonalization(win.element.querySelector('.settings-content'));
+            });
+        });
+
         win.element.querySelectorAll('.accent-option').forEach(opt => {
             opt.addEventListener('click', () => {
                 SystemConfig.set('accentColor', opt.dataset.color);

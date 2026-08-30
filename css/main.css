@@ -7,7 +7,6 @@
 :root {
     --accent-color: #0078D4;
     --accent-hover: #1a86d9;
-    --taskbar-bg: rgba(32, 32, 32, 0.85);
     --window-bg: #202020;
     --window-header: #2d2d2d;
     --window-border: #3d3d3d;
@@ -18,6 +17,17 @@
     --start-menu-bg: rgba(44, 44, 44, 0.95);
     --radius: 8px;
     --taskbar-height: 48px;
+}
+
+[data-theme="light"] {
+    --window-bg: #f3f3f3;
+    --window-header: #e8e8e8;
+    --window-border: #d0d0d0;
+    --text-primary: #1a1a1a;
+    --text-secondary: #666666;
+    --hover-bg: rgba(0, 0, 0, 0.05);
+    --active-bg: rgba(0, 0, 0, 0.08);
+    --start-menu-bg: rgba(243, 243, 243, 0.95);
 }
 
 html, body {

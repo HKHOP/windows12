@@ -47,7 +47,7 @@ const DesktopIcons = (() => {
 
             el.innerHTML = `
                 <div style="font-size:32px;margin-bottom:4px;">${icon}</div>
-                <div style="font-size:12px;word-break:break-all;line-height:1.3;color:white;text-shadow:0 1px 3px rgba(0,0,0,0.8);">${entry.name}</div>
+                <div style="font-size:12px;word-break:break-all;line-height:1.3;color:white;text-shadow:0 1px 4px rgba(0,0,0,0.9),0 0px 8px rgba(0,0,0,0.5);">${entry.name}</div>
             `;
 
             el.addEventListener('mouseenter', () => el.style.background = 'rgba(255,255,255,0.1)');
