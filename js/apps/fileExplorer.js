@@ -37,7 +37,7 @@ const FileExplorer = (() => {
 
     function buildSidebar() {
         const items = [
-            { name: 'Home', icon: '🏠', path: ['/'] },
+            { name: 'Home', icon: '🏠', path: ['/', 'users', 'default'] },
             { name: 'Desktop', icon: '🖥️', path: ['/', 'users', 'default', 'Desktop'] },
             { name: 'Documents', icon: '📄', path: ['/', 'users', 'default', 'Documents'] },
             { name: 'Downloads', icon: '⬇️', path: ['/', 'users', 'default', 'Downloads'] },
@@ -45,14 +45,38 @@ const FileExplorer = (() => {
             { name: 'Music', icon: '🎵', path: ['/', 'users', 'default', 'Music'] },
             { name: 'Videos', icon: '🎬', path: ['/', 'users', 'default', 'Videos'] },
             { name: 'Recycle Bin', icon: '🗑️', path: ['/', 'system', '$Recycle.Bin'] },
+            'separator',
+            { name: 'This PC', icon: '💻', path: ['/', 'C:'], children: [
+                { name: 'Local Disk (C:)', icon: '💿', path: ['/'] }
+            ]},
             { name: 'System', icon: '⚙️', path: ['/', 'system'] },
             { name: 'Programs Data', icon: '📦', path: ['/', 'programs data'] }
         ];
-        return items.map(i => `
-            <div class="fe-sidebar-item" style="padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background 0.12s;" data-path='${JSON.stringify(i.path)}'>
-                <span style="font-size:14px;">${i.icon}</span>${i.name}
-            </div>
-        `).join('');
+        return items.map(i => {
+            if (i === 'separator') return '<div style="height:1px;background:rgba(255,255,255,0.06);margin:6px 0;"></div>';
+            if (i.children) {
+                return `
+                    <div class="fe-sidebar-section">
+                        <div class="fe-sidebar-item" style="padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background 0.12s;font-weight:500;" data-path='${JSON.stringify(i.path)}'>
+                            <span style="font-size:14px;">${i.icon}</span>${i.name}
+                            <span style="margin-left:auto;font-size:10px;color:#666;">▶</span>
+                        </div>
+                        <div class="fe-sidebar-children" style="padding-left:16px;display:none;">
+                            ${i.children.map(c => `
+                                <div class="fe-sidebar-item" style="padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background 0.12s;" data-path='${JSON.stringify(c.path)}'>
+                                    <span style="font-size:14px;">${c.icon}</span>${c.name}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            return `
+                <div class="fe-sidebar-item" style="padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background 0.12s;" data-path='${JSON.stringify(i.path)}'>
+                    <span style="font-size:14px;">${i.icon}</span>${i.name}
+                </div>
+            `;
+        }).join('');
     }
 
     function navigate(win, path, addToHistory = true) {
@@ -72,8 +96,9 @@ const FileExplorer = (() => {
         const forwardBtn = win.element.querySelector('.fe-forward');
         const upBtn = win.element.querySelector('.fe-up');
 
-        pathEl.textContent = path.join(' > ');
-        pathText.textContent = path.join(' > ');
+        const displayPath = formatPath(path);
+        pathEl.textContent = displayPath;
+        pathText.textContent = displayPath;
         backBtn.disabled = historyIndex <= 0;
         forwardBtn.disabled = historyIndex >= pathHistory.length - 1;
         upBtn.disabled = path.length <= 1;
@@ -164,9 +189,23 @@ const FileExplorer = (() => {
             'Projects': '📂', 'New Folder': '📁',
             'system': '⚙️', 'users': '👤', 'default': '👤',
             'programs data': '📦', 'Wallpapers': '🖼️', 'Screenshots': '📸',
-            '$Recycle.Bin': '🗑️'
+            '$Recycle.Bin': '🗑️', 'C:': '💿'
         };
         return icons[name] || '📁';
+    }
+
+    function formatPath(path) {
+        if (path.length === 0) return 'This PC';
+        if (path.length === 1 && path[0] === '/') return 'Local Disk (C:)';
+        if (path.join('/') === '/users/default') return 'Home';
+        const nameMap = {
+            'users': 'Users', 'default': 'User', 'system': 'System',
+            'programs data': 'Programs Data', '$Recycle.Bin': 'Recycle Bin'
+        };
+        return path.map((p, i) => {
+            if (i === 0) return 'Local Disk (C:)';
+            return nameMap[p] || p;
+        }).join(' > ');
     }
 
     function getFileIcon(ext) {
@@ -317,7 +356,7 @@ const FileExplorer = (() => {
     function launch() {
         const win = WindowManager.createWindow('fileExplorer', 'File Explorer', icon, getContent(), { width: 800, height: 500 });
 
-        navigate(win, ['/']);
+        navigate(win, ['/', 'users', 'default']);
 
         win.element.querySelector('.fe-back').addEventListener('click', () => {
             if (historyIndex > 0) {
@@ -341,7 +380,15 @@ const FileExplorer = (() => {
         });
 
         win.element.querySelectorAll('.fe-sidebar-item').forEach(item => {
-            item.addEventListener('click', () => {
+            item.addEventListener('click', (e) => {
+                const childrenEl = item.nextElementSibling;
+                if (childrenEl && childrenEl.classList.contains('fe-sidebar-children')) {
+                    const isExpanded = childrenEl.style.display !== 'none';
+                    childrenEl.style.display = isExpanded ? 'none' : 'block';
+                    const arrow = item.querySelector('span:last-child');
+                    if (arrow) arrow.textContent = isExpanded ? '▶' : '▼';
+                    return;
+                }
                 const path = JSON.parse(item.dataset.path);
                 navigate(win, path);
             });

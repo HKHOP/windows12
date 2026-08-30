@@ -4,6 +4,15 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.3760] - 2026-08-30
+
+### Added
+- This PC in sidebar with expandable Local Disk (C:)
+
+### Changed
+- Home button now shows user home directory (/users/default)
+- Path bar shows friendly names (Home, Local Disk (C:), etc.)
+
 ## [12.0.3750] - 2026-08-30
 
 ### Added
