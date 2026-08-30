@@ -4,7 +4,17 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
-## [12.0.3910] - 2026-08-30
+## [12.0.3920] - 2026-08-30
+
+### Added
+- Print Screen key captures a screenshot with a white flash animation
+- Screenshot saved to Pictures folder with timestamp filename
+- Toast notification shown on capture with save location
+
+### Fixed
+- Photos app: clicking thumbnails now opens viewer (was querying wrong CSS class)
+- Settings: back button in System sub-pages now works (event delegation)
+- Settings: toggle switches now visually reflect on/off state
 
 ### Added
 - Running apps now show in taskbar even if not pinned (with separator from pinned apps)
