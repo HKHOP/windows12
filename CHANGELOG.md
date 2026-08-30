@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [0.1.1] - 2026-08-30
+
+### Fixed
+- Start menu pinned apps now launch their respective apps (missing AppRegistry import)
+
 ## [0.1.0] - 2026-08-30
 
 ### Added
