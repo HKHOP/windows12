@@ -12,7 +12,6 @@ const FileSystem = (() => {
                     name: 'system',
                     children: {
                         'config.json': { type: 'file', name: 'config.json', content: '{}', ext: 'json', modified: Date.now() },
-                        'readme.txt': { type: 'file', name: 'readme.txt', content: 'Windows 12 System Directory\nDo not modify system files unless you know what you are doing.', ext: 'txt', modified: Date.now() },
                         '$Recycle.Bin': {
                             type: 'folder',
                             name: '$Recycle.Bin',
@@ -32,10 +31,7 @@ const FileSystem = (() => {
                                 'Desktop': {
                                     type: 'folder',
                                     name: 'Desktop',
-                                    children: {
-                                        'notes.txt': { type: 'file', name: 'notes.txt', content: 'Welcome to Windows 12!\nThis is your desktop.', ext: 'txt', modified: Date.now() },
-                                        'todo.txt': { type: 'file', name: 'todo.txt', content: '- Build OS\n- Add features\n- Have fun', ext: 'txt', modified: Date.now() }
-                                    }
+                                    children: {}
                                 },
                                 'Documents': {
                                     type: 'folder',
@@ -44,22 +40,14 @@ const FileSystem = (() => {
                                         'Projects': {
                                             type: 'folder',
                                             name: 'Projects',
-                                            children: {
-                                                'readme.txt': { type: 'file', name: 'readme.txt', content: 'Project files go here.', ext: 'txt', modified: Date.now() }
-                                            }
-                                        },
-                                        'report.txt': { type: 'file', name: 'report.txt', content: 'Quarterly Report\n================\n\nRevenue: $1,000,000\nExpenses: $500,000\nProfit: $500,000', ext: 'txt', modified: Date.now() },
-                                        'budget.txt': { type: 'file', name: 'budget.txt', content: 'Budget Plan\n-----------\nMarketing: $10,000\nDevelopment: $25,000\nOperations: $15,000', ext: 'txt', modified: Date.now() },
-                                        'meeting-notes.txt': { type: 'file', name: 'meeting-notes.txt', content: 'Meeting Notes - Aug 30\n======================\n- Discussed roadmap\n- Assigned tasks\n- Next meeting: Friday', ext: 'txt', modified: Date.now() }
+                                            children: {}
+                                        }
                                     }
                                 },
                                 'Downloads': {
                                     type: 'folder',
                                     name: 'Downloads',
-                                    children: {
-                                        'setup-guide.txt': { type: 'file', name: 'setup-guide.txt', content: 'Setup Guide\n===========\n1. Extract files\n2. Run installer\n3. Follow prompts', ext: 'txt', modified: Date.now() },
-                                        'changelog.txt': { type: 'file', name: 'changelog.txt', content: 'v1.0.0 - Initial release\nv1.0.1 - Bug fixes\nv1.1.0 - New features', ext: 'txt', modified: Date.now() }
-                                    }
+                                    children: {}
                                 },
                                 'Pictures': {
                                     type: 'folder',
