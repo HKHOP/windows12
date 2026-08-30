@@ -4,6 +4,20 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [0.2.0] - 2026-08-30
+
+### Added
+- Virtual filesystem module with full CRUD operations
+- Default folders: Desktop, Documents, Downloads, Pictures, Music, Videos
+- Sample text files in Desktop, Documents, and Downloads
+- File Explorer: create new folder, create new text file
+- File Explorer: rename and delete files/folders via right-click
+- File Explorer: back/forward/up navigation with history
+- File Explorer: file properties window
+- File Explorer: open text files with Notepad
+- Notepad: Ctrl+S to save, File menu with Save/Save As
+- Notepad: asterisk (*) indicator for unsaved changes
+
 ## [0.1.2] - 2026-08-30
 
 ### Added
