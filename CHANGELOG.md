@@ -2,7 +2,7 @@
 
 All notable changes to Windows 12 will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
+Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
 ## [0.1.0] - 2026-08-30
 

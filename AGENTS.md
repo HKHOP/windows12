@@ -31,7 +31,7 @@ A web-based OS simulation built with vanilla HTML, CSS, and JavaScript modules. 
 ## Workflow
 - Always commit and push changes after completing a task.
 - Use descriptive commit messages with conventional commits format (e.g. `feat:`, `fix:`, `chore:`).
-- Update CHANGELOG.md with a new entry before committing (never modify older entries).
+- Update CHANGELOG.md with a new entry before committing (never modify older entries). Only use these sections: **Added**, **Removed**, **Changed**, **Fixed**.
 
 ## Running
 Serve `index.html` statically via any web server (e.g. GitHub Pages).
