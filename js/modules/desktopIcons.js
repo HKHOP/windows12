@@ -70,7 +70,7 @@ const DesktopIcons = (() => {
         });
 
         entries.forEach((entry, i) => {
-            const pos = positions[entry.name] || getDefaultPosition(entry.name, i);
+            const pos = positions[entry.name] || getDefaultPosition(entry.name, i + 1);
 
             const el = document.createElement('div');
             el.className = 'desktop-icon';
@@ -194,8 +194,10 @@ const DesktopIcons = (() => {
         const el = document.createElement('div');
         el.className = 'desktop-icon';
         el.dataset.name = '$Recycle.Bin';
+
+        const pos = positions['$Recycle.Bin'] || getDefaultPosition('$Recycle.Bin', 0);
         el.style.cssText = `
-            position:absolute;left:16px;top:16px;width:80px;
+            position:absolute;left:${pos.x}px;top:${pos.y}px;width:80px;
             padding:8px;border-radius:6px;cursor:pointer;text-align:center;
             transition:background 0.12s;user-select:none;
         `;
