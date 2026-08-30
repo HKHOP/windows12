@@ -2,6 +2,7 @@ import WindowManager from '../modules/windowManager.js';
 import ContextMenu from '../modules/contextMenu.js';
 import FileSystem from '../modules/fileSystem.js';
 import UserActivity from '../modules/userActivity.js';
+import SystemConfig from '../modules/systemConfig.js';
 
 const FileExplorer = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 7V17C3 18.1 3.9 19 5 19H19C20.1 19 21 18.1 21 17V9C21 7.9 20.1 7 19 7H11L9 5H5C3.9 5 3 5.9 3 7Z" fill="#FFC107"/><path d="M3 7H21V9H3V7Z" fill="#FFD54F"/></svg>`;
@@ -235,6 +236,8 @@ const FileExplorer = (() => {
         const name = itemPath[itemPath.length - 1];
         UserActivity.trackFileOpen(itemPath, name);
 
+        const isConfigFile = itemPath.join('/') === SystemConfig.CONFIG_PATH;
+
         const notepadContent = `
             <div style="display:flex;flex-direction:column;height:100%;">
                 <div style="display:flex;gap:2px;padding:4px 8px;background:rgba(0,0,0,0.2);border-bottom:1px solid rgba(255,255,255,0.06);">
@@ -242,6 +245,7 @@ const FileExplorer = (() => {
                     <button style="background:none;border:none;color:#ccc;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:13px;" onmouseenter="this.style.background='rgba(255,255,255,0.08)'" onmouseleave="this.style.background='none'">Edit</button>
                     <button style="background:none;border:none;color:#ccc;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:13px;" onmouseenter="this.style.background='rgba(255,255,255,0.08)'" onmouseleave="this.style.background='none'">View</button>
                 </div>
+                ${isConfigFile ? '<div style="padding:4px 12px;background:rgba(0,120,212,0.15);border-bottom:1px solid rgba(0,120,212,0.2);font-size:12px;color:#4fc3f7;">System config - Ctrl+S to apply changes</div>' : ''}
                 <textarea class="notepad-textarea" style="flex:1;background:transparent;border:none;color:#ddd;padding:12px 16px;resize:none;outline:none;font-family:'Consolas','Courier New',monospace;font-size:14px;line-height:1.6;" spellcheck="false">${escapeHtml(content)}</textarea>
                 <div style="padding:4px 12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;font-size:12px;color:#666;">
                     <span class="notepad-status">Ln 1, Col 1</span>
@@ -260,16 +264,23 @@ const FileExplorer = (() => {
         textarea.addEventListener('click', () => updateStatus(textarea, status));
         textarea.addEventListener('keyup', () => updateStatus(textarea, status));
 
-        // Save on Ctrl+S
         textarea.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.key === 's') {
                 e.preventDefault();
                 FileSystem.writeFile(itemPath, textarea.value);
                 win.element.querySelector('.window-title').textContent = `${name} - Notepad`;
+
+                if (isConfigFile) {
+                    try {
+                        const parsed = JSON.parse(textarea.value);
+                        SystemConfig.setMultiple(parsed);
+                    } catch (err) {
+                        alert('Invalid JSON config. Changes not applied.');
+                    }
+                }
             }
         });
 
-        // Update title when content changes
         textarea.addEventListener('input', () => {
             win.element.querySelector('.window-title').textContent = `*${name} - Notepad`;
         });

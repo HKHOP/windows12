@@ -4,6 +4,7 @@ import StartMenu from './modules/startMenu.js';
 import ContextMenu from './modules/contextMenu.js';
 import FileSystem from './modules/fileSystem.js';
 import UserActivity from './modules/userActivity.js';
+import SystemConfig from './modules/systemConfig.js';
 import Settings from './apps/settings.js';
 import Notepad from './apps/notepad.js';
 import FileExplorer from './apps/fileExplorer.js';
@@ -15,6 +16,7 @@ AppRegistry.register('fileExplorer', FileExplorer);
 document.addEventListener('DOMContentLoaded', () => {
     FileSystem.init();
     UserActivity.init();
+    SystemConfig.init();
     WindowManager.init();
     Taskbar.init();
     StartMenu.init();

@@ -156,4 +156,6 @@ const FileSystem = (() => {
     return { init, getNode, getChildren, createFolder, createFile, readFile, writeFile, deleteItem, renameItem, itemExists, isFolder };
 })();
 
+window._FileSystem = FileSystem;
+
 export default FileSystem;
