@@ -88,7 +88,6 @@ const Taskbar = (() => {
         loadPinnedApps();
         updateClock();
         clockInterval = setInterval(updateClock, 1000);
-        setupStartButton();
         renderTaskbarButtons();
     }
 
