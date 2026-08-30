@@ -4,6 +4,21 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [0.4.0] - 2026-08-30
+
+### Added
+- SystemConfig module for persistent system settings
+- Working Personalization page in Settings
+- Accent color picker (12 colors)
+- Background wallpaper selector (6 styles)
+- Taskbar opacity slider
+- User name setting
+- Reset to defaults button
+- Config file at Documents/System/config.json
+- Config file editable from File Explorer
+- Editing config.json in Notepad applies changes on Ctrl+S
+- Config badge banner when editing system config
+
 ## [0.3.0] - 2026-08-30
 
 ### Added
