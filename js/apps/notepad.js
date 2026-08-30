@@ -23,7 +23,7 @@ const Notepad = (() => {
                     <span class="notepad-find-count" style="font-size:12px;color:#888;min-width:60px;"></span>
                     <button class="notepad-find-close" style="background:none;border:none;color:#888;cursor:pointer;font-size:16px;padding:2px 6px;">&times;</button>
                 </div>
-                <textarea class="notepad-textarea" style="flex:1;background:transparent;border:none;color:#ddd;padding:12px 16px;resize:none;outline:none;font-family:'Consolas','Courier New',monospace;font-size:14px;line-height:1.6;" placeholder="Start typing..." spellcheck="false"></textarea>
+                <textarea class="notepad-textarea" style="flex:1;background:transparent;border:none;color:#ddd;padding:12px 16px;resize:none;outline:none;font-family:'Consolas','Courier New',monospace;font-size:14px;line-height:1.6;white-space:pre;overflow-x:auto;word-break:normal;" placeholder="Start typing..." spellcheck="false"></textarea>
                 <div style="padding:4px 12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;font-size:12px;color:#666;">
                     <span class="notepad-status">Ln 1, Col 1</span>
                     <div style="display:flex;gap:12px;">
@@ -76,6 +76,14 @@ const Notepad = (() => {
                 e.preventDefault();
                 textarea.select();
             }
+            if (e.ctrlKey && e.key === 'z') {
+                e.preventDefault();
+                document.execCommand('undo');
+            }
+            if (e.ctrlKey && e.key === 'y') {
+                e.preventDefault();
+                document.execCommand('redo');
+            }
         });
 
         setupMenus(win, textarea, titleEl, title, filePath, () => wordWrap, (v) => { wordWrap = v; }, () => zoomLevel, (v) => { zoomLevel = v; });
@@ -90,7 +98,11 @@ const Notepad = (() => {
 
                 if (menuType === 'file') {
                     items = [
-                        { label: 'New', icon: '📄', action: () => { textarea.value = ''; titleEl.textContent = 'Untitled - Notepad'; } },
+                        { label: 'New', icon: '📄', action: () => {
+                            textarea.value = '';
+                            titleEl.textContent = 'Untitled - Notepad';
+                        }},
+                        { label: 'Open...', icon: '📂', action: () => openFile(win, textarea, titleEl) },
                         'separator',
                         { label: 'Save (Ctrl+S)', icon: '💾', action: () => saveFile(filePath, textarea, titleEl, defaultTitle) },
                         { label: 'Save As...', icon: '💾', action: () => saveAsNewFile(textarea, titleEl, defaultTitle) },
@@ -102,14 +114,58 @@ const Notepad = (() => {
                         { label: 'Undo (Ctrl+Z)', icon: '↶', action: () => document.execCommand('undo') },
                         { label: 'Redo (Ctrl+Y)', icon: '↷', action: () => document.execCommand('redo') },
                         'separator',
-                        { label: 'Cut (Ctrl+X)', icon: '✂', action: () => document.execCommand('cut') },
-                        { label: 'Copy (Ctrl+C)', icon: '📋', action: () => document.execCommand('copy') },
-                        { label: 'Paste (Ctrl+V)', icon: '📋', action: () => document.execCommand('paste') },
-                        { label: 'Delete (Del)', icon: '🗑', action: () => document.execCommand('delete') },
+                        { label: 'Cut (Ctrl+X)', icon: '✂', action: async () => {
+                            const start = textarea.selectionStart;
+                            const end = textarea.selectionEnd;
+                            if (start !== end) {
+                                const text = textarea.value.substring(start, end);
+                                try { await navigator.clipboard.writeText(text); } catch {}
+                                textarea.value = textarea.value.substring(0, start) + textarea.value.substring(end);
+                                textarea.selectionStart = textarea.selectionEnd = start;
+                                textarea.dispatchEvent(new Event('input'));
+                            }
+                        }},
+                        { label: 'Copy (Ctrl+C)', icon: '📋', action: async () => {
+                            const text = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
+                            if (text) {
+                                try { await navigator.clipboard.writeText(text); } catch {}
+                            }
+                        }},
+                        { label: 'Paste (Ctrl+V)', icon: '📋', action: async () => {
+                            try {
+                                const text = await navigator.clipboard.readText();
+                                const start = textarea.selectionStart;
+                                const end = textarea.selectionEnd;
+                                textarea.value = textarea.value.substring(0, start) + text + textarea.value.substring(end);
+                                textarea.selectionStart = textarea.selectionEnd = start + text.length;
+                                textarea.dispatchEvent(new Event('input'));
+                            } catch {}
+                        }},
+                        { label: 'Delete (Del)', icon: '🗑', action: () => {
+                            const start = textarea.selectionStart;
+                            const end = textarea.selectionEnd;
+                            if (start !== end) {
+                                textarea.value = textarea.value.substring(0, start) + textarea.value.substring(end);
+                                textarea.selectionStart = textarea.selectionEnd = start;
+                            } else if (start < textarea.value.length) {
+                                textarea.value = textarea.value.substring(0, start) + textarea.value.substring(start + 1);
+                                textarea.selectionStart = textarea.selectionEnd = start;
+                            }
+                            textarea.dispatchEvent(new Event('input'));
+                        }},
+                        'separator',
+                        { label: 'Find (Ctrl+F)', icon: '🔍', action: () => toggleFindBar(win) },
+                        { label: 'Replace (Ctrl+H)', icon: '🔄', action: () => toggleFindBar(win) },
                         'separator',
                         { label: 'Select All (Ctrl+A)', icon: '☐', action: () => textarea.select() },
-                        { label: 'Find (Ctrl+F)', icon: '🔍', action: () => toggleFindBar(win) },
-                        { label: 'Replace (Ctrl+H)', icon: '🔄', action: () => toggleFindBar(win) }
+                        { label: 'Time/Date (F5)', icon: '🕐', action: () => {
+                            const now = new Date();
+                            const ts = now.toLocaleTimeString() + ' ' + now.toLocaleDateString();
+                            const start = textarea.selectionStart;
+                            textarea.value = textarea.value.substring(0, start) + ts + textarea.value.substring(textarea.selectionEnd);
+                            textarea.selectionStart = textarea.selectionEnd = start + ts.length;
+                            textarea.dispatchEvent(new Event('input'));
+                        }}
                     ];
                 } else if (menuType === 'view') {
                     items = [
@@ -187,17 +243,13 @@ const Notepad = (() => {
 
             if (matches.length > 0) {
                 currentMatch = 0;
-                highlightMatch(textarea, matches[0], query.length);
+                textarea.setSelectionRange(matches[0], matches[0] + query.length);
+                textarea.focus();
                 findCount.textContent = `1 of ${matches.length}`;
             } else {
                 currentMatch = -1;
                 findCount.textContent = 'No matches';
             }
-        }
-
-        function highlightMatch(textarea, start, length) {
-            textarea.focus();
-            textarea.setSelectionRange(start, start + length);
         }
 
         findInput.addEventListener('input', findText);
@@ -206,14 +258,16 @@ const Notepad = (() => {
         findNext.addEventListener('click', () => {
             if (matches.length === 0) return;
             currentMatch = (currentMatch + 1) % matches.length;
-            highlightMatch(textarea, matches[currentMatch], findInput.value.length);
+            textarea.setSelectionRange(matches[currentMatch], matches[currentMatch] + findInput.value.length);
+            textarea.focus();
             findCount.textContent = `${currentMatch + 1} of ${matches.length}`;
         });
 
         findPrev.addEventListener('click', () => {
             if (matches.length === 0) return;
             currentMatch = (currentMatch - 1 + matches.length) % matches.length;
-            highlightMatch(textarea, matches[currentMatch], findInput.value.length);
+            textarea.setSelectionRange(matches[currentMatch], matches[currentMatch] + findInput.value.length);
+            textarea.focus();
             findCount.textContent = `${currentMatch + 1} of ${matches.length}`;
         });
 
@@ -229,6 +283,37 @@ const Notepad = (() => {
                 win.element.querySelector('.notepad-find-bar').style.display = 'none';
             }
         });
+    }
+
+    function openFile(win, textarea, titleEl) {
+        const fileList = FileSystem.list(['/', 'users', 'default', 'Documents']);
+        const files = Object.keys(fileList).filter(name => {
+            const ext = name.split('.').pop().toLowerCase();
+            return ['txt', 'log', 'md', 'json', 'js', 'html', 'css', 'csv'].includes(ext);
+        });
+
+        if (files.length === 0) {
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:var(--window-bg);border:1px solid var(--window-border);border-radius:8px;padding:10px 20px;font-size:13px;color:var(--text-primary);box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:99999;';
+            toast.textContent = 'No text files found in Documents';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
+            return;
+        }
+
+        const items = files.map(name => ({
+            label: name,
+            icon: '📄',
+            action: () => {
+                const path = ['/', 'users', 'default', 'Documents', name];
+                const content = FileSystem.readFile(path) || '';
+                textarea.value = content;
+                titleEl.textContent = `${name} - Notepad`;
+                textarea.dispatchEvent(new Event('input'));
+            }
+        }));
+
+        ContextMenu.show(win.element.getBoundingClientRect().left + 20, win.element.getBoundingClientRect().top + 40, items);
     }
 
     function saveFile(filePath, textarea, titleEl, defaultTitle) {

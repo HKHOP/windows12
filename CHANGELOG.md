@@ -12,6 +12,11 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 - Pin/unpin apps from Start menu: right-click pinned app to unpin, right-click All Apps to pin
 - Pinned apps persist in localStorage for both taskbar and Start menu
 - App metadata registry with icons for all apps
+- Paint "Save" now opens a file explorer dialog to choose destination folder and file type (PNG, JPEG, WebP, BMP)
+- Notepad: File > Open to browse text files from Documents
+- Notepad: Edit > Time/Date (F5) inserts current timestamp
+- Notepad: Edit > Cut/Copy/Paste now work properly via Clipboard API
+- Notepad: Edit > Delete removes selected text
 
 ### Changed
 - Taskbar is now fully dynamic (buttons rendered from JS, not hardcoded HTML)
