@@ -52,7 +52,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const desktop = document.getElementById('desktop');
+    const taskbar = document.getElementById('taskbar');
     desktop.style.opacity = '0';
+    taskbar.style.opacity = '0';
 
     setTimeout(() => {
         const bootScreen = document.getElementById('boot-screen');
@@ -72,7 +74,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         setTimeout(() => {
                             loginScreen.remove();
                             desktop.style.transition = 'opacity 0.5s ease-out';
+                            taskbar.style.transition = 'opacity 0.5s ease-out';
                             desktop.style.opacity = '1';
+                            taskbar.style.opacity = '1';
                         }, 600);
                     }, 2000);
                 }
