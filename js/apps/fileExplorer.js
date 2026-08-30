@@ -3,6 +3,7 @@ import ContextMenu from '../modules/contextMenu.js';
 import FileSystem from '../modules/fileSystem.js';
 import UserActivity from '../modules/userActivity.js';
 import SystemConfig from '../modules/systemConfig.js';
+import DesktopIcons from '../modules/desktopIcons.js';
 
 const FileExplorer = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 7V17C3 18.1 3.9 19 5 19H19C20.1 19 21 18.1 21 17V9C21 7.9 20.1 7 19 7H11L9 5H5C3.9 5 3 5.9 3 7Z" fill="#FFC107"/><path d="M3 7H21V9H3V7Z" fill="#FFD54F"/></svg>`;
@@ -171,6 +172,12 @@ const FileExplorer = (() => {
         return icons[ext] || '📄';
     }
 
+    function refreshIfDesktop(path) {
+        if (path.join('/').startsWith('This PC/Desktop')) {
+            DesktopIcons.render();
+        }
+    }
+
     function createNewFolder(win, path) {
         let name = 'New Folder';
         let i = 1;
@@ -179,6 +186,7 @@ const FileExplorer = (() => {
         }
         FileSystem.createFolder(path, name);
         navigate(win, path, false);
+        refreshIfDesktop(path);
     }
 
     function createNewFile(win, path) {
@@ -189,6 +197,7 @@ const FileExplorer = (() => {
         }
         FileSystem.createFile(path, name, '', 'txt');
         navigate(win, path, false);
+        refreshIfDesktop(path);
     }
 
     function renameItem(win, itemPath) {
@@ -197,6 +206,7 @@ const FileExplorer = (() => {
         if (newName && newName !== oldName) {
             FileSystem.renameItem(itemPath, newName);
             navigate(win, itemPath.slice(0, -1), false);
+            refreshIfDesktop(itemPath);
         }
     }
 
@@ -205,6 +215,7 @@ const FileExplorer = (() => {
         if (confirm(`Delete "${name}"?`)) {
             FileSystem.deleteItem(itemPath);
             navigate(win, itemPath.slice(0, -1), false);
+            refreshIfDesktop(itemPath);
         }
     }
 

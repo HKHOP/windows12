@@ -5,6 +5,7 @@ import ContextMenu from './modules/contextMenu.js';
 import FileSystem from './modules/fileSystem.js';
 import UserActivity from './modules/userActivity.js';
 import SystemConfig from './modules/systemConfig.js';
+import DesktopIcons from './modules/desktopIcons.js';
 import Settings from './apps/settings.js';
 import Notepad from './apps/notepad.js';
 import FileExplorer from './apps/fileExplorer.js';
@@ -21,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     Taskbar.init();
     StartMenu.init();
     ContextMenu.init();
+    DesktopIcons.init();
 
     WindowManager.setOnFocusChanged((appId) => {
         if (appId) {
@@ -42,24 +44,29 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTaskbarContextMenu();
     setupTaskbarIconContextMenu();
     setupWindowTitleBarContextMenu();
+
+    document.getElementById('desktop').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('desktop') || e.target === document.getElementById('windows-container')) {
+            document.querySelectorAll('.desktop-icon').forEach(d => d.style.background = 'transparent');
+        }
+    });
 });
 
 function setupDesktopContextMenu() {
     const desktop = document.getElementById('desktop');
     desktop.addEventListener('contextmenu', (e) => {
-        if (e.target.closest('.app-window')) return;
+        if (e.target.closest('.app-window') || e.target.closest('.desktop-icon')) return;
+        e.preventDefault();
         ContextMenu.show(e.clientX, e.clientY, [
-            { label: 'View', icon: '👁', action: () => {} },
-            { label: 'Sort by', icon: '↕', action: () => {} },
-            { label: 'Refresh', icon: '🔄', action: () => location.reload() },
+            { label: 'View', icon: '👁', disabled: true },
+            { label: 'Sort by', icon: '↕', disabled: true },
+            { label: 'Refresh', icon: '🔄', action: () => { DesktopIcons.render(); } },
             'separator',
-            { label: 'New', icon: '➕', action: () => {} },
+            { label: 'New folder', icon: '📁', action: () => { DesktopIcons.createNewFolder(); } },
+            { label: 'New text file', icon: '📄', action: () => { DesktopIcons.createNewFile(); } },
             'separator',
             { label: 'Display settings', icon: '🖥', action: () => { Taskbar.openApp('settings'); } },
-            { label: 'Personalize', icon: '🎨', action: () => { Taskbar.openApp('settings'); } },
-            'separator',
-            { label: 'Open in Terminal', icon: '⌨', disabled: true },
-            { label: 'Show more options', icon: '', disabled: true }
+            { label: 'Personalize', icon: '🎨', action: () => { Taskbar.openApp('settings'); } }
         ]);
     });
 }
