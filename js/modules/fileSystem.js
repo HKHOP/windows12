@@ -1,5 +1,6 @@
 const FileSystem = (() => {
     let root = {};
+    const RECYCLE_BIN_PATH = ['/', 'system', '$Recycle.Bin'];
 
     function init() {
         root = {
@@ -11,7 +12,12 @@ const FileSystem = (() => {
                     name: 'system',
                     children: {
                         'config.json': { type: 'file', name: 'config.json', content: '{}', ext: 'json', modified: Date.now() },
-                        'readme.txt': { type: 'file', name: 'readme.txt', content: 'Windows 12 System Directory\nDo not modify system files unless you know what you are doing.', ext: 'txt', modified: Date.now() }
+                        'readme.txt': { type: 'file', name: 'readme.txt', content: 'Windows 12 System Directory\nDo not modify system files unless you know what you are doing.', ext: 'txt', modified: Date.now() },
+                        '$Recycle.Bin': {
+                            type: 'folder',
+                            name: '$Recycle.Bin',
+                            children: {}
+                        }
                     }
                 },
                 'users': {
@@ -139,8 +145,78 @@ const FileSystem = (() => {
         const parent = getNode(parentPath);
         if (!parent || parent.type !== 'folder') return false;
         if (!parent.children[name]) return false;
+
+        const item = parent.children[name];
+        const timestamp = Date.now();
+        const recycleName = `${name}_${timestamp}`;
+
+        const recycleBin = getNode(RECYCLE_BIN_PATH);
+        if (recycleBin && recycleBin.type === 'folder') {
+            recycleBin.children[recycleName] = JSON.parse(JSON.stringify(item));
+            recycleBin.children[recycleName].name = recycleName;
+            recycleBin.children[recycleName].originalName = name;
+            recycleBin.children[recycleName].originalPath = path.join('/');
+            recycleBin.children[recycleName].deletedAt = timestamp;
+        }
+
         delete parent.children[name];
         return true;
+    }
+
+    function permanentDelete(path) {
+        if (path.length === 0) return false;
+        const name = path[path.length - 1];
+        const parentPath = path.slice(0, -1);
+        const parent = getNode(parentPath);
+        if (!parent || parent.type !== 'folder') return false;
+        if (!parent.children[name]) return false;
+        delete parent.children[name];
+        return true;
+    }
+
+    function restoreFromRecycleBin(recycleBinName) {
+        const recycleBin = getNode(RECYCLE_BIN_PATH);
+        if (!recycleBin || !recycleBin.children[recycleBinName]) return false;
+
+        const item = recycleBin.children[recycleBinName];
+        const originalPath = item.originalPath ? item.originalPath.split('/').filter(p => p) : null;
+        const originalName = item.originalName || recycleBinName;
+
+        if (originalPath) {
+            const targetParent = getNode(originalPath);
+            if (targetParent && targetParent.type === 'folder') {
+                const restored = JSON.parse(JSON.stringify(item));
+                restored.name = originalName;
+                delete restored.originalName;
+                delete restored.originalPath;
+                delete restored.deletedAt;
+                targetParent.children[originalName] = restored;
+            }
+        }
+
+        delete recycleBin.children[recycleBinName];
+        return true;
+    }
+
+    function emptyRecycleBin() {
+        const recycleBin = getNode(RECYCLE_BIN_PATH);
+        if (!recycleBin) return false;
+        recycleBin.children = {};
+        return true;
+    }
+
+    function getRecycleBinContent() {
+        const recycleBin = getNode(RECYCLE_BIN_PATH);
+        if (!recycleBin) return [];
+        return Object.entries(recycleBin.children).map(([key, item]) => ({
+            name: item.originalName || item.name,
+            type: item.type,
+            ext: item.ext || '',
+            modified: item.deletedAt || item.modified || 0,
+            size: item.content ? item.content.length : 0,
+            recycleKey: key,
+            originalPath: item.originalPath || ''
+        }));
     }
 
     function renameItem(path, newName) {
@@ -169,7 +245,7 @@ const FileSystem = (() => {
         return node !== null && node.type === 'folder';
     }
 
-    return { init, getNode, getChildren, createFolder, createFile, readFile, writeFile, deleteItem, renameItem, itemExists, isFolder };
+    return { init, getNode, getChildren, createFolder, createFile, readFile, writeFile, deleteItem, permanentDelete, restoreFromRecycleBin, emptyRecycleBin, getRecycleBinContent, renameItem, itemExists, isFolder };
 })();
 
 window._FileSystem = FileSystem;

@@ -4,6 +4,17 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.3750] - 2026-08-30
+
+### Added
+- Recycle Bin on desktop with empty/full icon states
+- Deleted files move to Recycle Bin instead of permanent deletion
+- Recycle Bin viewer with Restore and Empty buttons
+- Recycle Bin in File Explorer sidebar
+- Right-click context menu: Open, Empty Recycle Bin
+- Restore individual files from Recycle Bin to original location
+- File Explorer delete now moves to Recycle Bin
+
 ## [12.0.3740] - 2026-08-30
 
 ### Added

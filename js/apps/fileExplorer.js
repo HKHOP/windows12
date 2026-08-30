@@ -44,6 +44,7 @@ const FileExplorer = (() => {
             { name: 'Pictures', icon: '🖼️', path: ['/', 'users', 'default', 'Pictures'] },
             { name: 'Music', icon: '🎵', path: ['/', 'users', 'default', 'Music'] },
             { name: 'Videos', icon: '🎬', path: ['/', 'users', 'default', 'Videos'] },
+            { name: 'Recycle Bin', icon: '🗑️', path: ['/', 'system', '$Recycle.Bin'] },
             { name: 'System', icon: '⚙️', path: ['/', 'system'] },
             { name: 'Programs Data', icon: '📦', path: ['/', 'programs data'] }
         ];
@@ -162,7 +163,8 @@ const FileExplorer = (() => {
             'Pictures': '🖼️', 'Music': '🎵', 'Videos': '🎬',
             'Projects': '📂', 'New Folder': '📁',
             'system': '⚙️', 'users': '👤', 'default': '👤',
-            'programs data': '📦', 'Wallpapers': '🖼️', 'Screenshots': '📸'
+            'programs data': '📦', 'Wallpapers': '🖼️', 'Screenshots': '📸',
+            '$Recycle.Bin': '🗑️'
         };
         return icons[name] || '📁';
     }
