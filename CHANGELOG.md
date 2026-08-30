@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.3822] - 2026-08-30
+
+### Added
+- Calendar app with monthly view, day navigation, and date selection
+- Sidebar showing selected date details (week number, day of year, leap year info)
+- Today highlight and "Go to Today" quick action
+- Calendar pinned in Start Menu and available in All Apps
+
 ## [12.0.3821] - 2026-08-30
 
 ### Added
