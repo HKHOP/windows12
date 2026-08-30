@@ -1,4 +1,5 @@
 import WindowManager from '../modules/windowManager.js';
+import ContextMenu from '../modules/contextMenu.js';
 
 const FileExplorer = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 7V17C3 18.1 3.9 19 5 19H19C20.1 19 21 18.1 21 17V9C21 7.9 20.1 7 19 7H11L9 5H5C3.9 5 3 5.9 3 7Z" fill="#FFC107"/><path d="M3 7H21V9H3V7Z" fill="#FFD54F"/></svg>`;
@@ -98,6 +99,30 @@ const FileExplorer = (() => {
                 if (isFolder) {
                     navigate(win, [...path, name]);
                 }
+            });
+            item.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const items = isFolder ? [
+                    { label: 'Open', icon: '📂', action: () => navigate(win, [...path, name]) },
+                    'separator',
+                    { label: 'Copy', icon: '📋', disabled: true },
+                    { label: 'Cut', icon: '✂', disabled: true },
+                    { label: 'Delete', icon: '🗑', disabled: true },
+                    { label: 'Rename', icon: '✏', disabled: true },
+                    'separator',
+                    { label: 'Properties', icon: 'ℹ', disabled: true }
+                ] : [
+                    { label: 'Open', icon: '📄', disabled: true },
+                    'separator',
+                    { label: 'Copy', icon: '📋', disabled: true },
+                    { label: 'Cut', icon: '✂', disabled: true },
+                    { label: 'Delete', icon: '🗑', disabled: true },
+                    { label: 'Rename', icon: '✏', disabled: true },
+                    'separator',
+                    { label: 'Properties', icon: 'ℹ', disabled: true }
+                ];
+                ContextMenu.show(e.clientX, e.clientY, items);
             });
             contentEl.appendChild(item);
         });
