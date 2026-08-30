@@ -216,3 +216,18 @@
 #power-btn:hover {
     background: rgba(255, 80, 80, 0.2);
 }
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideInLeft {
+    from { transform: translateX(-30%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+.start-menu-body {
+    position: relative;
+    overflow: hidden;
+}
