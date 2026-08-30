@@ -4,6 +4,19 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [0.6.0] - 2026-08-30
+
+### Added
+- Light/dark mode toggle in Personalization settings
+- Light theme CSS variables for windows, taskbar, start menu, text
+- Light wallpapers for all background styles
+- Theme persists in config.json and localStorage
+
+### Changed
+- Window header border now uses theme variable
+- Start menu border uses theme variable
+- Username input uses theme variables
+
 ## [0.5.0] - 2026-08-30
 
 ### Added
