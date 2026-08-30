@@ -173,8 +173,17 @@ const DesktopIcons = (() => {
             el.style.zIndex = '';
             el.style.opacity = '';
 
-            const x = parseInt(el.style.left);
-            const y = parseInt(el.style.top);
+            const rawX = parseInt(el.style.left);
+            const rawY = parseInt(el.style.top);
+
+            const gridX = Math.round(rawX / (ICON_W + PADDING)) * (ICON_W + PADDING);
+            const gridY = Math.round(rawY / (ICON_H + PADDING)) * (ICON_H + PADDING);
+
+            const x = Math.max(0, Math.min(window.innerWidth - ICON_W, gridX));
+            const y = Math.max(0, Math.min(window.innerHeight - 100, gridY));
+
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
 
             positions[name] = { x, y };
             savePositions();
