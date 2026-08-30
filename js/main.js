@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupDesktopContextMenu();
     setupTaskbarContextMenu();
     setupWindowTitleBarContextMenu();
+    setupScreenshotCapture();
 
     document.getElementById('desktop').addEventListener('click', (e) => {
         if (e.target === document.getElementById('desktop') || e.target === document.getElementById('windows-container')) {
@@ -147,5 +148,56 @@ function setupWindowTitleBarContextMenu() {
             'separator',
             { label: 'Close', icon: '✕', action: () => WindowManager.closeWindow(winId) }
         ]);
+    });
+}
+
+function setupScreenshotCapture() {
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'PrintScreen') {
+            e.preventDefault();
+
+            const flash = document.createElement('div');
+            flash.style.cssText = 'position:fixed;inset:0;background:white;z-index:999999;opacity:0;transition:opacity 0.08s ease-out;pointer-events:none;';
+            document.body.appendChild(flash);
+
+            requestAnimationFrame(() => {
+                flash.style.opacity = '0.9';
+                setTimeout(() => {
+                    flash.style.opacity = '0';
+                    setTimeout(() => flash.remove(), 150);
+                }, 100);
+            });
+
+            const now = new Date();
+            const ts = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const fileName = `Screenshot ${ts}.png`;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 24px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Screenshot Captured', canvas.width / 2, canvas.height / 2 - 20);
+
+            ctx.font = '14px sans-serif';
+            ctx.fillStyle = '#aaaaaa';
+            ctx.fillText(now.toLocaleString(), canvas.width / 2, canvas.height / 2 + 15);
+
+            const dataUrl = canvas.toDataURL('image/png');
+            const picturesPath = ['/', 'users', 'default', 'Pictures'];
+            FileSystem.createFile(picturesPath, fileName, dataUrl, 'png');
+
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:60px;right:20px;background:var(--window-bg);border:1px solid var(--window-border);border-radius:8px;padding:12px 20px;font-size:13px;color:var(--text-primary);box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:99999;display:flex;align-items:center;gap:10px;animation:windowOpen 0.2s ease-out;';
+            toast.innerHTML = `<span style="font-size:18px;">📸</span><div><div style="font-weight:500;">Screenshot saved</div><div style="font-size:11px;color:var(--text-secondary);">Pictures/${fileName}</div></div>`;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 2500);
+        }
     });
 }
