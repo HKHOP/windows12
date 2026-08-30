@@ -18,6 +18,7 @@ const StartMenu = (() => {
     ];
 
     const allApps = [
+        { id: 'browser', name: 'Browser' },
         { id: 'calculator', name: 'Calculator' },
         { id: 'calendar', name: 'Calendar' },
         { id: 'clock', name: 'Clock' },
