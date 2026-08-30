@@ -112,11 +112,6 @@ const Settings = (() => {
             </div>
         `;
 
-        el.querySelector('.settings-back-btn').addEventListener('click', () => {
-            currentSubPage = null;
-            renderPage();
-        });
-
         switch (subPage) {
             case 'display': renderDisplaySettings(el); break;
             case 'sound': renderSoundSettings(el); break;
@@ -577,6 +572,13 @@ const Settings = (() => {
                 currentSubPage = null;
                 renderPage();
             });
+        });
+
+        win.element.querySelector('.settings-content').addEventListener('click', (e) => {
+            if (e.target.closest('.settings-back-btn')) {
+                currentSubPage = null;
+                renderPage();
+            }
         });
 
         renderPage();

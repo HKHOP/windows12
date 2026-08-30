@@ -248,3 +248,11 @@ html, body {
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
+
+label:has(input[type="checkbox"]) input[type="checkbox"]:not(:checked) + span {
+    background: rgba(255, 255, 255, 0.15) !important;
+}
+
+label:has(input[type="checkbox"]) input[type="checkbox"]:checked + span {
+    background: var(--accent-color) !important;
+}

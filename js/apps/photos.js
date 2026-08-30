@@ -95,7 +95,7 @@ const Photos = (() => {
     }
 
     function openViewer(win, image) {
-        const contentEl = win.element.querySelector('.window-content');
+        const contentEl = win.element.querySelector('.window-body');
         const viewerHTML = `
             <div class="photo-viewer" style="position:absolute;inset:0;background:rgba(0,0,0,0.95);display:flex;flex-direction:column;z-index:10;">
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
