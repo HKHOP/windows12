@@ -10,11 +10,19 @@ import Settings from './apps/settings.js';
 import Notepad from './apps/notepad.js';
 import FileExplorer from './apps/fileExplorer.js';
 import TaskManager from './apps/taskManager.js';
+import Photos from './apps/photos.js';
+import Calendar from './apps/calendar.js';
+import Calculator from './apps/calculator.js';
+import Clock from './apps/clock.js';
 
 AppRegistry.register('settings', Settings);
 AppRegistry.register('notepad', Notepad);
 AppRegistry.register('fileExplorer', FileExplorer);
 AppRegistry.register('taskManager', TaskManager);
+AppRegistry.register('photos', Photos);
+AppRegistry.register('calendar', Calendar);
+AppRegistry.register('calculator', Calculator);
+AppRegistry.register('clock', Clock);
 
 document.addEventListener('DOMContentLoaded', () => {
     FileSystem.init();

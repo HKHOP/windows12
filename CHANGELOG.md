@@ -4,6 +4,24 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.3820] - 2026-08-30
+
+### Added
+- Photos app with gallery view for browsing images from the Pictures folder
+- Full-size image viewer with close button
+- Placeholder colored thumbnails with filename and extension badge
+- Empty state when no images are found
+- Photos pinned in Start Menu and available in All Apps
+
+## [12.0.3820] - 2026-08-30
+
+### Added
+- Calculator app with standard arithmetic operations (+, -, ×, ÷)
+- Percentage, plus/minus toggle, backspace, and clear buttons
+- Chain calculation support
+- Keyboard input support
+- Accent-colored equals button
+
 ## [12.0.3810] - 2026-08-30
 
 ### Fixed
