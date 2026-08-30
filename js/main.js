@@ -51,6 +51,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    const desktop = document.getElementById('desktop');
+    desktop.style.opacity = '0';
+
     setTimeout(() => {
         const bootScreen = document.getElementById('boot-screen');
         if (bootScreen) {
@@ -66,7 +69,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     setTimeout(() => {
                         loginScreen.classList.add('fade-out');
-                        setTimeout(() => loginScreen.remove(), 600);
+                        setTimeout(() => {
+                            loginScreen.remove();
+                            desktop.style.transition = 'opacity 0.5s ease-out';
+                            desktop.style.opacity = '1';
+                        }, 600);
                     }, 2000);
                 }
             }, 500);

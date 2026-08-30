@@ -229,20 +229,22 @@ html, body {
 }
 
 .login-spinner {
+    position: relative;
     display: flex;
-    gap: 4px;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
 }
 
-.login-spinner-dot {
-    width: 4px;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.8);
+.login-spinner::before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border: 2px solid transparent;
+    border-top: 2px solid rgba(255, 255, 255, 0.8);
+    border-right: 2px solid rgba(255, 255, 255, 0.8);
     border-radius: 50%;
-    animation: spinnerDot 1.8s ease-in-out infinite;
+    animation: spin 1s linear infinite;
 }
-
-.login-spinner-dot:nth-child(1) { animation-delay: 0s; }
-.login-spinner-dot:nth-child(2) { animation-delay: 0.15s; }
-.login-spinner-dot:nth-child(3) { animation-delay: 0.3s; }
-.login-spinner-dot:nth-child(4) { animation-delay: 0.45s; }
-.login-spinner-dot:nth-child(5) { animation-delay: 0.6s; }
