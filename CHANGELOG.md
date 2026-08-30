@@ -4,6 +4,16 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [0.1.2] - 2026-08-30
+
+### Added
+- Active/focused indicator on taskbar for the current window
+- Running indicator on taskbar buttons for open apps
+
+### Changed
+- Taskbar click now toggles minimize/restore instead of maximize
+- Refactored window callbacks to avoid circular imports
+
 ## [0.1.1] - 2026-08-30
 
 ### Fixed
