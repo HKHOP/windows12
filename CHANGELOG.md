@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [0.8.0] - 2026-08-30
+
+### Added
+- All apps button slides in a full app drawer
+- Alphabetical app listing with letter headers
+- Back arrow to return to main start menu view
+- Slide-in/slide-out CSS animations
+
 ## [0.7.0] - 2026-08-30
 
 ### Changed
