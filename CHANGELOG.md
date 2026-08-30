@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.3821] - 2026-08-30
+
+### Added
+- Clock app with analog clock face, digital time, and date display
+- Timer tab with hours/minutes/seconds input and countdown
+- Stopwatch tab with millisecond precision and lap tracking
+- Clock available in Start Menu All Apps list
+
 ## [12.0.3820] - 2026-08-30
 
 ### Added

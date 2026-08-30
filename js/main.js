@@ -134,7 +134,7 @@ function setupTaskbarIconContextMenu() {
             e.preventDefault();
             e.stopPropagation();
             const appId = btn.dataset.app;
-            const appNames = { fileExplorer: 'File Explorer', settings: 'Settings', notepad: 'Notepad' };
+            const appNames = { fileExplorer: 'File Explorer', settings: 'Settings', notepad: 'Notepad', calendar: 'Calendar' };
             const isRunning = btn.classList.contains('running');
             const items = [
                 { label: appNames[appId] || appId, icon: '', disabled: true },
