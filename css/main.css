@@ -135,6 +135,7 @@ html, body {
 }
 
 .boot-spinner {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
