@@ -112,7 +112,7 @@ function setupTaskbarContextMenu() {
         if (e.target.closest('.app-btn')) return;
         e.preventDefault();
         ContextMenu.show(e.clientX, e.clientY, [
-            { label: 'Task Manager', icon: '📊', disabled: true },
+            { label: 'Task Manager', icon: '📊', action: () => { Taskbar.openApp('taskManager'); } },
             'separator',
             { label: 'Taskbar settings', icon: '⚙', action: () => { Taskbar.openApp('settings'); } }
         ]);

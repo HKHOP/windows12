@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.3810] - 2026-08-30
+
+### Fixed
+- Task Manager in taskbar right-click context menu is now enabled
+
 ## [12.0.3800] - 2026-08-30
 
 ### Added
