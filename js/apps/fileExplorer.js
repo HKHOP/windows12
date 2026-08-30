@@ -1,6 +1,7 @@
 import WindowManager from '../modules/windowManager.js';
 import ContextMenu from '../modules/contextMenu.js';
 import FileSystem from '../modules/fileSystem.js';
+import UserActivity from '../modules/userActivity.js';
 
 const FileExplorer = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 7V17C3 18.1 3.9 19 5 19H19C20.1 19 21 18.1 21 17V9C21 7.9 20.1 7 19 7H11L9 5H5C3.9 5 3 5.9 3 7Z" fill="#FFC107"/><path d="M3 7H21V9H3V7Z" fill="#FFD54F"/></svg>`;
@@ -232,6 +233,7 @@ const FileExplorer = (() => {
         const content = FileSystem.readFile(itemPath);
         if (content === null) return;
         const name = itemPath[itemPath.length - 1];
+        UserActivity.trackFileOpen(itemPath, name);
 
         const notepadContent = `
             <div style="display:flex;flex-direction:column;height:100%;">
