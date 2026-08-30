@@ -70,7 +70,7 @@ const StartMenu = (() => {
                 detail = item.detail;
                 el.addEventListener('click', () => {
                     document.getElementById('start-menu').classList.add('hidden');
-                    UserActivity.trackFileOpen(item.path.split('/'), item.name);
+                    UserActivity.trackFileOpen(item.path.split('/').filter(p => p), item.name);
                     openFile(item.path);
                     renderRecommended();
                 });
@@ -110,7 +110,7 @@ const StartMenu = (() => {
     }
 
     function openFile(pathStr) {
-        const path = pathStr.split('/');
+        const path = pathStr.split('/').filter(p => p);
         const content = FileSystem.readFile(path);
         if (content === null) return;
         const fileName = path[path.length - 1];

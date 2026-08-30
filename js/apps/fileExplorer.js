@@ -8,7 +8,7 @@ import DesktopIcons from '../modules/desktopIcons.js';
 const FileExplorer = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 7V17C3 18.1 3.9 19 5 19H19C20.1 19 21 18.1 21 17V9C21 7.9 20.1 7 19 7H11L9 5H5C3.9 5 3 5.9 3 7Z" fill="#FFC107"/><path d="M3 7H21V9H3V7Z" fill="#FFD54F"/></svg>`;
 
-    let pathHistory = [['This PC']];
+    let pathHistory = [['/']];
     let historyIndex = 0;
 
     function getContent() {
@@ -37,14 +37,15 @@ const FileExplorer = (() => {
 
     function buildSidebar() {
         const items = [
-            { name: 'Quick access', icon: '⭐', path: ['This PC'] },
-            { name: 'Desktop', icon: '🖥️', path: ['This PC', 'Desktop'] },
-            { name: 'Documents', icon: '📄', path: ['This PC', 'Documents'] },
-            { name: 'Downloads', icon: '⬇️', path: ['This PC', 'Downloads'] },
-            { name: 'Pictures', icon: '🖼️', path: ['This PC', 'Pictures'] },
-            { name: 'Music', icon: '🎵', path: ['This PC', 'Music'] },
-            { name: 'Videos', icon: '🎬', path: ['This PC', 'Videos'] },
-            { name: 'This PC', icon: '💻', path: ['This PC'] }
+            { name: 'Home', icon: '🏠', path: ['/'] },
+            { name: 'Desktop', icon: '🖥️', path: ['/', 'users', 'default', 'Desktop'] },
+            { name: 'Documents', icon: '📄', path: ['/', 'users', 'default', 'Documents'] },
+            { name: 'Downloads', icon: '⬇️', path: ['/', 'users', 'default', 'Downloads'] },
+            { name: 'Pictures', icon: '🖼️', path: ['/', 'users', 'default', 'Pictures'] },
+            { name: 'Music', icon: '🎵', path: ['/', 'users', 'default', 'Music'] },
+            { name: 'Videos', icon: '🎬', path: ['/', 'users', 'default', 'Videos'] },
+            { name: 'System', icon: '⚙️', path: ['/', 'system'] },
+            { name: 'Programs Data', icon: '📦', path: ['/', 'programs data'] }
         ];
         return items.map(i => `
             <div class="fe-sidebar-item" style="padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background 0.12s;" data-path='${JSON.stringify(i.path)}'>
@@ -159,7 +160,9 @@ const FileExplorer = (() => {
         const icons = {
             'Desktop': '🖥️', 'Documents': '📄', 'Downloads': '⬇️',
             'Pictures': '🖼️', 'Music': '🎵', 'Videos': '🎬',
-            'Projects': '📂', 'New Folder': '📁'
+            'Projects': '📂', 'New Folder': '📁',
+            'system': '⚙️', 'users': '👤', 'default': '👤',
+            'programs data': '📦', 'Wallpapers': '🖼️', 'Screenshots': '📸'
         };
         return icons[name] || '📁';
     }
@@ -173,7 +176,7 @@ const FileExplorer = (() => {
     }
 
     function refreshIfDesktop(path) {
-        if (path.join('/').startsWith('This PC/Desktop')) {
+        if (path.join('/').includes('/users/default/Desktop')) {
             DesktopIcons.render();
         }
     }
@@ -312,7 +315,7 @@ const FileExplorer = (() => {
     function launch() {
         const win = WindowManager.createWindow('fileExplorer', 'File Explorer', icon, getContent(), { width: 800, height: 500 });
 
-        navigate(win, ['This PC']);
+        navigate(win, ['/']);
 
         win.element.querySelector('.fe-back').addEventListener('click', () => {
             if (historyIndex > 0) {

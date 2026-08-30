@@ -5,7 +5,7 @@ import UserActivity from './userActivity.js';
 import FileExplorer from '../apps/fileExplorer.js';
 
 const DesktopIcons = (() => {
-    const DESKTOP_PATH = ['This PC', 'Desktop'];
+    const DESKTOP_PATH = ['/', 'users', 'default', 'Desktop'];
     let container;
 
     function init() {

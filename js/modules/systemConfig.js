@@ -1,6 +1,6 @@
 const SystemConfig = (() => {
     const STORAGE_KEY = 'win12_config';
-    const CONFIG_PATH = ['This PC', 'Documents', 'System', 'config.json'];
+    const CONFIG_PATH = ['/', 'system', 'config.json'];
 
     const defaults = {
         accentColor: '#0078D4',
@@ -99,7 +99,7 @@ const SystemConfig = (() => {
                 const json = JSON.stringify(config, null, 2);
                 const parentPath = CONFIG_PATH.slice(0, -1);
                 if (!FileSystem.itemExists(parentPath)) {
-                    FileSystem.createFolder(['This PC', 'Documents'], 'System');
+                    // system folder should already exist
                 }
                 if (FileSystem.itemExists(CONFIG_PATH)) {
                     FileSystem.writeFile(CONFIG_PATH, json);

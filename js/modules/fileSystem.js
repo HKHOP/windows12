@@ -4,57 +4,73 @@ const FileSystem = (() => {
     function init() {
         root = {
             type: 'folder',
-            name: 'This PC',
+            name: '/',
             children: {
-                'Desktop': {
+                'system': {
                     type: 'folder',
-                    name: 'Desktop',
+                    name: 'system',
                     children: {
-                        'New Folder': { type: 'folder', name: 'New Folder', children: {} },
-                        'notes.txt': { type: 'file', name: 'notes.txt', content: 'Welcome to Windows 12!\nThis is a virtual filesystem.', ext: 'txt', modified: Date.now() },
-                        'todo.txt': { type: 'file', name: 'todo.txt', content: '- Build OS\n- Add features\n- Have fun', ext: 'txt', modified: Date.now() }
+                        'config.json': { type: 'file', name: 'config.json', content: '{}', ext: 'json', modified: Date.now() },
+                        'readme.txt': { type: 'file', name: 'readme.txt', content: 'Windows 12 System Directory\nDo not modify system files unless you know what you are doing.', ext: 'txt', modified: Date.now() }
                     }
                 },
-                'Documents': {
+                'users': {
                     type: 'folder',
-                    name: 'Documents',
+                    name: 'users',
                     children: {
-                        'Projects': {
+                        'default': {
                             type: 'folder',
-                            name: 'Projects',
+                            name: 'default',
                             children: {
-                                'readme.txt': { type: 'file', name: 'readme.txt', content: 'Project files go here.', ext: 'txt', modified: Date.now() }
+                                'Desktop': {
+                                    type: 'folder',
+                                    name: 'Desktop',
+                                    children: {
+                                        'notes.txt': { type: 'file', name: 'notes.txt', content: 'Welcome to Windows 12!\nThis is your desktop.', ext: 'txt', modified: Date.now() },
+                                        'todo.txt': { type: 'file', name: 'todo.txt', content: '- Build OS\n- Add features\n- Have fun', ext: 'txt', modified: Date.now() }
+                                    }
+                                },
+                                'Documents': {
+                                    type: 'folder',
+                                    name: 'Documents',
+                                    children: {
+                                        'Projects': {
+                                            type: 'folder',
+                                            name: 'Projects',
+                                            children: {
+                                                'readme.txt': { type: 'file', name: 'readme.txt', content: 'Project files go here.', ext: 'txt', modified: Date.now() }
+                                            }
+                                        },
+                                        'report.txt': { type: 'file', name: 'report.txt', content: 'Quarterly Report\n================\n\nRevenue: $1,000,000\nExpenses: $500,000\nProfit: $500,000', ext: 'txt', modified: Date.now() },
+                                        'budget.txt': { type: 'file', name: 'budget.txt', content: 'Budget Plan\n-----------\nMarketing: $10,000\nDevelopment: $25,000\nOperations: $15,000', ext: 'txt', modified: Date.now() },
+                                        'meeting-notes.txt': { type: 'file', name: 'meeting-notes.txt', content: 'Meeting Notes - Aug 30\n======================\n- Discussed roadmap\n- Assigned tasks\n- Next meeting: Friday', ext: 'txt', modified: Date.now() }
+                                    }
+                                },
+                                'Downloads': {
+                                    type: 'folder',
+                                    name: 'Downloads',
+                                    children: {
+                                        'setup-guide.txt': { type: 'file', name: 'setup-guide.txt', content: 'Setup Guide\n===========\n1. Extract files\n2. Run installer\n3. Follow prompts', ext: 'txt', modified: Date.now() },
+                                        'changelog.txt': { type: 'file', name: 'changelog.txt', content: 'v1.0.0 - Initial release\nv1.0.1 - Bug fixes\nv1.1.0 - New features', ext: 'txt', modified: Date.now() }
+                                    }
+                                },
+                                'Pictures': {
+                                    type: 'folder',
+                                    name: 'Pictures',
+                                    children: {
+                                        'Wallpapers': { type: 'folder', name: 'Wallpapers', children: {} },
+                                        'Screenshots': { type: 'folder', name: 'Screenshots', children: {} }
+                                    }
+                                },
+                                'Music': { type: 'folder', name: 'Music', children: {} },
+                                'Videos': { type: 'folder', name: 'Videos', children: {} }
                             }
-                        },
-                        'report.txt': { type: 'file', name: 'report.txt', content: 'Quarterly Report\n================\n\nRevenue: $1,000,000\nExpenses: $500,000\nProfit: $500,000', ext: 'txt', modified: Date.now() },
-                        'budget.txt': { type: 'file', name: 'budget.txt', content: 'Budget Plan\n-----------\nMarketing: $10,000\nDevelopment: $25,000\nOperations: $15,000', ext: 'txt', modified: Date.now() },
-                        'meeting-notes.txt': { type: 'file', name: 'meeting-notes.txt', content: 'Meeting Notes - Aug 30\n======================\n- Discussed roadmap\n- Assigned tasks\n- Next meeting: Friday', ext: 'txt', modified: Date.now() }
+                        }
                     }
                 },
-                'Downloads': {
+                'programs data': {
                     type: 'folder',
-                    name: 'Downloads',
-                    children: {
-                        'setup-guide.txt': { type: 'file', name: 'setup-guide.txt', content: 'Setup Guide\n===========\n1. Extract files\n2. Run installer\n3. Follow prompts', ext: 'txt', modified: Date.now() },
-                        'changelog.txt': { type: 'file', name: 'changelog.txt', content: 'v1.0.0 - Initial release\nv1.0.1 - Bug fixes\nv1.1.0 - New features', ext: 'txt', modified: Date.now() }
-                    }
-                },
-                'Pictures': {
-                    type: 'folder',
-                    name: 'Pictures',
-                    children: {
-                        'Wallpapers': { type: 'folder', name: 'Wallpapers', children: {} },
-                        'Screenshots': { type: 'folder', name: 'Screenshots', children: {} }
-                    }
-                },
-                'Music': {
-                    type: 'folder',
-                    name: 'Music',
-                    children: {}
-                },
-                'Videos': {
-                    type: 'folder',
-                    name: 'Videos',
+                    name: 'programs data',
                     children: {}
                 }
             }
@@ -65,7 +81,7 @@ const FileSystem = (() => {
         if (!path || path.length === 0) return root;
         let current = root;
         for (const segment of path) {
-            if (segment === 'This PC') continue;
+            if (segment === '/') continue;
             if (current.type !== 'folder' || !current.children[segment]) {
                 return null;
             }
@@ -148,7 +164,7 @@ const FileSystem = (() => {
 
     function isFolder(path) {
         if (!path || path.length === 0) return true;
-        if (path.length === 1 && path[0] === 'This PC') return true;
+        if (path.length === 1 && path[0] === '/') return true;
         const node = getNode(path);
         return node !== null && node.type === 'folder';
     }

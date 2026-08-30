@@ -78,7 +78,7 @@ const Notepad = (() => {
     function saveAsNewFile(textarea, titleEl, defaultTitle) {
         const name = prompt('Save as:', 'Untitled.txt');
         if (name) {
-            const path = ['This PC', 'Documents'];
+            const path = ['/', 'users', 'default', 'Documents'];
             FileSystem.createFile(path, name, textarea.value, name.split('.').pop());
             titleEl.textContent = `${name} - Notepad`;
         }
