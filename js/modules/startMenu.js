@@ -2,6 +2,7 @@ import WindowManager from './windowManager.js';
 import { AppRegistry } from './taskbar.js';
 import UserActivity from './userActivity.js';
 import FileSystem from './fileSystem.js';
+import SystemConfig from './systemConfig.js';
 
 const StartMenu = (() => {
     const pinnedApps = [
@@ -18,6 +19,7 @@ const StartMenu = (() => {
 
     let currentView = 'main';
     let sections = [];
+    let powerMenuOpen = false;
 
     function init() {
         const menu = document.getElementById('start-menu');
@@ -26,6 +28,170 @@ const StartMenu = (() => {
         renderRecommended();
         setupSearch();
         setupAllAppsButton();
+        setupPowerButton();
+    }
+
+    function setupPowerButton() {
+        const powerBtn = document.getElementById('power-btn');
+        if (powerBtn) {
+            powerBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                togglePowerMenu();
+            });
+        }
+    }
+
+    function togglePowerMenu() {
+        let menu = document.getElementById('power-options-menu');
+        if (menu) {
+            menu.remove();
+            powerMenuOpen = false;
+            return;
+        }
+
+        menu = document.createElement('div');
+        menu.id = 'power-options-menu';
+        menu.style.cssText = `
+            position:absolute;bottom:50px;left:0;right:0;margin:0 16px 8px;
+            background:var(--start-menu-bg);border:1px solid var(--window-border);
+            border-radius:8px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3);
+            animation:powerMenuSlideUp 0.15s ease-out;
+        `;
+
+        const options = [
+            { label: 'Switch user', icon: '👤', action: () => switchUser() },
+            { label: 'Logout', icon: '🚪', action: () => logout() },
+            { label: 'Restart', icon: '🔄', action: () => restart() },
+            { label: 'Shutdown', icon: '⏻', action: () => shutdown() }
+        ];
+
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.style.cssText = `
+                display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;
+                border:none;background:transparent;color:var(--text-primary);
+                cursor:pointer;font-size:13px;text-align:left;transition:background 0.12s;
+            `;
+            btn.innerHTML = `<span style="font-size:14px;width:20px;text-align:center;">${opt.icon}</span>${opt.label}`;
+            btn.addEventListener('mouseenter', () => btn.style.background = 'var(--hover-bg)');
+            btn.addEventListener('mouseleave', () => btn.style.background = 'transparent');
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menu.remove();
+                powerMenuOpen = false;
+                opt.action();
+            });
+            menu.appendChild(btn);
+        });
+
+        const powerBtn = document.getElementById('power-btn');
+        powerBtn.parentNode.style.position = 'relative';
+        powerBtn.parentNode.appendChild(menu);
+        powerMenuOpen = true;
+    }
+
+    function shutdown() {
+        document.getElementById('start-menu').classList.add('hidden');
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:99999;opacity:0;transition:opacity 0.5s;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML = '<div style="color:white;font-size:14px;">Shutting down...</div>';
+        document.body.appendChild(overlay);
+        setTimeout(() => { overlay.style.opacity = '1'; }, 10);
+        setTimeout(() => { window.close(); }, 1500);
+    }
+
+    function restart() {
+        document.getElementById('start-menu').classList.add('hidden');
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:99999;opacity:0;transition:opacity 0.5s;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML = '<div style="color:white;font-size:14px;">Restarting...</div>';
+        document.body.appendChild(overlay);
+        setTimeout(() => { overlay.style.opacity = '1'; }, 10);
+        setTimeout(() => { location.reload(); }, 1500);
+    }
+
+    function logout() {
+        document.getElementById('start-menu').classList.add('hidden');
+        showLoginScreen(false);
+    }
+
+    function switchUser() {
+        document.getElementById('start-menu').classList.add('hidden');
+        showLoginScreen(false);
+    }
+
+    function showLoginScreen(autoLogin) {
+        const desktop = document.getElementById('desktop');
+        const taskbar = document.getElementById('taskbar');
+
+        let loginScreen = document.getElementById('login-screen');
+        if (!loginScreen) {
+            loginScreen = document.createElement('div');
+            loginScreen.id = 'login-screen';
+            loginScreen.innerHTML = `
+                <div class="login-content">
+                    <div class="login-avatar">U</div>
+                    <div class="login-username" id="login-username">User</div>
+                    ${autoLogin ? `
+                        <div class="login-welcome">
+                            <span>Welcome</span>
+                            <div class="login-spinner"></div>
+                        </div>
+                    ` : `
+                        <button class="login-signin-btn" style="
+                            margin-top:16px;padding:8px 32px;border:1px solid rgba(255,255,255,0.3);
+                            background:rgba(255,255,255,0.1);color:white;border-radius:4px;
+                            cursor:pointer;font-size:14px;transition:background 0.12s;
+                        ">Sign in</button>
+                    `}
+                </div>
+            `;
+            document.body.appendChild(loginScreen);
+        }
+
+        loginScreen.classList.remove('hidden');
+        loginScreen.style.opacity = '0';
+
+        const config = SystemConfig.getAll();
+        const username = config.user?.name || 'User';
+        document.getElementById('login-username').textContent = username;
+
+        desktop.style.transition = 'opacity 0.4s ease-out';
+        taskbar.style.transition = 'opacity 0.4s ease-out';
+        desktop.style.opacity = '0';
+        taskbar.style.opacity = '0';
+
+        setTimeout(() => { loginScreen.style.opacity = '1'; }, 50);
+
+        if (autoLogin) {
+            setTimeout(() => {
+                loginScreen.classList.add('fade-out');
+                setTimeout(() => {
+                    loginScreen.remove();
+                    desktop.style.opacity = '1';
+                    taskbar.style.opacity = '1';
+                }, 600);
+            }, 2000);
+        } else {
+            const signinBtn = loginScreen.querySelector('.login-signin-btn');
+            if (signinBtn) {
+                signinBtn.addEventListener('click', () => {
+                    const spinner = document.createElement('div');
+                    spinner.className = 'login-welcome';
+                    spinner.innerHTML = '<span>Welcome</span><div class="login-spinner"></div>';
+                    signinBtn.replaceWith(spinner);
+
+                    setTimeout(() => {
+                        loginScreen.classList.add('fade-out');
+                        setTimeout(() => {
+                            loginScreen.remove();
+                            desktop.style.opacity = '1';
+                            taskbar.style.opacity = '1';
+                        }, 600);
+                    }, 1500);
+                });
+            }
+        }
     }
 
     function setupAllAppsButton() {

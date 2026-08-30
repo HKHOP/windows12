@@ -4,6 +4,15 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.3790] - 2026-08-30
+
+### Added
+- Power options menu with slide-up animation
+- Shutdown option (closes tab with fade animation)
+- Restart option (refreshes page with fade animation)
+- Logout option (shows login screen with Sign in button)
+- Switch User option (shows login screen with Sign in button)
+
 ## [12.0.3780] - 2026-08-30
 
 ### Added
