@@ -187,7 +187,7 @@ const DesktopIcons = (() => {
         if (emptyBtn) {
             emptyBtn.addEventListener('click', () => {
                 FileSystem.emptyRecycleBin();
-                win.element.querySelector('.window-content').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">Recycle Bin is empty</div>';
+                win.element.querySelector('.window-body').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">Recycle Bin is empty</div>';
                 render();
             });
         }
@@ -200,7 +200,7 @@ const DesktopIcons = (() => {
                 itemEl.remove();
                 const remaining = win.element.querySelectorAll('.rb-item').length;
                 if (remaining === 0) {
-                    win.element.querySelector('.window-content').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">Recycle Bin is empty</div>';
+                    win.element.querySelector('.window-body').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">Recycle Bin is empty</div>';
                 }
                 render();
             });
