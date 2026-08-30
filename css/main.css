@@ -115,8 +115,8 @@ html, body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    padding: 0;
+    justify-content: center;
+    gap: 60px;
     transition: opacity 0.5s ease-out;
 }
 
@@ -126,7 +126,6 @@ html, body {
 }
 
 .boot-logo {
-    margin-top: 20vh;
     animation: bootLogoIn 0.8s ease-out;
 }
 
@@ -136,9 +135,11 @@ html, body {
 }
 
 .boot-spinner {
-    margin-bottom: 15vh;
     display: flex;
-    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
     animation: spinnerFadeIn 0.6s ease-out 0.4s both;
 }
 
@@ -147,24 +148,21 @@ html, body {
     to { opacity: 1; }
 }
 
-.spinner-dot {
-    width: 6px;
-    height: 6px;
-    background: white;
+.boot-spinner::before {
+    content: '';
+    position: absolute;
+    width: 36px;
+    height: 36px;
+    border: 3px solid transparent;
+    border-top: 3px solid #0078D4;
+    border-right: 3px solid #0078D4;
     border-radius: 50%;
-    animation: spinnerDot 1.8s ease-in-out infinite;
+    animation: spin 1s linear infinite;
 }
 
-.spinner-dot:nth-child(1) { animation-delay: 0s; }
-.spinner-dot:nth-child(2) { animation-delay: 0.15s; }
-.spinner-dot:nth-child(3) { animation-delay: 0.3s; }
-.spinner-dot:nth-child(4) { animation-delay: 0.45s; }
-.spinner-dot:nth-child(5) { animation-delay: 0.6s; }
-
-@keyframes spinnerDot {
-    0%, 100% { transform: translateY(0); opacity: 0.4; }
-    25% { transform: translateY(-12px); opacity: 1; }
-    50% { transform: translateY(0); opacity: 0.4; }
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 #login-screen {
