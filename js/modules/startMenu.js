@@ -1,4 +1,5 @@
 import WindowManager from './windowManager.js';
+import { AppRegistry } from './taskbar.js';
 
 const StartMenu = (() => {
     const pinnedApps = [
