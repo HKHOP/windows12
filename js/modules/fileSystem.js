@@ -1,9 +1,10 @@
 const FileSystem = (() => {
     let root = {};
     const RECYCLE_BIN_PATH = ['/', 'system', '$Recycle.Bin'];
+    const STORAGE_KEY = 'windows12-filesystem';
 
-    function init() {
-        root = {
+    function getDefaultFS() {
+        return {
             type: 'folder',
             name: '/',
             children: {
@@ -72,6 +73,25 @@ const FileSystem = (() => {
         };
     }
 
+    function init() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            try {
+                root = JSON.parse(saved);
+            } catch {
+                root = getDefaultFS();
+                save();
+            }
+        } else {
+            root = getDefaultFS();
+            save();
+        }
+    }
+
+    function save() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(root));
+    }
+
     function getNode(path) {
         if (!path || path.length === 0) return root;
         let current = root;
@@ -102,6 +122,7 @@ const FileSystem = (() => {
         if (!parent || parent.type !== 'folder') return false;
         if (parent.children[name]) return false;
         parent.children[name] = { type: 'folder', name, children: {} };
+        save();
         return true;
     }
 
@@ -110,6 +131,7 @@ const FileSystem = (() => {
         if (!parent || parent.type !== 'folder') return false;
         if (parent.children[name]) return false;
         parent.children[name] = { type: 'file', name, content, ext, modified: Date.now() };
+        save();
         return true;
     }
 
@@ -124,6 +146,7 @@ const FileSystem = (() => {
         if (!node || node.type !== 'file') return false;
         node.content = content;
         node.modified = Date.now();
+        save();
         return true;
     }
 
@@ -149,6 +172,7 @@ const FileSystem = (() => {
         }
 
         delete parent.children[name];
+        save();
         return true;
     }
 
@@ -160,6 +184,7 @@ const FileSystem = (() => {
         if (!parent || parent.type !== 'folder') return false;
         if (!parent.children[name]) return false;
         delete parent.children[name];
+        save();
         return true;
     }
 
@@ -184,6 +209,7 @@ const FileSystem = (() => {
         }
 
         delete recycleBin.children[recycleBinName];
+        save();
         return true;
     }
 
@@ -191,6 +217,7 @@ const FileSystem = (() => {
         const recycleBin = getNode(RECYCLE_BIN_PATH);
         if (!recycleBin) return false;
         recycleBin.children = {};
+        save();
         return true;
     }
 
@@ -220,6 +247,7 @@ const FileSystem = (() => {
         item.name = newName;
         parent.children[newName] = item;
         delete parent.children[oldName];
+        save();
         return true;
     }
 
