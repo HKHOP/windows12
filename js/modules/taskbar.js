@@ -64,6 +64,11 @@ const AppMetadata = (() => {
             name: 'Paint',
             icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#FF9800"/><circle cx="8" cy="8" r="2" fill="white"/><circle cx="16" cy="8" r="2" fill="#E53935"/><circle cx="12" cy="16" r="2" fill="#43A047"/><circle cx="8" cy="16" r="2" fill="#1E88E5"/></svg>`,
             iconSmall: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#FF9800"/><circle cx="8" cy="8" r="2" fill="white"/><circle cx="16" cy="8" r="2" fill="#E53935"/></svg>`
+        },
+        browser: {
+            name: 'Browser',
+            icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#2196F3" stroke-width="2"/><path d="M2 12h20" stroke="#2196F3" stroke-width="1.5"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="#2196F3" stroke-width="1.5"/></svg>`,
+            iconSmall: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#2196F3" stroke-width="2"/><path d="M2 12h20" stroke="#2196F3" stroke-width="1.5"/></svg>`
         }
     };
 

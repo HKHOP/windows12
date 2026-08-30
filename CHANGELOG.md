@@ -4,7 +4,15 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
-## [12.0.3920] - 2026-08-30
+## [12.0.3930] - 2026-08-30
+
+### Added
+- Browser app with tabbed interface, address bar, and navigation controls
+- Three rendering modes: Iframe (safe), Sandboxed (isolated), Direct (host context)
+- New tab page with clock, search bar, and quick links
+- CORS proxy fallback for fetching external websites
+- Keyboard shortcuts: Ctrl+T (new tab), Ctrl+W (close tab), Ctrl+L (focus URL), Ctrl+R (refresh)
+- Mode toggle button with security warnings for Direct mode
 
 ### Added
 - Print Screen key captures a screenshot with a white flash animation
