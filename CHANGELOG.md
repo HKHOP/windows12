@@ -4,7 +4,21 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
-## [12.0.3900] - 2026-08-30
+## [12.0.3910] - 2026-08-30
+
+### Added
+- Running apps now show in taskbar even if not pinned (with separator from pinned apps)
+- Pin/unpin apps from taskbar: right-click taskbar button to pin or unpin
+- Pin/unpin apps from Start menu: right-click pinned app to unpin, right-click All Apps to pin
+- Pinned apps persist in localStorage for both taskbar and Start menu
+- App metadata registry with icons for all apps
+
+### Changed
+- Taskbar is now fully dynamic (buttons rendered from JS, not hardcoded HTML)
+- Start menu pinned apps are stored in localStorage
+
+### Fixed
+- Non-pinned running apps now appear in the taskbar with a visual separator
 
 ### Added
 - Calculator app with standard operations, chain calculations, and keyboard support

@@ -1,5 +1,5 @@
 import WindowManager from './modules/windowManager.js';
-import { Taskbar, AppRegistry } from './modules/taskbar.js';
+import { Taskbar, AppRegistry, AppMetadata } from './modules/taskbar.js';
 import StartMenu from './modules/startMenu.js';
 import ContextMenu from './modules/contextMenu.js';
 import FileSystem from './modules/fileSystem.js';
@@ -36,6 +36,8 @@ document.addEventListener('DOMContentLoaded', () => {
     ContextMenu.init();
     DesktopIcons.init();
 
+    window._modules = { ContextMenu };
+
     WindowManager.setOnFocusChanged((appId) => {
         if (appId) {
             Taskbar.setActiveApp(appId);
@@ -54,7 +56,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setupDesktopContextMenu();
     setupTaskbarContextMenu();
-    setupTaskbarIconContextMenu();
     setupWindowTitleBarContextMenu();
 
     document.getElementById('desktop').addEventListener('click', (e) => {
@@ -126,32 +127,6 @@ function setupTaskbarContextMenu() {
             'separator',
             { label: 'Taskbar settings', icon: '⚙', action: () => { Taskbar.openApp('settings'); } }
         ]);
-    });
-}
-
-function setupTaskbarIconContextMenu() {
-    const appBtns = document.querySelectorAll('.taskbar-btn.app-btn');
-    appBtns.forEach(btn => {
-        btn.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const appId = btn.dataset.app;
-            const appNames = { fileExplorer: 'File Explorer', settings: 'Settings', notepad: 'Notepad', calendar: 'Calendar' };
-            const isRunning = btn.classList.contains('running');
-            const items = [
-                { label: appNames[appId] || appId, icon: '', disabled: true },
-                'separator'
-            ];
-            if (isRunning) {
-                items.push({ label: 'Close window', icon: '✕', action: () => {
-                    const wins = WindowManager.getWindowsByApp(appId);
-                    if (wins.length > 0) WindowManager.closeWindow(wins[0].id);
-                }});
-            } else {
-                items.push({ label: 'Open', icon: '🚀', action: () => { Taskbar.openApp(appId); }});
-            }
-            ContextMenu.show(e.clientX, e.clientY, items);
-        });
     });
 }
 

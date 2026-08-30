@@ -1,36 +1,40 @@
 import WindowManager from './windowManager.js';
-import { AppRegistry } from './taskbar.js';
+import { AppRegistry, AppMetadata } from './taskbar.js';
 import UserActivity from './userActivity.js';
 import FileSystem from './fileSystem.js';
-import SystemConfig from './systemConfig.js';
+import SystemConfig from '../modules/systemConfig.js';
 
 const StartMenu = (() => {
-    const pinnedApps = [
-        { id: 'fileExplorer', name: 'File Explorer', icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M3 7V17C3 18.1 3.9 19 5 19H19C20.1 19 21 18.1 21 17V9C21 7.9 20.1 7 19 7H11L9 5H5C3.9 5 3 5.9 3 7Z" fill="#FFC107"/><path d="M3 7H21V9H3V7Z" fill="#FFD54F"/></svg>` },
-        { id: 'settings', name: 'Settings', icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>` },
-        { id: 'notepad', name: 'Notepad', icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="4" y="2" width="16" height="20" rx="2" fill="#1E88E5"/><rect x="7" y="6" width="10" height="1.5" rx="0.5" fill="white"/><rect x="7" y="9.5" width="8" height="1.5" rx="0.5" fill="white"/><rect x="7" y="13" width="10" height="1.5" rx="0.5" fill="white"/><rect x="7" y="16.5" width="6" height="1.5" rx="0.5" fill="white"/></svg>` },
-        { id: 'calendar', name: 'Calendar', icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" fill="#E53935"/><rect x="3" y="4" width="18" height="6" rx="2" fill="#B71C1C"/><rect x="7" y="2" width="2" height="4" rx="1" fill="#ccc"/><rect x="15" y="2" width="2" height="4" rx="1" fill="#ccc"/><text x="12" y="18" text-anchor="middle" fill="white" font-size="8" font-weight="bold" font-family="sans-serif">31</text></svg>` },
-        { id: 'taskManager', name: 'Task Manager', icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1" fill="#0078D4"/><rect x="14" y="3" width="7" height="7" rx="1" fill="#0078D4"/><rect x="3" y="14" width="7" height="7" rx="1" fill="#0078D4"/><rect x="14" y="14" width="7" height="7" rx="1" fill="#0078D4"/></svg>` },
-        { id: 'photos', name: 'Photos', icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#43A047"/><rect x="3" y="3" width="18" height="18" rx="2" stroke="white" stroke-width="1.5" fill="none"/><circle cx="8.5" cy="8.5" r="2" fill="white"/><path d="M3 16l4-4 3 3 4-4 7 7v1c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2v-3z" fill="white"/></svg>` }
+    let pinnedApps = [];
+    const STORAGE_KEY = 'win12_startmenu_pins';
+
+    const defaultPinned = [
+        { id: 'fileExplorer', name: 'File Explorer' },
+        { id: 'settings', name: 'Settings' },
+        { id: 'notepad', name: 'Notepad' },
+        { id: 'calendar', name: 'Calendar' },
+        { id: 'taskManager', name: 'Task Manager' },
+        { id: 'photos', name: 'Photos' }
     ];
 
     const allApps = [
-        { id: 'calculator', name: 'Calculator', icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="4" y="2" width="16" height="20" rx="2" fill="#0078D4"/><rect x="7" y="4" width="10" height="5" rx="1" fill="#B3E5FC"/><rect x="7" y="11" width="2.5" height="2.5" rx="0.5" fill="white"/><rect x="10.75" y="11" width="2.5" height="2.5" rx="0.5" fill="white"/><rect x="14.5" y="11" width="2.5" height="2.5" rx="0.5" fill="#FFB74D"/><rect x="7" y="14.75" width="2.5" height="2.5" rx="0.5" fill="white"/><rect x="10.75" y="14.75" width="2.5" height="2.5" rx="0.5" fill="white"/><rect x="14.5" y="14.75" width="2.5" height="2.5" rx="0.5" fill="#FFB74D"/><rect x="7" y="18.5" width="6.25" height="2.5" rx="0.5" fill="white"/><rect x="14.5" y="18.5" width="2.5" height="2.5" rx="0.5" fill="#FFB74D"/></svg>` },
-        { id: 'calendar', name: 'Calendar', icon: pinnedApps[3].icon },
-        { id: 'clock', name: 'Clock', icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>` },
-        { id: 'fileExplorer', name: 'File Explorer', icon: pinnedApps[0].icon },
-        { id: 'notepad', name: 'Notepad', icon: pinnedApps[2].icon },
-        { id: 'photos', name: 'Photos', icon: pinnedApps[5].icon },
-        { id: 'settings', name: 'Settings', icon: pinnedApps[1].icon },
-        { id: 'paint', name: 'Paint', icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#FF9800"/><circle cx="8" cy="8" r="2" fill="white"/><circle cx="16" cy="8" r="2" fill="#E53935"/><circle cx="12" cy="16" r="2" fill="#43A047"/><circle cx="8" cy="16" r="2" fill="#1E88E5"/></svg>` },
-        { id: 'taskManager', name: 'Task Manager', icon: pinnedApps[4].icon }
-    ].sort((a, b) => a.name.localeCompare(b.name));
+        { id: 'calculator', name: 'Calculator' },
+        { id: 'calendar', name: 'Calendar' },
+        { id: 'clock', name: 'Clock' },
+        { id: 'fileExplorer', name: 'File Explorer' },
+        { id: 'notepad', name: 'Notepad' },
+        { id: 'paint', name: 'Paint' },
+        { id: 'photos', name: 'Photos' },
+        { id: 'settings', name: 'Settings' },
+        { id: 'taskManager', name: 'Task Manager' }
+    ];
 
     let currentView = 'main';
     let sections = [];
     let powerMenuOpen = false;
 
     function init() {
+        loadPinnedApps();
         const menu = document.getElementById('start-menu');
         sections = menu.querySelectorAll('.start-menu-section');
         renderPinnedApps();
@@ -39,6 +43,41 @@ const StartMenu = (() => {
         setupAllAppsButton();
         setupPowerButton();
         updateUserInfo();
+    }
+
+    function loadPinnedApps() {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                pinnedApps = JSON.parse(saved);
+            } else {
+                pinnedApps = defaultPinned.map(a => a.id);
+            }
+        } catch {
+            pinnedApps = defaultPinned.map(a => a.id);
+        }
+    }
+
+    function savePinnedApps() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(pinnedApps));
+    }
+
+    function isPinned(appId) {
+        return pinnedApps.includes(appId);
+    }
+
+    function pinApp(appId) {
+        if (!pinnedApps.includes(appId)) {
+            pinnedApps.push(appId);
+            savePinnedApps();
+            renderPinnedApps();
+        }
+    }
+
+    function unpinApp(appId) {
+        pinnedApps = pinnedApps.filter(id => id !== appId);
+        savePinnedApps();
+        renderPinnedApps();
     }
 
     function updateUserInfo() {
@@ -273,11 +312,12 @@ const StartMenu = (() => {
             drawer.appendChild(letterEl);
 
             letters[letter].forEach(app => {
+                const meta = AppMetadata.get(app.id);
                 const el = document.createElement('div');
                 el.className = 'app-item';
                 el.style.cssText = 'display:flex;align-items:center;gap:12px;padding:8px;border-radius:6px;cursor:pointer;transition:background 0.12s;';
                 el.innerHTML = `
-                    <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;">${app.icon}</div>
+                    <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;">${meta.icon}</div>
                     <span style="font-size:13px;">${app.name}</span>
                 `;
                 el.addEventListener('mouseenter', () => el.style.background = 'var(--hover-bg)');
@@ -289,6 +329,23 @@ const StartMenu = (() => {
                     renderRecommended();
                     showMainView();
                 });
+
+                el.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const pinned = isPinned(app.id);
+                    const items = [
+                        { label: app.name, icon: '', disabled: true },
+                        'separator',
+                        pinned
+                            ? { label: 'Unpin from Start', icon: '📌', action: () => { unpinApp(app.id); showAllApps(); } }
+                            : { label: 'Pin to Start', icon: '📍', action: () => { pinApp(app.id); showAllApps(); } }
+                    ];
+                    if (window._modules && window._modules.ContextMenu) {
+                        window._modules.ContextMenu.show(e.clientX, e.clientY, items);
+                    }
+                });
+
                 drawer.appendChild(el);
             });
         });
@@ -315,19 +372,38 @@ const StartMenu = (() => {
         const container = document.getElementById('pinned-apps');
         if (!container) return;
         container.innerHTML = '';
-        pinnedApps.forEach(app => {
+        pinnedApps.forEach(appId => {
+            const meta = AppMetadata.get(appId);
             const el = document.createElement('div');
             el.className = 'app-item';
             el.innerHTML = `
-                <div class="app-icon">${app.icon}</div>
-                <span class="app-name">${app.name}</span>
+                <div class="app-icon">${meta.icon}</div>
+                <span class="app-name">${meta.name}</span>
             `;
             el.addEventListener('click', () => {
                 document.getElementById('start-menu').classList.add('hidden');
-                UserActivity.trackAppOpen(app.id);
-                launchApp(app.id);
+                UserActivity.trackAppOpen(appId);
+                launchApp(appId);
                 renderRecommended();
             });
+
+            el.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const items = [
+                    { label: meta.name, icon: '', disabled: true },
+                    'separator',
+                    { label: 'Unpin from Start', icon: '📌', action: () => unpinApp(appId) },
+                    { label: 'Open', icon: '🚀', action: () => {
+                        document.getElementById('start-menu').classList.add('hidden');
+                        launchApp(appId);
+                    }}
+                ];
+                if (window._modules && window._modules.ContextMenu) {
+                    window._modules.ContextMenu.show(e.clientX, e.clientY, items);
+                }
+            });
+
             container.appendChild(el);
         });
     }
@@ -459,7 +535,7 @@ const StartMenu = (() => {
         renderRecommended();
     }
 
-    return { init, refresh };
+    return { init, refresh, pinApp, unpinApp, isPinned };
 })();
 
 export default StartMenu;
