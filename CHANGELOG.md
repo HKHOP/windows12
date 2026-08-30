@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.3730] - 2026-08-30
+
+### Added
+- Boot screen with Windows logo and loading spinner
+- Fade-out transition after 2 seconds
+
 ## [12.0.3720] - 2026-08-30
 
 ### Changed

@@ -50,6 +50,14 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.desktop-icon').forEach(d => d.style.background = 'transparent');
         }
     });
+
+    setTimeout(() => {
+        const bootScreen = document.getElementById('boot-screen');
+        if (bootScreen) {
+            bootScreen.classList.add('fade-out');
+            setTimeout(() => bootScreen.remove(), 500);
+        }
+    }, 2000);
 });
 
 function setupDesktopContextMenu() {
