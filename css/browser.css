@@ -21,6 +21,18 @@
 
 .browser-tabs::-webkit-scrollbar { height: 0; }
 
+.browser-tabs-list {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex: 1;
+    min-width: 0;
+}
+
+.browser-tabs-list::-webkit-scrollbar { height: 0; }
+
 .browser-tab {
     display: flex;
     align-items: center;
