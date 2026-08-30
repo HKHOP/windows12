@@ -4,6 +4,13 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.3740] - 2026-08-30
+
+### Added
+- Login screen with user avatar and name
+- Auto-login with "Welcome" text and loading spinner
+- Smooth fade transitions between boot → login → desktop
+
 ## [12.0.3730] - 2026-08-30
 
 ### Added

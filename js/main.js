@@ -55,7 +55,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const bootScreen = document.getElementById('boot-screen');
         if (bootScreen) {
             bootScreen.classList.add('fade-out');
-            setTimeout(() => bootScreen.remove(), 500);
+            setTimeout(() => {
+                bootScreen.remove();
+                const loginScreen = document.getElementById('login-screen');
+                if (loginScreen) {
+                    loginScreen.classList.remove('hidden');
+                    const config = SystemConfig.getAll();
+                    const username = config.user?.name || 'User';
+                    document.getElementById('login-username').textContent = username;
+
+                    setTimeout(() => {
+                        loginScreen.classList.add('fade-out');
+                        setTimeout(() => loginScreen.remove(), 600);
+                    }, 2000);
+                }
+            }, 500);
         }
     }, 2000);
 });
