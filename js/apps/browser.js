@@ -5,10 +5,9 @@ const Browser = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#2196F3" stroke-width="2"/><path d="M2 12h20" stroke="#2196F3" stroke-width="1.5"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="#2196F3" stroke-width="1.5"/></svg>`;
 
     const CORS_PROXIES = [
-        url => `https://corsproxy.dev/${encodeURIComponent(url)}`,
-        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-        url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-        url => `https://thingproxy.freeboard.io/fetch/${url}`
+        url => ({ url: `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, check: h => h.includes('<html') || h.includes('<!DOCTYPE') }),
+        url => ({ url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`, check: h => h.includes('<html') || h.includes('<!DOCTYPE') }),
+        url => ({ url: `https://thingproxy.freeboard.io/fetch/${url}`, check: h => h.includes('<html') || h.includes('<!DOCTYPE') })
     ];
 
     const QUICK_LINKS = [
@@ -153,10 +152,12 @@ const Browser = (() => {
         } catch (e) {
             for (const proxy of CORS_PROXIES) {
                 try {
-                    const res = await fetch(proxy(url));
+                    const proxyConfig = proxy(url);
+                    const res = await fetch(proxyConfig.url);
                     if (!res.ok) continue;
                     const text = await res.text();
                     if (!text || text.trim().length < 10) continue;
+                    if (proxyConfig.check && !proxyConfig.check(text)) continue;
                     try {
                         const json = JSON.parse(text);
                         if (json.contents) return json.contents;
