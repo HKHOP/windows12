@@ -1,0 +1,122 @@
+#taskbar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--taskbar-height);
+    background: var(--taskbar-bg);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    z-index: 9999;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+#taskbar-center {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.taskbar-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    position: relative;
+}
+
+.taskbar-btn:hover {
+    background: var(--hover-bg);
+}
+
+.taskbar-btn:active {
+    background: var(--active-bg);
+}
+
+.taskbar-btn.active {
+    background: var(--active-bg);
+}
+
+.taskbar-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 16px;
+    height: 3px;
+    background: var(--accent-color);
+    border-radius: 2px;
+}
+
+.taskbar-btn.running::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 3px;
+    background: var(--accent-color);
+    border-radius: 2px;
+}
+
+.app-btn svg {
+    opacity: 0.9;
+}
+
+.app-btn:hover svg {
+    opacity: 1;
+}
+
+#taskbar-tray {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+#tray-icons {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0.9;
+}
+
+#tray-icons svg {
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 4px;
+    transition: background 0.15s;
+}
+
+#tray-icons svg:hover {
+    background: var(--hover-bg);
+}
+
+#clock {
+    font-size: 12px;
+    color: var(--text-primary);
+    text-align: right;
+    line-height: 1.3;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.15s;
+}
+
+#clock:hover {
+    background: var(--hover-bg);
+}

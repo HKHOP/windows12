@@ -1,0 +1,55 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --accent-color: #0078D4;
+    --accent-hover: #1a86d9;
+    --taskbar-bg: rgba(32, 32, 32, 0.85);
+    --window-bg: #202020;
+    --window-header: #2d2d2d;
+    --window-border: #3d3d3d;
+    --text-primary: #ffffff;
+    --text-secondary: #999999;
+    --hover-bg: rgba(255, 255, 255, 0.08);
+    --active-bg: rgba(255, 255, 255, 0.12);
+    --start-menu-bg: rgba(44, 44, 44, 0.95);
+    --radius: 8px;
+    --taskbar-height: 48px;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #000;
+    user-select: none;
+    color: var(--text-primary);
+}
+
+#desktop {
+    width: 100%;
+    height: calc(100% - var(--taskbar-height));
+    position: relative;
+    background: linear-gradient(135deg, #0a1628 0%, #1a1a3e 30%, #2d1b4e 60%, #0a1628 100%);
+    background-size: 400% 400%;
+    overflow: hidden;
+}
+
+#windows-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.hidden {
+    display: none !important;
+}
+
+::selection {
+    background: var(--accent-color);
+    color: white;
+}

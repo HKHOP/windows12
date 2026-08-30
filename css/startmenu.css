@@ -1,0 +1,218 @@
+#start-menu {
+    position: fixed;
+    bottom: calc(var(--taskbar-height) + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    background: var(--start-menu-bg);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    overflow: hidden;
+    animation: startMenuIn 0.2s ease-out;
+}
+
+@keyframes startMenuIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+.start-menu-search {
+    padding: 16px 20px 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px 12px 0 0;
+}
+
+.start-menu-search input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.start-menu-search input:focus {
+    border-color: var(--accent-color);
+}
+
+.start-menu-search input::placeholder {
+    color: var(--text-secondary);
+}
+
+.start-menu-section {
+    padding: 8px 16px;
+}
+
+.start-menu-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 4px;
+}
+
+.start-menu-section-header span {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.start-menu-all-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.15s;
+}
+
+.start-menu-all-btn:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.start-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 2px;
+    padding: 4px 0;
+}
+
+.start-menu-grid .app-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 4px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.start-menu-grid .app-item:hover {
+    background: var(--hover-bg);
+}
+
+.start-menu-grid .app-item .app-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.start-menu-grid .app-item .app-name {
+    font-size: 12px;
+    text-align: center;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.start-menu-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.start-menu-list .list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.start-menu-list .list-item:hover {
+    background: var(--hover-bg);
+}
+
+.start-menu-list .list-item .item-icon {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.start-menu-list .list-item .item-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.start-menu-list .list-item .item-name {
+    font-size: 13px;
+}
+
+.start-menu-list .list-item .item-detail {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+#start-menu-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.user-info:hover {
+    background: var(--hover-bg);
+}
+
+.user-avatar {
+    width: 28px;
+    height: 28px;
+    background: var(--accent-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#power-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+
+#power-btn:hover {
+    background: rgba(255, 80, 80, 0.2);
+}

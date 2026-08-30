@@ -1,0 +1,124 @@
+.app-window {
+    position: absolute;
+    min-width: 400px;
+    min-height: 300px;
+    background: var(--window-bg);
+    border-radius: var(--radius);
+    border: 1px solid var(--window-border);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: windowOpen 0.2s ease-out;
+}
+
+@keyframes windowOpen {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.app-window.maximized {
+    border-radius: 0;
+    border: none;
+}
+
+.window-header {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    background: var(--window-header);
+    padding: 0 8px;
+    flex-shrink: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.window-header.dragging {
+    cursor: grabbing;
+}
+
+.window-title-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    padding: 0 4px;
+}
+
+.window-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.window-title {
+    font-size: 12px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.window-controls {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-shrink: 0;
+}
+
+.window-controls button {
+    width: 36px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.1s;
+    color: var(--text-primary);
+}
+
+.window-controls button:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.window-controls .close-btn:hover {
+    background: #e81123;
+    color: white;
+}
+
+.window-controls svg {
+    width: 10px;
+    height: 10px;
+}
+
+.window-body {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+}
+
+.resize-handle {
+    position: absolute;
+    z-index: 10;
+}
+
+.resize-handle.top { top: -3px; left: 4px; right: 4px; height: 6px; cursor: n-resize; }
+.resize-handle.bottom { bottom: -3px; left: 4px; right: 4px; height: 6px; cursor: s-resize; }
+.resize-handle.left { left: -3px; top: 4px; bottom: 4px; width: 6px; cursor: w-resize; }
+.resize-handle.right { right: -3px; top: 4px; bottom: 4px; width: 6px; cursor: e-resize; }
+
+.resize-handle.top-left { top: -3px; left: -3px; width: 10px; height: 10px; cursor: nw-resize; }
+.resize-handle.top-right { top: -3px; right: -3px; width: 10px; height: 10px; cursor: ne-resize; }
+.resize-handle.bottom-left { bottom: -3px; left: -3px; width: 10px; height: 10px; cursor: sw-resize; }
+.resize-handle.bottom-right { bottom: -3px; right: -3px; width: 10px; height: 10px; cursor: se-resize; }
