@@ -4,6 +4,18 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.3940] - 2026-08-31
+
+### Fixed
+- CORS proxy validation: skips proxies that return their own homepage instead of the target site
+- CORS proxy chain now validates responses contain actual HTML
+
+### Changed
+- CORS proxy uses corsproxy.dev API key (stored in localStorage, not hardcoded)
+- Added 🔑 button in browser status bar to set/update API key
+- Button shows ✓ when key is configured
+- Iframe mode remains default (most reliable)
+
 ## [12.0.3930] - 2026-08-30
 
 ### Added

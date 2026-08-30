@@ -4,11 +4,29 @@ import FileSystem from '../modules/fileSystem.js';
 const Browser = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#2196F3" stroke-width="2"/><path d="M2 12h20" stroke="#2196F3" stroke-width="1.5"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="#2196F3" stroke-width="1.5"/></svg>`;
 
-    const CORS_PROXIES = [
-        url => ({ url: `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, check: h => h.includes('<html') || h.includes('<!DOCTYPE') }),
-        url => ({ url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`, check: h => h.includes('<html') || h.includes('<!DOCTYPE') }),
-        url => ({ url: `https://thingproxy.freeboard.io/fetch/${url}`, check: h => h.includes('<html') || h.includes('<!DOCTYPE') })
+    const CORS_PROXY_STORAGE = 'win12_cors_proxy_key';
+    const CORS_PROXIES_BASE = [
+        { name: 'corsproxy.dev', makeUrl: (url, key) => key ? `https://api.corsproxy.dev/proxy?url=${encodeURIComponent(url)}&key=${key}` : null, check: h => h.includes('<html') || h.includes('<!DOCTYPE') },
+        { name: 'allorigins', makeUrl: (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, check: h => h.includes('<html') || h.includes('<!DOCTYPE') },
+        { name: 'codetabs', makeUrl: (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`, check: h => h.includes('<html') || h.includes('<!DOCTYPE') }
     ];
+
+    function getCorsKey() {
+        return localStorage.getItem(CORS_PROXY_STORAGE) || '';
+    }
+
+    function setCorsKey(key) {
+        localStorage.setItem(CORS_PROXY_STORAGE, key);
+    }
+
+    function promptCorsKey() {
+        const existing = getCorsKey();
+        const key = prompt('Enter your corsproxy.dev API key (or leave empty to skip):', existing);
+        if (key !== null) {
+            setCorsKey(key.trim());
+        }
+        return key?.trim() || '';
+    }
 
     const QUICK_LINKS = [
         { name: 'GitHub', url: 'https://github.com', color: '#333', letter: 'G' },
@@ -63,6 +81,7 @@ const Browser = (() => {
                         <input type="text" class="browser-url-input" placeholder="Search or enter URL" spellcheck="false">
                     </div>
                     <button class="browser-mode-btn mode-iframe" title="Rendering mode (click to cycle)">⚙ Iframe</button>
+                    <button class="browser-key-btn" title="Set CORS proxy API key">🔑</button>
                 </div>
                 <div class="browser-content">
                     <div class="browser-newtab"></div>
@@ -150,14 +169,16 @@ const Browser = (() => {
             if (text && text.trim().length > 10) return text;
             throw new Error('Empty response');
         } catch (e) {
-            for (const proxy of CORS_PROXIES) {
+            const key = getCorsKey();
+            for (const proxy of CORS_PROXIES_BASE) {
+                const proxyUrl = proxy.makeUrl(url, key);
+                if (!proxyUrl) continue;
                 try {
-                    const proxyConfig = proxy(url);
-                    const res = await fetch(proxyConfig.url);
+                    const res = await fetch(proxyUrl);
                     if (!res.ok) continue;
                     const text = await res.text();
                     if (!text || text.trim().length < 10) continue;
-                    if (proxyConfig.check && !proxyConfig.check(text)) continue;
+                    if (proxy.check && !proxy.check(text)) continue;
                     try {
                         const json = JSON.parse(text);
                         if (json.contents) return json.contents;
@@ -554,6 +575,13 @@ const Browser = (() => {
         urlInput.addEventListener('focus', () => urlInput.select());
 
         modeBtn.addEventListener('click', cycleMode);
+
+        const keyBtn = el.querySelector('.browser-key-btn');
+        keyBtn.addEventListener('click', () => {
+            promptCorsKey();
+            keyBtn.textContent = getCorsKey() ? '🔑✓' : '🔑';
+        });
+        if (getCorsKey()) keyBtn.textContent = '🔑✓';
 
         el.addEventListener('keydown', (e) => {
             if (!el.contains(document.activeElement) && document.activeElement !== document.body) return;

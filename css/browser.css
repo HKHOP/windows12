@@ -200,6 +200,22 @@
 .browser-mode-btn.mode-sandbox { border-color: #FFC107; color: #FFC107; }
 .browser-mode-btn.mode-direct { border-color: #F44336; color: #F44336; }
 
+.browser-key-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-secondary);
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    transition: all 0.15s;
+}
+.browser-key-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
 /* Content Area */
 .browser-content {
     flex: 1;
