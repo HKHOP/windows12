@@ -4,7 +4,7 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
-## [0.8.0] - 2026-08-30
+## [12.0.3700] - 2026-08-30
 
 ### Added
 - All apps button slides in a full app drawer
@@ -12,7 +12,7 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 - Back arrow to return to main start menu view
 - Slide-in/slide-out CSS animations
 
-## [0.7.0] - 2026-08-30
+## [12.0.3600] - 2026-08-30
 
 ### Changed
 - Filesystem restructured to Unix-like hierarchy
@@ -23,7 +23,7 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 - Desktop icons point to `/users/default/Desktop`
 - All path references updated across codebase
 
-## [0.6.0] - 2026-08-30
+## [12.0.3500] - 2026-08-30
 
 ### Added
 - Light/dark mode toggle in Personalization settings
@@ -36,7 +36,7 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 - Start menu border uses theme variable
 - Username input uses theme variables
 
-## [0.5.0] - 2026-08-30
+## [12.0.3400] - 2026-08-30
 
 ### Added
 - Desktop icons render from the Desktop folder in the virtual filesystem
@@ -47,7 +47,7 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 - File Explorer changes to Desktop folder auto-refresh desktop icons
 - Auto-layout with grid positioning based on screen width
 
-## [0.4.0] - 2026-08-30
+## [12.0.3300] - 2026-08-30
 
 ### Added
 - SystemConfig module for persistent system settings
@@ -62,7 +62,7 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 - Editing config.json in Notepad applies changes on Ctrl+S
 - Config badge banner when editing system config
 
-## [0.3.0] - 2026-08-30
+## [12.0.3200] - 2026-08-30
 
 ### Added
 - UserActivity module tracks recently opened files and apps
@@ -73,7 +73,7 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 - Clicking Recommended items reopens the file/app
 - Time-ago labels (Just now, 5m ago, 2h ago, etc.)
 
-## [0.2.0] - 2026-08-30
+## [12.0.3100] - 2026-08-30
 
 ### Added
 - Virtual filesystem module with full CRUD operations
@@ -87,7 +87,7 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 - Notepad: Ctrl+S to save, File menu with Save/Save As
 - Notepad: asterisk (*) indicator for unsaved changes
 
-## [0.1.2] - 2026-08-30
+## [12.0.3020] - 2026-08-30
 
 ### Added
 - Active/focused indicator on taskbar for the current window
@@ -97,12 +97,12 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 - Taskbar click now toggles minimize/restore instead of maximize
 - Refactored window callbacks to avoid circular imports
 
-## [0.1.1] - 2026-08-30
+## [12.0.3010] - 2026-08-30
 
 ### Fixed
 - Start menu pinned apps now launch their respective apps (missing AppRegistry import)
 
-## [0.1.0] - 2026-08-30
+## [12.0.3000] - 2026-08-30
 
 ### Added
 - Project structure with ES modules (no CDNs)
