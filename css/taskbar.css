@@ -68,9 +68,9 @@
     bottom: 2px;
     left: 50%;
     transform: translateX(-50%);
-    width: 6px;
+    width: 8px;
     height: 3px;
-    background: var(--accent-color);
+    background: var(--text-secondary);
     border-radius: 2px;
 }
 

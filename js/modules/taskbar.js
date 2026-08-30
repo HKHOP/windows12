@@ -51,8 +51,10 @@ const Taskbar = (() => {
             if (win.element.style.display === 'none') {
                 win.element.style.display = 'flex';
                 WindowManager.focusWindow(win.id);
+            } else if (win.element.classList.contains('focused')) {
+                win.element.style.display = 'none';
             } else {
-                WindowManager.toggleMaximize(win);
+                WindowManager.focusWindow(win.id);
             }
         } else {
             launchApp(appId);
@@ -93,11 +95,28 @@ const Taskbar = (() => {
                 btn.classList.add('running');
             } else {
                 btn.classList.remove('running');
+                btn.classList.remove('active');
             }
         });
     }
 
-    return { init, openApp, addRunningApp, removeRunningApp, updateRunningState };
+    function setActiveApp(appId) {
+        const btns = document.querySelectorAll('.taskbar-btn.app-btn');
+        btns.forEach(btn => {
+            if (btn.dataset.app === appId) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+
+    function clearActiveApp() {
+        const btns = document.querySelectorAll('.taskbar-btn.app-btn');
+        btns.forEach(btn => btn.classList.remove('active'));
+    }
+
+    return { init, openApp, addRunningApp, removeRunningApp, updateRunningState, setActiveApp, clearActiveApp };
 })();
 
 const AppRegistry = (() => {

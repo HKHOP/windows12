@@ -13,4 +13,20 @@ document.addEventListener('DOMContentLoaded', () => {
     WindowManager.init();
     Taskbar.init();
     StartMenu.init();
+
+    WindowManager.setOnFocusChanged((appId) => {
+        if (appId) {
+            Taskbar.setActiveApp(appId);
+        } else {
+            Taskbar.clearActiveApp();
+        }
+    });
+
+    WindowManager.setOnWindowCreated((appId, windowData) => {
+        Taskbar.addRunningApp(appId, windowData);
+    });
+
+    WindowManager.setOnWindowClosed((appId, windowId) => {
+        Taskbar.removeRunningApp(appId, windowId);
+    });
 });

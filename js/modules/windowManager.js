@@ -2,9 +2,24 @@ const WindowManager = (() => {
     let windows = new Map();
     let zCounter = 100;
     let container;
+    let onFocusChanged = null;
+    let onWindowCreated = null;
+    let onWindowClosed = null;
 
     function init() {
         container = document.getElementById('windows-container');
+    }
+
+    function setOnFocusChanged(cb) {
+        onFocusChanged = cb;
+    }
+
+    function setOnWindowCreated(cb) {
+        onWindowCreated = cb;
+    }
+
+    function setOnWindowClosed(cb) {
+        onWindowClosed = cb;
     }
 
     function createWindow(appId, title, icon, content, options = {}) {
@@ -74,7 +89,7 @@ const WindowManager = (() => {
         win.addEventListener('mousedown', () => focusWindow(id));
 
         focusWindow(id);
-        if (typeof Taskbar !== 'undefined') Taskbar.addRunningApp(appId, windowData);
+        if (onWindowCreated) onWindowCreated(appId, windowData);
 
         return windowData;
     }
@@ -83,10 +98,11 @@ const WindowManager = (() => {
         const data = windows.get(id);
         if (!data) return;
         data.element.style.zIndex = ++zCounter;
-        windows.forEach((v, k) => {
+        windows.forEach((v) => {
             v.element.classList.remove('focused');
         });
         data.element.classList.add('focused');
+        if (onFocusChanged) onFocusChanged(data.appId);
     }
 
     function setupDrag(win, data) {
@@ -232,7 +248,11 @@ const WindowManager = (() => {
         data.element.remove();
         const appId = data.appId;
         windows.delete(id);
-        if (typeof Taskbar !== 'undefined') Taskbar.removeRunningApp(appId, id);
+        if (onWindowClosed) onWindowClosed(appId, id);
+        if (onFocusChanged) {
+            const remaining = getWindowsByApp(appId);
+            if (remaining.length === 0) onFocusChanged(null);
+        }
     }
 
     function getWindowsByApp(appId) {
@@ -249,7 +269,7 @@ const WindowManager = (() => {
         });
     }
 
-    return { init, createWindow, focusWindow, closeWindow, getWindowsByApp, minimizeAll, toggleMaximize };
+    return { init, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, createWindow, focusWindow, closeWindow, getWindowsByApp, minimizeAll, toggleMaximize };
 })();
 
 export default WindowManager;
