@@ -4,11 +4,11 @@ const ContextMenu = (() => {
 
     function init() {
         menuEl = document.getElementById('context-menu');
-        document.addEventListener('click', hide);
         document.addEventListener('contextmenu', handleGlobalContext);
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') hide();
         });
+        menuEl.addEventListener('click', (e) => e.stopPropagation());
     }
 
     function handleGlobalContext(e) {
@@ -52,6 +52,11 @@ const ContextMenu = (() => {
         menuEl.style.left = `${Math.min(x, maxX)}px`;
         menuEl.style.top = `${Math.min(y, maxY)}px`;
         isVisible = true;
+
+        // Prevent the showing click from immediately closing the menu
+        requestAnimationFrame(() => {
+            document.addEventListener('click', hide, { once: true });
+        });
     }
 
     function hide() {
