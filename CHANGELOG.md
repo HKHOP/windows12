@@ -4,6 +4,17 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [0.7.0] - 2026-08-30
+
+### Changed
+- Filesystem restructured to Unix-like hierarchy
+- Root `/` contains: `system/`, `users/`, `programs data/`
+- User files at `/users/default/` (Desktop, Documents, Downloads, etc.)
+- System config at `/system/config.json`
+- File Explorer sidebar updated with new paths
+- Desktop icons point to `/users/default/Desktop`
+- All path references updated across codebase
+
 ## [0.6.0] - 2026-08-30
 
 ### Added
