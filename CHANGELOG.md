@@ -4,6 +4,13 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.3710] - 2026-08-30
+
+### Fixed
+- All apps drawer now works correctly without breaking start menu
+- Removed duplicate Pinned/Recommended section headers
+- Simplified DOM manipulation for view switching
+
 ## [12.0.3700] - 2026-08-30
 
 ### Added

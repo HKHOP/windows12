@@ -17,9 +17,13 @@ const StartMenu = (() => {
     ].sort((a, b) => a.name.localeCompare(b.name));
 
     let currentView = 'main';
+    let sections = [];
 
     function init() {
-        renderMainView();
+        const menu = document.getElementById('start-menu');
+        sections = menu.querySelectorAll('.start-menu-section');
+        renderPinnedApps();
+        renderRecommended();
         setupSearch();
         setupAllAppsButton();
     }
@@ -29,45 +33,37 @@ const StartMenu = (() => {
         if (btn) {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                slideToAllApps();
+                showAllApps();
             });
         }
     }
 
-    function slideToAllApps() {
+    function showAllApps() {
         currentView = 'allApps';
-        const menu = document.getElementById('start-menu');
-        const body = menu.querySelector('.start-menu-body');
+        sections[0].style.display = 'none';
+        sections[1].style.display = 'none';
 
-        if (!body) {
-            const existingBody = document.createElement('div');
-            existingBody.className = 'start-menu-body';
-            const search = menu.querySelector('.start-menu-search');
-            const footer = menu.querySelector('#start-menu-footer');
-            search.after(existingBody);
-            existingBody.appendChild(menu.querySelector('.start-menu-section'));
+        let drawer = document.getElementById('all-apps-drawer');
+        if (!drawer) {
+            drawer = document.createElement('div');
+            drawer.id = 'all-apps-drawer';
+            drawer.style.cssText = 'max-height:420px;overflow-y:auto;padding:0 16px;animation:slideInRight 0.2s ease-out;';
+            sections[0].parentNode.insertBefore(drawer, sections[0]);
         }
-
-        const bodyEl = menu.querySelector('.start-menu-body');
-        bodyEl.innerHTML = '';
-        bodyEl.style.position = 'relative';
-        bodyEl.style.overflow = 'hidden';
-
-        const drawer = document.createElement('div');
-        drawer.className = 'all-apps-drawer';
-        drawer.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:var(--start-menu-bg);padding:0 16px;overflow-y:auto;animation:slideInRight 0.25s ease-out;';
+        drawer.innerHTML = '';
+        drawer.style.display = 'block';
 
         const header = document.createElement('div');
-        header.style.cssText = 'display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--window-border);margin-bottom:8px;position:sticky;top:0;background:var(--start-menu-bg);z-index:1;';
+        header.style.cssText = 'display:flex;align-items:center;gap:12px;padding:8px 0 12px;border-bottom:1px solid var(--window-border);margin-bottom:8px;position:sticky;top:0;background:var(--start-menu-bg);z-index:1;';
 
         const backBtn = document.createElement('button');
-        backBtn.style.cssText = 'background:none;border:none;color:var(--text-primary);cursor:pointer;font-size:18px;padding:4px 8px;border-radius:4px;display:flex;align-items:center;justify-content:center;';
+        backBtn.style.cssText = 'background:none;border:none;color:var(--text-primary);cursor:pointer;font-size:16px;padding:4px 8px;border-radius:4px;display:flex;align-items:center;';
         backBtn.innerHTML = '&#9664;';
         backBtn.addEventListener('mouseenter', () => backBtn.style.background = 'var(--hover-bg)');
         backBtn.addEventListener('mouseleave', () => backBtn.style.background = 'none');
         backBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            slideToMain();
+            showMainView();
         });
 
         const title = document.createElement('span');
@@ -102,78 +98,24 @@ const StartMenu = (() => {
                 el.addEventListener('mouseenter', () => el.style.background = 'var(--hover-bg)');
                 el.addEventListener('mouseleave', () => el.style.background = 'transparent');
                 el.addEventListener('click', () => {
-                    menu.classList.add('hidden');
+                    document.getElementById('start-menu').classList.add('hidden');
                     UserActivity.trackAppOpen(app.id);
                     launchApp(app.id);
                     renderRecommended();
-                    slideToMain();
+                    showMainView();
                 });
                 drawer.appendChild(el);
             });
         });
-
-        bodyEl.appendChild(drawer);
     }
 
-    function slideToMain() {
+    function showMainView() {
         currentView = 'main';
-        const menu = document.getElementById('start-menu');
-        const body = menu.querySelector('.start-menu-body');
+        sections[0].style.display = '';
+        sections[1].style.display = '';
 
-        if (body) {
-            body.style.animation = 'none';
-            body.offsetHeight;
-            body.style.animation = 'slideInLeft 0.25s ease-out';
-
-            setTimeout(() => {
-                renderMainView();
-            }, 250);
-        }
-    }
-
-    function renderMainView() {
-        const menu = document.getElementById('start-menu');
-        let body = menu.querySelector('.start-menu-body');
-
-        if (!body) {
-            body = document.createElement('div');
-            body.className = 'start-menu-body';
-            const search = menu.querySelector('.start-menu-search');
-            search.after(body);
-        }
-
-        body.innerHTML = '';
-        body.style.cssText = '';
-
-        const pinnedSection = document.createElement('div');
-        pinnedSection.className = 'start-menu-section';
-        pinnedSection.innerHTML = `
-            <div class="start-menu-section-header">
-                <span>Pinned</span>
-                <button class="start-menu-all-btn">All apps &gt;</button>
-            </div>
-            <div id="pinned-apps" class="start-menu-grid"></div>
-        `;
-
-        const recSection = document.createElement('div');
-        recSection.className = 'start-menu-section';
-        recSection.innerHTML = `
-            <div class="start-menu-section-header">
-                <span>Recommended</span>
-            </div>
-            <div id="recommended-apps" class="start-menu-list"></div>
-        `;
-
-        body.appendChild(pinnedSection);
-        body.appendChild(recSection);
-
-        pinnedSection.querySelector('.start-menu-all-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            slideToAllApps();
-        });
-
-        renderPinnedApps();
-        renderRecommended();
+        const drawer = document.getElementById('all-apps-drawer');
+        if (drawer) drawer.style.display = 'none';
     }
 
     function renderPinnedApps() {
@@ -305,7 +247,7 @@ const StartMenu = (() => {
         searchInput.addEventListener('input', (e) => {
             const query = e.target.value.toLowerCase();
             if (currentView === 'allApps') {
-                const items = document.querySelectorAll('.all-apps-drawer .app-item');
+                const items = document.querySelectorAll('#all-apps-drawer .app-item');
                 items.forEach(item => {
                     const name = item.querySelector('span').textContent.toLowerCase();
                     item.style.display = name.includes(query) ? '' : 'none';
