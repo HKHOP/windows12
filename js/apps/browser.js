@@ -4,8 +4,9 @@ const Browser = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#2196F3" stroke-width="2"/><path d="M2 12h20" stroke="#2196F3" stroke-width="1.5"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="#2196F3" stroke-width="1.5"/></svg>`;
 
     const CORS_PROXIES = [
-        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-        url => `https://corsproxy.io/?${encodeURIComponent(url)}`
+        url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+        url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+        url => `https://thingproxy.freeboard.io/fetch/${url}`
     ];
 
     const QUICK_LINKS = [
@@ -130,15 +131,25 @@ const Browser = (() => {
         try {
             const res = await fetch(url);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            return await res.text();
+            const text = await res.text();
+            if (text && text.trim().length > 10) return text;
+            throw new Error('Empty response');
         } catch (e) {
             for (const proxy of CORS_PROXIES) {
                 try {
                     const res = await fetch(proxy(url));
-                    if (res.ok) return await res.text();
+                    if (!res.ok) continue;
+                    const text = await res.text();
+                    if (!text || text.trim().length < 10) continue;
+                    try {
+                        const json = JSON.parse(text);
+                        if (json.contents) return json.contents;
+                    } catch {
+                        return text;
+                    }
                 } catch { continue; }
             }
-            throw new Error(`Failed to load: ${e.message}`);
+            throw new Error(`Could not load: ${getHost(url)}`);
         }
     }
 
@@ -352,6 +363,13 @@ const Browser = (() => {
             loadingEl.className = 'browser-loading';
             contentEl.appendChild(loadingEl);
 
+            contentEl.innerHTML = '';
+
+            if (tab.mode === 'iframe') {
+                renderIframeMode(contentEl, tab, tab.url);
+                return;
+            }
+
             try {
                 const rawHtml = await fetchHtml(tab.url);
                 let html = injectBaseUrl(rawHtml, tab.url);
@@ -363,11 +381,7 @@ const Browser = (() => {
                     renderTabs();
                 }
 
-                contentEl.innerHTML = '';
-
-                if (tab.mode === 'iframe') {
-                    renderIframeMode(contentEl, tab, tab.url);
-                } else if (tab.mode === 'sandbox') {
+                if (tab.mode === 'sandbox') {
                     renderSandboxMode(contentEl, tab, html);
                 } else {
                     renderDirectMode(contentEl, tab, html);
@@ -377,7 +391,6 @@ const Browser = (() => {
                 statusText.textContent = 'Done';
                 tab.isLoading = false;
             } catch (err) {
-                contentEl.innerHTML = '';
                 contentEl.innerHTML = getErrorHtml('Failed to load page', `${err.message}<br><br>URL: ${tab.url}`);
                 statusDot.className = 'browser-status-dot error';
                 statusText.textContent = 'Error';
@@ -387,7 +400,6 @@ const Browser = (() => {
 
         function renderIframeMode(container, tab, url) {
             const iframe = document.createElement('iframe');
-            iframe.sandbox = 'allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox';
             iframe.style.cssText = 'width:100%;height:100%;border:none;';
             tab.iframeEl = iframe;
 
