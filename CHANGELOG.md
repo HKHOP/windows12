@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.3770] - 2026-08-30
+
+### Changed
+- Path bar is now an editable input field
+- Click path bar to select all and copy
+- Type a path and press Enter to navigate
+- Press Escape to cancel editing
+
 ## [12.0.3760] - 2026-08-30
 
 ### Added

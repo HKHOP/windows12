@@ -18,7 +18,7 @@ const FileExplorer = (() => {
                     <button class="fe-back" style="background:none;border:none;color:#888;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:16px;" disabled>&#9664;</button>
                     <button class="fe-forward" style="background:none;border:none;color:#888;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:16px;" disabled>&#9654;</button>
                     <button class="fe-up" style="background:none;border:none;color:#ccc;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:16px;">&#9650;</button>
-                    <div class="fe-path" style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:6px 10px;font-size:13px;color:#ccc;">This PC</div>
+                    <input type="text" class="fe-path" style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:6px 10px;font-size:13px;color:#ccc;outline:none;" value="This PC" spellcheck="false">
                     <input type="text" class="fe-search" placeholder="Search" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:6px 10px;font-size:13px;color:#ccc;width:160px;outline:none;">
                 </div>
                 <div style="display:flex;flex:1;overflow:hidden;">
@@ -97,7 +97,8 @@ const FileExplorer = (() => {
         const upBtn = win.element.querySelector('.fe-up');
 
         const displayPath = formatPath(path);
-        pathEl.textContent = displayPath;
+        pathEl.value = displayPath;
+        pathEl.dataset.rawPath = path.join('/');
         pathText.textContent = displayPath;
         backBtn.disabled = historyIndex <= 0;
         forwardBtn.disabled = historyIndex >= pathHistory.length - 1;
@@ -377,6 +378,31 @@ const FileExplorer = (() => {
             if (current.length > 1) {
                 navigate(win, current.slice(0, -1));
             }
+        });
+
+        const pathInput = win.element.querySelector('.fe-path');
+        pathInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const inputPath = pathInput.value.trim();
+                const rawPath = inputPath.split('/').filter(p => p);
+                if (rawPath.length === 0) rawPath.unshift('/');
+                if (FileSystem.isFolder(rawPath)) {
+                    navigate(win, rawPath);
+                } else if (FileSystem.itemExists(rawPath)) {
+                    navigate(win, rawPath.slice(0, -1));
+                } else {
+                    alert('Path not found: ' + inputPath);
+                    pathInput.value = formatPath(pathHistory[historyIndex]);
+                }
+            } else if (e.key === 'Escape') {
+                pathInput.value = formatPath(pathHistory[historyIndex]);
+                pathInput.blur();
+            }
+        });
+
+        pathInput.addEventListener('focus', () => {
+            pathInput.select();
         });
 
         win.element.querySelectorAll('.fe-sidebar-item').forEach(item => {
