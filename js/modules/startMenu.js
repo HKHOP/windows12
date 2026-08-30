@@ -111,11 +111,19 @@ const StartMenu = (() => {
 
     function showMainView() {
         currentView = 'main';
-        sections[0].style.display = '';
-        sections[1].style.display = '';
 
         const drawer = document.getElementById('all-apps-drawer');
         if (drawer) drawer.style.display = 'none';
+
+        sections[0].style.display = '';
+        sections[1].style.display = '';
+        sections[0].style.animation = 'slideInLeft 0.2s ease-out';
+        sections[1].style.animation = 'slideInLeft 0.2s ease-out';
+
+        setTimeout(() => {
+            sections[0].style.animation = '';
+            sections[1].style.animation = '';
+        }, 200);
     }
 
     function renderPinnedApps() {
