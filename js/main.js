@@ -9,10 +9,12 @@ import DesktopIcons from './modules/desktopIcons.js';
 import Settings from './apps/settings.js';
 import Notepad from './apps/notepad.js';
 import FileExplorer from './apps/fileExplorer.js';
+import TaskManager from './apps/taskManager.js';
 
 AppRegistry.register('settings', Settings);
 AppRegistry.register('notepad', Notepad);
 AppRegistry.register('fileExplorer', FileExplorer);
+AppRegistry.register('taskManager', TaskManager);
 
 document.addEventListener('DOMContentLoaded', () => {
     FileSystem.init();

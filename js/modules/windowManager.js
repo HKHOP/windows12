@@ -273,7 +273,11 @@ const WindowManager = (() => {
         return windows.get(id);
     }
 
-    return { init, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, createWindow, focusWindow, closeWindow, getWindowsByApp, minimizeAll, toggleMaximize, _getWindow };
+    function getAllWindows() {
+        return Array.from(windows.values());
+    }
+
+    return { init, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, createWindow, focusWindow, closeWindow, getWindowsByApp, getAllWindows, minimizeAll, toggleMaximize, _getWindow };
 })();
 
 export default WindowManager;
