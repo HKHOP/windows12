@@ -326,26 +326,48 @@ const FileExplorer = (() => {
     function openFileWithDefaultApp(itemPath, entry) {
         const ext = entry.ext || '';
         const textExts = ['txt', 'md', 'json', 'js', 'html', 'css', 'log', 'cfg', 'xml', 'yml', 'yaml', 'csv'];
-        if (textExts.includes(ext)) {
+        const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'];
+        if (imageExts.includes(ext)) {
+            openFileWithPhotos(itemPath, entry);
+        } else if (textExts.includes(ext)) {
             openFileWithNotepad(itemPath);
         } else {
             openFileWithNotepad(itemPath);
         }
+    }
+
+    function openFileWithPhotos(itemPath, entry) {
+        const content = FileSystem.readFile(itemPath);
+        if (content === null) return;
+        const name = entry.name;
+        const ext = entry.ext || '';
+        UserActivity.trackFileOpen(itemPath, name);
+
+        const viewerContent = `
+            <div style="display:flex;flex-direction:column;height:100%;background:rgba(0,0,0,0.92);">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
+                    <span style="color:#ddd;font-size:13px;">${name}</span>
+                </div>
+                <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:20px;overflow:hidden;">
+                    <img src="${content}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:4px;" alt="${name}">
+                </div>
+                <div style="text-align:center;padding:8px;color:#666;font-size:11px;">${ext.toUpperCase()} &middot; ${(new Blob([content]).size / 1024).toFixed(1)} KB</div>
+            </div>
+        `;
+
+        WindowManager.createWindow('photos', `${name} - Photos`, '🖼️', viewerContent, { width: 700, height: 500 });
     }
 
     function openFileWithApp(itemPath, appId) {
         if (appId === 'notepad') {
             openFileWithNotepad(itemPath);
+        } else if (appId === 'photos') {
+            const entry = { name: itemPath[itemPath.length - 1], ext: itemPath[itemPath.length - 1].split('.').pop() };
+            openFileWithPhotos(itemPath, entry);
         } else {
-            const { Taskbar } = require_taskbar();
-            if (Taskbar) Taskbar.openApp(appId);
+            const app = window._modules?.AppRegistry?.get(appId);
+            if (app?.launch) app.launch();
         }
-    }
-
-    function require_taskbar() {
-        try {
-            return { Taskbar: window._Taskbar };
-        } catch { return {}; }
     }
 
     function getFolderIcon(name) {

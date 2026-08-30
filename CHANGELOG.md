@@ -24,6 +24,8 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 
 ### Fixed
 - Non-pinned running apps now appear in the taskbar with a visual separator
+- File Explorer now opens image files in Photos viewer instead of Notepad
+- Photos app now renders actual base64 images in thumbnails and full viewer
 
 ### Added
 - Calculator app with standard operations, chain calculations, and keyboard support
