@@ -66,4 +66,6 @@ const ContextMenu = (() => {
     return { init, show, hide, showForElement };
 })();
 
+window._ContextMenu = ContextMenu;
+
 export default ContextMenu;

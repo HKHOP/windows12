@@ -2,6 +2,7 @@ import WindowManager from './modules/windowManager.js';
 import { Taskbar, AppRegistry } from './modules/taskbar.js';
 import StartMenu from './modules/startMenu.js';
 import ContextMenu from './modules/contextMenu.js';
+import FileSystem from './modules/fileSystem.js';
 import Settings from './apps/settings.js';
 import Notepad from './apps/notepad.js';
 import FileExplorer from './apps/fileExplorer.js';
@@ -11,6 +12,7 @@ AppRegistry.register('notepad', Notepad);
 AppRegistry.register('fileExplorer', FileExplorer);
 
 document.addEventListener('DOMContentLoaded', () => {
+    FileSystem.init();
     WindowManager.init();
     Taskbar.init();
     StartMenu.init();
