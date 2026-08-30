@@ -28,5 +28,10 @@ A web-based OS simulation built with vanilla HTML, CSS, and JavaScript modules. 
 - Icons are inline SVGs (no external assets)
 - Dark theme throughout (Windows 11 acrylic style)
 
+## Workflow
+- Always commit and push changes after completing a task.
+- Use descriptive commit messages with conventional commits format (e.g. `feat:`, `fix:`, `chore:`).
+- Update CHANGELOG.md with a new entry before committing (never modify older entries).
+
 ## Running
 Serve `index.html` statically via any web server (e.g. GitHub Pages).
