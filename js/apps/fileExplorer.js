@@ -307,6 +307,7 @@ const FileExplorer = (() => {
         const ext = entry.ext || '';
         const apps = [
             { name: 'Notepad', id: 'notepad', exts: ['txt', 'md', 'json', 'js', 'html', 'css', 'log', 'cfg'] },
+            { name: 'Browser', id: 'browser', exts: ['html'] },
             { name: 'Paint', id: 'paint', exts: ['png', 'jpg', 'jpeg', 'gif', 'bmp'] },
             { name: 'Photos', id: 'photos', exts: ['png', 'jpg', 'jpeg', 'gif'] }
         ];
@@ -361,6 +362,8 @@ const FileExplorer = (() => {
     function openFileWithApp(itemPath, appId) {
         if (appId === 'notepad') {
             openFileWithNotepad(itemPath);
+        } else if (appId === 'browser') {
+            openFileWithBrowser(itemPath);
         } else if (appId === 'photos') {
             const entry = { name: itemPath[itemPath.length - 1], ext: itemPath[itemPath.length - 1].split('.').pop() };
             openFileWithPhotos(itemPath, entry);
@@ -580,6 +583,49 @@ const FileExplorer = (() => {
                 }
             } catch (err) {}
         });
+    }
+
+    function openFileWithBrowser(itemPath) {
+        const content = FileSystem.readFile(itemPath);
+        if (content === null) return;
+        const name = itemPath[itemPath.length - 1];
+        UserActivity.trackFileOpen(itemPath, name);
+
+        const displayPath = itemPath.map((p, i) => i === 0 ? 'C:' : p).join('\\');
+        const secureContent = sanitizeLocalHtml(content);
+
+        const browserIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#2196F3" stroke-width="2"/><path d="M2 12h20" stroke="#2196F3" stroke-width="1.5"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="#2196F3" stroke-width="1.5"/></svg>`;
+
+        const content2 = `
+            <div style="display:flex;flex-direction:column;height:100%;">
+                <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(0,0,0,0.3);border-bottom:1px solid rgba(255,255,255,0.06);">
+                    <span style="color:#aaa;font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${displayPath}">${displayPath}</span>
+                </div>
+                <iframe sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" style="width:100%;flex:1;border:none;background:white;" srcdoc="${escapeAttr(secureContent)}"></iframe>
+                <div style="padding:3px 12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;font-size:11px;color:#666;">
+                    <span>Local file</span>
+                    <span>Restricted mode</span>
+                </div>
+            </div>
+        `;
+
+        WindowManager.createWindow('browser', `${name} - Browser`, browserIcon, content2, { width: 800, height: 500 });
+    }
+
+    function sanitizeLocalHtml(html) {
+        html = html.replace(/<script\b[^>]*\btype\s*=\s*["']module["'][^>]*>[\s\S]*?<\/script>/gi, '<!-- module script blocked -->');
+        html = html.replace(/<script\b[^>]*\bsrc\s*=\s*["'][^"']*\.mjs["'][^>]*>[\s\S]*?<\/script>/gi, '<!-- module script blocked -->');
+        html = html.replace(/import\s*\(/g, '/* blocked */(');
+        html = html.replace(/from\s+["'][^"']*["']/g, '/* blocked */""');
+        html = html.replace(/import\s+{[^}]*}\s+from/g, '/* blocked */ var');
+        html = html.replace(/import\s+\w+\s+from/g, '/* blocked */ var');
+        html = html.replace(/export\s+(default\s+)?/g, '/* blocked */ ');
+        html = html.replace(/export\s+{[^}]*}/g, '/* blocked */');
+        return html;
+    }
+
+    function escapeAttr(str) {
+        return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
     function updateStatus(textarea, status) {

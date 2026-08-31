@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.3950] - 2026-08-31
+
+### Added
+- HTML files open in Notepad by default (as source code)
+- "Open with Browser" option in context menu for HTML files
+- Browser displays local file path in URL bar when opening local files
+- Security restrictions for local HTML: ES modules, import(), export, and module-type scripts are stripped
+
 ## [12.0.3940] - 2026-08-31
 
 ### Removed
