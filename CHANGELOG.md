@@ -4,6 +4,19 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.3960] - 2026-08-31
+
+### Fixed
+- Navigation back/forward now works correctly — iframe element is reused instead of destroyed/recreated
+- URL bar updates when possible (same-origin pages, or when browser allows reading iframe location)
+- In-iframe navigation (clicking links) is tracked in browser history when URL is readable
+- Switching tabs no longer reloads the page
+- New tab page overlays iframe instead of destroying it
+
+### Changed
+- Browser navigation refactored: `loadUrlInTab()` reuses existing iframe, `showIframe()` manages visibility
+- `goBack()`/`goForward()` properly update state and load correct URL from history stack
+
 ## [12.0.3950] - 2026-08-31
 
 ### Added

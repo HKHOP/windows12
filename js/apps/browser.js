@@ -24,7 +24,6 @@ const Browser = (() => {
     let tabCounter = 0;
     const tabs = new Map();
     let activeTabId = null;
-    let globalZoom = 1;
 
     function createTab(url) {
         const id = `tab-${Date.now()}-${++tabCounter}`;
@@ -36,7 +35,9 @@ const Browser = (() => {
             history: [],
             historyIndex: -1,
             isLoading: false,
-            zoom: 1
+            zoom: 1,
+            iframeEl: null,
+            navigatingInternally: false
         };
         if (url) {
             tab.url = url;
@@ -127,7 +128,7 @@ const Browser = (() => {
         return url.startsWith('https://');
     }
 
-    function addHistory(url, title) {
+    function addHistoryEntry(url, title) {
         if (!url || url === 'about:blank') return;
         const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
         history.unshift({ url, title: title || url, time: Date.now() });
@@ -181,8 +182,6 @@ const Browser = (() => {
         const dlBtn = el.querySelector('.browser-dl-btn');
 
         let clockInterval = null;
-        let findMatchCount = 0;
-        let findCurrentIndex = 0;
 
         function updateClock() {
             const clockEl = contentEl.querySelector('.browser-newtab-clock');
@@ -213,6 +212,12 @@ const Browser = (() => {
                 tab.iframeEl.style.height = '100%';
             }
             updateZoomDisplay();
+        }
+
+        function updateUrlBar(tab) {
+            urlInput.value = tab.displayUrl || tab.url || '';
+            urlIcon.textContent = isSecure(tab.url) ? '🔒' : '⚠️';
+            statusHost.textContent = getHost(tab.url);
         }
 
         function renderTabs() {
@@ -254,7 +259,7 @@ const Browser = (() => {
                 'separator',
                 { label: 'Duplicate Tab', icon: '⧉', action: () => { if (tab.url) addTab(tab.url); } },
                 'separator',
-                { label: 'Reload', icon: '↻', action: () => { if (tab.url) renderPage(tab); } }
+                { label: 'Reload', icon: '↻', action: () => { if (tab.url) loadUrlInTab(tab, tab.url); } }
             ];
             ContextMenu.show(x, y, items);
         }
@@ -292,15 +297,13 @@ const Browser = (() => {
             renderTabs();
             const tab = tabs.get(tabId);
             updateNavState(tab);
-            urlInput.value = tab.displayUrl || '';
-            urlIcon.textContent = isSecure(tab.url) ? '🔒' : '⚠️';
-            statusHost.textContent = getHost(tab.url);
+            updateUrlBar(tab);
             updateZoomDisplay();
 
             if (!tab.url) {
                 showNewTab();
             } else {
-                renderPage(tab);
+                showIframe(tab);
             }
         }
 
@@ -345,6 +348,11 @@ const Browser = (() => {
         function showNewTab() {
             const tab = tabs.get(activeTabId);
             if (!tab) return;
+
+            if (tab.iframeEl) {
+                tab.iframeEl.style.display = 'none';
+            }
+
             tab.title = 'New Tab';
             tab.url = '';
             tab.displayUrl = '';
@@ -356,12 +364,21 @@ const Browser = (() => {
             updateZoomDisplay();
             renderTabs();
 
-            contentEl.innerHTML = getNewTabHtml();
+            let newTabDiv = contentEl.querySelector('.browser-newtab');
+            if (!newTabDiv) {
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = getNewTabHtml();
+                newTabDiv = wrapper.firstElementChild;
+                contentEl.appendChild(newTabDiv);
+            } else {
+                newTabDiv.style.display = '';
+            }
+
             if (clockInterval) clearInterval(clockInterval);
             updateClock();
             clockInterval = setInterval(updateClock, 10000);
 
-            const searchInput = contentEl.querySelector('.browser-newtab-search-input');
+            const searchInput = newTabDiv.querySelector('.browser-newtab-search-input');
             if (searchInput) {
                 searchInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
@@ -372,77 +389,132 @@ const Browser = (() => {
                 setTimeout(() => searchInput.focus(), 50);
             }
 
-            contentEl.querySelectorAll('.browser-newtab-link').forEach(link => {
+            newTabDiv.querySelectorAll('.browser-newtab-link').forEach(link => {
                 link.addEventListener('click', () => navigateTo(link.dataset.url));
             });
         }
 
-        async function navigateTo(url) {
+        function hideNewTab() {
+            const newTabDiv = contentEl.querySelector('.browser-newtab');
+            if (newTabDiv) newTabDiv.style.display = 'none';
+            if (clockInterval) { clearInterval(clockInterval); clockInterval = null; }
+        }
+
+        function navigateTo(url) {
             const tab = tabs.get(activeTabId);
             if (!tab) return;
             if (!url) return;
 
             url = normalizeUrl(url);
-            tab.url = url;
-            tab.displayUrl = url;
 
             if (tab.historyIndex < tab.history.length - 1) {
                 tab.history = tab.history.slice(0, tab.historyIndex + 1);
             }
             tab.history.push(url);
             tab.historyIndex = tab.history.length - 1;
+            tab.url = url;
+            tab.displayUrl = url;
 
-            urlInput.value = url;
-            urlIcon.textContent = isSecure(url) ? '🔒' : '⚠️';
-            statusHost.textContent = getHost(url);
+            updateUrlBar(tab);
             updateNavState(tab);
             renderTabs();
 
-            await renderPage(tab);
+            loadUrlInTab(tab, url);
         }
 
-        async function renderPage(tab) {
-            if (!tab.url) { showNewTab(); return; }
+        function loadUrlInTab(tab, url) {
+            tab.url = url;
+            tab.displayUrl = url;
+            tab.navigatingInternally = false;
+
+            updateUrlBar(tab);
 
             if (clockInterval) { clearInterval(clockInterval); clockInterval = null; }
-
             statusDot.className = 'browser-status-dot loading';
             statusText.textContent = 'Loading...';
             tab.isLoading = true;
 
-            contentEl.innerHTML = '';
+            hideNewTab();
 
-            const iframe = document.createElement('iframe');
-            iframe.style.cssText = 'width:100%;height:100%;border:none;';
-            iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox';
-            tab.iframeEl = iframe;
+            if (!tab.iframeEl) {
+                const iframe = document.createElement('iframe');
+                iframe.style.cssText = 'width:100%;height:100%;border:none;';
+                iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox';
+                tab.iframeEl = iframe;
+                contentEl.appendChild(iframe);
 
+                iframe.addEventListener('load', () => onIframeLoad(tab));
+            }
+
+            tab.iframeEl.style.display = '';
             applyZoom(tab);
+            tab.iframeEl.src = url;
+        }
 
-            iframe.addEventListener('load', () => {
-                statusDot.className = 'browser-status-dot';
-                statusText.textContent = 'Done';
-                tab.isLoading = false;
-                try {
-                    const iframeTitle = iframe.contentDocument?.title;
-                    if (iframeTitle) {
-                        tab.title = iframeTitle;
-                        renderTabs();
-                        addHistory(tab.url, tab.title);
-                    }
-                    const iframeUrl = iframe.contentWindow?.location?.href;
-                    if (iframeUrl && iframeUrl !== 'about:blank') {
-                        tab.url = iframeUrl;
-                        tab.displayUrl = iframeUrl;
-                        urlInput.value = iframeUrl;
-                        urlIcon.textContent = isSecure(iframeUrl) ? '🔒' : '⚠️';
-                        statusHost.textContent = getHost(iframeUrl);
-                    }
-                } catch {}
-            });
+        function onIframeLoad(tab) {
+            if (tab.id !== activeTabId) return;
 
-            iframe.src = tab.url;
-            contentEl.appendChild(iframe);
+            statusDot.className = 'browser-status-dot';
+            statusText.textContent = 'Done';
+            tab.isLoading = false;
+
+            try {
+                const iframeTitle = tab.iframeEl.contentDocument?.title;
+                if (iframeTitle && iframeTitle !== tab.title) {
+                    tab.title = iframeTitle;
+                    renderTabs();
+                }
+            } catch {}
+
+            let realUrl = null;
+            try {
+                realUrl = tab.iframeEl.contentWindow?.location?.href;
+                if (realUrl === 'about:blank') realUrl = null;
+            } catch {}
+
+            if (realUrl && realUrl !== tab.url) {
+                tab.url = realUrl;
+                tab.displayUrl = realUrl;
+                urlInput.value = realUrl;
+                urlIcon.textContent = isSecure(realUrl) ? '🔒' : '⚠️';
+                statusHost.textContent = getHost(realUrl);
+
+                if (tab.navigatingInternally) {
+                    tab.history = tab.history.slice(0, tab.historyIndex + 1);
+                    tab.history.push(realUrl);
+                    tab.historyIndex = tab.history.length - 1;
+                    tab.navigatingInternally = false;
+                    updateNavState(tab);
+                }
+            } else {
+                addHistoryEntry(tab.url, tab.title);
+            }
+        }
+
+        function goBack() {
+            const tab = tabs.get(activeTabId);
+            if (!tab || tab.historyIndex <= 0) return;
+            tab.historyIndex--;
+            const url = tab.history[tab.historyIndex];
+            tab.url = url;
+            tab.displayUrl = url;
+            tab.navigatingInternally = false;
+            updateUrlBar(tab);
+            updateNavState(tab);
+            loadUrlInTab(tab, url);
+        }
+
+        function goForward() {
+            const tab = tabs.get(activeTabId);
+            if (!tab || tab.historyIndex >= tab.history.length - 1) return;
+            tab.historyIndex++;
+            const url = tab.history[tab.historyIndex];
+            tab.url = url;
+            tab.displayUrl = url;
+            tab.navigatingInternally = false;
+            updateUrlBar(tab);
+            updateNavState(tab);
+            loadUrlInTab(tab, url);
         }
 
         function openFindBar() {
@@ -457,9 +529,9 @@ const Browser = (() => {
             findInput.value = '';
             findCount.textContent = '';
             try {
-                const iframe = contentEl.querySelector('iframe');
-                if (iframe?.contentWindow) {
-                    iframe.contentWindow.find('', false, false, false);
+                const tab = tabs.get(activeTabId);
+                if (tab?.iframeEl?.contentWindow) {
+                    tab.iframeEl.contentWindow.find('', false, false, false);
                 }
             } catch {}
         }
@@ -468,9 +540,9 @@ const Browser = (() => {
             const query = findInput.value;
             if (!query) { findCount.textContent = ''; return; }
             try {
-                const iframe = contentEl.querySelector('iframe');
-                if (iframe?.contentWindow) {
-                    iframe.contentWindow.find(query, false, direction === 'prev', false);
+                const tab = tabs.get(activeTabId);
+                if (tab?.iframeEl?.contentWindow) {
+                    tab.iframeEl.contentWindow.find(query, false, direction === 'prev', false);
                 }
             } catch {
                 findCount.textContent = 'N/A';
@@ -548,49 +620,29 @@ const Browser = (() => {
 
         el.querySelector('.browser-tab-add').addEventListener('click', () => addTab());
 
-        homeBtn.addEventListener('click', () => {
-            const tab = tabs.get(activeTabId);
-            if (!tab) return;
-            showNewTab();
-        });
-
-        backBtn.addEventListener('click', () => {
-            const tab = tabs.get(activeTabId);
-            if (!tab || tab.historyIndex <= 0) return;
-            tab.historyIndex--;
-            tab.url = tab.history[tab.historyIndex];
-            tab.displayUrl = tab.url;
-            urlInput.value = tab.url;
-            urlIcon.textContent = isSecure(tab.url) ? '🔒' : '⚠️';
-            statusHost.textContent = getHost(tab.url);
-            updateNavState(tab);
-            renderPage(tab);
-        });
-
-        forwardBtn.addEventListener('click', () => {
-            const tab = tabs.get(activeTabId);
-            if (!tab || tab.historyIndex >= tab.history.length - 1) return;
-            tab.historyIndex++;
-            tab.url = tab.history[tab.historyIndex];
-            tab.displayUrl = tab.url;
-            urlInput.value = tab.url;
-            urlIcon.textContent = isSecure(tab.url) ? '🔒' : '⚠️';
-            statusHost.textContent = getHost(tab.url);
-            updateNavState(tab);
-            renderPage(tab);
-        });
-
+        homeBtn.addEventListener('click', () => showNewTab());
+        backBtn.addEventListener('click', goBack);
+        forwardBtn.addEventListener('click', goForward);
         refreshBtn.addEventListener('click', () => {
             const tab = tabs.get(activeTabId);
-            if (tab && tab.url) renderPage(tab);
+            if (tab && tab.url) loadUrlInTab(tab, tab.url);
         });
-
         dlBtn.addEventListener('click', () => showDownloadsPanel());
 
         urlInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 const val = urlInput.value.trim();
-                if (val) navigateTo(val);
+                if (val) {
+                    const tab = tabs.get(activeTabId);
+                    if (tab) {
+                        if (tab.historyIndex < tab.history.length - 1) {
+                            tab.history = tab.history.slice(0, tab.historyIndex + 1);
+                        }
+                        tab.history.push(normalizeUrl(val));
+                        tab.historyIndex = tab.history.length - 1;
+                    }
+                    navigateTo(val);
+                }
             }
         });
 
@@ -598,12 +650,8 @@ const Browser = (() => {
 
         findInput.addEventListener('input', () => doFind('next'));
         findInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                doFind(e.shiftKey ? 'prev' : 'next');
-            }
-            if (e.key === 'Escape') {
-                closeFindBar();
-            }
+            if (e.key === 'Enter') doFind(e.shiftKey ? 'prev' : 'next');
+            if (e.key === 'Escape') closeFindBar();
         });
         findPrev.addEventListener('click', () => doFind('prev'));
         findNext.addEventListener('click', () => doFind('next'));
