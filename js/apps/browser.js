@@ -36,8 +36,7 @@ const Browser = (() => {
             historyIndex: -1,
             isLoading: false,
             zoom: 1,
-            iframeEl: null,
-            navigatingInternally: false
+            iframeEl: null
         };
         if (url) {
             tab.url = url;
@@ -88,27 +87,6 @@ const Browser = (() => {
                         <span class="browser-status-host"></span>
                     </div>
                 </div>
-            </div>
-        `;
-    }
-
-    function getNewTabHtml() {
-        const links = QUICK_LINKS.map(l => `
-            <div class="browser-newtab-link" data-url="${l.url}">
-                <div class="browser-newtab-link-icon" style="background:${l.color};">${l.letter}</div>
-                <div class="browser-newtab-link-label">${l.name}</div>
-            </div>
-        `).join('');
-
-        return `
-            <div class="browser-newtab">
-                <div class="browser-newtab-clock"></div>
-                <div class="browser-newtab-date"></div>
-                <div class="browser-newtab-search">
-                    <span style="font-size:16px;">🔍</span>
-                    <input type="text" class="browser-newtab-search-input" placeholder="Search the web or enter a URL" spellcheck="false">
-                </div>
-                <div class="browser-newtab-links">${links}</div>
             </div>
         `;
     }
@@ -365,39 +343,59 @@ const Browser = (() => {
             updateZoomDisplay();
             renderTabs();
 
-            let newTabDiv = contentEl.querySelector('.browser-newtab');
-            if (!newTabDiv) {
-                const wrapper = document.createElement('div');
-                wrapper.innerHTML = getNewTabHtml();
-                newTabDiv = wrapper.firstElementChild;
-                contentEl.appendChild(newTabDiv);
-            } else {
-                newTabDiv.style.display = '';
+            const existingDiv = contentEl.querySelector('.browser-newtab');
+            if (existingDiv) {
+                existingDiv.innerHTML = getNewTabContentHtml();
+                existingDiv.style.display = '';
             }
 
             if (clockInterval) clearInterval(clockInterval);
             updateClock();
             clockInterval = setInterval(updateClock, 10000);
 
-            const searchInput = newTabDiv.querySelector('.browser-newtab-search-input');
-            if (searchInput) {
-                searchInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        const val = searchInput.value.trim();
-                        if (val) navigateTo(normalizeUrl(val));
-                    }
-                });
-                setTimeout(() => searchInput.focus(), 50);
-            }
+            if (existingDiv) {
+                const searchInput = existingDiv.querySelector('.browser-newtab-search-input');
+                if (searchInput) {
+                    searchInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            const val = searchInput.value.trim();
+                            if (val) navigateTo(normalizeUrl(val));
+                        }
+                    });
+                    setTimeout(() => searchInput.focus(), 50);
+                }
 
-            newTabDiv.querySelectorAll('.browser-newtab-link').forEach(link => {
-                link.addEventListener('click', () => navigateTo(link.dataset.url));
-            });
+                existingDiv.querySelectorAll('.browser-newtab-link').forEach(link => {
+                    link.addEventListener('click', () => navigateTo(link.dataset.url));
+                });
+            }
+        }
+
+        function getNewTabContentHtml() {
+            const links = QUICK_LINKS.map(l => `
+                <div class="browser-newtab-link" data-url="${l.url}">
+                    <div class="browser-newtab-link-icon" style="background:${l.color};">${l.letter}</div>
+                    <div class="browser-newtab-link-label">${l.name}</div>
+                </div>
+            `).join('');
+
+            return `
+                <div class="browser-newtab-clock"></div>
+                <div class="browser-newtab-date"></div>
+                <div class="browser-newtab-search">
+                    <span style="font-size:16px;">🔍</span>
+                    <input type="text" class="browser-newtab-search-input" placeholder="Search the web or enter a URL" spellcheck="false">
+                </div>
+                <div class="browser-newtab-links">${links}</div>
+            `;
         }
 
         function hideNewTab() {
             const newTabDiv = contentEl.querySelector('.browser-newtab');
-            if (newTabDiv) newTabDiv.style.display = 'none';
+            if (newTabDiv) {
+                newTabDiv.style.display = 'none';
+                newTabDiv.innerHTML = '';
+            }
             if (clockInterval) { clearInterval(clockInterval); clockInterval = null; }
         }
 
@@ -435,7 +433,6 @@ const Browser = (() => {
         function loadUrlInTab(tab, url) {
             tab.url = url;
             tab.displayUrl = url;
-            tab.navigatingInternally = false;
 
             updateUrlBar(tab);
 
@@ -476,29 +473,41 @@ const Browser = (() => {
                 }
             } catch {}
 
-            let realUrl = null;
             try {
-                realUrl = tab.iframeEl.contentWindow?.location?.href;
-                if (realUrl === 'about:blank') realUrl = null;
-            } catch {}
-
-            if (realUrl && realUrl !== tab.url) {
-                tab.url = realUrl;
-                tab.displayUrl = realUrl;
-                urlInput.value = realUrl;
-                urlIcon.textContent = isSecure(realUrl) ? '🔒' : '⚠️';
-                statusHost.textContent = getHost(realUrl);
-
-                if (tab.navigatingInternally) {
-                    tab.history = tab.history.slice(0, tab.historyIndex + 1);
-                    tab.history.push(realUrl);
-                    tab.historyIndex = tab.history.length - 1;
-                    tab.navigatingInternally = false;
-                    updateNavState(tab);
+                const realUrl = tab.iframeEl.contentWindow?.location?.href;
+                if (realUrl && realUrl !== 'about:blank' && realUrl !== tab.url) {
+                    tab.url = realUrl;
+                    tab.displayUrl = realUrl;
+                    urlInput.value = realUrl;
+                    urlIcon.textContent = isSecure(realUrl) ? '🔒' : '⚠️';
+                    statusHost.textContent = getHost(realUrl);
+                    addHistoryEntry(realUrl, tab.title);
                 }
-            } else {
+            } catch {
                 addHistoryEntry(tab.url, tab.title);
             }
+
+            try {
+                const doc = tab.iframeEl.contentDocument;
+                if (doc) {
+                    const script = doc.createElement('script');
+                    script.textContent = `
+                        (function() {
+                            var lastUrl = location.href;
+                            function checkUrl() {
+                                if (location.href !== lastUrl) {
+                                    lastUrl = location.href;
+                                    try { window.parent.postMessage({type:'browser-nav', url:location.href}, '*'); } catch(e) {}
+                                }
+                            }
+                            setInterval(checkUrl, 500);
+                            window.addEventListener('popstate', function() { setTimeout(checkUrl, 100); });
+                        })();
+                    `;
+                    (doc.head || doc.documentElement).appendChild(script);
+                    script.remove();
+                }
+            } catch {}
         }
 
         function goBack() {
@@ -508,7 +517,6 @@ const Browser = (() => {
             const url = tab.history[tab.historyIndex];
             tab.url = url;
             tab.displayUrl = url;
-            tab.navigatingInternally = false;
             updateUrlBar(tab);
             updateNavState(tab);
             loadUrlInTab(tab, url);
@@ -521,7 +529,6 @@ const Browser = (() => {
             const url = tab.history[tab.historyIndex];
             tab.url = url;
             tab.displayUrl = url;
-            tab.navigatingInternally = false;
             updateUrlBar(tab);
             updateNavState(tab);
             loadUrlInTab(tab, url);
@@ -703,6 +710,29 @@ const Browser = (() => {
 
         renderTabs();
         showNewTab();
+
+        window.addEventListener('message', (e) => {
+            if (e.data?.type === 'browser-nav' && e.data?.url) {
+                const tab = tabs.get(activeTabId);
+                if (!tab) return;
+                const url = e.data.url;
+                if (url && url !== tab.url) {
+                    tab.url = url;
+                    tab.displayUrl = url;
+                    urlInput.value = url;
+                    urlIcon.textContent = isSecure(url) ? '🔒' : '⚠️';
+                    statusHost.textContent = getHost(url);
+
+                    if (tab.historyIndex < tab.history.length - 1) {
+                        tab.history = tab.history.slice(0, tab.historyIndex + 1);
+                    }
+                    tab.history.push(url);
+                    tab.historyIndex = tab.history.length - 1;
+                    updateNavState(tab);
+                    addHistoryEntry(url, tab.title);
+                }
+            }
+        });
     }
 
     return { launch };

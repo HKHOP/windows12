@@ -4,6 +4,17 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.3970] - 2026-08-31
+
+### Fixed
+- Home page now displays correctly — `showNewTab()` populates existing DOM element instead of appending duplicate
+- URL bar updates when navigating within same-origin iframes via injected script
+- Removed unused `navigatingInternally` property from tab objects
+
+### Changed
+- Removed redundant `getNewTabHtml()` wrapper; content generated inline via `getNewTabContentHtml()`
+- `hideNewTab()` clears innerHTML to prevent stale content on next show
+
 ## [12.0.3960] - 2026-08-31
 
 ### Fixed
