@@ -4,6 +4,13 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4050] - 2026-08-31
+
+### Changed
+- Notepad "Save As" now opens a File Explorer-style save dialog (matching Paint's layout)
+- Save dialog includes sidebar with quick access folders, grid folder view, back/forward/up navigation, and path bar
+- Fixed `FileSystem.list` → `FileSystem.getChildren` in Notepad file open
+
 ## [12.0.4040] - 2026-08-31
 
 ### Changed
