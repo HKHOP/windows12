@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4110] - 2026-08-31
+
+### Changed
+- SavePrompt dialog now shows files filtered by selected extension in the folder view
+- Clicking a file populates the filename input (for overwrite)
+- Extension dropdown changes update the visible files
+- File icons shown by type (images, text, code, audio, video, etc.)
+
 ## [12.0.4100] - 2026-08-31
 
 ### Added

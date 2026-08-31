@@ -77,6 +77,17 @@ const SavePrompt = (() => {
         let currentPath = defaultPath.slice();
         let pathHistory = [currentPath.slice()];
         let historyIdx = 0;
+        let currentExt = extensions ? extensions[0].value : '';
+
+        if (extensions) {
+            const extSelect = el.querySelector('.save-ext');
+            if (extSelect) {
+                extSelect.addEventListener('change', () => {
+                    currentExt = extSelect.value;
+                    renderFolder();
+                });
+            }
+        }
 
         function renderPath() {
             const nameMap = { 'users': 'Users', 'default': 'User', 'system': 'System', 'programs data': 'Programs Data', '$Recycle.Bin': 'Recycle Bin' };
@@ -116,26 +127,57 @@ const SavePrompt = (() => {
                 'Pictures': '🖼️', 'Music': '🎵', 'Videos': '🎬'
             };
 
+            const fileIcons = {
+                'txt': '📝', 'md': '📝', 'js': '📜', 'html': '📜', 'css': '📜', 'json': '📜',
+                'png': '🖼️', 'jpg': '🖼️', 'jpeg': '🖼️', 'gif': '🖼️', 'webp': '🖼️', 'bmp': '🖼️', 'svg': '🖼️',
+                'mp3': '🎵', 'wav': '🎵', 'ogg': '🎵',
+                'mp4': '🎬', 'webm': '🎬',
+                'pdf': '📄', 'doc': '📄', 'docx': '📄',
+                'zip': '📦', 'rar': '📦',
+                'exe': '⚙️'
+            };
+
             entries.forEach(entry => {
-                if (entry.type !== 'folder') return;
                 const item = document.createElement('div');
                 item.style.cssText = 'width:72px;padding:6px;border-radius:4px;cursor:pointer;text-align:center;transition:background 0.1s;font-size:11px;';
-                item.innerHTML = `
-                    <div style="font-size:28px;margin-bottom:2px;">${specialFolders[entry.name] || '📁'}</div>
-                    <div style="word-break:break-all;line-height:1.2;color:var(--text-primary);">${entry.name}</div>
-                `;
+
+                if (entry.type === 'folder') {
+                    item.innerHTML = `
+                        <div style="font-size:28px;margin-bottom:2px;">${specialFolders[entry.name] || '📁'}</div>
+                        <div style="word-break:break-all;line-height:1.2;color:var(--text-primary);">${entry.name}</div>
+                    `;
+                    item.addEventListener('dblclick', () => navigateTo([...currentPath, entry.name]));
+                } else {
+                    if (extensions) {
+                        const entryExt = entry.name.split('.').pop().toLowerCase();
+                        if (entryExt !== currentExt) return;
+                    }
+                    const ext = entry.name.split('.').pop().toLowerCase();
+                    const icon = fileIcons[ext] || '📄';
+                    item.innerHTML = `
+                        <div style="font-size:28px;margin-bottom:2px;">${icon}</div>
+                        <div style="word-break:break-all;line-height:1.2;color:var(--text-primary);">${entry.name}</div>
+                    `;
+                    item.addEventListener('click', () => {
+                        contentEl.querySelectorAll('div[style]').forEach(d => d.style.outline = 'none');
+                        item.style.outline = '1px solid var(--accent-color)';
+                        filenameInput.value = entry.name;
+                    });
+                }
+
                 item.addEventListener('mouseenter', () => item.style.background = 'var(--hover-bg)');
                 item.addEventListener('mouseleave', () => item.style.background = 'transparent');
-                item.addEventListener('dblclick', () => navigateTo([...currentPath, entry.name]));
                 item.addEventListener('click', () => {
-                    contentEl.querySelectorAll('div[style]').forEach(d => d.style.outline = 'none');
-                    item.style.outline = '1px solid var(--accent-color)';
+                    if (entry.type === 'folder') {
+                        contentEl.querySelectorAll('div[style]').forEach(d => d.style.outline = 'none');
+                        item.style.outline = '1px solid var(--accent-color)';
+                    }
                 });
                 contentEl.appendChild(item);
             });
 
-            if (entries.filter(e => e.type === 'folder').length === 0) {
-                contentEl.innerHTML = '<div style="width:100%;text-align:center;padding:30px;color:var(--text-secondary);font-size:12px;">No folders here</div>';
+            if (entries.filter(e => e.type === 'folder').length === 0 && contentEl.children.length === 0) {
+                contentEl.innerHTML = '<div style="width:100%;text-align:center;padding:30px;color:var(--text-secondary);font-size:12px;">This folder is empty</div>';
             }
         }
 
