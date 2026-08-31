@@ -1,6 +1,7 @@
 const ContextMenu = (() => {
     let menuEl;
     let isVisible = false;
+    let pendingClose = null;
 
     function init() {
         menuEl = document.getElementById('context-menu');
@@ -12,13 +13,20 @@ const ContextMenu = (() => {
     }
 
     function handleGlobalContext(e) {
-        // Only prevent default inside our app
         if (e.target.closest('#desktop') || e.target.closest('#taskbar') || e.target.closest('.app-window')) {
             e.preventDefault();
         }
     }
 
+    function removePendingClose() {
+        if (pendingClose) {
+            document.removeEventListener('click', pendingClose);
+            pendingClose = null;
+        }
+    }
+
     function show(x, y, items) {
+        removePendingClose();
         menuEl.innerHTML = '';
         items.forEach(item => {
             if (item === 'separator') {
@@ -44,7 +52,6 @@ const ContextMenu = (() => {
             menuEl.appendChild(el);
         });
 
-        // Position
         menuEl.classList.remove('hidden');
         const rect = menuEl.getBoundingClientRect();
         const maxX = window.innerWidth - rect.width - 4;
@@ -53,13 +60,14 @@ const ContextMenu = (() => {
         menuEl.style.top = `${Math.min(y, maxY)}px`;
         isVisible = true;
 
-        // Prevent the showing click from immediately closing the menu
         requestAnimationFrame(() => {
-            document.addEventListener('click', hide, { once: true });
+            pendingClose = () => hide();
+            document.addEventListener('click', pendingClose, { once: true });
         });
     }
 
     function hide() {
+        removePendingClose();
         menuEl.classList.add('hidden');
         isVisible = false;
     }
