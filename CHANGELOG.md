@@ -4,6 +4,17 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.3980] - 2026-08-31
+
+### Fixed
+- URL bar now updates when clicking links inside same-origin iframes (click interceptor + load event polling)
+- Fixed duplicate history entries when opening a new tab with a URL
+- Removed unused `navigatingInternally` property
+
+### Changed
+- Injected iframe script now captures `<a>` clicks via event capturing and posts URL via `postMessage`
+- `addTab()` no longer calls `navigateTo()` redundantly when URL is already set by `createTab()`
+
 ## [12.0.3970] - 2026-08-31
 
 ### Fixed
