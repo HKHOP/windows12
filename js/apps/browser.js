@@ -400,6 +400,15 @@ const Browser = (() => {
             if (clockInterval) { clearInterval(clockInterval); clockInterval = null; }
         }
 
+        function showIframe(tab) {
+            hideNewTab();
+            if (tab.iframeEl) {
+                tab.iframeEl.style.display = '';
+            }
+            statusDot.className = 'browser-status-dot';
+            statusText.textContent = tab.isLoading ? 'Loading...' : 'Done';
+        }
+
         function navigateTo(url) {
             const tab = tabs.get(activeTabId);
             if (!tab) return;
