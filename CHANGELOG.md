@@ -4,6 +4,15 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4100] - 2026-08-31
+
+### Added
+- SavePrompt API (`js/modules/saveprompt.js`) - shared file save dialog with sidebar navigation, filename input, optional extension dropdown, overwrite checking, Enter/Escape support, and success toasts
+
+### Changed
+- Notepad Save As now uses SavePrompt API (~180 lines removed)
+- Paint Save As now uses SavePrompt API (~200 lines removed)
+
 ## [12.0.4090] - 2026-08-31
 
 ### Changed
