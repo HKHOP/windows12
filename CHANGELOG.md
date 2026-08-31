@@ -20,6 +20,9 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 - Downloads panel (Ctrl+J or ⬇ button) tracking downloaded files
 - ⬇ downloads button in navigation bar
 
+### Changed
+- Browser shortcuts switched to Alt+ prefix to avoid Chrome conflicts (Alt+T, Alt+W, Alt+R, Alt+F, Alt+H, Alt+J, Alt+Q, Alt+/-, Alt+0)
+
 ## [12.0.3940] - 2026-08-31
 
 ### Removed

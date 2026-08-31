@@ -53,13 +53,13 @@ const Browser = (() => {
             <div class="browser-container">
                 <div class="browser-tabs">
                     <div class="browser-tabs-list"></div>
-                    <div class="browser-tab-add" title="New tab (Ctrl+T)">+</div>
+                    <div class="browser-tab-add" title="New tab (Alt+T)">+</div>
                 </div>
                 <div class="browser-nav">
                     <button class="browser-nav-btn browser-home" title="Homepage">&#8962;</button>
                     <button class="browser-nav-btn browser-back" title="Back (Alt+←)" disabled>&#9664;</button>
                     <button class="browser-nav-btn browser-forward" title="Forward (Alt+→)" disabled>&#9654;</button>
-                    <button class="browser-nav-btn browser-refresh" title="Refresh (Ctrl+R)">&#8635;</button>
+                    <button class="browser-nav-btn browser-refresh" title="Refresh (Alt+R)">&#8635;</button>
                     <div class="browser-url-bar">
                         <span class="browser-url-icon">🔒</span>
                         <input type="text" class="browser-url-input" placeholder="Search or enter URL" spellcheck="false">
@@ -611,30 +611,17 @@ const Browser = (() => {
 
         el.addEventListener('keydown', (e) => {
             if (!el.contains(document.activeElement) && document.activeElement !== document.body) return;
-            if (e.ctrlKey && e.key === 't') { e.preventDefault(); addTab(); }
-            if (e.ctrlKey && e.key === 'w') { e.preventDefault(); closeTab(activeTabId); }
+            if (e.altKey && e.key === 't') { e.preventDefault(); addTab(); }
+            if (e.altKey && e.key === 'w') { e.preventDefault(); closeTab(activeTabId); }
+            if (e.altKey && e.key === 'q') { e.preventDefault(); reopenClosedTab(); }
             if (e.ctrlKey && e.key === 'l') { e.preventDefault(); urlInput.focus(); urlInput.select(); }
-            if (e.ctrlKey && e.key === 'r') { e.preventDefault(); refreshBtn.click(); }
-            if (e.ctrlKey && e.shiftKey && e.key === 'T') { e.preventDefault(); reopenClosedTab(); }
-            if (e.ctrlKey && e.key === 'f') { e.preventDefault(); openFindBar(); }
-            if (e.ctrlKey && e.key === 'h') { e.preventDefault(); showHistoryPanel(); }
-            if (e.ctrlKey && e.key === 'j') { e.preventDefault(); showDownloadsPanel(); }
-
-            if (e.ctrlKey && (e.key === '=' || e.key === '+')) {
-                e.preventDefault();
-                const tab = tabs.get(activeTabId);
-                if (tab) { tab.zoom = Math.min(tab.zoom + 0.1, 3); applyZoom(tab); }
-            }
-            if (e.ctrlKey && e.key === '-') {
-                e.preventDefault();
-                const tab = tabs.get(activeTabId);
-                if (tab) { tab.zoom = Math.max(tab.zoom - 0.1, 0.3); applyZoom(tab); }
-            }
-            if (e.ctrlKey && e.key === '0') {
-                e.preventDefault();
-                const tab = tabs.get(activeTabId);
-                if (tab) { tab.zoom = 1; applyZoom(tab); }
-            }
+            if (e.altKey && e.key === 'r') { e.preventDefault(); refreshBtn.click(); }
+            if (e.altKey && e.key === 'f') { e.preventDefault(); openFindBar(); }
+            if (e.altKey && e.key === 'h') { e.preventDefault(); showHistoryPanel(); }
+            if (e.altKey && e.key === 'j') { e.preventDefault(); showDownloadsPanel(); }
+            if (e.altKey && e.key === '=') { e.preventDefault(); const tab = tabs.get(activeTabId); if (tab) { tab.zoom = Math.min(tab.zoom + 0.1, 3); applyZoom(tab); } }
+            if (e.altKey && e.key === '-') { e.preventDefault(); const tab = tabs.get(activeTabId); if (tab) { tab.zoom = Math.max(tab.zoom - 0.1, 0.3); applyZoom(tab); } }
+            if (e.altKey && e.key === '0') { e.preventDefault(); const tab = tabs.get(activeTabId); if (tab) { tab.zoom = 1; applyZoom(tab); } }
         });
 
         renderTabs();
