@@ -16,8 +16,8 @@ const Browser = (() => {
         { name: 'MDN Docs', url: 'https://developer.mozilla.org/en-US/', color: '#005A9C', letter: 'D' }
     ];
 
-    const HISTORY_KEY = 'win12_browser_history';
-    const DOWNLOADS_KEY = 'win12_browser_downloads';
+    const HISTORY_PATH = ['/', 'system', 'programs data', 'browser', 'history.json'];
+    const DOWNLOADS_PATH = ['/', 'system', 'programs data', 'browser', 'downloads.json'];
     const closedTabs = [];
     const MAX_CLOSED = 20;
 
@@ -107,31 +107,63 @@ const Browser = (() => {
         return url.startsWith('https://');
     }
 
+    function ensureDir(path) {
+        for (let i = 1; i <= path.length - 1; i++) {
+            const partial = path.slice(0, i);
+            if (!FileSystem.itemExists(partial)) {
+                const parent = path.slice(0, i - 1);
+                FileSystem.createFolder(parent, path[i - 1]);
+            }
+        }
+    }
+
+    function readJson(path, fallback) {
+        try {
+            const raw = FileSystem.readFile(path);
+            if (raw) return JSON.parse(raw);
+        } catch {}
+        return fallback;
+    }
+
+    function writeJson(path, data) {
+        ensureDir(path);
+        const name = path[path.length - 1];
+        const parent = path.slice(0, -1);
+        const json = JSON.stringify(data);
+        if (FileSystem.itemExists(path)) {
+            FileSystem.writeFile(path, json);
+        } else {
+            FileSystem.createFile(parent, name, json, 'json');
+        }
+    }
+
     function addHistoryEntry(url, title) {
         if (!url || url === 'about:blank') return;
-        const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        const history = readJson(HISTORY_PATH, []);
         history.unshift({ url, title: title || url, time: Date.now() });
         if (history.length > 500) history.length = 500;
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+        writeJson(HISTORY_PATH, history);
     }
 
     function getHistory() {
-        return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        return readJson(HISTORY_PATH, []);
     }
 
     function clearHistory() {
-        localStorage.removeItem(HISTORY_KEY);
+        if (FileSystem.itemExists(HISTORY_PATH)) {
+            FileSystem.deleteItem(HISTORY_PATH);
+        }
     }
 
     function getDownloads() {
-        return JSON.parse(localStorage.getItem(DOWNLOADS_KEY) || '[]');
+        return readJson(DOWNLOADS_PATH, []);
     }
 
     function addDownload(name, size, path) {
         const downloads = getDownloads();
         downloads.unshift({ name, size, path, time: Date.now() });
         if (downloads.length > 100) downloads.length = 100;
-        localStorage.setItem(DOWNLOADS_KEY, JSON.stringify(downloads));
+        writeJson(DOWNLOADS_PATH, downloads);
     }
 
     function launch() {

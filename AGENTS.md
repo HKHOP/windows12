@@ -27,6 +27,7 @@ A web-based OS simulation built with vanilla HTML, CSS, and JavaScript modules. 
 - Windows are draggable from header, resizable from all 8 edges/corners
 - Icons are inline SVGs (no external assets)
 - Dark theme throughout (Windows 11 acrylic style)
+- **Persistent data must use the FileSystem module** (`js/modules/fileSystem.js`), not `localStorage`. Store data under `/system/programs data/<app>/`. The only exception is `FileSystem.init()` itself, which uses `localStorage` as its backing store.
 
 ## Workflow
 - Always commit and push changes after completing a task.

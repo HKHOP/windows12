@@ -6,7 +6,7 @@ import SystemConfig from '../modules/systemConfig.js';
 
 const StartMenu = (() => {
     let pinnedApps = [];
-    const STORAGE_KEY = 'win12_startmenu_pins';
+    const PINS_PATH = ['/', 'system', 'programs data', 'startmenu', 'pins.json'];
 
     const defaultPinned = [
         { id: 'fileExplorer', name: 'File Explorer' },
@@ -46,21 +46,42 @@ const StartMenu = (() => {
         updateUserInfo();
     }
 
-    function loadPinnedApps() {
-        try {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                pinnedApps = JSON.parse(saved);
-            } else {
-                pinnedApps = defaultPinned.map(a => a.id);
+    function ensureDir(path) {
+        for (let i = 1; i <= path.length - 1; i++) {
+            const partial = path.slice(0, i);
+            if (!FileSystem.itemExists(partial)) {
+                const parent = path.slice(0, i - 1);
+                FileSystem.createFolder(parent, path[i - 1]);
             }
-        } catch {
-            pinnedApps = defaultPinned.map(a => a.id);
         }
     }
 
+    function readJson(path, fallback) {
+        try {
+            const raw = FileSystem.readFile(path);
+            if (raw) return JSON.parse(raw);
+        } catch {}
+        return fallback;
+    }
+
+    function writeJson(path, data) {
+        ensureDir(path);
+        const name = path[path.length - 1];
+        const parent = path.slice(0, -1);
+        const json = JSON.stringify(data);
+        if (FileSystem.itemExists(path)) {
+            FileSystem.writeFile(path, json);
+        } else {
+            FileSystem.createFile(parent, name, json, 'json');
+        }
+    }
+
+    function loadPinnedApps() {
+        pinnedApps = readJson(PINS_PATH, defaultPinned.map(a => a.id));
+    }
+
     function savePinnedApps() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(pinnedApps));
+        writeJson(PINS_PATH, pinnedApps);
     }
 
     function isPinned(appId) {

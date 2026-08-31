@@ -1,5 +1,4 @@
 const SystemConfig = (() => {
-    const STORAGE_KEY = 'win12_config';
     const CONFIG_PATH = ['/', 'system', 'config.json'];
 
     const defaults = {
@@ -117,7 +116,6 @@ const SystemConfig = (() => {
                 const json = FileSystem.readFile(CONFIG_PATH);
                 if (json) {
                     config = { ...defaults, ...JSON.parse(json) };
-                    save();
                     apply();
                     return true;
                 }
@@ -126,29 +124,14 @@ const SystemConfig = (() => {
         return false;
     }
 
-    function loadFromStorage() {
-        try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                config = { ...defaults, ...JSON.parse(stored) };
-                return true;
-            }
-        } catch (e) {}
-        return false;
-    }
-
     function load() {
-        if (!loadFromFilesystem()) {
-            loadFromStorage();
-        }
+        loadFromFilesystem();
         syncToFilesystem();
         apply();
     }
 
     function save() {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-        } catch (e) {}
+        syncToFilesystem();
     }
 
     function onChange(cb) {

@@ -1,4 +1,5 @@
 import WindowManager from './windowManager.js';
+import FileSystem from './fileSystem.js';
 
 const AppRegistry = (() => {
     const apps = {};
@@ -87,7 +88,37 @@ const Taskbar = (() => {
     let runningApps = new Map();
     let clockInterval;
     let pinnedApps = [];
-    const STORAGE_KEY = 'win12_taskbar_pins';
+    const PINS_PATH = ['/', 'system', 'programs data', 'taskbar', 'pins.json'];
+
+    function ensureDir(path) {
+        for (let i = 1; i <= path.length - 1; i++) {
+            const partial = path.slice(0, i);
+            if (!FileSystem.itemExists(partial)) {
+                const parent = path.slice(0, i - 1);
+                FileSystem.createFolder(parent, path[i - 1]);
+            }
+        }
+    }
+
+    function readJson(path, fallback) {
+        try {
+            const raw = FileSystem.readFile(path);
+            if (raw) return JSON.parse(raw);
+        } catch {}
+        return fallback;
+    }
+
+    function writeJson(path, data) {
+        ensureDir(path);
+        const name = path[path.length - 1];
+        const parent = path.slice(0, -1);
+        const json = JSON.stringify(data);
+        if (FileSystem.itemExists(path)) {
+            FileSystem.writeFile(path, json);
+        } else {
+            FileSystem.createFile(parent, name, json, 'json');
+        }
+    }
 
     function init() {
         loadPinnedApps();
@@ -97,20 +128,11 @@ const Taskbar = (() => {
     }
 
     function loadPinnedApps() {
-        try {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                pinnedApps = JSON.parse(saved);
-            } else {
-                pinnedApps = ['fileExplorer', 'notepad', 'calendar', 'settings'];
-            }
-        } catch {
-            pinnedApps = ['fileExplorer', 'notepad', 'calendar', 'settings'];
-        }
+        pinnedApps = readJson(PINS_PATH, ['fileExplorer', 'notepad', 'calendar', 'settings']);
     }
 
     function savePinnedApps() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(pinnedApps));
+        writeJson(PINS_PATH, pinnedApps);
     }
 
     function isPinned(appId) {

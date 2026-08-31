@@ -2,6 +2,42 @@ const UserActivity = (() => {
     const MAX_RECENT = 6;
     let recentFiles = [];
     let recentApps = [];
+    const ACTIVITY_PATH = ['/', 'system', 'programs data', 'userActivity', 'activity.json'];
+
+    function getFS() { return window._FileSystem; }
+
+    function ensureDir(path) {
+        const fs = getFS();
+        for (let i = 1; i <= path.length - 1; i++) {
+            const partial = path.slice(0, i);
+            if (!fs.itemExists(partial)) {
+                const parent = path.slice(0, i - 1);
+                fs.createFolder(parent, path[i - 1]);
+            }
+        }
+    }
+
+    function readJson(path, fallback) {
+        try {
+            const fs = getFS();
+            const raw = fs.readFile(path);
+            if (raw) return JSON.parse(raw);
+        } catch {}
+        return fallback;
+    }
+
+    function writeJson(path, data) {
+        const fs = getFS();
+        ensureDir(path);
+        const name = path[path.length - 1];
+        const parent = path.slice(0, -1);
+        const json = JSON.stringify(data);
+        if (fs.itemExists(path)) {
+            fs.writeFile(path, json);
+        } else {
+            fs.createFile(parent, name, json, 'json');
+        }
+    }
 
     function init() {
         load();
@@ -104,17 +140,15 @@ const UserActivity = (() => {
 
     function save() {
         try {
-            localStorage.setItem('win12_recentFiles', JSON.stringify(recentFiles));
-            localStorage.setItem('win12_recentApps', JSON.stringify(recentApps));
+            writeJson(ACTIVITY_PATH, { recentFiles, recentApps });
         } catch (e) {}
     }
 
     function load() {
         try {
-            const files = localStorage.getItem('win12_recentFiles');
-            const apps = localStorage.getItem('win12_recentApps');
-            if (files) recentFiles = JSON.parse(files);
-            if (apps) recentApps = JSON.parse(apps);
+            const data = readJson(ACTIVITY_PATH, { recentFiles: [], recentApps: [] });
+            recentFiles = data.recentFiles || [];
+            recentApps = data.recentApps || [];
         } catch (e) {}
     }
 

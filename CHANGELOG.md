@@ -4,6 +4,17 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4020] - 2026-08-31
+
+### Changed
+- All persistent data now uses FileSystem module instead of localStorage
+- Browser history and downloads stored at `/system/programs data/browser/`
+- Taskbar pinned apps stored at `/system/programs data/taskbar/pins.json`
+- Start menu pinned apps stored at `/system/programs data/startmenu/pins.json`
+- User activity (recent files/apps) stored at `/system/programs data/userActivity/activity.json`
+- System config uses FileSystem as primary source, removed localStorage fallback
+- Added persistence convention to AGENTS.md
+
 ## [12.0.4010] - 2026-08-31
 
 ### Added
