@@ -239,7 +239,7 @@ const Paint = (() => {
             const existing = FileSystem.readFile([...currentPath, fullName]);
             if (existing !== null) {
                 Popup.confirm('Replace File', `"${fullName}" already exists. Replace it?`).then(ok => {
-                    if (ok !== 'true') return;
+                    if (!ok) return;
 
                     FileSystem.createFile(currentPath, fullName, dataUrl, ext);
                     WindowManager.closeWindow(saveWin.id);

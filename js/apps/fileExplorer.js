@@ -460,7 +460,7 @@ const FileExplorer = (() => {
     function deleteItem(win, itemPath) {
         const name = itemPath[itemPath.length - 1];
         Popup.confirm('Delete', `Delete "${name}"?`).then(ok => {
-            if (ok === 'true') {
+            if (ok) {
                 showProgressBar(win);
                 setTimeout(() => {
                     FileSystem.deleteItem(itemPath);

@@ -1,230 +1,250 @@
-import ContextMenu from './contextMenu.js';
+import WindowManager from './windowManager.js';
 
 const Popup = (() => {
-    let overlay = null;
+    const popups = new Map();
 
-    function ensureOverlay() {
-        if (overlay) return overlay;
-        overlay = document.createElement('div');
-        overlay.className = 'popup-overlay hidden';
-        document.body.appendChild(overlay);
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) overlay.classList.add('hidden');
+    const typeIcons = {
+        info: 'ℹ️',
+        warn: '⚠️',
+        error: '❌',
+        confirm: '❓',
+        pick: '📋',
+        textbox: '✏️',
+        forum: '📝'
+    };
+
+    function createPopup(type, title, body, opts = {}) {
+        const icon = typeIcons[type] || '💬';
+        const width = opts.width || 400;
+        const height = opts.height || 220;
+
+        const html = `
+            <div class="popup-body">${body}</div>
+            <div class="popup-actions"></div>
+        `;
+
+        const win = WindowManager.createWindow('popup', title, icon, html, {
+            width,
+            height,
+            minWidth: 300,
+            minHeight: 180
         });
-        return overlay;
-    }
 
-    function show(html) {
-        const ol = ensureOverlay();
-        ol.innerHTML = `<div class="popup-box">${html}</div>`;
-        ol.classList.remove('hidden');
-        return ol;
-    }
+        const el = win.element;
+        el.classList.add('app-popup', `popup-${type}`);
 
-    function hide() {
-        if (overlay) overlay.classList.add('hidden');
-    }
+        const maxBtn = el.querySelector('.maximize-btn');
+        if (maxBtn) maxBtn.remove();
 
-    function waitForButton(ol, resolve) {
-        const btns = ol.querySelectorAll('.popup-btn');
-        btns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const val = btn.dataset.value ?? btn.textContent;
-                hide();
-                resolve(val);
+        if (!opts.minimize) {
+            const minBtn = el.querySelector('.minimize-btn');
+            if (minBtn) minBtn.remove();
+        }
+
+        const actionsEl = el.querySelector('.popup-actions');
+
+        let promiseResolve = null;
+        const promise = new Promise(resolve => { promiseResolve = resolve; });
+
+        const cleanup = (value) => {
+            popups.delete(win.id);
+            promiseResolve(value);
+        };
+
+        popups.set(win.id, { cleanup, win });
+
+        const closeBtn = el.querySelector('.close-btn');
+        if (!opts.closable && closeBtn) {
+            closeBtn.style.visibility = 'hidden';
+        }
+        if (closeBtn) {
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                cleanup(opts.closeValue !== undefined ? opts.closeValue : null);
+                WindowManager.closeWindow(win.id);
             });
+        }
+
+        promise._actionsEl = actionsEl;
+        promise._winId = win.id;
+        promise._cleanup = cleanup;
+
+        return promise;
+    }
+
+    function addButtons(popupPromise, buttons) {
+        const actionsEl = popupPromise._actionsEl;
+        if (!actionsEl) return;
+        actionsEl.innerHTML = '';
+        buttons.forEach(btn => {
+            const el = document.createElement('button');
+            el.className = 'popup-btn' + (btn.primary ? ' popup-btn-primary' : '') + (btn.danger ? ' popup-btn-danger' : '');
+            el.textContent = btn.label;
+            el.addEventListener('click', () => {
+                popupPromise._cleanup(btn.value);
+                WindowManager.closeWindow(popupPromise._winId);
+            });
+            actionsEl.appendChild(el);
         });
     }
 
     function info(title, message) {
-        return new Promise(resolve => {
-            const ol = show(`
-                <div class="popup-title">${title}</div>
-                <div class="popup-message">${message}</div>
-                <div class="popup-actions">
-                    <button class="popup-btn popup-btn-primary" data-value="ok">OK</button>
-                </div>
-            `);
-            waitForButton(ol, resolve);
-            ol.querySelector('.popup-btn').focus();
-        });
+        const p = createPopup('info', title, `<div class="popup-message">${message}</div>`);
+        addButtons(p, [
+            { label: 'OK', value: 'ok', primary: true }
+        ]);
+        return p;
     }
 
     function warn(title, message) {
-        return new Promise(resolve => {
-            const ol = show(`
-                <div class="popup-title popup-title-warn">${title}</div>
-                <div class="popup-message">${message}</div>
-                <div class="popup-actions">
-                    <button class="popup-btn popup-btn-primary popup-btn-warn" data-value="ok">OK</button>
-                </div>
-            `);
-            waitForButton(ol, resolve);
-            ol.querySelector('.popup-btn').focus();
-        });
+        const p = createPopup('warn', title, `<div class="popup-message">${message}</div>`);
+        addButtons(p, [
+            { label: 'OK', value: 'ok', primary: true }
+        ]);
+        return p;
     }
 
     function error(title, message) {
-        return new Promise(resolve => {
-            const ol = show(`
-                <div class="popup-title popup-title-error">${title}</div>
-                <div class="popup-message">${message}</div>
-                <div class="popup-actions">
-                    <button class="popup-btn popup-btn-primary popup-btn-error" data-value="ok">OK</button>
-                </div>
-            `);
-            waitForButton(ol, resolve);
-            ol.querySelector('.popup-btn').focus();
-        });
+        const p = createPopup('error', title, `<div class="popup-message">${message}</div>`, { width: 420 });
+        addButtons(p, [
+            { label: 'OK', value: 'ok', primary: true }
+        ]);
+        return p;
     }
 
     function confirm(title, message) {
-        return new Promise(resolve => {
-            const ol = show(`
-                <div class="popup-title">${title}</div>
-                <div class="popup-message">${message}</div>
-                <div class="popup-actions">
-                    <button class="popup-btn" data-value="false">Cancel</button>
-                    <button class="popup-btn popup-btn-primary popup-btn-danger" data-value="true">OK</button>
-                </div>
-            `);
-            waitForButton(ol, resolve);
-            ol.querySelector('.popup-btn-primary').focus();
-        });
+        const p = createPopup('confirm', title, `<div class="popup-message">${message}</div>`);
+        addButtons(p, [
+            { label: 'Cancel', value: false },
+            { label: 'OK', value: true, primary: true, danger: true }
+        ]);
+        return p;
     }
 
     function pick(title, message, options) {
-        return new Promise(resolve => {
-            const items = options.map((opt, i) => {
-                const label = typeof opt === 'string' ? opt : opt.label;
-                const value = typeof opt === 'string' ? opt : (opt.value ?? opt.label);
-                return `<div class="popup-pick-item" data-value="${i}">${label}</div>`;
-            }).join('');
+        const items = options.map((opt, i) => {
+            const label = typeof opt === 'string' ? opt : opt.label;
+            return `<div class="popup-pick-item" data-index="${i}">${label}</div>`;
+        }).join('');
 
-            const ol = show(`
-                <div class="popup-title">${title}</div>
-                <div class="popup-message">${message}</div>
-                <div class="popup-pick-list">${items}</div>
-                <div class="popup-actions">
-                    <button class="popup-btn" data-value="-1">Cancel</button>
-                </div>
-            `);
+        const p = createPopup('pick', title, `
+            <div class="popup-message">${message}</div>
+            <div class="popup-pick-list">${items}</div>
+        `, { width: 420, height: 300 });
 
-            ol.querySelectorAll('.popup-pick-item').forEach(item => {
+        addButtons(p, [
+            { label: 'Cancel', value: null }
+        ]);
+
+        const el = WindowManager.getWindowsByApp('popup').find(w => w.id === p._winId)?.element;
+        if (el) {
+            el.querySelectorAll('.popup-pick-item').forEach(item => {
                 item.addEventListener('click', () => {
-                    const idx = parseInt(item.dataset.value);
-                    hide();
-                    resolve(options[idx]);
+                    const idx = parseInt(item.dataset.index);
+                    p._cleanup(options[idx]);
+                    WindowManager.closeWindow(p._winId);
                 });
             });
+        }
 
-            ol.querySelectorAll('.popup-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    hide();
-                    resolve(null);
-                });
-            });
-        });
+        return p;
     }
 
     function textbox(title, message, opts = {}) {
-        return new Promise(resolve => {
-            const id = 'popup-input-' + Date.now();
-            const ol = show(`
-                <div class="popup-title">${title}</div>
-                <div class="popup-message">${message}</div>
-                <div class="popup-input-wrap">
-                    <input type="text" class="popup-input" id="${id}" value="${opts.value || ''}" placeholder="${opts.placeholder || ''}">
-                </div>
-                <div class="popup-actions">
-                    <button class="popup-btn popup-btn-cancel" data-value="null">Cancel</button>
-                    <button class="popup-btn popup-btn-primary" data-value="ok">OK</button>
-                </div>
-            `);
+        const id = 'popup-input-' + Date.now();
+        const p = createPopup('textbox', title, `
+            <div class="popup-message">${message}</div>
+            <div class="popup-input-wrap">
+                <input type="text" class="popup-input" id="${id}" value="${opts.value || ''}" placeholder="${opts.placeholder || ''}">
+            </div>
+        `);
 
-            const input = ol.querySelector(`#${id}`);
-            input.focus();
-            input.select();
+        addButtons(p, [
+            { label: 'Cancel', value: null },
+            { label: 'OK', value: 'ok', primary: true }
+        ]);
 
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    hide();
-                    resolve(input.value);
-                }
-                if (e.key === 'Escape') {
-                    hide();
-                    resolve(null);
-                }
-            });
-
-            ol.querySelectorAll('.popup-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    if (btn.dataset.value === 'null') {
-                        hide();
-                        resolve(null);
-                    } else {
-                        hide();
-                        resolve(input.value);
+        const el = WindowManager.getWindowsByApp('popup').find(w => w.id === p._winId)?.element;
+        if (el) {
+            const input = el.querySelector(`#${id}`);
+            if (input) {
+                input.focus();
+                input.select();
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        p._cleanup(input.value);
+                        WindowManager.closeWindow(p._winId);
+                    }
+                    if (e.key === 'Escape') {
+                        p._cleanup(null);
+                        WindowManager.closeWindow(p._winId);
                     }
                 });
-            });
-        });
+
+                const okBtn = p._actionsEl.querySelector('.popup-btn-primary');
+                if (okBtn) {
+                    okBtn.addEventListener('click', (e) => {
+                        e.stopImmediatePropagation();
+                        p._cleanup(input.value);
+                        WindowManager.closeWindow(p._winId);
+                    }, true);
+                }
+            }
+        }
+
+        return p;
     }
 
     function forum(title, fields) {
-        return new Promise(resolve => {
-            const inputs = fields.map((f, i) => {
-                const id = `popup-field-${i}`;
-                const val = f.value || '';
-                return `
-                    <div class="popup-field">
-                        <label class="popup-field-label" for="${id}">${f.label}</label>
-                        <input type="${f.type || 'text'}" class="popup-input" id="${id}" value="${val}" placeholder="${f.placeholder || ''}">
-                    </div>
-                `;
-            }).join('');
+        const inputs = fields.map((f, i) => `
+            <div class="popup-field">
+                <label class="popup-field-label" for="popup-f-${i}">${f.label}</label>
+                <input type="${f.type || 'text'}" class="popup-input" id="popup-f-${i}" value="${f.value || ''}" placeholder="${f.placeholder || ''}">
+            </div>
+        `).join('');
 
-            const ol = show(`
-                <div class="popup-title">${title}</div>
-                <div class="popup-forum">${inputs}</div>
-                <div class="popup-actions">
-                    <button class="popup-btn popup-btn-cancel" data-value="null">Cancel</button>
-                    <button class="popup-btn popup-btn-primary" data-value="ok">OK</button>
-                </div>
-            `);
+        const p = createPopup('forum', title, `
+            <div class="popup-forum">${inputs}</div>
+        `, { width: 420, height: 280 });
 
-            const firstInput = ol.querySelector('.popup-input');
+        addButtons(p, [
+            { label: 'Cancel', value: null },
+            { label: 'OK', value: 'ok', primary: true }
+        ]);
+
+        const el = WindowManager.getWindowsByApp('popup').find(w => w.id === p._winId)?.element;
+        if (el) {
+            const firstInput = el.querySelector('.popup-input');
             if (firstInput) {
                 firstInput.focus();
                 firstInput.select();
             }
 
-            ol.addEventListener('keydown', (e) => {
+            el.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
-                    hide();
-                    resolve(null);
+                    p._cleanup(null);
+                    WindowManager.closeWindow(p._winId);
                 }
             });
 
-            ol.querySelectorAll('.popup-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    if (btn.dataset.value === 'null') {
-                        hide();
-                        resolve(null);
-                    } else {
-                        const values = {};
-                        fields.forEach((f, i) => {
-                            values[f.key || f.label] = ol.querySelector(`#popup-field-${i}`).value;
-                        });
-                        hide();
-                        resolve(values);
-                    }
-                });
-            });
-        });
+            const okBtn = p._actionsEl.querySelector('.popup-btn-primary');
+            if (okBtn) {
+                okBtn.addEventListener('click', (e) => {
+                    e.stopImmediatePropagation();
+                    const values = {};
+                    fields.forEach((f, i) => {
+                        values[f.key || f.label] = el.querySelector(`#popup-f-${i}`).value;
+                    });
+                    p._cleanup(values);
+                    WindowManager.closeWindow(p._winId);
+                }, true);
+            }
+        }
+
+        return p;
     }
 
-    return { info, warn, error, confirm, pick, textbox, forum, hide };
+    return { info, warn, error, confirm, pick, textbox, forum };
 })();
 
 export default Popup;

@@ -4,6 +4,18 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4040] - 2026-08-31
+
+### Changed
+- Popups are now real windows (via WindowManager) instead of overlay dialogs
+- Popups no longer dim/darken the screen
+- Popups can be minimized, dragged, and resized like normal windows
+- Maximize button removed from all popups
+- Close button can be hidden via `closable` option
+- Minimize button optional via `minimize` option
+- `confirm()` now returns boolean instead of string
+- Removed overlay/popup-overlay CSS, added window-body content styles
+
 ## [12.0.4030] - 2026-08-31
 
 ### Added

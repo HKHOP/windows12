@@ -301,7 +301,7 @@ const DesktopIcons = (() => {
 
     function emptyRecycleBin() {
         Popup.confirm('Empty Recycle Bin', 'Are you sure you want to permanently delete all items in the Recycle Bin?').then(ok => {
-            if (ok === 'true') {
+            if (ok) {
                 FileSystem.emptyRecycleBin();
                 render();
             }
@@ -400,7 +400,7 @@ const DesktopIcons = (() => {
     function deleteItem(path) {
         const name = path[path.length - 1];
         Popup.confirm('Delete', `Delete "${name}"?`).then(ok => {
-            if (ok === 'true') {
+            if (ok) {
                 FileSystem.deleteItem(path);
                 delete positions[name];
                 savePositions();
