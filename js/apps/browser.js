@@ -1,4 +1,6 @@
 import WindowManager from '../modules/windowManager.js';
+import ContextMenu from '../modules/contextMenu.js';
+import FileSystem from '../modules/fileSystem.js';
 
 const Browser = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#2196F3" stroke-width="2"/><path d="M2 12h20" stroke="#2196F3" stroke-width="1.5"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="#2196F3" stroke-width="1.5"/></svg>`;
@@ -14,9 +16,15 @@ const Browser = (() => {
         { name: 'MDN Docs', url: 'https://developer.mozilla.org/en-US/', color: '#005A9C', letter: 'D' }
     ];
 
+    const HISTORY_KEY = 'win12_browser_history';
+    const DOWNLOADS_KEY = 'win12_browser_downloads';
+    const closedTabs = [];
+    const MAX_CLOSED = 20;
+
     let tabCounter = 0;
     const tabs = new Map();
     let activeTabId = null;
+    let globalZoom = 1;
 
     function createTab(url) {
         const id = `tab-${Date.now()}-${++tabCounter}`;
@@ -27,7 +35,8 @@ const Browser = (() => {
             displayUrl: '',
             history: [],
             historyIndex: -1,
-            isLoading: false
+            isLoading: false,
+            zoom: 1
         };
         if (url) {
             tab.url = url;
@@ -47,6 +56,7 @@ const Browser = (() => {
                     <div class="browser-tab-add" title="New tab (Ctrl+T)">+</div>
                 </div>
                 <div class="browser-nav">
+                    <button class="browser-nav-btn browser-home" title="Homepage">&#8962;</button>
                     <button class="browser-nav-btn browser-back" title="Back (Alt+←)" disabled>&#9664;</button>
                     <button class="browser-nav-btn browser-forward" title="Forward (Alt+→)" disabled>&#9654;</button>
                     <button class="browser-nav-btn browser-refresh" title="Refresh (Ctrl+R)">&#8635;</button>
@@ -54,6 +64,14 @@ const Browser = (() => {
                         <span class="browser-url-icon">🔒</span>
                         <input type="text" class="browser-url-input" placeholder="Search or enter URL" spellcheck="false">
                     </div>
+                    <button class="browser-nav-btn browser-dl-btn" title="Downloads">⬇</button>
+                </div>
+                <div class="browser-find-bar" style="display:none;">
+                    <input type="text" class="browser-find-input" placeholder="Find in page..." spellcheck="false">
+                    <span class="browser-find-count"></span>
+                    <button class="browser-find-prev" title="Previous">&#9650;</button>
+                    <button class="browser-find-next" title="Next">&#9660;</button>
+                    <button class="browser-find-close">&times;</button>
                 </div>
                 <div class="browser-content">
                     <div class="browser-newtab"></div>
@@ -64,6 +82,7 @@ const Browser = (() => {
                         <span class="browser-status-text">Ready</span>
                     </div>
                     <div class="browser-status-right">
+                        <span class="browser-status-zoom"></span>
                         <span class="browser-status-host"></span>
                     </div>
                 </div>
@@ -108,6 +127,33 @@ const Browser = (() => {
         return url.startsWith('https://');
     }
 
+    function addHistory(url, title) {
+        if (!url || url === 'about:blank') return;
+        const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        history.unshift({ url, title: title || url, time: Date.now() });
+        if (history.length > 500) history.length = 500;
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    }
+
+    function getHistory() {
+        return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    }
+
+    function clearHistory() {
+        localStorage.removeItem(HISTORY_KEY);
+    }
+
+    function getDownloads() {
+        return JSON.parse(localStorage.getItem(DOWNLOADS_KEY) || '[]');
+    }
+
+    function addDownload(name, size, path) {
+        const downloads = getDownloads();
+        downloads.unshift({ name, size, path, time: Date.now() });
+        if (downloads.length > 100) downloads.length = 100;
+        localStorage.setItem(DOWNLOADS_KEY, JSON.stringify(downloads));
+    }
+
     function launch() {
         const firstTab = createTab();
         activeTabId = firstTab.id;
@@ -121,11 +167,22 @@ const Browser = (() => {
         const statusDot = el.querySelector('.browser-status-dot');
         const statusText = el.querySelector('.browser-status-text');
         const statusHost = el.querySelector('.browser-status-host');
+        const statusZoom = el.querySelector('.browser-status-zoom');
         const backBtn = el.querySelector('.browser-back');
         const forwardBtn = el.querySelector('.browser-forward');
         const refreshBtn = el.querySelector('.browser-refresh');
+        const homeBtn = el.querySelector('.browser-home');
+        const findBar = el.querySelector('.browser-find-bar');
+        const findInput = el.querySelector('.browser-find-input');
+        const findCount = el.querySelector('.browser-find-count');
+        const findPrev = el.querySelector('.browser-find-prev');
+        const findNext = el.querySelector('.browser-find-next');
+        const findClose = el.querySelector('.browser-find-close');
+        const dlBtn = el.querySelector('.browser-dl-btn');
 
         let clockInterval = null;
+        let findMatchCount = 0;
+        let findCurrentIndex = 0;
 
         function updateClock() {
             const clockEl = contentEl.querySelector('.browser-newtab-clock');
@@ -135,6 +192,27 @@ const Browser = (() => {
                 clockEl.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 if (dateEl) dateEl.textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
             }
+        }
+
+        function updateZoomDisplay() {
+            const tab = tabs.get(activeTabId);
+            if (!tab) return;
+            const pct = Math.round(tab.zoom * 100);
+            statusZoom.textContent = pct !== 100 ? `${pct}%` : '';
+        }
+
+        function applyZoom(tab) {
+            if (!tab || !tab.iframeEl) return;
+            tab.iframeEl.style.transform = `scale(${tab.zoom})`;
+            tab.iframeEl.style.transformOrigin = '0 0';
+            if (tab.zoom !== 1) {
+                tab.iframeEl.style.width = `${100 / tab.zoom}%`;
+                tab.iframeEl.style.height = `${100 / tab.zoom}%`;
+            } else {
+                tab.iframeEl.style.width = '100%';
+                tab.iframeEl.style.height = '100%';
+            }
+            updateZoomDisplay();
         }
 
         function renderTabs() {
@@ -155,8 +233,57 @@ const Browser = (() => {
                     e.stopPropagation();
                     closeTab(tab.id);
                 });
+                tabEl.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showTabContextMenu(e.clientX, e.clientY, tab.id);
+                });
                 tabsList.appendChild(tabEl);
             }
+        }
+
+        function showTabContextMenu(x, y, tabId) {
+            const tab = tabs.get(tabId);
+            if (!tab) return;
+            const items = [
+                { label: 'New Tab', icon: '+', action: () => addTab() },
+                'separator',
+                { label: 'Close Tab', icon: '×', action: () => closeTab(tabId) },
+                { label: 'Close Other Tabs', icon: '', action: () => closeOtherTabs(tabId) },
+                { label: 'Close Tabs to the Right', icon: '', action: () => closeTabsToRight(tabId) },
+                'separator',
+                { label: 'Duplicate Tab', icon: '⧉', action: () => { if (tab.url) addTab(tab.url); } },
+                'separator',
+                { label: 'Reload', icon: '↻', action: () => { if (tab.url) renderPage(tab); } }
+            ];
+            ContextMenu.show(x, y, items);
+        }
+
+        function closeOtherTabs(keepId) {
+            for (const [id, tab] of tabs) {
+                if (id !== keepId) {
+                    if (tab.iframeEl) tab.iframeEl.remove();
+                    closedTabs.push({ url: tab.url, title: tab.title });
+                    tabs.delete(id);
+                }
+            }
+            activeTabId = keepId;
+            renderTabs();
+            switchTab(activeTabId);
+        }
+
+        function closeTabsToRight(tabId) {
+            const ids = [...tabs.keys()];
+            const idx = ids.indexOf(tabId);
+            if (idx < 0) return;
+            for (let i = ids.length - 1; i > idx; i--) {
+                const tab = tabs.get(ids[i]);
+                if (tab.iframeEl) tab.iframeEl.remove();
+                closedTabs.push({ url: tab.url, title: tab.title });
+                tabs.delete(ids[i]);
+            }
+            renderTabs();
+            switchTab(activeTabId);
         }
 
         function switchTab(tabId) {
@@ -168,6 +295,7 @@ const Browser = (() => {
             urlInput.value = tab.displayUrl || '';
             urlIcon.textContent = isSecure(tab.url) ? '🔒' : '⚠️';
             statusHost.textContent = getHost(tab.url);
+            updateZoomDisplay();
 
             if (!tab.url) {
                 showNewTab();
@@ -179,6 +307,8 @@ const Browser = (() => {
         function closeTab(tabId) {
             if (tabs.size <= 1) return;
             const tab = tabs.get(tabId);
+            closedTabs.push({ url: tab.url, title: tab.title });
+            if (closedTabs.length > MAX_CLOSED) closedTabs.shift();
             if (tab.iframeEl) tab.iframeEl.remove();
             tabs.delete(tabId);
             if (activeTabId === tabId) {
@@ -187,6 +317,12 @@ const Browser = (() => {
             }
             renderTabs();
             switchTab(activeTabId);
+        }
+
+        function reopenClosedTab() {
+            if (closedTabs.length === 0) return;
+            const last = closedTabs.pop();
+            addTab(last.url);
         }
 
         function addTab(url) {
@@ -217,6 +353,7 @@ const Browser = (() => {
             statusDot.className = 'browser-status-dot';
             statusText.textContent = 'Ready';
             statusHost.textContent = '';
+            updateZoomDisplay();
             renderTabs();
 
             contentEl.innerHTML = getNewTabHtml();
@@ -280,6 +417,8 @@ const Browser = (() => {
             iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox';
             tab.iframeEl = iframe;
 
+            applyZoom(tab);
+
             iframe.addEventListener('load', () => {
                 statusDot.className = 'browser-status-dot';
                 statusText.textContent = 'Done';
@@ -289,6 +428,7 @@ const Browser = (() => {
                     if (iframeTitle) {
                         tab.title = iframeTitle;
                         renderTabs();
+                        addHistory(tab.url, tab.title);
                     }
                     const iframeUrl = iframe.contentWindow?.location?.href;
                     if (iframeUrl && iframeUrl !== 'about:blank') {
@@ -305,7 +445,114 @@ const Browser = (() => {
             contentEl.appendChild(iframe);
         }
 
+        function openFindBar() {
+            findBar.style.display = 'flex';
+            findInput.value = '';
+            findCount.textContent = '';
+            findInput.focus();
+        }
+
+        function closeFindBar() {
+            findBar.style.display = 'none';
+            findInput.value = '';
+            findCount.textContent = '';
+            try {
+                const iframe = contentEl.querySelector('iframe');
+                if (iframe?.contentWindow) {
+                    iframe.contentWindow.find('', false, false, false);
+                }
+            } catch {}
+        }
+
+        function doFind(direction) {
+            const query = findInput.value;
+            if (!query) { findCount.textContent = ''; return; }
+            try {
+                const iframe = contentEl.querySelector('iframe');
+                if (iframe?.contentWindow) {
+                    iframe.contentWindow.find(query, false, direction === 'prev', false);
+                }
+            } catch {
+                findCount.textContent = 'N/A';
+            }
+        }
+
+        function showHistoryPanel() {
+            const history = getHistory();
+            let html = '<div style="padding:12px;height:100%;overflow-y:auto;">';
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">';
+            html += '<span style="font-size:14px;font-weight:600;">History</span>';
+            html += '<button id="bh-clear" style="background:none;border:1px solid rgba(255,255,255,0.15);color:#ccc;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;">Clear</button>';
+            html += '</div>';
+            if (history.length === 0) {
+                html += '<div style="text-align:center;color:#666;padding:40px;">No history yet</div>';
+            } else {
+                html += '<div class="browser-history-list">';
+                const now = new Date();
+                let lastDate = '';
+                for (const entry of history) {
+                    const d = new Date(entry.time);
+                    const dateStr = d.toLocaleDateString();
+                    if (dateStr !== lastDate) {
+                        lastDate = dateStr;
+                        html += `<div style="font-size:11px;color:#888;padding:8px 0 4px;border-bottom:1px solid rgba(255,255,255,0.06);">${dateStr === now.toLocaleDateString() ? 'Today' : dateStr}</div>`;
+                    }
+                    const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    html += `<div class="browser-history-item" data-url="${entry.url}" style="padding:6px 8px;border-radius:4px;cursor:pointer;font-size:12px;display:flex;gap:8px;align-items:center;transition:background 0.12s;">`;
+                    html += `<span style="color:#888;white-space:nowrap;font-size:11px;">${timeStr}</span>`;
+                    html += `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${entry.title}</span>`;
+                    html += '</div>';
+                }
+                html += '</div></div>';
+            }
+
+            const hWin = WindowManager.createWindow('browser-history', 'History', '🕐', html, { width: 400, height: 450 });
+            const hEl = hWin.element;
+
+            hEl.querySelector('#bh-clear')?.addEventListener('click', () => {
+                clearHistory();
+                hEl.querySelector('.window-body').innerHTML = '<div style="text-align:center;color:#666;padding:40px;">No history yet</div>';
+            });
+
+            hEl.querySelectorAll('.browser-history-item').forEach(item => {
+                item.addEventListener('mouseenter', () => item.style.background = 'rgba(255,255,255,0.06)');
+                item.addEventListener('mouseleave', () => item.style.background = 'transparent');
+                item.addEventListener('click', () => {
+                    navigateTo(item.dataset.url);
+                });
+            });
+        }
+
+        function showDownloadsPanel() {
+            const downloads = getDownloads();
+            let html = '<div style="padding:12px;height:100%;overflow-y:auto;">';
+            html += '<div style="font-size:14px;font-weight:600;margin-bottom:12px;">Downloads</div>';
+            if (downloads.length === 0) {
+                html += '<div style="text-align:center;color:#666;padding:40px;">No downloads yet</div>';
+            } else {
+                for (const dl of downloads) {
+                    const d = new Date(dl.time);
+                    html += `<div style="padding:8px;border:1px solid rgba(255,255,255,0.06);border-radius:6px;margin-bottom:6px;">`;
+                    html += `<div style="font-size:13px;margin-bottom:4px;">${dl.name}</div>`;
+                    html += `<div style="font-size:11px;color:#888;">${d.toLocaleString()}${dl.size ? ' · ' + dl.size : ''}</div>`;
+                    if (dl.path) {
+                        html += `<div style="font-size:11px;color:#4fc3f7;margin-top:2px;cursor:pointer;" class="browser-dl-open" data-path="${dl.path}">${dl.path}</div>`;
+                    }
+                    html += '</div>';
+                }
+            }
+            html += '</div>';
+
+            WindowManager.createWindow('browser-downloads', 'Downloads', '⬇', html, { width: 420, height: 400 });
+        }
+
         el.querySelector('.browser-tab-add').addEventListener('click', () => addTab());
+
+        homeBtn.addEventListener('click', () => {
+            const tab = tabs.get(activeTabId);
+            if (!tab) return;
+            showNewTab();
+        });
 
         backBtn.addEventListener('click', () => {
             const tab = tabs.get(activeTabId);
@@ -338,6 +585,8 @@ const Browser = (() => {
             if (tab && tab.url) renderPage(tab);
         });
 
+        dlBtn.addEventListener('click', () => showDownloadsPanel());
+
         urlInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 const val = urlInput.value.trim();
@@ -347,12 +596,45 @@ const Browser = (() => {
 
         urlInput.addEventListener('focus', () => urlInput.select());
 
+        findInput.addEventListener('input', () => doFind('next'));
+        findInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                doFind(e.shiftKey ? 'prev' : 'next');
+            }
+            if (e.key === 'Escape') {
+                closeFindBar();
+            }
+        });
+        findPrev.addEventListener('click', () => doFind('prev'));
+        findNext.addEventListener('click', () => doFind('next'));
+        findClose.addEventListener('click', closeFindBar);
+
         el.addEventListener('keydown', (e) => {
             if (!el.contains(document.activeElement) && document.activeElement !== document.body) return;
             if (e.ctrlKey && e.key === 't') { e.preventDefault(); addTab(); }
             if (e.ctrlKey && e.key === 'w') { e.preventDefault(); closeTab(activeTabId); }
             if (e.ctrlKey && e.key === 'l') { e.preventDefault(); urlInput.focus(); urlInput.select(); }
             if (e.ctrlKey && e.key === 'r') { e.preventDefault(); refreshBtn.click(); }
+            if (e.ctrlKey && e.shiftKey && e.key === 'T') { e.preventDefault(); reopenClosedTab(); }
+            if (e.ctrlKey && e.key === 'f') { e.preventDefault(); openFindBar(); }
+            if (e.ctrlKey && e.key === 'h') { e.preventDefault(); showHistoryPanel(); }
+            if (e.ctrlKey && e.key === 'j') { e.preventDefault(); showDownloadsPanel(); }
+
+            if (e.ctrlKey && (e.key === '=' || e.key === '+')) {
+                e.preventDefault();
+                const tab = tabs.get(activeTabId);
+                if (tab) { tab.zoom = Math.min(tab.zoom + 0.1, 3); applyZoom(tab); }
+            }
+            if (e.ctrlKey && e.key === '-') {
+                e.preventDefault();
+                const tab = tabs.get(activeTabId);
+                if (tab) { tab.zoom = Math.max(tab.zoom - 0.1, 0.3); applyZoom(tab); }
+            }
+            if (e.ctrlKey && e.key === '0') {
+                e.preventDefault();
+                const tab = tabs.get(activeTabId);
+                if (tab) { tab.zoom = 1; applyZoom(tab); }
+            }
         });
 
         renderTabs();

@@ -11,6 +11,14 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 - "Open with Browser" option in context menu for HTML files
 - Browser displays local file path in URL bar when opening local files
 - Security restrictions for local HTML: ES modules, import(), export, and module-type scripts are stripped
+- Ctrl+F find on page with find bar (next/prev navigation)
+- Homepage button (⌂) in navigation bar
+- Tab context menu (right-click): Close, Close Others, Close to Right, Duplicate, Reload
+- Ctrl+Shift+T to reopen closed tabs (up to 20 remembered)
+- History panel (Ctrl+H) with timestamps, grouped by date, clear button
+- Zoom controls (Ctrl+/-, Ctrl+0 to reset) with zoom percentage in status bar
+- Downloads panel (Ctrl+J or ⬇ button) tracking downloaded files
+- ⬇ downloads button in navigation bar
 
 ## [12.0.3940] - 2026-08-31
 
