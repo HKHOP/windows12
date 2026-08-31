@@ -1,32 +1,7 @@
 import WindowManager from '../modules/windowManager.js';
-import FileSystem from '../modules/fileSystem.js';
 
 const Browser = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#2196F3" stroke-width="2"/><path d="M2 12h20" stroke="#2196F3" stroke-width="1.5"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="#2196F3" stroke-width="1.5"/></svg>`;
-
-    const CORS_PROXY_STORAGE = 'win12_cors_proxy_key';
-    const CORS_PROXIES_BASE = [
-        { name: 'corsproxy.dev', makeUrl: (url, key) => key ? `https://api.corsproxy.dev/proxy?url=${encodeURIComponent(url)}&key=${key}` : null, check: h => h.includes('<html') || h.includes('<!DOCTYPE') },
-        { name: 'allorigins', makeUrl: (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, check: h => h.includes('<html') || h.includes('<!DOCTYPE') },
-        { name: 'codetabs', makeUrl: (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`, check: h => h.includes('<html') || h.includes('<!DOCTYPE') }
-    ];
-
-    function getCorsKey() {
-        return localStorage.getItem(CORS_PROXY_STORAGE) || '';
-    }
-
-    function setCorsKey(key) {
-        localStorage.setItem(CORS_PROXY_STORAGE, key);
-    }
-
-    function promptCorsKey() {
-        const existing = getCorsKey();
-        const key = prompt('Enter your corsproxy.dev API key (or leave empty to skip):', existing);
-        if (key !== null) {
-            setCorsKey(key.trim());
-        }
-        return key?.trim() || '';
-    }
 
     const QUICK_LINKS = [
         { name: 'GitHub', url: 'https://github.com', color: '#333', letter: 'G' },
@@ -50,7 +25,6 @@ const Browser = (() => {
             title: 'New Tab',
             url: '',
             displayUrl: '',
-            mode: 'iframe',
             history: [],
             historyIndex: -1,
             isLoading: false
@@ -80,8 +54,6 @@ const Browser = (() => {
                         <span class="browser-url-icon">🔒</span>
                         <input type="text" class="browser-url-input" placeholder="Search or enter URL" spellcheck="false">
                     </div>
-                    <button class="browser-mode-btn mode-iframe" title="Rendering mode (click to cycle)">⚙ Iframe</button>
-                    <button class="browser-key-btn" title="Set CORS proxy API key">🔑</button>
                 </div>
                 <div class="browser-content">
                     <div class="browser-newtab"></div>
@@ -92,7 +64,6 @@ const Browser = (() => {
                         <span class="browser-status-text">Ready</span>
                     </div>
                     <div class="browser-status-right">
-                        <span class="browser-status-mode">Iframe</span>
                         <span class="browser-status-host"></span>
                     </div>
                 </div>
@@ -121,30 +92,6 @@ const Browser = (() => {
         `;
     }
 
-    function getErrorHtml(title, msg) {
-        return `
-            <div class="browser-error">
-                <div class="browser-error-icon">⚠️</div>
-                <div class="browser-error-title">${title}</div>
-                <div class="browser-error-msg">${msg}</div>
-            </div>
-        `;
-    }
-
-    function getCorsErrorHtml(url) {
-        return `
-            <div class="browser-error">
-                <div class="browser-error-icon">🔒</div>
-                <div class="browser-error-title">Cannot load this page</div>
-                <div class="browser-error-msg">
-                    <p>This site blocked the request due to CORS (Cross-Origin Resource Sharing) restrictions.</p>
-                    <p style="margin-top:12px;"><strong>Try switching to Iframe mode</strong> (click the ⚙ button) — it loads pages directly without CORS restrictions.</p>
-                    <p style="margin-top:12px;font-size:11px;color:#888;">URL: ${url}</p>
-                </div>
-            </div>
-        `;
-    }
-
     function normalizeUrl(input) {
         input = input.trim();
         if (!input) return '';
@@ -161,48 +108,6 @@ const Browser = (() => {
         return url.startsWith('https://');
     }
 
-    async function fetchHtml(url) {
-        const key = getCorsKey();
-        for (const proxy of CORS_PROXIES_BASE) {
-            const proxyUrl = proxy.makeUrl(url, key);
-            if (!proxyUrl) continue;
-            try {
-                const res = await fetch(proxyUrl, { redirect: 'follow' });
-                if (!res.ok) continue;
-                const ct = res.headers.get('content-type') || '';
-                if (!ct.includes('text/html') && !ct.includes('text/plain') && !ct.includes('application/json') && !ct.includes('application/octet-stream')) {
-                    continue;
-                }
-                const text = await res.text();
-                if (!text || text.trim().length < 10) continue;
-                if (proxy.check && !proxy.check(text)) continue;
-                try {
-                    const json = JSON.parse(text);
-                    if (json.contents) return json.contents;
-                } catch {
-                    return text;
-                }
-            } catch { continue; }
-        }
-        throw new Error(`Could not load: ${getHost(url)}`);
-    }
-
-    function injectBaseUrl(html, url) {
-        const base = `<base href="${url}">`;
-        if (/<head[\s>]/i.test(html)) {
-            return html.replace(/(<head[\s>])/i, `$1\n${base}`);
-        } else if (/<html[\s>]/i.test(html)) {
-            return html.replace(/(<html[\s>])/i, `$1\n<head>${base}</head>`);
-        }
-        return `<!DOCTYPE html><head>${base}</head><body>${html}</body>`;
-    }
-
-    function stripFrameBlocking(html) {
-        html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?x-frame-options["']?[^>]*>/gi, '');
-        html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?content-security-policy["']?[^>]*>/gi, '');
-        return html;
-    }
-
     function launch() {
         const firstTab = createTab();
         activeTabId = firstTab.id;
@@ -213,10 +118,8 @@ const Browser = (() => {
         const tabsList = el.querySelector('.browser-tabs-list');
         const urlInput = el.querySelector('.browser-url-input');
         const urlIcon = el.querySelector('.browser-url-icon');
-        const modeBtn = el.querySelector('.browser-mode-btn');
         const statusDot = el.querySelector('.browser-status-dot');
         const statusText = el.querySelector('.browser-status-text');
-        const statusMode = el.querySelector('.browser-status-mode');
         const statusHost = el.querySelector('.browser-status-host');
         const backBtn = el.querySelector('.browser-back');
         const forwardBtn = el.querySelector('.browser-forward');
@@ -264,7 +167,6 @@ const Browser = (() => {
             updateNavState(tab);
             urlInput.value = tab.displayUrl || '';
             urlIcon.textContent = isSecure(tab.url) ? '🔒' : '⚠️';
-            statusMode.textContent = { iframe: 'Iframe', sandbox: 'Sandbox', direct: 'Direct' }[tab.mode];
             statusHost.textContent = getHost(tab.url);
 
             if (!tab.url) {
@@ -278,7 +180,6 @@ const Browser = (() => {
             if (tabs.size <= 1) return;
             const tab = tabs.get(tabId);
             if (tab.iframeEl) tab.iframeEl.remove();
-            if (tab.renderContainer) tab.renderContainer.remove();
             tabs.delete(tabId);
             if (activeTabId === tabId) {
                 const remaining = [...tabs.keys()];
@@ -303,36 +204,6 @@ const Browser = (() => {
         function updateNavState(tab) {
             backBtn.disabled = tab.historyIndex <= 0;
             forwardBtn.disabled = tab.historyIndex >= tab.history.length - 1;
-        }
-
-        function setMode(tab, mode) {
-            tab.mode = mode;
-            modeBtn.className = `browser-mode-btn mode-${mode}`;
-            modeBtn.textContent = `⚙ ${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
-            statusMode.textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
-
-            const tooltips = {
-                iframe: 'Iframe: Loads pages directly (works for most sites)',
-                sandbox: 'Sandbox: Fetches HTML, runs scripts in isolated iframe (may fail due to CORS)',
-                direct: 'Direct: Fetches HTML, runs scripts in host context (may fail due to CORS)'
-            };
-            modeBtn.title = tooltips[mode];
-
-            if (mode === 'direct') {
-                showSecurityToast(el, 'Direct mode: scripts will have full access to the OS');
-            } else if (mode === 'sandbox') {
-                showSecurityToast(el, 'Sandbox mode: scripts run in isolated iframe');
-            }
-
-            if (tab.url) renderPage(tab);
-        }
-
-        function cycleMode() {
-            const tab = tabs.get(activeTabId);
-            if (!tab) return;
-            const modes = ['iframe', 'sandbox', 'direct'];
-            const idx = modes.indexOf(tab.mode);
-            setMode(tab, modes[(idx + 1) % modes.length]);
         }
 
         function showNewTab() {
@@ -402,130 +273,36 @@ const Browser = (() => {
             statusText.textContent = 'Loading...';
             tab.isLoading = true;
 
-            const loadingEl = document.createElement('div');
-            loadingEl.className = 'browser-loading';
-            contentEl.appendChild(loadingEl);
-
             contentEl.innerHTML = '';
 
-            if (tab.mode === 'iframe') {
-                renderIframeMode(contentEl, tab, tab.url);
-                return;
-            }
-
-            try {
-                const rawHtml = await fetchHtml(tab.url);
-                let html = injectBaseUrl(rawHtml, tab.url);
-                html = stripFrameBlocking(html);
-
-                const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-                if (titleMatch) {
-                    tab.title = titleMatch[1].trim();
-                    renderTabs();
-                }
-
-                if (tab.mode === 'sandbox') {
-                    renderSandboxMode(contentEl, tab, html);
-                } else {
-                    renderDirectMode(contentEl, tab, html);
-                }
-
-                statusDot.className = 'browser-status-dot';
-                statusText.textContent = 'Done';
-                tab.isLoading = false;
-            } catch (err) {
-                contentEl.innerHTML = getCorsErrorHtml(tab.url);
-                statusDot.className = 'browser-status-dot error';
-                statusText.textContent = 'Error';
-                tab.isLoading = false;
-            }
-        }
-
-        function renderIframeMode(container, tab, url) {
             const iframe = document.createElement('iframe');
             iframe.style.cssText = 'width:100%;height:100%;border:none;';
+            iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox';
             tab.iframeEl = iframe;
 
             iframe.addEventListener('load', () => {
                 statusDot.className = 'browser-status-dot';
                 statusText.textContent = 'Done';
+                tab.isLoading = false;
                 try {
                     const iframeTitle = iframe.contentDocument?.title;
                     if (iframeTitle) {
                         tab.title = iframeTitle;
                         renderTabs();
                     }
+                    const iframeUrl = iframe.contentWindow?.location?.href;
+                    if (iframeUrl && iframeUrl !== 'about:blank') {
+                        tab.url = iframeUrl;
+                        tab.displayUrl = iframeUrl;
+                        urlInput.value = iframeUrl;
+                        urlIcon.textContent = isSecure(iframeUrl) ? '🔒' : '⚠️';
+                        statusHost.textContent = getHost(iframeUrl);
+                    }
                 } catch {}
             });
 
-            iframe.src = url;
-            container.appendChild(iframe);
-        }
-
-        function renderSandboxMode(container, tab, html) {
-            const iframe = document.createElement('iframe');
-            iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox';
-            iframe.style.cssText = 'width:100%;height:100%;border:none;';
-            tab.iframeEl = iframe;
-
-            iframe.addEventListener('load', () => {
-                statusDot.className = 'browser-status-dot';
-                statusText.textContent = 'Done';
-            });
-
-            iframe.srcdoc = html;
-            container.appendChild(iframe);
-        }
-
-        function renderDirectMode(container, tab, html) {
-            const renderDiv = document.createElement('div');
-            renderDiv.className = 'browser-render-container';
-            renderDiv.style.cssText = 'width:100%;height:100%;overflow:auto;background:white;color:black;';
-            tab.renderContainer = renderDiv;
-
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-
-            const scripts = [];
-            doc.querySelectorAll('script').forEach(s => {
-                if (s.textContent) scripts.push(s.textContent);
-                s.remove();
-            });
-
-            const styles = [];
-            doc.querySelectorAll('style').forEach(s => {
-                styles.push(s.textContent);
-                s.remove();
-            });
-
-            renderDiv.innerHTML = '';
-
-            const styleEl = document.createElement('style');
-            styleEl.textContent = styles.join('\n');
-            renderDiv.appendChild(styleEl);
-
-            const bodyContent = doc.body ? doc.body.innerHTML : doc.documentElement.innerHTML;
-            const bodyDiv = document.createElement('div');
-            bodyDiv.innerHTML = bodyContent;
-            renderDiv.appendChild(bodyDiv);
-
-            container.appendChild(renderDiv);
-
-            scripts.forEach((scriptText, i) => {
-                try {
-                    const scriptEl = document.createElement('script');
-                    scriptEl.textContent = scriptText;
-                    renderDiv.appendChild(scriptEl);
-                } catch (err) {
-                    const errBanner = document.createElement('div');
-                    errBanner.style.cssText = 'background:#ff4444;color:white;padding:8px 12px;font-size:12px;font-family:monospace;';
-                    errBanner.textContent = `Script error (#${i + 1}): ${err.message}`;
-                    renderDiv.prepend(errBanner);
-                }
-            });
-
-            statusDot.className = 'browser-status-dot';
-            statusText.textContent = 'Done';
+            iframe.src = tab.url;
+            contentEl.appendChild(iframe);
         }
 
         el.querySelector('.browser-tab-add').addEventListener('click', () => addTab());
@@ -570,15 +347,6 @@ const Browser = (() => {
 
         urlInput.addEventListener('focus', () => urlInput.select());
 
-        modeBtn.addEventListener('click', cycleMode);
-
-        const keyBtn = el.querySelector('.browser-key-btn');
-        keyBtn.addEventListener('click', () => {
-            promptCorsKey();
-            keyBtn.textContent = getCorsKey() ? '🔑✓' : '🔑';
-        });
-        if (getCorsKey()) keyBtn.textContent = '🔑✓';
-
         el.addEventListener('keydown', (e) => {
             if (!el.contains(document.activeElement) && document.activeElement !== document.body) return;
             if (e.ctrlKey && e.key === 't') { e.preventDefault(); addTab(); }
@@ -589,14 +357,6 @@ const Browser = (() => {
 
         renderTabs();
         showNewTab();
-    }
-
-    function showSecurityToast(el, msg) {
-        const toast = document.createElement('div');
-        toast.className = 'browser-security-toast';
-        toast.textContent = msg;
-        el.querySelector('.browser-content').appendChild(toast);
-        setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 2500);
     }
 
     return { launch };

@@ -6,13 +6,17 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 
 ## [12.0.3940] - 2026-08-31
 
+### Removed
+- Sandbox and Direct rendering modes from Browser (CORS limitations made them non-functional)
+- CORS proxy code, API key storage, and 🔑 button from Browser
+- `FileSystem` import from Browser (no longer needed)
+
 ### Fixed
-- CORS proxy validation: skips proxies that return their own homepage instead of the target site
-- CORS proxy chain now validates responses contain actual HTML
+- Iframe links no longer navigate the entire OS (added `sandbox` attribute to prevent top-level navigation)
 
 ### Changed
-- CORS proxy now skips non-HTML responses and redirects
-- fetchHtml skips direct fetch (always fails from HTTPS pages), goes straight to proxies
+- Browser simplified to iframe-only mode
+- Removed mode toggle button from status bar
 
 ## [12.0.3930] - 2026-08-30
 
