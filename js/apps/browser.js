@@ -498,8 +498,8 @@ const Browser = (() => {
                     const script = doc.createElement('script');
                     script.textContent = `
                         (function() {
-                            function notifyParent(url) {
-                                try { window.parent.postMessage({type:'browser-nav', url:url}, '*'); } catch(e) {}
+                            function notifyParent(url, title) {
+                                try { window.parent.postMessage({type:'browser-nav', url:url, title:title||document.title}, '*'); } catch(e) {}
                             }
 
                             document.addEventListener('click', function(e) {
@@ -518,7 +518,13 @@ const Browser = (() => {
                                     lastUrl = location.href;
                                     notifyParent(location.href);
                                 }
+                                if (document.title && document.title !== lastTitle) {
+                                    lastTitle = document.title;
+                                    notifyParent(location.href, document.title);
+                                }
                             }, 300);
+
+                            var lastTitle = document.title;
 
                             window.addEventListener('popstate', function() {
                                 setTimeout(function() { notifyParent(location.href); }, 50);
@@ -733,9 +739,15 @@ const Browser = (() => {
         showNewTab();
 
         window.addEventListener('message', (e) => {
-            if (e.data?.type === 'browser-nav' && e.data?.url) {
+            if (e.data?.type === 'browser-nav') {
                 const tab = tabs.get(activeTabId);
                 if (!tab) return;
+
+                if (e.data.title && e.data.title !== tab.title) {
+                    tab.title = e.data.title;
+                    renderTabs();
+                }
+
                 const url = e.data.url;
                 if (url && url !== tab.url) {
                     tab.url = url;

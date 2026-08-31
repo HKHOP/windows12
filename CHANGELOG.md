@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.3990] - 2026-08-31
+
+### Fixed
+- Browser tab title now shows the website's actual title instead of the URL
+- Injected script posts `document.title` changes back to parent via `postMessage`
+
 ## [12.0.3980] - 2026-08-31
 
 ### Fixed
