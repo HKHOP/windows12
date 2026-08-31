@@ -11,10 +11,8 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 - CORS proxy chain now validates responses contain actual HTML
 
 ### Changed
-- CORS proxy uses corsproxy.dev API key (stored in localStorage, not hardcoded)
-- Added 🔑 button in browser status bar to set/update API key
-- Button shows ✓ when key is configured
-- Iframe mode remains default (most reliable)
+- CORS proxy now skips non-HTML responses and redirects
+- fetchHtml skips direct fetch (always fails from HTTPS pages), goes straight to proxies
 
 ## [12.0.3930] - 2026-08-30
 

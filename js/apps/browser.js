@@ -162,33 +162,29 @@ const Browser = (() => {
     }
 
     async function fetchHtml(url) {
-        try {
-            const res = await fetch(url);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const text = await res.text();
-            if (text && text.trim().length > 10) return text;
-            throw new Error('Empty response');
-        } catch (e) {
-            const key = getCorsKey();
-            for (const proxy of CORS_PROXIES_BASE) {
-                const proxyUrl = proxy.makeUrl(url, key);
-                if (!proxyUrl) continue;
+        const key = getCorsKey();
+        for (const proxy of CORS_PROXIES_BASE) {
+            const proxyUrl = proxy.makeUrl(url, key);
+            if (!proxyUrl) continue;
+            try {
+                const res = await fetch(proxyUrl, { redirect: 'follow' });
+                if (!res.ok) continue;
+                const ct = res.headers.get('content-type') || '';
+                if (!ct.includes('text/html') && !ct.includes('text/plain') && !ct.includes('application/json') && !ct.includes('application/octet-stream')) {
+                    continue;
+                }
+                const text = await res.text();
+                if (!text || text.trim().length < 10) continue;
+                if (proxy.check && !proxy.check(text)) continue;
                 try {
-                    const res = await fetch(proxyUrl);
-                    if (!res.ok) continue;
-                    const text = await res.text();
-                    if (!text || text.trim().length < 10) continue;
-                    if (proxy.check && !proxy.check(text)) continue;
-                    try {
-                        const json = JSON.parse(text);
-                        if (json.contents) return json.contents;
-                    } catch {
-                        return text;
-                    }
-                } catch { continue; }
-            }
-            throw new Error(`Could not load: ${getHost(url)}`);
+                    const json = JSON.parse(text);
+                    if (json.contents) return json.contents;
+                } catch {
+                    return text;
+                }
+            } catch { continue; }
         }
+        throw new Error(`Could not load: ${getHost(url)}`);
     }
 
     function injectBaseUrl(html, url) {
