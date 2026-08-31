@@ -5,6 +5,7 @@ import ContextMenu from './modules/contextMenu.js';
 import FileSystem from './modules/fileSystem.js';
 import UserActivity from './modules/userActivity.js';
 import SystemConfig from './modules/systemConfig.js';
+import Scaling from './modules/scaling.js';
 import DesktopIcons from './modules/desktopIcons.js';
 import Settings from './apps/settings.js';
 import Notepad from './apps/notepad.js';
@@ -29,6 +30,10 @@ AppRegistry.register('paint', Paint);
 AppRegistry.register('browser', Browser);
 
 document.addEventListener('DOMContentLoaded', () => {
+    Scaling.init();
+    const s = Scaling.getScale();
+    WindowManager.setScale(s);
+
     FileSystem.init();
     UserActivity.init();
     SystemConfig.init();

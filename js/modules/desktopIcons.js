@@ -4,6 +4,7 @@ import WindowManager from './windowManager.js';
 import UserActivity from './userActivity.js';
 import FileExplorer from '../apps/fileExplorer.js';
 import Popup from './popup.js';
+import Scaling from './scaling.js';
 
 const DesktopIcons = (() => {
     const DESKTOP_PATH = ['/', 'users', 'default', 'Desktop'];
@@ -49,7 +50,8 @@ const DesktopIcons = (() => {
     }
 
     function getDefaultPosition(name, index) {
-        const cols = Math.floor((window.innerWidth - PADDING) / (ICON_W + PADDING));
+        const s = Scaling.getScale();
+        const cols = Math.floor((window.innerWidth / s - PADDING) / (ICON_W + PADDING));
         const col = index % cols;
         const row = Math.floor(index / cols);
         return {
@@ -156,11 +158,12 @@ const DesktopIcons = (() => {
         document.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
 
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
+            const s = Scaling.getScale();
+            const dx = (e.clientX - startX) / s;
+            const dy = (e.clientY - startY) / s;
 
-            const newX = Math.max(0, Math.min(window.innerWidth - ICON_W, origX + dx));
-            const newY = Math.max(0, Math.min(window.innerHeight - 100, origY + dy));
+            const newX = Math.max(0, Math.min(window.innerWidth / s - ICON_W, origX + dx));
+            const newY = Math.max(0, Math.min(window.innerHeight / s - 100, origY + dy));
 
             el.style.left = newX + 'px';
             el.style.top = newY + 'px';
@@ -180,8 +183,9 @@ const DesktopIcons = (() => {
             const gridX = Math.round(rawX / (ICON_W + PADDING)) * (ICON_W + PADDING);
             const gridY = Math.round(rawY / (ICON_H + PADDING)) * (ICON_H + PADDING);
 
-            const x = Math.max(0, Math.min(window.innerWidth - ICON_W, gridX));
-            const y = Math.max(0, Math.min(window.innerHeight - 100, gridY));
+            const s = Scaling.getScale();
+            const x = Math.max(0, Math.min(window.innerWidth / s - ICON_W, gridX));
+            const y = Math.max(0, Math.min(window.innerHeight / s - 100, gridY));
 
             el.style.left = x + 'px';
             el.style.top = y + 'px';
@@ -417,7 +421,8 @@ const DesktopIcons = (() => {
         }
         FileSystem.createFolder(DESKTOP_PATH, name);
         const entries = FileSystem.getChildren(DESKTOP_PATH);
-        const cols = Math.floor((window.innerWidth - PADDING) / (ICON_W + PADDING));
+        const s = Scaling.getScale();
+        const cols = Math.floor((window.innerWidth / s - PADDING) / (ICON_W + PADDING));
         const idx = entries.length - 1;
         positions[name] = {
             x: PADDING + (idx % cols) * (ICON_W + PADDING),
@@ -435,7 +440,8 @@ const DesktopIcons = (() => {
         }
         FileSystem.createFile(DESKTOP_PATH, name, '', 'txt');
         const entries = FileSystem.getChildren(DESKTOP_PATH);
-        const cols = Math.floor((window.innerWidth - PADDING) / (ICON_W + PADDING));
+        const s = Scaling.getScale();
+        const cols = Math.floor((window.innerWidth / s - PADDING) / (ICON_W + PADDING));
         const idx = entries.length - 1;
         positions[name] = {
             x: PADDING + (idx % cols) * (ICON_W + PADDING),

@@ -6,6 +6,10 @@ const WindowManager = (() => {
     let onWindowCreated = null;
     let onWindowClosed = null;
     let snapIndicator = null;
+    let scale = 1;
+
+    function setScale(s) { scale = s; }
+    function getScale() { return scale; }
 
     function init() {
         container = document.getElementById('windows-container');
@@ -34,8 +38,9 @@ const WindowManager = (() => {
 
     function getSnapZone(clientX, clientY) {
         const threshold = 20;
-        const w = window.innerWidth;
-        const h = window.innerHeight - 48;
+        const s = scale;
+        const w = window.innerWidth / s;
+        const h = window.innerHeight / s - 48;
         const left = clientX <= threshold;
         const right = clientX >= w - threshold;
         const top = clientY <= threshold;
@@ -63,6 +68,7 @@ const WindowManager = (() => {
 
     function createWindow(appId, title, icon, content, options = {}) {
         const id = `window-${appId}-${Date.now()}`;
+        const s = scale;
         const defaults = {
             width: 700,
             height: 500,
@@ -71,8 +77,8 @@ const WindowManager = (() => {
         };
         const opts = { ...defaults, ...options };
 
-        const x = Math.max(50, (window.innerWidth - opts.width) / 2 + Math.random() * 60 - 30);
-        const y = Math.max(30, (window.innerHeight - opts.height - 48) / 2 + Math.random() * 40 - 20);
+        const x = Math.max(50, (window.innerWidth / s - opts.width) / 2 + Math.random() * 60 - 30);
+        const y = Math.max(30, (window.innerHeight / s - opts.height - 48) / 2 + Math.random() * 40 - 20);
 
         const win = document.createElement('div');
         win.className = 'app-window';
@@ -358,7 +364,7 @@ const WindowManager = (() => {
         return Array.from(windows.values());
     }
 
-    return { init, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, createWindow, focusWindow, closeWindow, getWindowsByApp, getAllWindows, minimizeAll, toggleMaximize, _getWindow };
+    return { init, setScale, getScale, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, createWindow, focusWindow, closeWindow, getWindowsByApp, getAllWindows, minimizeAll, toggleMaximize, _getWindow };
 })();
 
 export default WindowManager;

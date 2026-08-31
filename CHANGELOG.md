@@ -4,6 +4,16 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4120] - 2026-08-31
+
+### Added
+- Adaptive viewport scaling via CSS `zoom` — UI automatically scales to fit small screens
+- `js/modules/scaling.js` computes scale factor from viewport size (min dimension / 1080), clamped between 0.45 and 1.0
+
+### Changed
+- Window positioning, snap zones, and desktop icon grid calculations account for zoom factor
+- Desktop icon drag bounds respect zoomed viewport dimensions
+
 ## [12.0.4110] - 2026-08-31
 
 ### Changed

@@ -5,6 +5,7 @@
 }
 
 :root {
+    --scale: 1;
     --accent-color: #0078D4;
     --accent-hover: #1a86d9;
     --window-bg: #202020;
@@ -38,6 +39,10 @@ html, body {
     background: #000;
     user-select: none;
     color: var(--text-primary);
+}
+
+body {
+    zoom: var(--scale, 1);
 }
 
 #desktop {
