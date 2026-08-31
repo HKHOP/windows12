@@ -4,6 +4,21 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4030] - 2026-08-31
+
+### Added
+- Popup API (`js/modules/popup.js`) with 7 methods: `info`, `warn`, `error`, `confirm`, `pick`, `textbox`, `forum`
+- All popup methods return Promises for async usage
+- Popup overlay and box styles (`css/popup.css`)
+- Convention added to AGENTS.md: never use native `alert()`, `confirm()`, or `prompt()`
+
+### Changed
+- Replaced all 9 native dialogs across 4 files with Popup API calls
+- `fileExplorer.js`: rename prompt, delete confirm, invalid JSON alert, path-not-found alert
+- `desktopIcons.js`: empty recycle bin confirm, rename prompt, delete confirm
+- `paint.js`: replace file confirm
+- `notepad.js`: save-as prompt
+
 ## [12.0.4020] - 2026-08-31
 
 ### Changed

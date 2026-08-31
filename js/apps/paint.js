@@ -1,5 +1,6 @@
 import WindowManager from '../modules/windowManager.js';
 import FileSystem from '../modules/fileSystem.js';
+import Popup from '../modules/popup.js';
 
 const Paint = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#1565C0"/><circle cx="8" cy="8" r="2" fill="#FF5722"/><circle cx="14" cy="9" r="2" fill="#4CAF50"/><circle cx="10" cy="14" r="2" fill="#FFC107"/><circle cx="16" cy="15" r="2" fill="#9C27B0"/></svg>`;
@@ -237,7 +238,19 @@ const Paint = (() => {
 
             const existing = FileSystem.readFile([...currentPath, fullName]);
             if (existing !== null) {
-                if (!confirm(`"${fullName}" already exists. Replace it?`)) return;
+                Popup.confirm('Replace File', `"${fullName}" already exists. Replace it?`).then(ok => {
+                    if (ok !== 'true') return;
+
+                    FileSystem.createFile(currentPath, fullName, dataUrl, ext);
+                    WindowManager.closeWindow(saveWin.id);
+
+                    const toast = document.createElement('div');
+                    toast.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:var(--window-bg);border:1px solid var(--window-border);border-radius:8px;padding:10px 20px;font-size:13px;color:var(--text-primary);box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:99999;animation:windowOpen 0.2s ease-out;';
+                    toast.textContent = `Saved "${fullName}" to ${pathEl.textContent}`;
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 2500);
+                });
+                return;
             }
 
             FileSystem.createFile(currentPath, fullName, dataUrl, ext);

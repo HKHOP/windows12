@@ -3,6 +3,7 @@ import ContextMenu from './contextMenu.js';
 import WindowManager from './windowManager.js';
 import UserActivity from './userActivity.js';
 import FileExplorer from '../apps/fileExplorer.js';
+import Popup from './popup.js';
 
 const DesktopIcons = (() => {
     const DESKTOP_PATH = ['/', 'users', 'default', 'Desktop'];
@@ -299,10 +300,12 @@ const DesktopIcons = (() => {
     }
 
     function emptyRecycleBin() {
-        if (confirm('Are you sure you want to permanently delete all items in the Recycle Bin?')) {
-            FileSystem.emptyRecycleBin();
-            render();
-        }
+        Popup.confirm('Empty Recycle Bin', 'Are you sure you want to permanently delete all items in the Recycle Bin?').then(ok => {
+            if (ok === 'true') {
+                FileSystem.emptyRecycleBin();
+                render();
+            }
+        });
     }
 
     function getFolderIcon(name) {
@@ -381,26 +384,29 @@ const DesktopIcons = (() => {
 
     function renameItem(path) {
         const oldName = path[path.length - 1];
-        const newName = prompt('Enter new name:', oldName);
-        if (newName && newName !== oldName) {
-            if (positions[oldName]) {
-                positions[newName] = positions[oldName];
-                delete positions[oldName];
-                savePositions();
+        Popup.textbox('Rename', 'Enter new name:', { value: oldName }).then(newName => {
+            if (newName && newName !== oldName) {
+                if (positions[oldName]) {
+                    positions[newName] = positions[oldName];
+                    delete positions[oldName];
+                    savePositions();
+                }
+                FileSystem.renameItem(path, newName);
+                render();
             }
-            FileSystem.renameItem(path, newName);
-            render();
-        }
+        });
     }
 
     function deleteItem(path) {
         const name = path[path.length - 1];
-        if (confirm(`Delete "${name}"?`)) {
-            FileSystem.deleteItem(path);
-            delete positions[name];
-            savePositions();
-            render();
-        }
+        Popup.confirm('Delete', `Delete "${name}"?`).then(ok => {
+            if (ok === 'true') {
+                FileSystem.deleteItem(path);
+                delete positions[name];
+                savePositions();
+                render();
+            }
+        });
     }
 
     function createNewFolder() {

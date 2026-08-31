@@ -3,6 +3,7 @@ import ContextMenu from '../modules/contextMenu.js';
 import FileSystem from '../modules/fileSystem.js';
 import UserActivity from '../modules/userActivity.js';
 import SystemConfig from '../modules/systemConfig.js';
+import Popup from '../modules/popup.js';
 import DesktopIcons from '../modules/desktopIcons.js';
 
 const FileExplorer = (() => {
@@ -447,25 +448,28 @@ const FileExplorer = (() => {
 
     function renameItem(win, itemPath) {
         const oldName = itemPath[itemPath.length - 1];
-        const newName = prompt('Enter new name:', oldName);
-        if (newName && newName !== oldName) {
-            FileSystem.renameItem(itemPath, newName);
-            navigate(win, itemPath.slice(0, -1), false);
-            refreshIfDesktop(itemPath);
-        }
+        Popup.textbox('Rename', 'Enter new name:', { value: oldName }).then(newName => {
+            if (newName && newName !== oldName) {
+                FileSystem.renameItem(itemPath, newName);
+                navigate(win, itemPath.slice(0, -1), false);
+                refreshIfDesktop(itemPath);
+            }
+        });
     }
 
     function deleteItem(win, itemPath) {
         const name = itemPath[itemPath.length - 1];
-        if (confirm(`Delete "${name}"?`)) {
-            showProgressBar(win);
-            setTimeout(() => {
-                FileSystem.deleteItem(itemPath);
-                navigate(win, itemPath.slice(0, -1), false);
-                refreshIfDesktop(itemPath);
-                hideProgressBar(win);
-            }, 300);
-        }
+        Popup.confirm('Delete', `Delete "${name}"?`).then(ok => {
+            if (ok === 'true') {
+                showProgressBar(win);
+                setTimeout(() => {
+                    FileSystem.deleteItem(itemPath);
+                    navigate(win, itemPath.slice(0, -1), false);
+                    refreshIfDesktop(itemPath);
+                    hideProgressBar(win);
+                }, 300);
+            }
+        });
     }
 
     function pasteItems(win, destPath) {
@@ -550,7 +554,7 @@ const FileExplorer = (() => {
                         const parsed = JSON.parse(textarea.value);
                         SystemConfig.setMultiple(parsed);
                     } catch (err) {
-                        alert('Invalid JSON config. Changes not applied.');
+                        Popup.error('Invalid Config', 'Invalid JSON config. Changes not applied.');
                     }
                 }
             }
@@ -678,7 +682,7 @@ const FileExplorer = (() => {
                 } else if (FileSystem.itemExists(rawPath)) {
                     navigate(win, rawPath.slice(0, -1));
                 } else {
-                    alert('Path not found: ' + inputPath);
+                    Popup.error('Path Not Found', 'Path not found: ' + inputPath);
                     pathInput.value = formatPath(pathHistory[historyIndex]);
                 }
             } else if (e.key === 'Escape') {

@@ -1,6 +1,7 @@
 import WindowManager from '../modules/windowManager.js';
 import FileSystem from '../modules/fileSystem.js';
 import ContextMenu from '../modules/contextMenu.js';
+import Popup from '../modules/popup.js';
 
 const Notepad = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="4" y="2" width="16" height="20" rx="2" fill="#1E88E5"/><rect x="7" y="6" width="10" height="1.5" rx="0.5" fill="white"/><rect x="7" y="9.5" width="8" height="1.5" rx="0.5" fill="white"/><rect x="7" y="13" width="10" height="1.5" rx="0.5" fill="white"/></svg>`;
@@ -326,12 +327,13 @@ const Notepad = (() => {
     }
 
     function saveAsNewFile(textarea, titleEl, defaultTitle) {
-        const name = prompt('Save as:', 'Untitled.txt');
-        if (name) {
-            const path = ['/', 'users', 'default', 'Documents'];
-            FileSystem.createFile(path, name, textarea.value, name.split('.').pop());
-            titleEl.textContent = `${name} - Notepad`;
-        }
+        Popup.textbox('Save As', 'Enter file name:', { value: 'Untitled.txt' }).then(name => {
+            if (name) {
+                const path = ['/', 'users', 'default', 'Documents'];
+                FileSystem.createFile(path, name, textarea.value, name.split('.').pop());
+                titleEl.textContent = `${name} - Notepad`;
+            }
+        });
     }
 
     function updateStatus(textarea, status) {
