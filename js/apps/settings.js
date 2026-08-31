@@ -15,7 +15,8 @@ const Settings = (() => {
         accounts: { name: 'Accounts', icon: '👤' },
         time: { name: 'Time & language', icon: '🕐' },
         privacy: { name: 'Privacy & security', icon: '🔒' },
-        update: { name: 'Windows Update', icon: '🔄' }
+        update: { name: 'Windows Update', icon: '🔄' },
+        about: { name: 'About', icon: 'ℹ️' }
     };
 
     const systemSubPages = {
@@ -76,6 +77,7 @@ const Settings = (() => {
                 case 'time': renderTime(contentEl); break;
                 case 'privacy': renderPrivacy(contentEl); break;
                 case 'update': renderUpdate(contentEl); break;
+                case 'about': renderAbout(contentEl); break;
             }
         }
     }
@@ -476,6 +478,64 @@ const Settings = (() => {
                 </div>
             </div>
         `;
+    }
+
+    function renderAbout(el) {
+        el.innerHTML = `
+            <h2 style="font-size:28px;font-weight:600;margin-bottom:24px;">About</h2>
+            <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:20px;margin-bottom:16px;">
+                <div style="font-size:20px;font-weight:600;margin-bottom:4px;">Windows 12</div>
+                <div style="font-size:13px;color:#888;margin-bottom:16px;">Web OS Simulation</div>
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    <div style="display:flex;justify-content:space-between;font-size:13px;">
+                        <span style="color:#888;">Version</span>
+                        <span class="about-version" style="font-weight:500;">Loading...</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:13px;">
+                        <span style="color:#888;">Build</span>
+                        <span class="about-build" style="font-weight:500;">Loading...</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:13px;">
+                        <span style="color:#888;">Release Date</span>
+                        <span class="about-date" style="font-weight:500;">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:20px;">
+                <div style="font-size:14px;font-weight:500;margin-bottom:8px;">System</div>
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    <div style="display:flex;justify-content:space-between;font-size:13px;">
+                        <span style="color:#888;">Device name</span>
+                        <span style="font-weight:500;">${SystemConfig.get('userName')}-PC</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:13px;">
+                        <span style="color:#888;">Processor</span>
+                        <span style="font-weight:500;">JavaScript V8 Engine</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:13px;">
+                        <span style="color:#888;">Memory</span>
+                        <span style="font-weight:500;">${navigator.deviceMemory || 'N/A'} GB</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:13px;">
+                        <span style="color:#888;">Platform</span>
+                        <span style="font-weight:500;">${navigator.platform}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        fetch('CHANGELOG.md').then(r => r.text()).then(text => {
+            const match = text.match(/## \[(\d+\.\d+\.\d+)\]\s*-\s*(\d{4}-\d{2}-\d{2})/);
+            if (match) {
+                el.querySelector('.about-version').textContent = match[1];
+                el.querySelector('.about-build').textContent = match[1].replace(/\./g, '');
+                el.querySelector('.about-date').textContent = match[2];
+            }
+        }).catch(() => {
+            el.querySelector('.about-version').textContent = '12.0.4000';
+            el.querySelector('.about-build').textContent = '1204000';
+            el.querySelector('.about-date').textContent = '2026-08-31';
+        });
     }
 
     function systemCard(icon, title, desc, subPage) {

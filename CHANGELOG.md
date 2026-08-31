@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4010] - 2026-08-31
+
+### Added
+- Settings "About" page showing OS version, build, release date, and system info
+- Version dynamically fetched from CHANGELOG.md
+
 ## [12.0.4000] - 2026-08-31
 
 ### Fixed
