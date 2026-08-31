@@ -4,6 +4,13 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4060] - 2026-08-31
+
+### Fixed
+- Notepad Save (Ctrl+S) now saves to the existing file when one is open
+- Save As creates/overwrites a file and subsequent saves go to that file
+- File path tracking updated correctly after Save As
+
 ## [12.0.4050] - 2026-08-31
 
 ### Changed

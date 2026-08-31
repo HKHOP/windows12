@@ -45,6 +45,8 @@ const Notepad = (() => {
         const status = win.element.querySelector('.notepad-status');
         const titleEl = win.element.querySelector('.window-title');
 
+        let currentFilePath = filePath || null;
+
         textarea.value = existingContent;
         updateStatus(textarea, status);
 
@@ -63,7 +65,7 @@ const Notepad = (() => {
         textarea.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.key === 's') {
                 e.preventDefault();
-                saveFile(filePath, textarea, titleEl, title);
+                saveFile(currentFilePath, textarea, titleEl, title, (newPath) => { currentFilePath = newPath; });
             }
             if (e.ctrlKey && e.key === 'f') {
                 e.preventDefault();
@@ -87,11 +89,11 @@ const Notepad = (() => {
             }
         });
 
-        setupMenus(win, textarea, titleEl, title, filePath, () => wordWrap, (v) => { wordWrap = v; }, () => zoomLevel, (v) => { zoomLevel = v; });
+        setupMenus(win, textarea, titleEl, title, () => currentFilePath, (v) => { currentFilePath = v; }, () => wordWrap, (v) => { wordWrap = v; }, () => zoomLevel, (v) => { zoomLevel = v; });
         setupFindBar(win, textarea);
     }
 
-    function setupMenus(win, textarea, titleEl, defaultTitle, filePath, getWordWrap, setWordWrap, getZoom, setZoom) {
+    function setupMenus(win, textarea, titleEl, defaultTitle, getFilePath, setFilePath, getWordWrap, setWordWrap, getZoom, setZoom) {
         win.element.querySelectorAll('.notepad-menu-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const menuType = btn.dataset.menu;
@@ -105,8 +107,8 @@ const Notepad = (() => {
                         }},
                         { label: 'Open...', icon: '📂', action: () => openFile(win, textarea, titleEl) },
                         'separator',
-                        { label: 'Save (Ctrl+S)', icon: '💾', action: () => saveFile(filePath, textarea, titleEl, defaultTitle) },
-                        { label: 'Save As...', icon: '💾', action: () => saveAsNewFile(textarea, titleEl, defaultTitle) },
+                        { label: 'Save (Ctrl+S)', icon: '💾', action: () => saveFile(getFilePath(), textarea, titleEl, defaultTitle, setFilePath) },
+                        { label: 'Save As...', icon: '💾', action: () => saveAsNewFile(textarea, titleEl, defaultTitle, setFilePath) },
                         'separator',
                         { label: 'Close', icon: '✕', action: () => WindowManager.closeWindow(win.id) }
                     ];
@@ -317,18 +319,20 @@ const Notepad = (() => {
         ContextMenu.show(win.element.getBoundingClientRect().left + 20, win.element.getBoundingClientRect().top + 40, items);
     }
 
-    function saveFile(filePath, textarea, titleEl, defaultTitle) {
+    function saveFile(filePath, textarea, titleEl, defaultTitle, setFilePath) {
         if (filePath) {
             FileSystem.writeFile(filePath, textarea.value);
             titleEl.textContent = defaultTitle;
         } else {
-            saveAsNewFile(textarea, titleEl, defaultTitle);
+            saveAsNewFile(textarea, titleEl, defaultTitle, setFilePath);
         }
     }
 
-    function saveAsNewFile(textarea, titleEl, defaultTitle) {
+    function saveAsNewFile(textarea, titleEl, defaultTitle, setFilePath) {
         openSaveDialog(textarea.value, (savedPath, savedName) => {
             if (savedPath && savedName) {
+                const fullPath = [...savedPath, savedName];
+                setFilePath(fullPath);
                 titleEl.textContent = `${savedName} - Notepad`;
             }
         });
