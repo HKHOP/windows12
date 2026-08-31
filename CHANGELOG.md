@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4090] - 2026-08-31
+
+### Changed
+- Calendar grid cells now show dual dates: primary date + secondary Hijri (in Gregorian mode) or Gregorian (in other modes)
+- Grid cells are taller (44px) with two-line layout instead of square
+
 ## [12.0.4080] - 2026-08-31
 
 ### Changed

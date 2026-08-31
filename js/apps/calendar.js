@@ -276,17 +276,27 @@ const Calendar = (() => {
         }
     }
 
+    function getPrevMonthDays(calSystem, year, month) {
+        if (month > 0) {
+            return getMonthDays(calSystem, year, month - 1);
+        }
+        switch (calSystem) {
+            case 'hijri': return hijriDaysInMonth(year - 1, 11);
+            case 'hebrew': return hebrewDaysInMonth(year - 1, 12);
+            case 'persian': return persianDaysInMonth(year - 1, 11);
+            default: return getDaysInMonth(year - 1, 11);
+        }
+    }
+
     function renderGrid(container, calSystem, year, month, selected, today) {
         const daysInMonth = getMonthDays(calSystem, year, month);
         const firstDay = getFirstDayOfMonthCal(calSystem, year, month);
-        const prevMonthDays = calSystem === 'persian'
-            ? (month > 0 ? persianDaysInMonth(year, month - 1) : persianDaysInMonth(year - 1, 11))
-            : getDaysInMonth(0, 0); // fallback
+        const prevDays = getPrevMonthDays(calSystem, year, month);
 
         const cells = [];
 
         for (let i = 0; i < firstDay; i++) {
-            const d = prevMonthDays - firstDay + 1 + i;
+            const d = prevDays - firstDay + 1 + i;
             cells.push({ day: d, dimmed: true });
         }
 
@@ -305,6 +315,14 @@ const Calendar = (() => {
             const isToday = date.toDateString() === today.toDateString();
             const isSelected = date.toDateString() === selected.toDateString();
 
+            let secondaryDay = '';
+            if (calSystem === 'gregorian') {
+                const h = gregorianToHijri(g.year, g.month + 1, g.day);
+                secondaryDay = `<div style="font-size:8px;opacity:0.55;line-height:1;margin-top:1px;">${h.day}</div>`;
+            } else {
+                secondaryDay = `<div style="font-size:8px;opacity:0.55;line-height:1;margin-top:1px;">${g.day}</div>`;
+            }
+
             let bg = 'transparent';
             let color = 'var(--text-primary)';
             let fontWeight = '400';
@@ -320,11 +338,11 @@ const Calendar = (() => {
             }
 
             return `<div class="cal-day" data-date="${date.toISOString()}" data-day="${day}"
-                style="display:flex;align-items:center;justify-content:center;aspect-ratio:1;font-size:13px;
-                cursor:pointer;border-radius:50%;
+                style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:44px;
+                cursor:pointer;border-radius:8px;
                 background:${bg};color:${color};font-weight:${fontWeight};
                 opacity:${dimmed && !isToday && !isSelected ? '0.35' : '1'};
-                transition:background 0.15s,color 0.15s,opacity 0.15s;">${day}</div>`;
+                transition:background 0.15s,color 0.15s,opacity 0.15s;"><span style="line-height:1;">${day}</span>${secondaryDay}</div>`;
         }).join('');
     }
 
