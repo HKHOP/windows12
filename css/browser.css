@@ -396,6 +396,14 @@
     font-size: 13px;
 }
 
+/* Menu button */
+.browser-menu-btn {
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: -1px;
+    padding: 0 6px;
+}
+
 /* Find bar */
 .browser-find-bar {
     display: flex;

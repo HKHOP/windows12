@@ -66,6 +66,7 @@ const Browser = (() => {
                         <input type="text" class="browser-url-input" placeholder="Search or enter URL" spellcheck="false">
                     </div>
                     <button class="browser-nav-btn browser-dl-btn" title="Downloads">⬇</button>
+                    <button class="browser-nav-btn browser-menu-btn" title="Menu">⋮</button>
                 </div>
                 <div class="browser-find-bar" style="display:none;">
                     <input type="text" class="browser-find-input" placeholder="Find in page..." spellcheck="false">
@@ -637,6 +638,25 @@ const Browser = (() => {
             if (tab && tab.url) loadUrlInTab(tab, tab.url);
         });
         dlBtn.addEventListener('click', () => showDownloadsPanel());
+
+        const menuBtn = el.querySelector('.browser-menu-btn');
+        menuBtn.addEventListener('click', (e) => {
+            const items = [
+                { label: 'New Tab', icon: '+', action: () => addTab() },
+                'separator',
+                { label: 'Find in Page', icon: '🔍', action: () => openFindBar() },
+                { label: 'History', icon: '🕐', action: () => showHistoryPanel() },
+                { label: 'Downloads', icon: '⬇', action: () => showDownloadsPanel() },
+                'separator',
+                { label: 'Zoom In', icon: '+', action: () => { const tab = tabs.get(activeTabId); if (tab) { tab.zoom = Math.min(tab.zoom + 0.1, 3); applyZoom(tab); } } },
+                { label: 'Zoom Out', icon: '−', action: () => { const tab = tabs.get(activeTabId); if (tab) { tab.zoom = Math.max(tab.zoom - 0.1, 0.3); applyZoom(tab); } } },
+                { label: 'Reset Zoom', icon: '', action: () => { const tab = tabs.get(activeTabId); if (tab) { tab.zoom = 1; applyZoom(tab); } } },
+                'separator',
+                { label: 'Clear History', icon: '🗑', action: () => { clearHistory(); } },
+                { label: 'Close Tab', icon: '×', action: () => closeTab(activeTabId) },
+            ];
+            ContextMenu.show(e.clientX, e.clientY, items);
+        });
 
         urlInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
