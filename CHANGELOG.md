@@ -4,6 +4,18 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4070] - 2026-08-31
+
+### Added
+- Calendar app now supports 4 calendar systems: Gregorian, Hijri (Islamic), Hebrew (Jewish), Persian (Solar Hijri)
+- Calendar system selector dropdown in the header
+- Sidebar shows selected date in all 3 alternative calendar systems
+- Full month/day navigation works for each calendar system
+
+### Changed
+- Calendar grid renders according to selected calendar system
+- Sidebar expanded to show cross-calendar date equivalents
+
 ## [12.0.4060] - 2026-08-31
 
 ### Fixed
