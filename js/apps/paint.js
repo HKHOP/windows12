@@ -90,7 +90,7 @@ const Paint = (() => {
                     <div style="display:flex;align-items:center;gap:8px;">
                         <label style="font-size:12px;color:var(--text-secondary);min-width:70px;">File name:</label>
                         <input type="text" class="save-filename" value="painting" style="flex:1;background:var(--hover-bg);border:1px solid var(--window-border);border-radius:4px;padding:6px 10px;font-size:13px;color:var(--text-primary);outline:none;">
-                        <select class="save-ext" style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:4px;padding:6px 8px;font-size:13px;color:var(--text-primary);outline:none;min-width:90px;">
+                        <select class="save-ext" style="min-width:90px;">
                             <option value="png">PNG</option>
                             <option value="jpeg">JPEG</option>
                             <option value="webp">WebP</option>

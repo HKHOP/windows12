@@ -151,7 +151,7 @@ const Settings = (() => {
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Scale & layout</div>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                         <span style="font-size:13px;">Display resolution</span>
-                        <select style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:4px;padding:4px 8px;color:var(--text-primary);font-size:13px;">
+                        <select style="font-size:13px;">
                             <option>1920 x 1080 (Recommended)</option>
                             <option>1600 x 900</option>
                             <option>1366 x 768</option>
@@ -159,7 +159,7 @@ const Settings = (() => {
                     </div>
                     <div style="display:flex;justify-content:space-between;align-items:center;">
                         <span style="font-size:13px;">Display orientation</span>
-                        <select style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:4px;padding:4px 8px;color:var(--text-primary);font-size:13px;">
+                        <select style="font-size:13px;">
                             <option>Landscape</option>
                             <option>Portrait</option>
                         </select>
@@ -183,7 +183,7 @@ const Settings = (() => {
                 </div>
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Output device</div>
-                    <select style="width:100%;background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;padding:8px 12px;color:var(--text-primary);font-size:13px;">
+                    <select style="width:100%;padding:8px 12px;font-size:13px;">
                         <option>Speakers (Realtek Audio)</option>
                         <option>HDMI Output</option>
                         <option>USB Audio Device</option>
@@ -191,7 +191,7 @@ const Settings = (() => {
                 </div>
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Input device</div>
-                    <select style="width:100%;background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;padding:8px 12px;color:var(--text-primary);font-size:13px;">
+                    <select style="width:100%;padding:8px 12px;font-size:13px;">
                         <option>Microphone (Realtek Audio)</option>
                         <option>USB Microphone</option>
                     </select>
@@ -233,7 +233,7 @@ const Settings = (() => {
             <div style="display:flex;flex-direction:column;gap:16px;">
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Power mode</div>
-                    <select style="width:100%;background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;padding:8px 12px;color:var(--text-primary);font-size:13px;">
+                    <select style="width:100%;padding:8px 12px;font-size:13px;">
                         <option>Best performance</option>
                         <option>Balanced</option>
                         <option>Best power efficiency</option>
@@ -244,13 +244,13 @@ const Settings = (() => {
                     <div style="display:flex;flex-direction:column;gap:12px;">
                         <div style="display:flex;justify-content:space-between;align-items:center;">
                             <span style="font-size:13px;">Turn off screen after</span>
-                            <select style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:4px;padding:4px 8px;color:var(--text-primary);font-size:13px;">
+                            <select style="font-size:13px;">
                                 <option>5 minutes</option><option>10 minutes</option><option>15 minutes</option><option>Never</option>
                             </select>
                         </div>
                         <div style="display:flex;justify-content:space-between;align-items:center;">
                             <span style="font-size:13px;">Put to sleep after</span>
-                            <select style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:4px;padding:4px 8px;color:var(--text-primary);font-size:13px;">
+                            <select style="font-size:13px;">
                                 <option>15 minutes</option><option>30 minutes</option><option>1 hour</option><option>Never</option>
                             </select>
                         </div>

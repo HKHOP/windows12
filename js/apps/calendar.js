@@ -212,7 +212,7 @@ const Calendar = (() => {
                             <span class="cal-month-label" style="font-size:16px;font-weight:600;color:var(--text-primary);"></span>
                             <button class="cal-next" style="background:none;border:none;color:var(--text-primary);cursor:pointer;font-size:18px;padding:4px 8px;border-radius:4px;">&#9654;</button>
                         </div>
-                        <select class="cal-system-select" style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:4px;padding:4px 8px;font-size:12px;color:var(--text-primary);outline:none;">
+                        <select class="cal-system-select" style="min-width:140px;">
                             <option value="gregorian">Gregorian</option>
                             <option value="hijri">Hijri (Islamic)</option>
                             <option value="hebrew">Hebrew (Jewish)</option>

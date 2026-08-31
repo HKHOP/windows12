@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4080] - 2026-08-31
+
+### Changed
+- Global select/dropdown styling added to main.css with custom dropdown arrow
+- Removed redundant inline styles from all 9 select elements across calendar, paint, and settings
+
 ## [12.0.4070] - 2026-08-31
 
 ### Added
