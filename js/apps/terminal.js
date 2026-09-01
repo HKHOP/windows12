@@ -1,6 +1,7 @@
 import WindowManager from '../modules/windowManager.js';
 import FileSystem from '../modules/fileSystem.js';
 import SystemConfig from '../modules/systemConfig.js';
+import BatchEngine from '../modules/batchEngine.js';
 
 const Terminal = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="18" rx="2" fill="#0C0C0C"/><polyline points="6 9 10 12 6 15" stroke="#CCCCCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="15" x2="18" y2="15" stroke="#CCCCCC" stroke-width="2" stroke-linecap="round"/></svg>`;
@@ -88,6 +89,7 @@ const Terminal = (() => {
                 print('  write <file> <text>  Write text to a file');
                 print('  rm <path>         Delete file or folder');
                 print('  rename <old> <new>   Rename a file or folder');
+                print('  run <file.bat>    Run a batch script');
                 print('  clear             Clear the terminal');
                 print('  history           Show command history');
                 print('  whoami            Show current user');
@@ -234,6 +236,49 @@ const Terminal = (() => {
             }
         };
 
+        function runBatch(filePath, args) {
+            const target = resolvePath(filePath);
+            const node = FileSystem.getNode(target);
+            if (!node) {
+                print(`'${filePath}' is not recognized as an internal or external command.`);
+                return;
+            }
+            if (node.type === 'folder') {
+                print(`'${filePath}' is a directory.`);
+                return;
+            }
+            const content = FileSystem.readFile(target);
+            if (content === null || content === undefined) {
+                print(`Error reading '${filePath}'.`);
+                return;
+            }
+
+            let lastTitle = null;
+            const batchPrint = (text) => {
+                if (text === '\x1BCLS') {
+                    output.textContent = '';
+                    return;
+                }
+                if (text && text.startsWith('\x1BTITLE:')) {
+                    lastTitle = text.substring(7);
+                    const titleEl = el.querySelector('.window-title');
+                    if (titleEl) titleEl.textContent = lastTitle;
+                    return;
+                }
+                if (text && text.startsWith('\x1BCOLOR:')) {
+                    return;
+                }
+                print(text);
+            };
+
+            const batchGetCwd = () => [...cwd];
+            const batchSetCwd = (newCwd) => { cwd = newCwd; };
+
+            const engine = BatchEngine.create(batchPrint, batchGetCwd, batchSetCwd);
+            engine.run(content, args);
+            updatePrompt();
+        }
+
         function execute(raw) {
             const trimmed = raw.trim();
             if (!trimmed) return;
@@ -249,6 +294,20 @@ const Terminal = (() => {
             } else {
                 cmd = trimmed.substring(0, spaceIdx).toLowerCase();
                 args = trimmed.substring(spaceIdx + 1);
+            }
+
+            if (cmd.endsWith('.bat') || cmd.endsWith('.cmd')) {
+                const argParts = args ? args.split(/\s+/) : [];
+                runBatch(cmd, argParts);
+                return;
+            }
+
+            if (cmd === 'run' && args) {
+                const parts = args.split(/\s+/);
+                const scriptFile = parts[0];
+                const scriptArgs = parts.slice(1);
+                runBatch(scriptFile, scriptArgs);
+                return;
             }
 
             const fn = commands[cmd];

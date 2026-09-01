@@ -4,6 +4,18 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4180] - 2026-09-01
+
+### Added
+- Batch script engine supporting Windows .bat/.cmd file execution
+- Commands: echo, set, if/else, for, goto/labels, call, dir, cd, type, copy, move, del, ren, mkdir, rmdir, cls, pause, title, color, find/findstr, rem, shift, exit
+- Variable expansion with %VAR% syntax, including builtins (%DATE%, %TIME%, %RANDOM%, %ERRORLEVEL%, %CD%, %USERNAME%)
+- Argument support (%1-%9) with %~f0 modifier syntax
+- Output redirection (>) and append (>>)
+- `run <file.bat>` command in terminal to execute scripts
+- Direct .bat/.cmd file execution when typing the filename
+- Infinite loop protection (100k iteration limit)
+
 ## [12.0.4170] - 2026-09-01
 
 ### Added
