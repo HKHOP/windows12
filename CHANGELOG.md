@@ -4,6 +4,16 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4200] - 2026-09-01
+
+### Added
+- VBScript engine (.vbs/.vbe) with parser and interpreter
+- VBScript syntax: Dim, Set, Const, If/Then/ElseIf/Else/End If, For/Next, For Each/Next, Do/Loop, While/Wend, Select Case, Sub/Function
+- VBScript built-in functions: MsgBox, WScript.Echo, String functions (Len, Left, Right, Mid, InStr, Replace, Trim, LCase, UCase), Math functions (Abs, Int, Round, Rnd), Date/Time functions, Type conversion (CStr, CInt, CLng, CBool, CDbl), Array functions (Split, Join, UBound, LBound)
+- VBScript COM objects: WScript.Shell, Scripting.FileSystemObject, Shell.Application
+- .vbs/.vbe files can be run directly in terminal or via `run` command
+- .vbs/.vbe files open in Terminal from File Explorer (double-click, Open With)
+
 ## [12.0.4190] - 2026-09-01
 
 ### Added

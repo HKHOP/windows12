@@ -6,6 +6,7 @@ import SystemConfig from '../modules/systemConfig.js';
 import Popup from '../modules/popup.js';
 import DesktopIcons from '../modules/desktopIcons.js';
 import BatchEngine from '../modules/batchEngine.js';
+import VBEngine from '../modules/vbsEngine.js';
 
 const FileExplorer = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 7V17C3 18.1 3.9 19 5 19H19C20.1 19 21 18.1 21 17V9C21 7.9 20.1 7 19 7H11L9 5H5C3.9 5 3 5.9 3 7Z" fill="#FFC107"/><path d="M3 7H21V9H3V7Z" fill="#FFD54F"/></svg>`;
@@ -310,7 +311,7 @@ const FileExplorer = (() => {
         const apps = [
             { name: 'Notepad', id: 'notepad', exts: ['txt', 'md', 'json', 'js', 'html', 'css', 'log', 'cfg'] },
             { name: 'Browser', id: 'browser', exts: ['html'] },
-            { name: 'Terminal', id: 'terminal', exts: ['bat', 'cmd'] },
+            { name: 'Terminal', id: 'terminal', exts: ['bat', 'cmd', 'vbs', 'vbe'] },
             { name: 'Paint', id: 'paint', exts: ['png', 'jpg', 'jpeg', 'gif', 'bmp'] },
             { name: 'Photos', id: 'photos', exts: ['png', 'jpg', 'jpeg', 'gif'] }
         ];
@@ -332,7 +333,8 @@ const FileExplorer = (() => {
         const textExts = ['txt', 'md', 'json', 'js', 'html', 'css', 'log', 'cfg', 'xml', 'yml', 'yaml', 'csv'];
         const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'];
         const batchExts = ['bat', 'cmd'];
-        if (batchExts.includes(ext)) {
+        const vbsExts = ['vbs', 'vbe'];
+        if (batchExts.includes(ext) || vbsExts.includes(ext)) {
             openFileWithTerminal(itemPath, entry);
         } else if (imageExts.includes(ext)) {
             openFileWithPhotos(itemPath, entry);
@@ -420,6 +422,7 @@ const FileExplorer = (() => {
             'zip': '📦', 'rar': '📦', '7z': '📦',
             'exe': '⚡', 'msi': '⚡',
             'bat': '⬛', 'cmd': '⬛',
+            'vbs': '🟪', 'vbe': '🟪',
             'log': '📄', 'cfg': '⚙️', 'ini': '⚙️',
             'xml': '📄', 'csv': '📊', 'yml': '📄', 'yaml': '📄'
         };

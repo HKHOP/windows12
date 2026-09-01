@@ -2,6 +2,7 @@ import WindowManager from '../modules/windowManager.js';
 import FileSystem from '../modules/fileSystem.js';
 import SystemConfig from '../modules/systemConfig.js';
 import BatchEngine from '../modules/batchEngine.js';
+import VBEngine from '../modules/vbsEngine.js';
 
 const Terminal = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="18" rx="2" fill="#0C0C0C"/><polyline points="6 9 10 12 6 15" stroke="#CCCCCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="15" x2="18" y2="15" stroke="#CCCCCC" stroke-width="2" stroke-linecap="round"/></svg>`;
@@ -279,6 +280,39 @@ const Terminal = (() => {
             updatePrompt();
         }
 
+        function runVBS(filePath, args) {
+            const target = resolvePath(filePath);
+            const node = FileSystem.getNode(target);
+            if (!node) {
+                print(`'${filePath}' is not recognized as an internal or external command.`);
+                return;
+            }
+            if (node.type === 'folder') {
+                print(`'${filePath}' is a directory.`);
+                return;
+            }
+            const content = FileSystem.readFile(target);
+            if (content === null || content === undefined) {
+                print(`Error reading '${filePath}'.`);
+                return;
+            }
+
+            const vbsPrint = (text) => {
+                if (text === '\x1BCLS') {
+                    output.textContent = '';
+                    return;
+                }
+                print(text);
+            };
+
+            const vbsGetCwd = () => [...cwd];
+            const vbsSetCwd = (newCwd) => { cwd = newCwd; };
+
+            const engine = VBEngine.create(vbsPrint, vbsGetCwd, vbsSetCwd);
+            engine.run(content, args);
+            updatePrompt();
+        }
+
         function execute(raw) {
             const trimmed = raw.trim();
             if (!trimmed) return;
@@ -302,11 +336,23 @@ const Terminal = (() => {
                 return;
             }
 
+            if (cmd.endsWith('.vbs') || cmd.endsWith('.vbe')) {
+                const argParts = args ? args.split(/\s+/) : [];
+                runVBS(cmd, argParts);
+                return;
+            }
+
             if (cmd === 'run' && args) {
                 const parts = args.split(/\s+/);
                 const scriptFile = parts[0];
                 const scriptArgs = parts.slice(1);
-                runBatch(scriptFile, scriptArgs);
+                if (scriptFile.endsWith('.bat') || scriptFile.endsWith('.cmd')) {
+                    runBatch(scriptFile, scriptArgs);
+                } else if (scriptFile.endsWith('.vbs') || scriptFile.endsWith('.vbe')) {
+                    runVBS(scriptFile, scriptArgs);
+                } else {
+                    runBatch(scriptFile, scriptArgs);
+                }
                 return;
             }
 
