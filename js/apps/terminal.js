@@ -34,6 +34,9 @@ const Terminal = (() => {
         const input = body.querySelector('.term-input');
         const promptEl = body.querySelector('.term-prompt');
 
+        output.addEventListener('selectstart', (e) => e.stopPropagation());
+        output.addEventListener('mousedown', (e) => e.stopPropagation());
+
         function getPrompt() {
             const p = cwd.join('/').replace('//', '/');
             const short = p === '/' + HOME.slice(1).join('/') ? '~' : '~' + p.replace('/' + HOME.slice(1).join('/'), '');
@@ -393,7 +396,11 @@ const Terminal = (() => {
             }
         });
 
-        el.addEventListener('click', () => input.focus());
+        el.addEventListener('click', (e) => {
+            if (e.target.closest('.window-header') || e.target.closest('.window-controls')) return;
+            const sel = window.getSelection().toString();
+            if (!sel) input.focus();
+        });
 
         updatePrompt();
         print('Windows 12 Terminal');

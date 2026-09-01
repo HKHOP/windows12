@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4250] - 2026-09-01
+
+### Fixed
+- Terminal text selection now works by stopping mousedown/selectstart propagation on the output area and only focusing input when no text is selected
+
 ## [12.0.4240] - 2026-09-01
 
 ### Added
