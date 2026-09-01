@@ -871,18 +871,6 @@ const BatchEngine = (() => {
                 }
                 return;
             }
-
-            match = expr.match(/^%(\w+)\s+in\s*\((.+?)\)\s+do\s*(.+)$/i);
-            if (match) {
-                const varName = '%' + match[1] + '%';
-                const items = match[2].split(/\s+/).map(s => expandVars(s));
-                const action = match[3].trim();
-                for (const item of items) {
-                    vars[varName] = item;
-                    executeAction(action);
-                }
-                return;
-            }
         }
 
         function run(script, args) {
