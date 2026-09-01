@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4280] - 2026-09-01
+
+### Fixed
+- VBScript top-level lines now strip comments before execution (was only done inside loops/if blocks)
+
 ## [12.0.4270] - 2026-09-01
 
 ### Fixed

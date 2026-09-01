@@ -1284,7 +1284,8 @@ const VBEngine = (() => {
             // Skip declarations/procedure definitions are handled by the range executor;
             // all procedure bodies are skipped when encountered on the main path.
             while (pc < lines.length && running && !stopRequested) {
-                const line = lines[pc].trim();
+                const raw = lines[pc].trim();
+                const line = stripComment(raw).trim();
                 const up = line.toUpperCase();
                 if (/^SUB\b/i.test(line)) {
                     pc = subs[key(line.match(/^Sub\s+([A-Za-z_][A-Za-z0-9_]*)/i)?.[1] || '')]?.end + 1 || pc + 1;
