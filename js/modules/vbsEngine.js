@@ -740,10 +740,11 @@ const VBEngine = (() => {
         function stripComment(line) {
             let quote = false;
             for (let i = 0; i < line.length; i++) {
-                if (line[i] === '"') {
+                const ch = line[i];
+                if (ch === '"') {
                     if (quote && line[i + 1] === '"') { i++; continue; }
                     quote = !quote;
-                } else if (line[i] === "'" && !quote) {
+                } else if (!quote && (ch === "'" || ch === '\u2018' || ch === '\u2019' || ch === '\ufeff')) {
                     return line.slice(0, i);
                 }
             }
@@ -1255,7 +1256,7 @@ const VBEngine = (() => {
         }
 
         function run(script, runArgs = []) {
-            lines = String(script ?? '').split(/\r?\n/);
+            lines = String(script ?? '').replace(/^\uFEFF/, '').split(/\r?\n/);
             pc = 0;
             running = true;
             stopRequested = false;
@@ -1287,6 +1288,7 @@ const VBEngine = (() => {
                 const raw = lines[pc].trim();
                 const line = stripComment(raw).trim();
                 const up = line.toUpperCase();
+                if (!line) { pc++; continue; }
                 if (/^SUB\b/i.test(line)) {
                     pc = subs[key(line.match(/^Sub\s+([A-Za-z_][A-Za-z0-9_]*)/i)?.[1] || '')]?.end + 1 || pc + 1;
                     continue;

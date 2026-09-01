@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4290] - 2026-09-01
+
+### Fixed
+- VBScript engine `stripComment` now also recognizes smart quotes (U+2018, U+2019) and BOM (U+FEFF) as comment markers, and strips leading BOM from the script input
+- Main run loop now skips blank/comment-only lines so they cannot fall through to the tokenizer
+
 ## [12.0.4280] - 2026-09-01
 
 ### Fixed
