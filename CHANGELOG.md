@@ -4,6 +4,22 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4220] - 2026-09-01
+
+### Fixed
+- File Explorer now uses VBScript engine for .vbs/.vbe files (was always using batch engine)
+- VBScript function return values (AddNumbers = a+b now returns the value)
+- VBScript If/Else/ElseIf multi-line blocks (skipToElseOrEndIf pc increment bug)
+- VBScript For/Next, Do/Loop, While/Wend skip functions had same pc increment bug
+- VBScript operator word boundary detection (Not, Is, And, Or, Xor, Mod now work at start of expressions)
+
+### Added
+- VBScript Err global object (Number, Description, Source, Clear, Raise)
+- VBScript Is operator (object identity comparison, Is Nothing)
+- VBScript & string concatenation operator
+- Division by zero now throws error (caught by On Error Resume Next)
+- Nothing and Null as global constants
+
 ## [12.0.4210] - 2026-09-01
 
 ### Fixed

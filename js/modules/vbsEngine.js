@@ -31,6 +31,22 @@ const VBEngine = (() => {
             CreateObject: (progId) => createCOMObject(progId)
         };
 
+        const Err = {
+            Number: 0,
+            Description: '',
+            Source: '',
+            HelpFile: '',
+            HelpContext: 0,
+            Clear: function() { this.Number = 0; this.Description = ''; this.Source = ''; this.HelpFile = ''; this.HelpContext = 0; },
+            Raise: function(num, source, desc, helpfile, helpcontext) {
+                this.Number = num || 0;
+                this.Source = source || '';
+                this.Description = desc || '';
+                this.HelpFile = helpfile || '';
+                this.HelpContext = helpcontext || 0;
+            }
+        };
+
         function createCOMObject(progId) {
             if (/Shell\.Application/i.test(progId)) {
                 return {
@@ -196,19 +212,37 @@ const VBEngine = (() => {
                 }
                 if (ch === '=' && i > 0) { const prec = 4; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; } i++; continue; }
 
+                if (ch === '&') { const prec = 5; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; } i++; continue; }
+
+                if (i + 1 < expr.length && expr.substring(i, i + 2).toLowerCase() === 'is') {
+                    const before = i > 0 ? expr[i - 1] : ' ';
+                    const after = expr[i + 2] || ' ';
+                    const beforeOk = i === 0 || !/[a-zA-Z0-9_]/.test(before);
+                    const afterOk = i + 2 >= expr.length || !/[a-zA-Z0-9_]/.test(after);
+                    if (beforeOk && afterOk) {
+                        const prec = 4;
+                        if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; }
+                        i += 2; continue;
+                    }
+                }
+
                 if (i + 2 < expr.length) {
                     const word = expr.substring(i, i + 3).toLowerCase();
                     if (word === 'and') {
                         const before = i > 0 ? expr[i - 1] : ' ';
                         const after = expr[i + 3] || ' ';
-                        if (/\s/.test(before) && /\s/.test(after) && !/[a-zA-Z]/.test(before)) {
+                        const beforeOk = i === 0 || !/[a-zA-Z0-9_]/.test(before);
+                        const afterOk = i + 3 >= expr.length || !/[a-zA-Z0-9_]/.test(after);
+                        if (beforeOk && afterOk) {
                             const prec = 3; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; i += 3; continue; }
                         }
                     }
                     if (word === 'mod') {
                         const before = i > 0 ? expr[i - 1] : ' ';
                         const after = expr[i + 3] || ' ';
-                        if (/\s/.test(before) && /\s/.test(after) && !/[a-zA-Z]/.test(before)) {
+                        const beforeOk = i === 0 || !/[a-zA-Z0-9_]/.test(before);
+                        const afterOk = i + 3 >= expr.length || !/[a-zA-Z0-9_]/.test(after);
+                        if (beforeOk && afterOk) {
                             const prec = 7; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; i += 3; continue; }
                         }
                     }
@@ -218,7 +252,9 @@ const VBEngine = (() => {
                     if (word === 'or') {
                         const before = i > 0 ? expr[i - 1] : ' ';
                         const after = expr[i + 2] || ' ';
-                        if (/\s/.test(before) && /\s/.test(after) && !/[a-zA-Z]/.test(before)) {
+                        const beforeOk = i === 0 || !/[a-zA-Z0-9_]/.test(before);
+                        const afterOk = i + 2 >= expr.length || !/[a-zA-Z0-9_]/.test(after);
+                        if (beforeOk && afterOk) {
                             const prec = 2; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; i += 2; continue; }
                         }
                     }
@@ -229,16 +265,20 @@ const VBEngine = (() => {
                     if (word === 'not') {
                         const before = i > 0 ? expr[i - 1] : ' ';
                         const after = expr[i + 3] || ' ';
-                        if (/\s/.test(before) && (/\s/.test(after) || after === '(') && !/[a-zA-Z]/.test(before)) {
+                        const beforeOk = i === 0 || !/[a-zA-Z0-9_]/.test(before);
+                        const afterOk = i + 3 >= expr.length || !/[a-zA-Z0-9_]/.test(after);
+                        if (beforeOk && (afterOk || after === '(')) {
                             const prec = 5; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; i += 3; continue; }
                         }
                     }
                 }
 
-                if (i + 2 < expr.length && expr.substring(i, i + 3) === 'xor') {
+                if (i + 2 < expr.length && expr.substring(i, i + 3).toLowerCase() === 'xor') {
                     const before = i > 0 ? expr[i - 1] : ' ';
                     const after = expr[i + 3] || ' ';
-                    if (/\s/.test(before) && /\s/.test(after) && !/[a-zA-Z]/.test(before)) {
+                    const beforeOk = i === 0 || !/[a-zA-Z0-9_]/.test(before);
+                    const afterOk = i + 3 >= expr.length || !/[a-zA-Z0-9_]/.test(after);
+                    if (beforeOk && afterOk) {
                         const prec = 2; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; i += 3; continue; }
                     }
                 }
@@ -257,9 +297,10 @@ const VBEngine = (() => {
                     if (typeof l === 'number' || typeof r === 'number') return toNum(l) + toNum(r);
                     return toStr(l) + toStr(r);
                 }
+                if (op === '&') return toStr(evaluate(left)) + toStr(evaluate(right));
                 if (op === '-') return toNum(evaluate(left)) - toNum(evaluate(right));
                 if (op === '*') return toNum(evaluate(left)) * toNum(evaluate(right));
-                if (op === '/') { const r = toNum(evaluate(right)); return r === 0 ? 0 : toNum(evaluate(left)) / r; }
+                if (op === '/') { const r = toNum(evaluate(right)); if (r === 0) throw new Error('Division by zero'); return toNum(evaluate(left)) / r; }
                 if (op === '\\') return Math.floor(toNum(evaluate(left)) / toNum(evaluate(right)));
                 if (op === '^') return Math.pow(toNum(evaluate(left)), toNum(evaluate(right)));
                 if (op.toLowerCase() === 'mod') return toNum(evaluate(left)) % toNum(evaluate(right));
@@ -269,6 +310,15 @@ const VBEngine = (() => {
                 if (op === '>') return toNum(evaluate(left)) > toNum(evaluate(right));
                 if (op === '<=') return toNum(evaluate(left)) <= toNum(evaluate(right));
                 if (op === '>=') return toNum(evaluate(left)) >= toNum(evaluate(right));
+                if (op.toLowerCase() === 'is') {
+                    const l = evaluate(left);
+                    const r = evaluate(right);
+                    const rStr = (typeof r === 'string') ? r.toUpperCase() : '';
+                    const lStr = (typeof l === 'string') ? l.toUpperCase() : '';
+                    if (r === null || rStr === 'NULL' || rStr === 'NOTHING') return l === null || lStr === 'NULL' || lStr === 'NOTHING';
+                    if (l === null || lStr === 'NULL' || lStr === 'NOTHING') return r === null || rStr === 'NULL' || rStr === 'NOTHING';
+                    return l === r;
+                }
                 if (op.toLowerCase() === 'and') return toBool(evaluate(left)) && toBool(evaluate(right));
                 if (op.toLowerCase() === 'or') return toBool(evaluate(left)) || toBool(evaluate(right));
                 if (op.toLowerCase() === 'xor') return toBool(evaluate(left)) !== toBool(evaluate(right));
@@ -447,10 +497,11 @@ const VBEngine = (() => {
             if (fn.params) {
                 fn.params.forEach((p, i) => { vars[p.toUpperCase()] = args[i] !== undefined ? args[i] : ''; });
             }
-            const result = executeBlock(fn.body, fn.startLine + 1, 'function');
+            vars[name] = '';
+            executeBlock(fn.body, fn.startLine + 1, 'function');
+            const result = vars[name];
             vars = savedVars;
-            if (result && result.type === 'return') return result.value;
-            return '';
+            return result;
         }
 
         function executePropertyAssign(obj, chain, value) {
@@ -966,7 +1017,9 @@ const VBEngine = (() => {
             try {
                 evaluate(line);
             } catch (e) {
-                if (!errorResume) printFn('Error: ' + (e.message || e));
+                Err.Number = 1;
+                Err.Description = e.message || String(e);
+                if (!errorResume) printFn('Error: ' + Err.Description);
             }
 
             return null;
@@ -992,14 +1045,13 @@ const VBEngine = (() => {
                 if (line.startsWith('IF ') && line.includes(' THEN')) depth++;
                 else if (line === 'END IF') depth--;
                 else if (depth === 1 && (line === 'ELSE' || line.startsWith('ELSEIF '))) {
-                    if (line === 'ELSE') { pc = i; return; }
-                    pc = i;
+                    pc = i - 1;
                     return;
                 }
-                if (depth === 0) { pc = i; return; }
+                if (depth === 0) { pc = i - 1; return; }
                 i++;
             }
-            pc = i;
+            pc = i - 1;
         }
 
         function skipToNext() {
@@ -1009,7 +1061,7 @@ const VBEngine = (() => {
                 const line = lines[i].trim().toUpperCase().replace(/\s+/g, ' ');
                 if (line.startsWith('FOR ') || line.startsWith('FOR EACH ') || line.startsWith('FOREACH ')) depth++;
                 else if (line.startsWith('NEXT')) depth--;
-                if (depth === 0) { pc = i; return; }
+                if (depth === 0) { pc = i - 1; return; }
                 i++;
             }
         }
@@ -1021,7 +1073,7 @@ const VBEngine = (() => {
                 const line = lines[i].trim().toUpperCase().replace(/\s+/g, ' ');
                 if (line.startsWith('DO ') || line === 'DO') depth++;
                 else if (line.startsWith('LOOP') || line === 'LOOP') depth--;
-                if (depth === 0) { pc = i; return; }
+                if (depth === 0) { pc = i - 1; return; }
                 i++;
             }
         }
@@ -1033,7 +1085,7 @@ const VBEngine = (() => {
                 const line = lines[i].trim().toUpperCase().replace(/\s+/g, ' ');
                 if (line.startsWith('WHILE ')) depth++;
                 else if (line === 'WEND') depth--;
-                if (depth === 0) { pc = i; return; }
+                if (depth === 0) { pc = i - 1; return; }
                 i++;
             }
         }
@@ -1081,6 +1133,9 @@ const VBEngine = (() => {
 
             vars['WSCRIPT'] = WScript;
             vars['WSCRIPT.SCRIPTNAME'] = 'script.vbs';
+            vars['ERR'] = Err;
+            vars['NOTHING'] = null;
+            vars['NULL'] = null;
 
             const maxIter = 500000;
             let iter = 0;

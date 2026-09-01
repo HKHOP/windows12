@@ -658,10 +658,14 @@ const FileExplorer = (() => {
         };
 
         let scriptCwd = [...itemPath.slice(0, -1)];
-        const batchGetCwd = () => [...scriptCwd];
-        const batchSetCwd = (newCwd) => { scriptCwd = newCwd; };
+        const getCwd = () => [...scriptCwd];
+        const setCwd = (newCwd) => { scriptCwd = newCwd; };
 
-        const engine = BatchEngine.create(printFn, batchGetCwd, batchSetCwd);
+        const ext = (entry.ext || name.split('.').pop() || '').toLowerCase();
+        const isVBS = ext === 'vbs' || ext === 'vbe';
+        const engine = isVBS
+            ? VBEngine.create(printFn, getCwd, setCwd)
+            : BatchEngine.create(printFn, getCwd, setCwd);
 
         printFn(`Windows 12 Terminal - Running ${name}\n`);
 
