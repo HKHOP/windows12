@@ -4,6 +4,16 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4140] - 2026-09-01
+
+### Added
+- Display resolution setting detects native viewport and offers progressive lower options down to 800x600
+- Resolution changes render at target resolution then scale up with pixelated rendering for authentic low-res look
+- Resolution change confirmation popup with 15s revert countdown
+
+### Changed
+- Resolution layer wraps desktop and taskbar for resolution scaling via CSS zoom
+
 ## [12.0.4130] - 2026-09-01
 
 ### Added

@@ -6,6 +6,7 @@
 
 :root {
     --scale: 1;
+    --res-scale: 1;
     --accent-color: #0078D4;
     --accent-hover: #1a86d9;
     --window-bg: #202020;
@@ -42,7 +43,16 @@ html, body {
 }
 
 body {
-    zoom: var(--scale, 1);
+    zoom: calc(var(--scale, 1) * var(--res-scale, 1));
+}
+
+#resolution-layer {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
 }
 
 #desktop {

@@ -13,7 +13,7 @@ const SystemConfig = (() => {
         scaling: 'auto',
         brightness: 80,
         nightLight: false,
-        displayResolution: '1920x1080',
+        displayResolution: 'native',
         displayOrientation: 'landscape',
         masterVolume: 75,
         outputDevice: 'Speakers (Realtek Audio)',
@@ -30,8 +30,12 @@ const SystemConfig = (() => {
 
     let config = { ...defaults };
     let onConfigChange = null;
+    let nativeWidth = window.innerWidth;
+    let nativeHeight = window.innerHeight;
 
     function init() {
+        nativeWidth = window.innerWidth;
+        nativeHeight = window.innerHeight;
         load();
     }
 
@@ -41,6 +45,69 @@ const SystemConfig = (() => {
 
     function getAll() {
         return { ...config };
+    }
+
+    function getNativeWidth() { return nativeWidth; }
+    function getNativeHeight() { return nativeHeight; }
+
+    function getResolutionOptions() {
+        const w = nativeWidth;
+        const h = nativeHeight;
+        const aspect = w / h;
+
+        const commonResolutions = [
+            [3840, 2160], [2560, 1440], [1920, 1200], [1920, 1080],
+            [1600, 900], [1440, 900], [1366, 768], [1280, 720],
+            [1024, 768], [800, 600]
+        ];
+
+        const options = [];
+        let addedNative = false;
+
+        for (const [cw, ch] of commonResolutions) {
+            if (cw <= w && ch <= h) {
+                const ratio = cw / ch;
+                if (Math.abs(ratio - aspect) < 0.05) {
+                    const label = `${cw}x${ch}`;
+                    const isNative = cw === w && ch === h;
+                    if (isNative) addedNative = true;
+                    options.push({ width: cw, height: ch, label, isNative });
+                }
+            }
+        }
+
+        if (!addedNative) {
+            options.unshift({ width: w, height: h, label: `${w}x${h}`, isNative: true });
+        }
+
+        if (options.length === 0) {
+            options.push({ width: w, height: h, label: `${w}x${h}`, isNative: true });
+        }
+
+        return options;
+    }
+
+    function getCurrentResolution() {
+        const res = config.displayResolution;
+        if (!res || res === 'native') {
+            return { width: nativeWidth, height: nativeHeight };
+        }
+        const parts = res.split('x');
+        return { width: parseInt(parts[0]), height: parseInt(parts[1]) };
+    }
+
+    function applyResolution() {
+        const root = document.documentElement;
+        const target = getCurrentResolution();
+
+        if (target.width === nativeWidth && target.height === nativeHeight) {
+            root.style.setProperty('--res-scale', '1');
+        } else {
+            const scaleX = nativeWidth / target.width;
+            const scaleY = nativeHeight / target.height;
+            const scale = Math.min(scaleX, scaleY);
+            root.style.setProperty('--res-scale', scale.toFixed(4));
+        }
     }
 
     function set(key, value) {
@@ -82,6 +149,8 @@ const SystemConfig = (() => {
         if (config.brightness !== undefined) {
             document.body.style.filter = `brightness(${config.brightness / 100})`;
         }
+
+        applyResolution();
 
         const desktop = document.getElementById('desktop');
         if (desktop) {
@@ -158,7 +227,11 @@ const SystemConfig = (() => {
         onConfigChange = cb;
     }
 
-    return { init, get, getAll, set, setMultiple, reset, apply, load, onChange, CONFIG_PATH, syncToFilesystem };
+    return {
+        init, get, getAll, set, setMultiple, reset, apply, load, onChange,
+        CONFIG_PATH, syncToFilesystem,
+        getNativeWidth, getNativeHeight, getResolutionOptions, getCurrentResolution
+    };
 })();
 
 export default SystemConfig;

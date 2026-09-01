@@ -129,6 +129,19 @@ const Settings = (() => {
     function renderDisplaySettings(el) {
         const config = SystemConfig.getAll();
         const currentScaling = Scaling.getMode();
+        const resOptions = SystemConfig.getResolutionOptions();
+        const nativeW = SystemConfig.getNativeWidth();
+        const nativeH = SystemConfig.getNativeHeight();
+        const currentRes = config.displayResolution === 'native' ? 'native' : config.displayResolution;
+        const currentResLabel = currentRes === 'native' ? `${nativeW}x${nativeH}` : currentRes;
+
+        const resOptionsHtml = resOptions.map(opt => {
+            const val = opt.isNative ? 'native' : opt.label;
+            const sel = currentRes === val ? 'selected' : '';
+            const suffix = opt.isNative ? ' (Native)' : '';
+            return `<option value="${val}" ${sel}>${opt.label}${suffix}</option>`;
+        }).join('');
+
         el.innerHTML += `
             <div style="display:flex;flex-direction:column;gap:16px;">
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
@@ -170,11 +183,10 @@ const Settings = (() => {
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
                         <span style="font-size:13px;">Display resolution</span>
                         <select class="resolution-select" style="font-size:13px;">
-                            <option value="1920x1080" ${config.displayResolution === '1920x1080' ? 'selected' : ''}>1920 x 1080 (Recommended)</option>
-                            <option value="1600x900" ${config.displayResolution === '1600x900' ? 'selected' : ''}>1600 x 900</option>
-                            <option value="1366x768" ${config.displayResolution === '1366x768' ? 'selected' : ''}>1366 x 768</option>
+                            ${resOptionsHtml}
                         </select>
                     </div>
+                    <div class="current-res-label" style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Rendering at: ${currentResLabel}</div>
                     <div style="display:flex;justify-content:space-between;align-items:center;">
                         <span style="font-size:13px;">Display orientation</span>
                         <select class="orientation-select" style="font-size:13px;">
@@ -198,7 +210,72 @@ const Settings = (() => {
         });
 
         el.querySelector('.resolution-select').addEventListener('change', (e) => {
-            SystemConfig.set('displayResolution', e.target.value);
+            const prevRes = currentRes;
+            const newRes = e.target.value;
+
+            SystemConfig.set('displayResolution', newRes);
+
+            const resLabel = el.querySelector('.current-res-label');
+            if (resLabel) {
+                const target = SystemConfig.getCurrentResolution();
+                resLabel.textContent = `Rendering at: ${target.width}x${target.height}`;
+            }
+
+            let reverted = false;
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;bottom:70px;right:20px;background:var(--window-bg);border:1px solid var(--window-border);border-radius:10px;padding:16px 20px;font-size:13px;color:var(--text-primary);box-shadow:0 8px 32px rgba(0,0,0,0.4);z-index:99999;display:flex;flex-direction:column;gap:12px;min-width:300px;animation:windowOpen 0.2s ease-out;';
+
+            let remaining = 15;
+
+            overlay.innerHTML = `
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:18px;">🖥️</span>
+                    <div style="flex:1;">
+                        <div style="font-weight:500;">Resolution changed</div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Reverting in <span class="res-countdown">${remaining}</span>s unless you keep changes.</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                    <button class="res-revert-btn" style="background:rgba(255,255,255,0.08);border:1px solid var(--window-border);border-radius:6px;padding:6px 14px;color:var(--text-primary);cursor:pointer;font-size:12px;">Revert</button>
+                    <button class="res-keep-btn" style="background:var(--accent-color);border:none;border-radius:6px;padding:6px 14px;color:white;cursor:pointer;font-size:12px;font-weight:500;">Keep changes</button>
+                </div>
+            `;
+
+            document.body.appendChild(overlay);
+
+            const countdownEl = overlay.querySelector('.res-countdown');
+
+            function doRevert() {
+                if (reverted) return;
+                reverted = true;
+                SystemConfig.set('displayResolution', prevRes);
+                const selectEl = el.querySelector('.resolution-select');
+                if (selectEl) selectEl.value = prevRes;
+                const label = el.querySelector('.current-res-label');
+                if (label) {
+                    const target = SystemConfig.getCurrentResolution();
+                    label.textContent = `Rendering at: ${target.width}x${target.height}`;
+                }
+                overlay.remove();
+                clearInterval(interval);
+            }
+
+            function doKeep() {
+                reverted = true;
+                overlay.remove();
+                clearInterval(interval);
+            }
+
+            overlay.querySelector('.res-keep-btn').addEventListener('click', doKeep);
+            overlay.querySelector('.res-revert-btn').addEventListener('click', doRevert);
+
+            const interval = setInterval(() => {
+                remaining--;
+                if (countdownEl) countdownEl.textContent = remaining;
+                if (remaining <= 0) {
+                    doRevert();
+                }
+            }, 1000);
         });
 
         el.querySelector('.orientation-select').addEventListener('change', (e) => {
