@@ -1,463 +1,658 @@
 import FileSystem from './fileSystem.js';
 
+/*
+ * VBScript-compatible interpreter for the simulator.
+ *
+ * This is a deterministic emulation layer. It intentionally does not execute
+ * arbitrary host COM/EXE code: supported Windows objects are backed by the
+ * simulator's virtual filesystem and console.
+ */
 const VBEngine = (() => {
     function create(printFn, getCwd, setCwd) {
-        let vars = {};
-        let subs = {};
-        let functions = {};
-        let consts = {};
         let lines = [];
         let pc = 0;
         let running = false;
-        let errorLevel = 0;
-        let callStack = [];
-        let forStack = [];
-        let doStack = [];
-        let selectStack = [];
-        let errorResume = false;
         let stopRequested = false;
-
-        const WScript = {
-            Echo: (...args) => printFn(args.map(v => valueOf(v)).join(' ')),
-            StdOut: {
-                Write: (text) => printFn(String(text)),
-                WriteBlankLines: (n) => { for (let i = 0; i < n; i++) printFn(''); },
-                WriteLine: (text) => printFn(String(text ?? ''))
-            },
-            Sleep: (ms) => { /* async not supported in sync engine */ },
-            Arguments: { Count: 0, Item: (i) => '', Named: {} },
-            ScriptName: 'script.vbs',
-            ScriptFullName: 'C:\\script.vbs',
-            CreateObject: (progId) => createCOMObject(progId)
-        };
+        let errorResumeNext = false;
+        let args = [];
+        let scriptName = 'script.vbs';
+        let subs = Object.create(null);
+        let functions = Object.create(null);
+        let consts = Object.create(null);
+        let declared = new Set();
+        let mainEnv = Object.create(null);
 
         const Err = {
-            Number: 0,
-            Description: '',
-            Source: '',
-            HelpFile: '',
-            HelpContext: 0,
-            Clear: function() { this.Number = 0; this.Description = ''; this.Source = ''; this.HelpFile = ''; this.HelpContext = 0; },
-            Raise: function(num, source, desc, helpfile, helpcontext) {
-                this.Number = num || 0;
-                this.Source = source || '';
-                this.Description = desc || '';
-                this.HelpFile = helpfile || '';
-                this.HelpContext = helpcontext || 0;
+            Number: 0, Description: '', Source: '', HelpFile: '', HelpContext: 0,
+            Clear() { this.Number = 0; this.Description = ''; this.Source = ''; this.HelpFile = ''; this.HelpContext = 0; },
+            Raise(number, source = '', description = '', helpFile = '', helpContext = 0) {
+                this.Number = Number(number) || 0;
+                this.Source = source;
+                this.Description = description;
+                this.HelpFile = helpFile;
+                this.HelpContext = Number(helpContext) || 0;
+                throw makeRuntimeError(this.Number, this.Description);
             }
         };
 
+        function makeRuntimeError(number, description) {
+            const e = new Error(description || `VBScript runtime error ${number}`);
+            e.vbNumber = number;
+            return e;
+        }
+
+        function key(name) { return String(name ?? '').toUpperCase(); }
+
+        function valueOf(v) {
+            if (v === undefined) return '';
+            if (v === null) return null;
+            if (typeof v === 'boolean' || typeof v === 'number' || typeof v === 'string') return v;
+            if (Array.isArray(v)) return v.map(valueOf).join(', ');
+            return v;
+        }
+
+        function toStr(v) {
+            if (v === null) return 'Null';
+            if (v === undefined) return '';
+            if (typeof v === 'boolean') return v ? 'True' : 'False';
+            if (Array.isArray(v)) return v.map(toStr).join(', ');
+            return String(v);
+        }
+
+        function toNum(v) {
+            if (v === null || v === undefined || v === '') return 0;
+            if (typeof v === 'boolean') return v ? -1 : 0;
+            const n = Number(v);
+            if (!Number.isFinite(n)) throw makeRuntimeError(13, 'Type mismatch');
+            return n;
+        }
+
+        function toBool(v) {
+            if (v === null || v === undefined || v === '') return false;
+            if (typeof v === 'boolean') return v;
+            if (typeof v === 'number') return v !== 0;
+            return /^true$/i.test(String(v));
+        }
+
+        function isObject(v) {
+            return v !== null && typeof v === 'object';
+        }
+
+        function getVar(name, env = mainEnv) {
+            const k = key(name);
+            if (k === 'ERR') return Err;
+            if (k === 'NOTHING' || k === 'NULL') return null;
+            if (k === 'TRUE') return true;
+            if (k === 'FALSE') return false;
+            if (k === 'EMPTY') return '';
+            if (k === 'WSCRIPT') return WScript;
+            if (Object.prototype.hasOwnProperty.call(consts, k)) return consts[k];
+            if (Object.prototype.hasOwnProperty.call(env, k)) return env[k];
+            if (Object.prototype.hasOwnProperty.call(mainEnv, k)) return mainEnv[k];
+            return '';
+        }
+
+        function setVar(name, value, env = mainEnv) {
+            const k = key(name);
+            if (!k) return;
+            env[k] = value;
+            declared.add(k);
+        }
+
+        function deleteVar(name, env = mainEnv) {
+            delete env[key(name)];
+        }
+
+        function currentPathString() {
+            const p = getCwd().join('\\');
+            return p || '\\';
+        }
+
+        function resolvePathArray(input) {
+            let p = String(input ?? '').replace(/\\/g, '/').trim();
+            if (p.startsWith('"') && p.endsWith('"')) p = p.slice(1, -1);
+            if (/^[A-Za-z]:/.test(p)) p = p.slice(2);
+            const absolute = p.startsWith('/');
+            const base = absolute ? ['/'] : [...getCwd()];
+            const result = absolute ? ['/'] : [...base];
+            for (const part of p.split('/').filter(Boolean)) {
+                if (part === '.') continue;
+                if (part === '..') {
+                    if (result.length > 1) result.pop();
+                } else {
+                    result.push(part);
+                }
+            }
+            return result;
+        }
+
+        function node(path) {
+            try { return FileSystem.getNode(resolvePathArray(path)); } catch { return null; }
+        }
+
+        function fileExists(path) {
+            const n = node(path);
+            return !!n && n.type === 'file';
+        }
+
+        function folderExists(path) {
+            const n = node(path);
+            return !!n && n.type === 'folder';
+        }
+
+        function makeTextFile(path, overwrite = true) {
+            const p = resolvePathArray(path);
+            const existing = FileSystem.readFile(p);
+            if (overwrite && existing === null) {
+                const name = p[p.length - 1];
+                FileSystem.createFile(p.slice(0, -1), name, '', extension(name));
+            }
+            return {
+                Write(text) {
+                    const old = FileSystem.readFile(p) ?? '';
+                    FileSystem.writeFile(p, old + String(text ?? ''));
+                },
+                WriteLine(text) {
+                    const old = FileSystem.readFile(p) ?? '';
+                    FileSystem.writeFile(p, old + String(text ?? '') + '\n');
+                },
+                WriteBlankLines(count) {
+                    const old = FileSystem.readFile(p) ?? '';
+                    FileSystem.writeFile(p, old + '\n'.repeat(Math.max(0, Number(count) || 0)));
+                },
+                Close() {}
+            };
+        }
+
+        function openTextStream(path) {
+            const p = resolvePathArray(path);
+            const content = FileSystem.readFile(p) ?? '';
+            let pos = 0;
+            return {
+                ReadLine() {
+                    const idx = content.indexOf('\n', pos);
+                    if (idx < 0) {
+                        const out = content.slice(pos).replace(/\r$/, '');
+                        pos = content.length;
+                        return out;
+                    }
+                    const out = content.slice(pos, idx).replace(/\r$/, '');
+                    pos = idx + 1;
+                    return out;
+                },
+                Read(count) {
+                    const n = Math.max(0, Number(count) || 0);
+                    const out = content.slice(pos, pos + n);
+                    pos += n;
+                    return out;
+                },
+                ReadAll() {
+                    const out = content.slice(pos);
+                    pos = content.length;
+                    return out;
+                },
+                Write(text) {
+                    const before = content.slice(0, pos);
+                    const after = content.slice(pos);
+                    FileSystem.writeFile(p, before + String(text ?? '') + after);
+                    pos += String(text ?? '').length;
+                },
+                WriteLine(text) { this.Write(String(text ?? '') + '\n'); },
+                Close() {},
+                get AtEndOfStream() { return pos >= content.length; }
+            };
+        }
+
+        function extension(name) {
+            const i = String(name).lastIndexOf('.');
+            return i >= 0 ? String(name).slice(i + 1) : '';
+        }
+
+        function createFileObject(path) {
+            const p = resolvePathArray(path);
+            const n = FileSystem.getNode(p);
+            if (!n || n.type !== 'file') throw makeRuntimeError(53, 'File not found');
+            return {
+                __vbObject: 'File',
+                Name: n.name,
+                Path: currentPathString(),
+                Size: FileSystem.readFile(p)?.length || 0,
+                DateCreated: n.created ? new Date(n.created).toLocaleString() : '',
+                DateLastModified: n.modified ? new Date(n.modified).toLocaleString() : '',
+                OpenAsTextStream: () => openTextStream(path),
+                Delete() { FileSystem.deleteItem(p); },
+                CopyTo(dest) {
+                    const c = FileSystem.readFile(p) ?? '';
+                    const d = resolvePathArray(dest);
+                    if (FileSystem.isFolder(d)) {
+                        const final = [...d, n.name];
+                        if (FileSystem.itemExists(final)) FileSystem.writeFile(final, c);
+                        else FileSystem.createFile(d, n.name, c, extension(n.name));
+                    } else {
+                        if (FileSystem.itemExists(d)) FileSystem.writeFile(d, c);
+                        else FileSystem.createFile(d.slice(0, -1), d[d.length - 1], c, extension(d[d.length - 1]));
+                    }
+                }
+            };
+        }
+
+        function createFolderObject(path) {
+            const p = resolvePathArray(path);
+            const n = FileSystem.getNode(p);
+            if (!n || n.type !== 'folder') throw makeRuntimeError(76, 'Path not found');
+            return {
+                __vbObject: 'Folder',
+                Name: n.name,
+                Path: p.join('\\'),
+                Size: 0,
+                Files: { __vbCollection: true, Item: i => {
+                    const kids = FileSystem.getChildren(p).filter(x => x.type === 'file');
+                    const idx = typeof i === 'number' ? i : Number(i);
+                    return idx >= 0 && idx < kids.length ? createFileObject([...p, kids[idx].name]) : null;
+                }, Count: () => FileSystem.getChildren(p).filter(x => x.type === 'file').length },
+                SubFolders: { __vbCollection: true, Item: i => {
+                    const kids = FileSystem.getChildren(p).filter(x => x.type === 'folder');
+                    const idx = typeof i === 'number' ? i : Number(i);
+                    return idx >= 0 && idx < kids.length ? createFolderObject([...p, kids[idx].name]) : null;
+                }, Count: () => FileSystem.getChildren(p).filter(x => x.type === 'folder').length },
+                Delete() { FileSystem.deleteItem(p); },
+                Copy(dest) {
+                    const dst = resolvePathArray(dest);
+                    if (!FileSystem.itemExists(dst)) FileSystem.createFolder(dst.slice(0, -1), dst[dst.length - 1]);
+                }
+            };
+        }
+
         function createCOMObject(progId) {
-            if (/Shell\.Application/i.test(progId)) {
+            const id = String(progId ?? '');
+            if (/^Scripting\.FileSystemObject$/i.test(id)) {
                 return {
-                    Run: (cmd) => { printFn(`[Shell] ${cmd}`); return 0; },
-                    ExpandEnvironmentStrings: (s) => s
+                    __vbObject: 'Scripting.FileSystemObject',
+                    FileExists: fileExists,
+                    FolderExists: folderExists,
+                    GetFile(path) { return createFileObject(path); },
+                    GetFolder(path) { return createFolderObject(path); },
+                    OpenTextFile(path) { return openTextStream(path); },
+                    CreateTextFile(path, overwrite = true) { return makeTextFile(path, overwrite); },
+                    DeleteFile(path) {
+                        const p = resolvePathArray(path);
+                        if (!fileExists(path)) throw makeRuntimeError(53, 'File not found');
+                        FileSystem.deleteItem(p);
+                    },
+                    DeleteFolder(path) {
+                        const p = resolvePathArray(path);
+                        if (!folderExists(path)) throw makeRuntimeError(76, 'Path not found');
+                        FileSystem.deleteItem(p);
+                    },
+                    CopyFile(src, dest, overwrite = true) {
+                        const c = FileSystem.readFile(resolvePathArray(src));
+                        if (c === null || c === undefined) throw makeRuntimeError(53, 'File not found');
+                        const d = resolvePathArray(dest);
+                        if (FileSystem.isFolder(d)) {
+                            const name = resolvePathArray(src).at(-1);
+                            const final = [...d, name];
+                            if (FileSystem.itemExists(final) && !overwrite) throw makeRuntimeError(58, 'File already exists');
+                            FileSystem.itemExists(final) ? FileSystem.writeFile(final, c) : FileSystem.createFile(d, name, c, extension(name));
+                        } else {
+                            const name = d.at(-1);
+                            if (FileSystem.itemExists(d) && !overwrite) throw makeRuntimeError(58, 'File already exists');
+                            FileSystem.itemExists(d) ? FileSystem.writeFile(d, c) : FileSystem.createFile(d.slice(0, -1), name, c, extension(name));
+                        }
+                    },
+                    MoveFile(src, dest) {
+                        this.CopyFile(src, dest, true);
+                        FileSystem.deleteItem(resolvePathArray(src));
+                    },
+                    BuildPath(base, name) {
+                        return String(base).replace(/[\\\/]+$/, '') + '\\' + String(name).replace(/^[\\\/]+/, '');
+                    },
+                    GetAbsolutePathName(path) { return resolvePathArray(path).join('\\'); }
                 };
             }
-            if (/Scripting\.FileSystemObject/i.test(progId)) {
+
+            if (/^WScript\.Shell$/i.test(id) || /^Shell\.Application$/i.test(id)) {
                 return {
-                    FileExists: (path) => { const n = FileSystem.getNode(resolvePathArray(path)); return n !== null && n.type === 'file'; },
-                    FolderExists: (path) => { const n = FileSystem.getNode(resolvePathArray(path)); return n !== null && n.type === 'folder'; },
-                    CopyFile: (src, dest) => { const c = FileSystem.readFile(resolvePathArray(src)); if (c !== null) FileSystem.writeFile(resolvePathArray(dest), c); },
-                    DeleteFile: (path) => { FileSystem.deleteItem(resolvePathArray(path)); },
-                    CreateTextFile: (path) => {
-                        const p = resolvePathArray(path);
-                        return {
-                            Write: (text) => { const existing = FileSystem.readFile(p) || ''; FileSystem.writeFile(p, existing + text); },
-                            WriteLine: (text) => { const existing = FileSystem.readFile(p) || ''; FileSystem.writeFile(p, existing + text + '\n'); },
-                            WriteBlankLines: (n) => { const existing = FileSystem.readFile(p) || ''; FileSystem.writeFile(p, existing + '\n'.repeat(n)); },
-                            Close: () => {}
-                        };
+                    __vbObject: id,
+                    CurrentDirectory: currentPathString(),
+                    ExpandEnvironmentStrings(s) {
+                        return String(s ?? '').replace(/%([^%]+)%/g, (_, n) => {
+                            const value = getVar(n);
+                            return value === '' ? `%${n}%` : toStr(value);
+                        });
                     },
-                    GetFile: (path) => {
-                        const p = resolvePathArray(path);
-                        const node = FileSystem.getNode(p);
-                        if (!node || node.type !== 'file') return null;
+                    Run(cmd) { printFn(`[Shell] ${cmd}`); return 0; },
+                    Exec(cmd) {
+                        printFn(`[Shell] ${cmd}`);
                         return {
-                            Name: node.name,
-                            Path: path,
-                            Size: FileSystem.readFile(p)?.length || 0,
-                            OpenAsTextStream: () => {
-                                const content = FileSystem.readFile(p) || '';
-                                let pos = 0;
-                                return {
-                                    ReadLine: () => {
-                                        const nl = content.indexOf('\n', pos);
-                                        if (nl === -1) { const line = content.substring(pos); pos = content.length; return line.replace(/\r$/, ''); }
-                                        const line = content.substring(pos, nl); pos = nl + 1; return line.replace(/\r$/, '');
-                                    },
-                                    Read: (n) => { const chunk = content.substring(pos, pos + n); pos += n; return chunk; },
-                                    ReadAll: () => content,
-                                    Write: (text) => {},
-                                    WriteLine: (text) => {},
-                                    Close: () => {},
-                                    AtEndOfStream: () => pos >= content.length
-                                };
-                            }
+                            ExitCode: 0,
+                            StdOut: { ReadLine: () => '', ReadAll: () => '' },
+                            StdErr: { ReadLine: () => '', ReadAll: () => '' }
                         };
                     }
                 };
             }
-            if (/WScript\.Shell/i.test(progId)) {
-                return {
-                    Run: (cmd, style, wait) => { printFn(`[Shell] ${cmd}`); return 0; },
-                    Exec: (cmd) => ({ StdOut: { ReadLine: () => '' }, ExitCode: 0 }),
-                    ExpandEnvironmentStrings: (s) => s,
-                    CurrentDirectory: getCwd().join('/')
-                };
+
+            throw makeRuntimeError(429, `ActiveX component can't create object: '${id}'`);
+        }
+
+        const WScript = {
+            Echo(...values) {
+                printFn(values.map(valueOf).map(v => v === null ? 'Null' : String(v)).join(' '));
+            },
+            StdOut: {
+                Write(text) { printFn(String(text ?? '')); },
+                WriteLine(text = '') { printFn(String(text ?? '')); },
+                WriteBlankLines(n) { for (let i = 0; i < Number(n) || 0; i++) printFn(''); }
+            },
+            Sleep() {},
+            CreateObject: createCOMObject,
+            Arguments: { Count: 0, Item: i => '', Named: {} },
+            ScriptName: 'script.vbs',
+            ScriptFullName: 'C:\\script.vbs'
+        };
+
+        function decodeString(token) {
+            if (token.length >= 2 && token[0] === '"' && token[token.length - 1] === '"') {
+                return token.slice(1, -1).replace(/""/g, '"');
             }
-            return {};
+            return token;
         }
 
-        function resolvePathArray(p) {
-            if (!p) return [...getCwd()];
-            p = p.replace(/\\/g, '/');
-            if (p.startsWith('/')) return p.split('/').filter(Boolean);
-            return [...getCwd(), ...p.split('/').filter(Boolean)];
-        }
-
-        function expandVars(str) {
-            if (str === null || str === undefined) return '';
-            let s = String(str);
-            s = s.replace(/\bTrue\b/gi, 'true');
-            s = s.replace(/\bFalse\b/gi, 'false');
-            s = s.replace(/\bNothing\b/gi, 'null');
-            s = s.replace(/\bNull\b/gi, 'null');
-            return s;
-        }
-
-        function valueOf(expr) {
-            if (expr === null || expr === undefined) return '';
-            if (typeof expr === 'boolean') return expr;
-            if (typeof expr === 'number') return expr;
-            if (typeof expr === 'string') return expr;
-            if (Array.isArray(expr)) return expr.join(', ');
-            return String(expr);
-        }
-
-        function toNum(expr) {
-            const v = valueOf(expr);
-            if (v === '' || v === null || v === undefined) return 0;
-            const n = Number(v);
-            return isNaN(n) ? 0 : n;
-        }
-
-        function toBool(expr) {
-            const v = valueOf(expr);
-            if (typeof v === 'boolean') return v;
-            if (typeof v === 'number') return v !== 0;
-            if (typeof v === 'string') return v.toLowerCase() === 'true';
-            return !!v;
-        }
-
-        function toStr(expr) {
-            return String(valueOf(expr));
-        }
-
-        function evaluate(expr) {
-            if (expr === null || expr === undefined) return '';
-            expr = expr.trim();
-            if (expr === '') return '';
-
-            if (/^\(.*\)$/.test(expr)) {
-                return evaluate(expr.slice(1, -1));
-            }
-
-            let depth = 0;
-            let lowestOp = -1;
-            let lowestPrec = 999;
-            let lowestAssoc = 'left';
-            let inString = false;
-            let stringChar = '';
+        function tokenize(expr) {
+            const tokens = [];
             let i = 0;
-
-            while (i < expr.length) {
-                const ch = expr[i];
-                if (inString) {
-                    if (ch === stringChar && expr[i + 1] !== stringChar) inString = false;
+            const s = String(expr ?? '');
+            const multiOps = ['<>', '<=', '>='];
+            while (i < s.length) {
+                const ch = s[i];
+                if (/\s/.test(ch)) { i++; continue; }
+                if (ch === '"') {
+                    let j = i + 1;
+                    while (j < s.length) {
+                        if (s[j] === '"' && s[j + 1] === '"') { j += 2; continue; }
+                        if (s[j] === '"') { j++; break; }
+                        j++;
+                    }
+                    tokens.push({ type: 'string', value: s.slice(i, j) });
+                    i = j;
+                    continue;
+                }
+                const two = s.slice(i, i + 2);
+                if (multiOps.includes(two)) { tokens.push({ type: 'op', value: two }); i += 2; continue; }
+                if ('().,+-*/\\^&=<>'.includes(ch)) {
+                    tokens.push({ type: (ch === '(' || ch === ')' ? 'paren' : ch === ',' ? 'comma' : 'op'), value: ch });
                     i++;
                     continue;
                 }
-                if (ch === '"' || ch === "'") {
-                    if (ch === '"' && expr.substring(i).match(/^&"/)) { /* VB string concat */ }
-                    inString = true; stringChar = ch; i++; continue;
+                const m = s.slice(i).match(/^[A-Za-z_][A-Za-z0-9_]*|^[0-9]+(?:\.[0-9]+)?/);
+                if (m) {
+                    tokens.push({ type: 'word', value: m[0] });
+                    i += m[0].length;
+                    continue;
                 }
-                if (ch === '(') { depth++; i++; continue; }
-                if (ch === ')') { depth--; i++; continue; }
-                if (depth > 0) { i++; continue; }
-
-                if (ch === '+' || ch === '-') {
-                    const prev = expr.substring(0, i).trimEnd();
-                    if (prev && /[a-zA-Z0-9_\)\"]\s*$/.test(prev)) {
-                        const prec = 6;
-                        if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; }
-                    }
-                    i++; continue;
-                }
-                if (ch === '*') { const prec = 7; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; } i++; continue; }
-                if (ch === '/') { const prec = 7; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; } i++; continue; }
-                if (ch === '\\') { const prec = 7; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; } i++; continue; }
-                if (ch === '^') { const prec = 8; if (prec < lowestPrec || (prec === lowestPrec && lowestAssoc === 'right')) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'right'; } i++; continue; }
-
-                if (ch === '<') {
-                    if (expr[i + 1] === '>') { const prec = 4; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; } i += 2; continue; }
-                    if (expr[i + 1] === '=') { const prec = 4; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; } i += 2; continue; }
-                    const prec = 4; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; }
-                    i++; continue;
-                }
-                if (ch === '>') {
-                    if (expr[i + 1] === '=') { const prec = 4; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; } i += 2; continue; }
-                    const prec = 4; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; }
-                    i++; continue;
-                }
-                if (ch === '=' && i > 0) { const prec = 4; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; } i++; continue; }
-
-                if (ch === '&') { const prec = 5; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; } i++; continue; }
-
-                if (i + 1 < expr.length && expr.substring(i, i + 2).toLowerCase() === 'is') {
-                    const before = i > 0 ? expr[i - 1] : ' ';
-                    const after = expr[i + 2] || ' ';
-                    const beforeOk = i === 0 || !/[a-zA-Z0-9_]/.test(before);
-                    const afterOk = i + 2 >= expr.length || !/[a-zA-Z0-9_]/.test(after);
-                    if (beforeOk && afterOk) {
-                        const prec = 4;
-                        if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; }
-                        i += 2; continue;
-                    }
-                }
-
-                if (i + 2 < expr.length) {
-                    const word = expr.substring(i, i + 3).toLowerCase();
-                    if (word === 'and') {
-                        const before = i > 0 ? expr[i - 1] : ' ';
-                        const after = expr[i + 3] || ' ';
-                        const beforeOk = i === 0 || !/[a-zA-Z0-9_]/.test(before);
-                        const afterOk = i + 3 >= expr.length || !/[a-zA-Z0-9_]/.test(after);
-                        if (beforeOk && afterOk) {
-                            const prec = 3; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; i += 3; continue; }
-                        }
-                    }
-                    if (word === 'mod') {
-                        const before = i > 0 ? expr[i - 1] : ' ';
-                        const after = expr[i + 3] || ' ';
-                        const beforeOk = i === 0 || !/[a-zA-Z0-9_]/.test(before);
-                        const afterOk = i + 3 >= expr.length || !/[a-zA-Z0-9_]/.test(after);
-                        if (beforeOk && afterOk) {
-                            const prec = 7; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; i += 3; continue; }
-                        }
-                    }
-                }
-                if (i + 1 < expr.length) {
-                    const word = expr.substring(i, i + 2).toLowerCase();
-                    if (word === 'or') {
-                        const before = i > 0 ? expr[i - 1] : ' ';
-                        const after = expr[i + 2] || ' ';
-                        const beforeOk = i === 0 || !/[a-zA-Z0-9_]/.test(before);
-                        const afterOk = i + 2 >= expr.length || !/[a-zA-Z0-9_]/.test(after);
-                        if (beforeOk && afterOk) {
-                            const prec = 2; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; i += 2; continue; }
-                        }
-                    }
-                }
-
-                if (i + 2 < expr.length) {
-                    const word = expr.substring(i, i + 3).toLowerCase();
-                    if (word === 'not') {
-                        const before = i > 0 ? expr[i - 1] : ' ';
-                        const after = expr[i + 3] || ' ';
-                        const beforeOk = i === 0 || !/[a-zA-Z0-9_]/.test(before);
-                        const afterOk = i + 3 >= expr.length || !/[a-zA-Z0-9_]/.test(after);
-                        if (beforeOk && (afterOk || after === '(')) {
-                            const prec = 3; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'right'; i += 3; continue; }
-                        }
-                    }
-                }
-
-                if (i + 2 < expr.length && expr.substring(i, i + 3).toLowerCase() === 'xor') {
-                    const before = i > 0 ? expr[i - 1] : ' ';
-                    const after = expr[i + 3] || ' ';
-                    const beforeOk = i === 0 || !/[a-zA-Z0-9_]/.test(before);
-                    const afterOk = i + 3 >= expr.length || !/[a-zA-Z0-9_]/.test(after);
-                    if (beforeOk && afterOk) {
-                        const prec = 2; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; i += 3; continue; }
-                    }
-                }
-
-                i++;
+                throw makeRuntimeError(13, `Invalid character '${ch}'`);
             }
-
-            if (lowestOp >= 0 && lowestPrec < 999) {
-                const op = expr.substring(lowestOp, lowestOp + (expr[lowestOp + 1] === '>' || expr[lowestOp + 1] === '=' ? 2 : 1));
-                const left = expr.substring(0, lowestOp).trim();
-                const right = expr.substring(lowestOp + op.length).trim();
-
-                if (left === '') {
-                    if (op === '+') return toNum(evaluate(right));
-                    if (op === '-') return -toNum(evaluate(right));
-                    if (op.toLowerCase() === 'not') return !toBool(evaluate(right));
-                }
-
-                if (op === '+') {
-                    const l = evaluate(left);
-                    const r = evaluate(right);
-                    if (typeof l === 'number' || typeof r === 'number') return toNum(l) + toNum(r);
-                    return toStr(l) + toStr(r);
-                }
-                if (op === '&') return toStr(evaluate(left)) + toStr(evaluate(right));
-                if (op === '-') return toNum(evaluate(left)) - toNum(evaluate(right));
-                if (op === '*') return toNum(evaluate(left)) * toNum(evaluate(right));
-                if (op === '/') { const r = toNum(evaluate(right)); if (r === 0) throw new Error('Division by zero'); return toNum(evaluate(left)) / r; }
-                if (op === '\\') return Math.floor(toNum(evaluate(left)) / toNum(evaluate(right)));
-                if (op === '^') return Math.pow(toNum(evaluate(left)), toNum(evaluate(right)));
-                if (op.toLowerCase() === 'mod') return toNum(evaluate(left)) % toNum(evaluate(right));
-                if (op === '=' || op === '==') return valueOf(evaluate(left)) == valueOf(evaluate(right));
-                if (op === '<>') return valueOf(evaluate(left)) != valueOf(evaluate(right));
-                if (op === '<') return toNum(evaluate(left)) < toNum(evaluate(right));
-                if (op === '>') return toNum(evaluate(left)) > toNum(evaluate(right));
-                if (op === '<=') return toNum(evaluate(left)) <= toNum(evaluate(right));
-                if (op === '>=') return toNum(evaluate(left)) >= toNum(evaluate(right));
-                if (op.toLowerCase() === 'is') {
-                    const l = evaluate(left);
-                    const r = evaluate(right);
-                    const rStr = (typeof r === 'string') ? r.toUpperCase() : '';
-                    const lStr = (typeof l === 'string') ? l.toUpperCase() : '';
-                    if (r === null || rStr === 'NULL' || rStr === 'NOTHING') return l === null || lStr === 'NULL' || lStr === 'NOTHING';
-                    if (l === null || lStr === 'NULL' || lStr === 'NOTHING') return r === null || rStr === 'NULL' || rStr === 'NOTHING';
-                    return l === r;
-                }
-                if (op.toLowerCase() === 'and') return toBool(evaluate(left)) && toBool(evaluate(right));
-                if (op.toLowerCase() === 'or') return toBool(evaluate(left)) || toBool(evaluate(right));
-                if (op.toLowerCase() === 'xor') return toBool(evaluate(left)) !== toBool(evaluate(right));
-                if (op.toLowerCase() === 'not') return !toBool(evaluate(right));
-            }
-
-            if (expr.startsWith('"') && expr.endsWith('"')) return expr.slice(1, -1);
-            if (expr.startsWith('"')) return expr.slice(1);
-
-            const upper = expr.toUpperCase();
-
-            if (upper === 'TRUE') return true;
-            if (upper === 'FALSE') return false;
-            if (upper === 'NOTHING' || upper === 'NULL') return null;
-
-            if (/^\d+\.\d+$/.test(expr)) return parseFloat(expr);
-            if (/^\d+$/.test(expr)) return parseInt(expr, 10);
-            if (/^&H[0-9A-F]+$/i.test(expr)) return parseInt(expr.substring(2), 16);
-            if (/^&O[0-7]+$/i.test(expr)) return parseInt(expr.substring(2), 8);
-
-            if (vars.hasOwnProperty(upper)) return vars[upper];
-            if (consts.hasOwnProperty(upper)) return consts[upper];
-
-            const fnMatch = expr.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*\((.*)?\)$/s);
-            if (fnMatch) {
-                const fnName = fnMatch[1].toUpperCase();
-                const argStr = fnMatch[2] || '';
-                const args = splitArgs(argStr).map(a => evaluate(a.trim()));
-
-                if (functions[fnName]) {
-                    return callFunction(fnName, args);
-                }
-                return callBuiltinFunction(fnName, args);
-            }
-
-            const propChain = expr.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\.(.+)$/);
-            if (propChain) {
-                const objName = propChain[1].toUpperCase();
-                const propExpr = propChain[2];
-                const obj = vars[objName];
-                if (obj && typeof obj === 'object') {
-                    if (propExpr.includes('(') || propExpr.includes('.')) {
-                        return evaluatePropertyChain(obj, propExpr);
-                    }
-                    const propName = propExpr.toUpperCase();
-                    if (obj[propName] !== undefined) return obj[propName];
-                    if (obj[propExpr] !== undefined) return obj[propExpr];
-                }
-            }
-
-            return expr;
+            tokens.push({ type: 'eof', value: '' });
+            return tokens;
         }
 
-        function evaluatePropertyChain(obj, chain) {
-            let current = obj;
-            const parts = chain.split('.');
-            for (const part of parts) {
-                const callMatch = part.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*\((.*)?\)$/s);
-                if (callMatch) {
-                    const methodName = callMatch[1];
-                    const argStr = callMatch[2] || '';
-                    const args = splitArgs(argStr).map(a => evaluate(a.trim()));
-                    if (current && typeof current[methodName] === 'function') {
-                        current = current[methodName](...args);
-                    } else if (current && current[methodName.toUpperCase()] && typeof current[methodName.toUpperCase()] === 'function') {
-                        current = current[methodName.toUpperCase()](...args);
-                    } else if (current && current[methodName] !== undefined) {
-                        current = current[methodName];
-                    } else {
-                        return '';
-                    }
-                } else {
-                    const propName = part.trim();
-                    if (current && current[propName] !== undefined) current = current[propName];
-                    else if (current && current[propName.toUpperCase()] !== undefined) current = current[propName.toUpperCase()];
-                    else return '';
-                }
-            }
-            return current;
-        }
+        const precedence = {
+            OR: 1, XOR: 1, AND: 2, EQV: 1, IMP: 1,
+            '=': 3, '<>': 3, '<': 3, '>': 3, '<=': 3, '>=': 3, IS: 3,
+            '&': 4, '+': 5, '-': 5, '*': 6, '/': 6, '\\': 6, MOD: 6, '^': 7
+        };
 
-        function splitArgs(str) {
-            const args = [];
+        function splitTopLevel(s, delimiter = ',') {
+            const out = [];
+            let cur = '';
+            let quote = false;
             let depth = 0;
-            let current = '';
-            let inStr = false;
-            let strChar = '';
-
-            for (let i = 0; i < str.length; i++) {
-                const ch = str[i];
-                if (inStr) {
-                    if (ch === strChar && str[i + 1] !== strChar) inStr = false;
-                    current += ch;
-                    continue;
-                }
-                if (ch === '"' || ch === "'") { inStr = true; strChar = ch; current += ch; continue; }
-                if (ch === '(') { depth++; current += ch; continue; }
-                if (ch === ')') { depth--; current += ch; continue; }
-                if (ch === ',' && depth === 0) {
-                    args.push(current);
-                    current = '';
-                    continue;
-                }
-                current += ch;
+            for (let i = 0; i < s.length; i++) {
+                const ch = s[i];
+                if (ch === '"') {
+                    if (quote && s[i + 1] === '"') { cur += '""'; i++; continue; }
+                    quote = !quote;
+                    cur += ch;
+                } else if (!quote && ch === '(') { depth++; cur += ch; }
+                else if (!quote && ch === ')') { depth--; cur += ch; }
+                else if (!quote && depth === 0 && ch === delimiter) { out.push(cur.trim()); cur = ''; }
+                else cur += ch;
             }
-            if (current.trim()) args.push(current);
-            return args;
+            if (cur.trim() || s.trim() === '') out.push(cur.trim());
+            return out;
         }
 
-        function callBuiltinFunction(name, args) {
+        function parser(tokens, env) {
+            let index = 0;
+            function peek() { return tokens[index]; }
+            function take() { return tokens[index++]; }
+
+            function parsePrimary() {
+                const t = take();
+                if (t.type === 'string') return decodeString(t.value);
+                if (t.type === 'word') {
+                    const upper = t.value.toUpperCase();
+                    if (/^\d/.test(t.value)) return Number(t.value);
+
+                    if (upper === 'TRUE') return true;
+                    if (upper === 'FALSE') return false;
+                    if (upper === 'NULL' || upper === 'NOTHING') return null;
+                    if (upper === 'EMPTY') return '';
+                    if (upper === 'NOT') return !toBool(parseUnary());
+
+                    let value;
+                    if (peek().value === '(' && (functions[upper] || builtInFunction(upper))) {
+                        take();
+                        const inner = [];
+                        let depth = 1;
+                        while (depth > 0 && peek().type !== 'eof') {
+                            const x = take();
+                            if (x.value === '(') depth++;
+                            if (x.value === ')') depth--;
+                            if (depth > 0) inner.push(x);
+                        }
+                        const argsText = tokensToText(inner);
+                        const args = argsText.trim() ? splitTopLevel(argsText).map(a => evaluate(a, env)) : [];
+                        if (functions[upper]) value = callFunction(upper, args);
+                        else value = callBuiltin(upper, args);
+                    } else {
+                        value = getVar(upper, env);
+                    }
+
+                    // Property / method chain.
+                    while (peek().value === '.') {
+                        take();
+                        const p = take();
+                        const prop = p.value;
+                        if (peek().value === '(') {
+                            take();
+                            const inner = [];
+                            let depth = 1;
+                            while (depth > 0 && peek().type !== 'eof') {
+                                const x = take();
+                                if (x.value === '(') depth++;
+                                if (x.value === ')') depth--;
+                                if (depth > 0) inner.push(x);
+                            }
+                            const argsText = tokensToText(inner);
+                            const args = argsText.trim() ? splitTopLevel(argsText).map(a => evaluate(a, env)) : [];
+                            value = invoke(value, prop, args);
+                        } else {
+                            value = getProperty(value, prop);
+                        }
+                    }
+
+                    // Array indexing.
+                    if (peek().value === '(' && Array.isArray(value)) {
+                        take();
+                        const inner = [];
+                        let depth = 1;
+                        while (depth > 0 && peek().type !== 'eof') {
+                            const x = take();
+                            if (x.value === '(') depth++;
+                            if (x.value === ')') depth--;
+                            if (depth > 0) inner.push(x);
+                        }
+                        const idx = toNum(evaluate(tokensToText(inner), env));
+                        value = value[idx];
+                    }
+
+                    return value;
+                }
+
+                if (t.value === '(') {
+                    const value = parseExpression(0);
+                    if (peek().value === ')') take();
+                    return value;
+                }
+
+                throw makeRuntimeError(13, 'Expected expression');
+            }
+
+            function parseUnary() {
+                if (['+', '-', 'NOT'].includes(String(peek().value).toUpperCase())) {
+                    const op = String(take().value).toUpperCase();
+                    const v = parseUnary();
+                    if (op === '+') return toNum(v);
+                    if (op === '-') return -toNum(v);
+                    return !toBool(v);
+                }
+                return parsePrimary();
+            }
+
+            function parseExpression(minPrec) {
+                let left = parseUnary();
+                while (true) {
+                    const p = peek();
+                    const op = String(p.value).toUpperCase();
+                    const prec = precedence[op];
+                    if (prec === undefined || prec < minPrec) break;
+                    take();
+                    const right = parseExpression(op === '^' ? prec : prec + 1);
+                    if (op === '+') left = (typeof left === 'string' || typeof right === 'string') ? toStr(left) + toStr(right) : toNum(left) + toNum(right);
+                    else if (op === '-') left = toNum(left) - toNum(right);
+                    else if (op === '*') left = toNum(left) * toNum(right);
+                    else if (op === '/') {
+                        const r = toNum(right);
+                        if (r === 0) throw makeRuntimeError(11, 'Division by zero');
+                        left = toNum(left) / r;
+                    } else if (op === '\\') {
+                        const r = toNum(right);
+                        if (r === 0) throw makeRuntimeError(11, 'Division by zero');
+                        left = Math.trunc(toNum(left) / r);
+                    } else if (op === 'MOD') {
+                        const r = toNum(right);
+                        if (r === 0) throw makeRuntimeError(11, 'Division by zero');
+                        left = toNum(left) % r;
+                    } else if (op === '^') left = Math.pow(toNum(left), toNum(right));
+                    else if (op === '&') left = toStr(left) + toStr(right);
+                    else if (['=', '<>', '<', '>', '<=', '>='].includes(op)) left = compare(left, right, op);
+                    else if (op === 'IS') left = left === right;
+                    else if (op === 'AND') left = toBool(left) && toBool(right);
+                    else if (op === 'OR') left = toBool(left) || toBool(right);
+                    else if (op === 'XOR') left = toBool(left) !== toBool(right);
+                    else if (op === 'EQV') left = toBool(left) === toBool(right);
+                    else if (op === 'IMP') left = !toBool(left) || toBool(right);
+                }
+                return left;
+            }
+
+            return () => parseExpression(0);
+        }
+
+        function tokensToText(tokens) {
+            return tokens.map(t => t.value).join(' ');
+        }
+
+        function evaluate(expr, env = mainEnv) {
+            const text = String(expr ?? '').trim();
+            if (!text) return '';
+            const p = parser(tokenize(text), env);
+            return p();
+        }
+
+        function compare(a, b, op) {
+            const na = typeof a === 'number' ? a : Number(a);
+            const nb = typeof b === 'number' ? b : Number(b);
+            const numeric = Number.isFinite(na) && Number.isFinite(nb) && String(a).trim() !== '' && String(b).trim() !== '';
+            const x = numeric ? na : toStr(a).toUpperCase();
+            const y = numeric ? nb : toStr(b).toUpperCase();
+            switch (op) {
+                case '=': return x == y;
+                case '<>': return x != y;
+                case '<': return x < y;
+                case '>': return x > y;
+                case '<=': return x <= y;
+                case '>=': return x >= y;
+                default: return false;
+            }
+        }
+
+        function getProperty(obj, prop) {
+            if (obj === null || obj === undefined) return null;
+            const p = String(prop);
+            if (Object.prototype.hasOwnProperty.call(obj, p)) return obj[p];
+            if (Object.prototype.hasOwnProperty.call(obj, p.toUpperCase())) return obj[p.toUpperCase()];
+            const found = Object.keys(obj).find(k => k.toUpperCase() === p.toUpperCase());
+            return found ? obj[found] : '';
+        }
+
+        function invoke(obj, method, argsList) {
+            if (obj === null || obj === undefined) throw makeRuntimeError(91, 'Object variable not set');
+            const fn = obj[method] ?? obj[method.toUpperCase()];
+            if (typeof fn === 'function') return fn.apply(obj, argsList);
+            return getProperty(obj, method);
+        }
+
+        function builtInFunction(name) {
+            return new Set([
+                'LEN','LEFT','RIGHT','MID','INSTR','INSTRREV','REPLACE','TRIM','LTRIM','RTRIM',
+                'LCASE','UCASE','STR','CSTR','CINT','CLNG','CSNG','CDBL','CBOOL','CDATE','ABS',
+                'INT','FIX','ROUND','RND','SGN','SQR','EXP','LOG','SIN','COS','TAN','NOW','DATE',
+                'TIME','YEAR','MONTH','DAY','HOUR','MINUTE','SECOND','WEEKDAY','FORMATNUMBER',
+                'FORMATDATETIME','SPLIT','JOIN','FILTER','LBOUND','UBOUND','ISNULL','ISEMPTY',
+                'ISNUMERIC','ISOBJECT','TYPENAME','VARTYPE','CHR','ASC','HEX','OCT','SPACE',
+                'STRING','STRCOMP','ENVIRON','CREATEOBJECT','INPUTBOX','MSGBOX'
+            ]).has(name);
+        }
+
+        function callBuiltin(name, a) {
             switch (name) {
-                case 'LEN': return toStr(args[0]).length;
-                case 'LEFT': return toStr(args[0]).substring(0, toNum(args[1]));
-                case 'RIGHT': { const s = toStr(args[0]); return s.substring(s.length - toNum(args[1])); }
-                case 'MID': return toStr(args[0]).substring(toNum(args[1]) - 1, toNum(args[1]) - 1 + (args[2] !== undefined ? toNum(args[2]) : toStr(args[0]).length));
-                case 'INSTR': return toStr(args[0]).indexOf(toStr(args[1])) + 1;
-                case 'REPLACE': return toStr(args[0]).split(toStr(args[1])).join(toStr(args[2]));
-                case 'TRIM': return toStr(args[0]).trim();
-                case 'LTRIM': return toStr(args[0]).replace(/^\s+/, '');
-                case 'RTRIM': return toStr(args[0]).replace(/\s+$/, '');
-                case 'LCASE': return toStr(args[0]).toLowerCase();
-                case 'UCASE': return toStr(args[0]).toUpperCase();
-                case 'CSTR': return toStr(args[0]);
-                case 'CINT': return Math.round(toNum(args[0]));
-                case 'CLNG': return Math.round(toNum(args[0]));
-                case 'CDBL': return toNum(args[0]);
-                case 'CBOOL': return toBool(args[0]);
-                case 'ABS': return Math.abs(toNum(args[0]));
-                case 'INT': return Math.floor(toNum(args[0]));
-                case 'FIX': return Math.trunc(toNum(args[0]));
-                case 'ROUND': return Math.round(toNum(args[0]));
+                case 'LEN': return toStr(a[0]).length;
+                case 'LEFT': return toStr(a[0]).slice(0, Math.max(0, toNum(a[1])));
+                case 'RIGHT': { const s = toStr(a[0]); return s.slice(Math.max(0, s.length - toNum(a[1]))); }
+                case 'MID': {
+                    const s = toStr(a[0]), start = Math.max(0, toNum(a[1]) - 1);
+                    return s.slice(start, a[2] === undefined ? undefined : start + Math.max(0, toNum(a[2])));
+                }
+                case 'INSTR': return toStr(a[0]).indexOf(toStr(a[1])) + 1;
+                case 'INSTRREV': return toStr(a[0]).lastIndexOf(toStr(a[1])) + 1;
+                case 'REPLACE': return toStr(a[0]).split(toStr(a[1])).join(toStr(a[2]));
+                case 'TRIM': return toStr(a[0]).trim();
+                case 'LTRIM': return toStr(a[0]).replace(/^\s+/, '');
+                case 'RTRIM': return toStr(a[0]).replace(/\s+$/, '');
+                case 'LCASE': return toStr(a[0]).toLowerCase();
+                case 'UCASE': return toStr(a[0]).toUpperCase();
+                case 'STR': return toStr(a[0]);
+                case 'CSTR': return toStr(a[0]);
+                case 'CINT': return Math.round(toNum(a[0]));
+                case 'CLNG': return Math.round(toNum(a[0]));
+                case 'CSNG':
+                case 'CDBL': return Number(a[0]);
+                case 'CBOOL': return toBool(a[0]);
+                case 'CDATE': return new Date(toStr(a[0]));
+                case 'ABS': return Math.abs(toNum(a[0]));
+                case 'INT': return Math.floor(toNum(a[0]));
+                case 'FIX': return Math.trunc(toNum(a[0]));
+                case 'ROUND': return Math.round(toNum(a[0]));
                 case 'RND': return Math.random();
-                case 'SGN': { const n = toNum(args[0]); return n > 0 ? 1 : n < 0 ? -1 : 0; }
+                case 'SGN': { const n = toNum(a[0]); return n > 0 ? 1 : n < 0 ? -1 : 0; }
+                case 'SQR': return Math.sqrt(toNum(a[0]));
+                case 'EXP': return Math.exp(toNum(a[0]));
+                case 'LOG': return Math.log(toNum(a[0]));
+                case 'SIN': return Math.sin(toNum(a[0]));
+                case 'COS': return Math.cos(toNum(a[0]));
+                case 'TAN': return Math.tan(toNum(a[0]));
                 case 'NOW': return new Date().toLocaleString();
                 case 'DATE': return new Date().toLocaleDateString();
                 case 'TIME': return new Date().toLocaleTimeString();
@@ -468,760 +663,666 @@ const VBEngine = (() => {
                 case 'MINUTE': return new Date().getMinutes();
                 case 'SECOND': return new Date().getSeconds();
                 case 'WEEKDAY': return new Date().getDay() + 1;
-                case 'FORMATDATETIME': return toStr(args[0]);
-                case 'FORMATNUMBER': return toNum(args[0]).toFixed(args[1] !== undefined ? toNum(args[1]) : 0);
-                case 'SPLIT': return toStr(args[0]).split(args[1] !== undefined ? toStr(args[1]) : ' ');
-                case 'JOIN': return Array.isArray(args[0]) ? args[0].join(args[1] !== undefined ? toStr(args[1]) : ' ') : '';
-                case 'ARRAY': return args;
+                case 'FORMATNUMBER': return toNum(a[0]).toFixed(a[1] === undefined ? 0 : toNum(a[1]));
+                case 'FORMATDATETIME': return toStr(a[0]);
+                case 'SPLIT': return toStr(a[0]).split(a[1] === undefined ? ' ' : toStr(a[1]));
+                case 'JOIN': return Array.isArray(a[0]) ? a[0].join(a[1] === undefined ? ' ' : toStr(a[1])) : '';
+                case 'FILTER': return Array.isArray(a[0]) ? a[0].filter(x => toStr(x).includes(toStr(a[1]))) : [];
                 case 'LBOUND': return 0;
-                case 'UBOUND': return Array.isArray(args[0]) ? args[0].length - 1 : 0;
-                case 'ISNULL': return args[0] === null;
-                case 'ISEMPTY': return args[0] === undefined || args[0] === null || args[0] === '';
-                case 'ISNUMERIC': return !isNaN(Number(args[0]));
-                case 'TYPENAME': return typeof args[0];
-                case 'VARTYPE': return typeof args[0];
-                case 'CHR': return String.fromCharCode(toNum(args[0]));
-                case 'ASC': return toStr(args[0]).charCodeAt(0) || 0;
-                case 'HEX': return toNum(args[0]).toString(16).toUpperCase();
-                case 'OCT': return toNum(args[0]).toString(8).toUpperCase();
-                case 'STRCOMP': return toStr(args[0]).localeCompare(toStr(args[1]));
-                case 'STRING': return toStr(args[1] || args[0]).repeat(toNum(args[0] || 1));
-                case 'SPACE': return ' '.repeat(toNum(args[0]));
-                case 'TAB': return '\t'.repeat(toNum(args[0]));
-                case 'MSGBOX': { const msg = args.map(a => valueOf(a)).join(' '); printFn(msg); return 1; }
-                case 'INPUTBOX': return args[0] || '';
+                case 'UBOUND': return Array.isArray(a[0]) ? a[0].length - 1 : 0;
+                case 'ISNULL': return a[0] === null;
+                case 'ISEMPTY': return a[0] === null || a[0] === undefined || a[0] === '';
+                case 'ISNUMERIC': return a[0] !== '' && Number.isFinite(Number(a[0]));
+                case 'ISOBJECT': return isObject(a[0]);
+                case 'TYPENAME':
+                    if (a[0] === null) return 'Nothing';
+                    if (Array.isArray(a[0])) return 'Variant()';
+                    if (typeof a[0] === 'boolean') return 'Boolean';
+                    if (typeof a[0] === 'number') return Number.isInteger(a[0]) ? 'Integer' : 'Double';
+                    if (typeof a[0] === 'string') return 'String';
+                    return a[0]?.__vbObject || 'Object';
+                case 'VARTYPE':
+                    if (a[0] === null) return 1;
+                    if (typeof a[0] === 'string') return 8;
+                    if (typeof a[0] === 'boolean') return 11;
+                    if (typeof a[0] === 'number') return Number.isInteger(a[0]) ? 2 : 5;
+                    if (Array.isArray(a[0])) return 8204;
+                    return 9;
+                case 'CHR': return String.fromCharCode(toNum(a[0]));
+                case 'ASC': return toStr(a[0]).charCodeAt(0) || 0;
+                case 'HEX': return toNum(a[0]).toString(16).toUpperCase();
+                case 'OCT': return toNum(a[0]).toString(8);
+                case 'SPACE': return ' '.repeat(Math.max(0, toNum(a[0])));
+                case 'STRING': {
+                    const count = Math.max(0, toNum(a[0]));
+                    const char = a[1] === undefined ? '\0' : toStr(a[1]).charAt(0);
+                    return char.repeat(count);
+                }
+                case 'STRCOMP': {
+                    const x = toStr(a[0]), y = toStr(a[1]);
+                    return x === y ? 0 : (x > y ? 1 : -1);
+                }
                 case 'ENVIRON': return '';
-                case 'WSCRIPT': return WScript;
+                case 'CREATEOBJECT': return createCOMObject(a[0]);
+                case 'INPUTBOX': return a[0] === undefined ? '' : toStr(a[0]);
+                case 'MSGBOX': WScript.Echo(...a); return 1;
                 default: return '';
             }
         }
 
-        function callFunction(name, args) {
-            const fn = functions[name];
+        function callFunction(name, callArgs) {
+            const fn = functions[key(name)];
             if (!fn) return '';
-            const savedVars = { ...vars };
-            if (fn.params) {
-                fn.params.forEach((p, i) => { vars[p.toUpperCase()] = args[i] !== undefined ? args[i] : ''; });
-            }
-            vars[name] = '';
-            executeBlock(fn.body, fn.startLine + 1, 'function');
-            const result = vars[name];
-            vars = savedVars;
-            return result;
-        }
-
-        function executePropertyAssign(obj, chain, value) {
-            const dotIdx = chain.indexOf('.');
-            if (dotIdx === -1) return;
-            const methodName = chain.substring(0, dotIdx).trim();
-            const rest = chain.substring(dotIdx + 1).trim();
-
-            if (rest.includes('(') || rest.includes('.')) {
-                let current = obj;
-                const parts = rest.split('.');
-                for (let i = 0; i < parts.length - 1; i++) {
-                    const part = parts[i];
-                    const callMatch = part.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*\((.*)?\)$/s);
-                    if (callMatch) {
-                        const methodName2 = callMatch[1];
-                        const argStr = callMatch[2] || '';
-                        const args2 = splitArgs(argStr).map(a => evaluate(a.trim()));
-                        if (current && typeof current[methodName2] === 'function') current = current[methodName2](...args2);
-                        else if (current && current[methodName2.toUpperCase()] && typeof current[methodName2.toUpperCase()] === 'function') current = current[methodName2.toUpperCase()](...args2);
-                        else current = current[methodName2] || current[methodName2.toUpperCase()];
-                    } else {
-                        const propName = part.trim();
-                        current = current[propName] || current[propName.toUpperCase()];
-                    }
-                }
-                const lastPart = parts[parts.length - 1];
-                const lastCallMatch = lastPart.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*\((.*)?\)$/s);
-                if (lastCallMatch) {
-                    const methodName2 = lastCallMatch[1];
-                    const argStr = lastCallMatch[2] || '';
-                    const args2 = splitArgs(argStr).map(a => evaluate(a.trim()));
-                    args2.push(value);
-                    if (current && typeof current[methodName2] === 'function') current[methodName2](...args2);
-                    else if (current && current[methodName2.toUpperCase()] && typeof current[methodName2.toUpperCase()] === 'function') current[methodName2.toUpperCase()](...args2);
-                } else {
-                    const propName = lastPart.trim();
-                    if (current) {
-                        if (current[propName] !== undefined) current[propName] = value;
-                        else if (current[propName.toUpperCase()] !== undefined) current[propName.toUpperCase()] = value;
-                        else current[propName] = value;
-                    }
-                }
-            } else {
-                if (obj && typeof obj[methodName] === 'function') obj[methodName](value);
-                else if (obj && obj[methodName.toUpperCase()] && typeof obj[methodName.toUpperCase()] === 'function') obj[methodName.toUpperCase()](value);
-                else if (obj) obj[methodName] = value;
+            const previous = mainEnv;
+            const local = Object.create(previous);
+            for (let i = 0; i < fn.params.length; i++) local[key(fn.params[i])] = callArgs[i] ?? '';
+            local[key(name)] = '';
+            mainEnv = local;
+            try {
+                executeRange(fn.start + 1, fn.end, local, { procedure: 'function', name: key(name) });
+                return local[key(name)];
+            } finally {
+                mainEnv = previous;
             }
         }
 
-        function parseBlock(startLine, blockType) {
-            let depth = 1;
-            let i = startLine;
-            let endLine = startLine;
-            const body = [];
-            while (i < lines.length && depth > 0) {
-                const line = lines[i].trim();
-                const upper = line.toUpperCase().replace(/\s+/g, ' ');
-                if (upper.startsWith(blockType + ' ') || upper === blockType) {
-                    depth++;
-                } else if (upper.startsWith('end ' + blockType) || upper === 'end ' + blockType) {
-                    depth--;
-                    if (depth === 0) { endLine = i; break; }
-                }
-                body.push(i);
-                i++;
-            }
-            return { body, endLine };
-        }
-
-        function executeBlock(body, startLine, blockType) {
-            let i = 0;
-            while (i < body.length && running) {
-                pc = body[i];
-                const line = lines[body[i]].trim();
-                const oldPc = pc;
-                const result = executeLine(line);
-                if (result && (result.type === 'return' || result.type === 'exit' || result.type === 'continue' || result.type === 'break')) {
-                    return result;
-                }
-                if (pc !== oldPc) {
-                    const newIdx = body.indexOf(pc);
-                    if (newIdx !== -1) {
-                        i = newIdx;
-                    } else {
-                        break;
-                    }
-                } else {
-                    i++;
-                }
-            }
-            return null;
+        function callSub(name, callArgs) {
+            const sub = subs[key(name)];
+            if (!sub) return;
+            const previous = mainEnv;
+            const local = Object.create(previous);
+            for (let i = 0; i < sub.params.length; i++) local[key(sub.params[i])] = callArgs[i] ?? '';
+            mainEnv = local;
+            try { executeRange(sub.start + 1, sub.end, local, { procedure: 'sub', name: key(name) }); }
+            finally { mainEnv = previous; }
         }
 
         function stripComment(line) {
-            let inStr = false;
-            let strChar = '';
+            let quote = false;
             for (let i = 0; i < line.length; i++) {
-                const ch = line[i];
-                if (inStr) {
-                    if (ch === strChar && line[i + 1] !== strChar) inStr = false;
-                } else {
-                    if (ch === '"') { inStr = true; strChar = ch; }
-                    else if (ch === "'") return line.substring(0, i);
+                if (line[i] === '"') {
+                    if (quote && line[i + 1] === '"') { i++; continue; }
+                    quote = !quote;
+                } else if (line[i] === "'" && !quote) {
+                    return line.slice(0, i);
                 }
             }
             return line;
         }
 
-        function executeLine(raw) {
-            try {
-                const line = stripComment(raw.trim());
-                if (!line) return null;
+        function findTopLevelEquals(s) {
+            let quote = false, depth = 0;
+            for (let i = 0; i < s.length; i++) {
+                const ch = s[i];
+                if (ch === '"') {
+                    if (quote && s[i + 1] === '"') { i++; continue; }
+                    quote = !quote;
+                } else if (!quote) {
+                    if (ch === '(') depth++;
+                    else if (ch === ')') depth--;
+                    else if (ch === '=' && depth === 0) return i;
+                }
+            }
+            return -1;
+        }
 
-                const upper = line.toUpperCase().replace(/\s+/g, ' ').trim();
+        function assign(lhs, value, env = mainEnv) {
+            let s = lhs.trim();
+            const arr = s.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*\((.*)\)$/s);
+            if (arr) {
+                const k = key(arr[1]);
+                const target = env[k] ?? mainEnv[k];
+                if (!Array.isArray(target)) throw makeRuntimeError(13, 'Expected array');
+                const idx = toNum(evaluate(arr[2], env));
+                target[idx] = value;
+                return;
+            }
 
-            if (upper.startsWith('DIM ')) {
-                const decls = line.substring(4).split(',');
-                for (const d of decls) {
-                    const trimmed = d.trim();
-                    const arrMatch = trimmed.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*\((.+?)\)(?:\s+As\s+(\w+))?$/i);
-                    if (arrMatch) {
-                        const name = arrMatch[1].toUpperCase();
-                        const size = toNum(evaluate(arrMatch[2]));
-                        vars[name] = new Array(size + 1).fill(null);
-                    } else {
-                        const varName = trimmed.replace(/\s+As\s+\w+/i, '').trim().toUpperCase();
-                        vars[varName] = null;
+            const dot = s.indexOf('.');
+            if (dot >= 0) {
+                const objName = s.slice(0, dot).trim();
+                const chain = s.slice(dot + 1).trim().split('.');
+                let obj = getVar(objName, env);
+                for (let i = 0; i < chain.length - 1; i++) obj = getProperty(obj, chain[i]);
+                const last = chain.at(-1);
+                if (obj && typeof obj[last] === 'function') obj[last](value);
+                else if (obj && typeof obj[last.toUpperCase()] === 'function') obj[last.toUpperCase()](value);
+                else if (obj) obj[last] = value;
+                return;
+            }
+            setVar(s, value, env);
+        }
+
+        function parseCallStatement(text) {
+            const t = text.trim();
+            const m = t.match(/^([A-Za-z_][A-Za-z0-9_\.]*)\s*(.*)$/s);
+            if (!m) return null;
+            const name = m[1];
+            let rest = m[2].trim();
+            if (rest.startsWith('(') && rest.endsWith(')')) rest = rest.slice(1, -1);
+            const pieces = rest ? splitTopLevel(rest) : [];
+            return { name, args: pieces.map(p => evaluate(p, mainEnv)) };
+        }
+
+        function parseDeclarations(line, kind) {
+            const body = line.slice(kind.length).trim();
+            for (const decl of splitTopLevel(body)) {
+                const m = decl.match(/^([A-Za-z_][A-Za-z0-9_]*)(?:\s*\(\s*(.+?)\s*\))?(?:\s+As\s+\w+)?$/i);
+                if (!m) continue;
+                const name = key(m[1]);
+                if (m[2]) {
+                    const size = Math.max(0, toNum(evaluate(m[2], mainEnv)));
+                    mainEnv[name] = new Array(size + 1).fill(null);
+                } else {
+                    mainEnv[name] = null;
+                }
+                declared.add(name);
+            }
+        }
+
+        function preprocess() {
+            subs = Object.create(null);
+            functions = Object.create(null);
+            consts = Object.create(null);
+            constStackScan();
+        }
+
+        function constStackScan() {
+            for (let i = 0; i < lines.length; i++) {
+                const up = lines[i].trim().toUpperCase();
+                if (up.startsWith('CONST ')) {
+                    const body = lines[i].trim().slice(6);
+                    const eq = findTopLevelEquals(body);
+                    if (eq >= 0) consts[key(body.slice(0, eq).replace(/\s+AS\s+\w+$/i, '').trim())] = evaluate(body.slice(eq + 1), mainEnv);
+                }
+
+                let m = lines[i].trim().match(/^Sub\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?:\((.*?)\))?/i);
+                if (m) {
+                    const end = findEnd(i + 1, /^End\s+Sub$/i);
+                    subs[key(m[1])] = {
+                        start: i,
+                        end,
+                        params: splitTopLevel(m[2] || '').map(p => p.replace(/\s+ByVal\s+/i, '').replace(/\s+ByRef\s+/i, '').replace(/\s+As\s+\w+$/i, '').trim())
+                    };
+                    i = end;
+                    continue;
+                }
+                m = lines[i].trim().match(/^Function\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?:\((.*?)\))?/i);
+                if (m) {
+                    const end = findEnd(i + 1, /^End\s+Function$/i);
+                    functions[key(m[1])] = {
+                        start: i,
+                        end,
+                        params: splitTopLevel(m[2] || '').map(p => p.replace(/\s+ByVal\s+/i, '').replace(/\s+ByRef\s+/i, '').replace(/\s+As\s+\w+$/i, '').trim())
+                    };
+                    i = end;
+                }
+            }
+        }
+
+        function findEnd(start, matcher) {
+            for (let i = start; i < lines.length; i++) if (matcher.test(lines[i].trim())) return i;
+            return lines.length;
+        }
+
+        function findMatchingEndIf(start) {
+            let depth = 0;
+            for (let i = start; i < lines.length; i++) {
+                const u = lines[i].trim().toUpperCase();
+                if (/^IF\b/.test(u) && /\bTHEN\b/.test(u)) depth++;
+                else if (u === 'END IF') {
+                    depth--;
+                    if (depth === 0) return i;
+                }
+            }
+            return lines.length - 1;
+        }
+
+        function findIfBranches(start, end) {
+            let depth = 0;
+            const branches = [];
+            let current = start;
+            for (let i = start + 1; i < end; i++) {
+                const u = lines[i].trim().toUpperCase();
+                if (/^IF\b/.test(u) && /\bTHEN\b/.test(u)) depth++;
+                else if (u === 'END IF') depth--;
+                else if (depth === 0 && (u === 'ELSE' || /^ELSEIF\b/.test(u))) {
+                    branches.push({ start: current, end: i, line: i });
+                    current = i;
+                }
+            }
+            branches.push({ start: current, end, line: end });
+            return branches;
+        }
+
+        function findLoopEnd(start, type) {
+            let depth = 0;
+            for (let i = start; i < lines.length; i++) {
+                const u = lines[i].trim().toUpperCase();
+                if (type === 'FOR') {
+                    if (/^FOR\b/.test(u)) depth++;
+                    else if (/^NEXT\b/.test(u)) {
+                        depth--;
+                        if (depth === 0) return i;
+                    }
+                } else if (type === 'DO') {
+                    if (/^DO\b/.test(u)) depth++;
+                    else if (/^LOOP\b/.test(u)) {
+                        depth--;
+                        if (depth === 0) return i;
+                    }
+                } else if (type === 'WHILE') {
+                    if (/^WHILE\b/.test(u)) depth++;
+                    else if (u === 'WEND') {
+                        depth--;
+                        if (depth === 0) return i;
+                    }
+                } else if (type === 'SELECT') {
+                    if (/^SELECT\s+CASE\b/.test(u)) depth++;
+                    else if (u === 'END SELECT') {
+                        depth--;
+                        if (depth === 0) return i;
                     }
                 }
-                return null;
             }
+            return lines.length - 1;
+        }
 
-            if (upper.startsWith('CONST ')) {
-                const rest = line.substring(6).trim();
-                const eqIdx = rest.indexOf('=');
-                if (eqIdx > -1) {
-                    const name = rest.substring(0, eqIdx).trim().replace(/\s+As\s+\w+/i, '').toUpperCase();
-                    const val = evaluate(rest.substring(eqIdx + 1).trim());
-                    consts[name] = val;
-                }
-                return null;
-            }
+        function executeRange(start, endExclusive, env = mainEnv, procedure = null) {
+            let i = start;
+            let iterations = 0;
+            while (i < endExclusive && running && !stopRequested) {
+                if (++iterations > 500000) throw makeRuntimeError(28, 'Out of stack space / possible infinite loop');
 
-            if (upper.startsWith('REDIM ') || upper.startsWith('REDIMPRESERVE ')) {
-                const isPreserve = upper.startsWith('REDIMPRESERVE ');
-                const rest = line.substring(isPreserve ? 13 : 6).trim();
-                const arrMatch = rest.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*\((.+?)\)$/i);
-                if (arrMatch) {
-                    const name = arrMatch[1].toUpperCase();
-                    const size = toNum(evaluate(arrMatch[2]));
-                    if (isPreserve && vars[name]) {
-                        const old = vars[name];
-                        vars[name] = new Array(size + 1).fill(null);
-                        for (let i = 0; i < Math.min(old.length, vars[name].length); i++) vars[name][i] = old[i];
-                    } else {
-                        vars[name] = new Array(size + 1).fill(null);
+                const raw = lines[i].trim();
+                const line = stripComment(raw).trim();
+                if (!line) { i++; continue; }
+
+                const u = line.toUpperCase().replace(/\s+/g, ' ');
+
+                try {
+                    const result = executeStatement(line, u, env, i, procedure);
+                    if (result?.jump !== undefined) { i = result.jump; continue; }
+                    if (result?.return) return result.value;
+                    if (result?.exitProcedure) return undefined;
+                    i++;
+                } catch (e) {
+                    if (e?.vbNumber || e instanceof Error) {
+                        Err.Number = e.vbNumber || 5;
+                        Err.Description = e.message || String(e);
+                        if (errorResumeNext) { i++; continue; }
                     }
+                    throw e;
+                }
+            }
+            return undefined;
+        }
+
+        function executeStatement(line, u, env, lineIndex, procedure = null) {
+            if (u === 'OPTION EXPLICIT' || u === 'OPTION EXPLICIT ') return null;
+            if (u.startsWith('REM ') || u === 'REM') return null;
+
+            if (/^DIM\b/i.test(line)) { parseDeclarations(line, 'Dim'); return null; }
+            if (/^CONST\b/i.test(line)) {
+                const body = line.slice(5).trim();
+                const eq = findTopLevelEquals(body);
+                if (eq >= 0) consts[key(body.slice(0, eq).replace(/\s+AS\s+\w+$/i, '').trim())] = evaluate(body.slice(eq + 1), env);
+                return null;
+            }
+            if (/^REDIM(?:\s+PRESERVE)?\b/i.test(line)) {
+                const preserve = /^ReDim\s+Preserve/i.test(line);
+                const body = line.replace(/^ReDim\s+(?:Preserve\s+)?/i, '');
+                const m = body.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)$/);
+                if (m) {
+                    const name = key(m[1]), size = Math.max(0, toNum(evaluate(m[2], env)));
+                    const old = env[name];
+                    const arr = new Array(size + 1).fill(null);
+                    if (preserve && Array.isArray(old)) for (let j = 0; j < Math.min(old.length, arr.length); j++) arr[j] = old[j];
+                    env[name] = arr;
+                }
+                return null;
+            }
+            if (/^ERASE\b/i.test(line)) {
+                for (const name of splitTopLevel(line.slice(5))) {
+                    if (Array.isArray(env[key(name)])) env[key(name)] = [];
+                    else env[key(name)] = null;
                 }
                 return null;
             }
 
-            if (upper.startsWith('SET ') || upper.startsWith('SET(')) {
-                let rest = line.substring(3).trim();
-                const eqIdx = findEquals(rest);
-                if (eqIdx > -1) {
-                    const left = rest.substring(0, eqIdx).trim();
-                    const right = rest.substring(eqIdx + 1).trim();
-                    const val = evaluate(right);
-                    const dotIdx = left.indexOf('.');
-                    if (dotIdx > -1) {
-                        const objName = left.substring(0, dotIdx).trim().toUpperCase();
-                        const chain = left.substring(dotIdx + 1).trim();
-                        const obj = vars[objName];
-                        if (obj && typeof obj === 'object') {
-                            executePropertyAssign(obj, chain, val);
-                        }
-                    } else {
-                        const varName = left.toUpperCase();
-                        vars[varName] = val;
-                    }
-                }
-                return null;
+            if (/^ON\s+ERROR\s+RESUME\s+NEXT$/i.test(line)) { errorResumeNext = true; return null; }
+            if (/^ON\s+ERROR\s+GOTO\s+0$/i.test(line)) { errorResumeNext = false; return null; }
+            if (/^ON\s+ERROR\s+GOTO\s+-1$/i.test(line)) { Err.Clear(); errorResumeNext = false; return null; }
+
+            if (/^(STOP|END)$/i.test(line)) { running = false; stopRequested = true; return null; }
+
+            if (/^(EXIT\s+(SUB|FUNCTION|PROPERTY|DO|FOR))$/i.test(line)) {
+                const what = line.match(/^EXIT\s+(\w+)/i)[1].toUpperCase();
+                if (what === 'SUB' || what === 'FUNCTION' || what === 'PROPERTY') return { exitProcedure: true };
+                return { jump: findExitTarget(lineIndex, what) };
             }
 
-            if (upper.startsWith('SELECT CASE ')) {
-                const expr = line.substring(12).trim();
-                const val = valueOf(evaluate(expr));
-                selectStack.push({ value: val, matched: false, exited: false });
-                return null;
-            }
-
-            if (upper === 'CASE ELSE') {
-                if (selectStack.length > 0) {
-                    const ctx = selectStack[selectStack.length - 1];
-                    if (!ctx.matched) ctx.matched = true;
-                    else ctx.exited = true;
-                }
-                return null;
-            }
-
-            if (upper.startsWith('CASE ')) {
-                if (selectStack.length > 0) {
-                    const ctx = selectStack[selectStack.length - 1];
-                    if (ctx.exited) return null;
-                    if (ctx.matched) { ctx.exited = true; return null; }
-                    const caseExpr = line.substring(5).trim();
-                    if (caseExpr.includes('To')) {
-                        const [lo, hi] = caseExpr.split('To').map(s => valueOf(evaluate(s.trim())));
-                        if (valueOf(ctx.value) >= lo && valueOf(ctx.value) <= hi) ctx.matched = true;
-                    } else if (caseExpr.toUpperCase().startsWith('IS ')) {
-                        const op = caseExpr.substring(3).trim();
-                        const upperOp = op.toUpperCase();
-                        if (upperOp.startsWith('<>')) { if (valueOf(ctx.value) !== valueOf(evaluate(op.substring(2).trim()))) ctx.matched = true; }
-                        else if (upperOp.startsWith('>=')) { if (toNum(ctx.value) >= toNum(evaluate(op.substring(2).trim()))) ctx.matched = true; }
-                        else if (upperOp.startsWith('<=')) { if (toNum(ctx.value) <= toNum(evaluate(op.substring(2).trim()))) ctx.matched = true; }
-                        else if (upperOp.startsWith('>')) { if (toNum(ctx.value) > toNum(evaluate(op.substring(1).trim()))) ctx.matched = true; }
-                        else if (upperOp.startsWith('<')) { if (toNum(ctx.value) < toNum(evaluate(op.substring(1).trim()))) ctx.matched = true; }
-                        else if (upperOp.startsWith('=')) { if (valueOf(ctx.value) === valueOf(evaluate(op.substring(1).trim()))) ctx.matched = true; }
-                    } else {
-                        const caseVals = caseExpr.split(',').map(s => valueOf(evaluate(s.trim())));
-                        if (caseVals.includes(valueOf(ctx.value))) ctx.matched = true;
-                    }
-                }
-                return null;
-            }
-
-            if (upper === 'END SELECT') {
-                if (selectStack.length > 0) selectStack.pop();
-                return null;
-            }
-
-            if (upper.startsWith('IF ') && (upper.includes(' THEN') || upper.endsWith(' THEN'))) {
-                const thenIdx = upper.indexOf(' THEN');
-                const condStr = line.substring(3, thenIdx).trim();
-                const rest = line.substring(thenIdx + 5).trim();
-                const cond = toBool(evaluate(condStr));
-
+            if (/^IF\b/i.test(line) && /\bTHEN\b/i.test(line)) {
+                const thenPos = findKeywordOutsideQuotes(line, 'THEN');
+                const condition = line.slice(2, thenPos).trim();
+                const rest = line.slice(thenPos + 4).trim();
+                const cond = toBool(evaluate(condition, env));
                 if (rest) {
                     if (cond) {
-                        const stmts = rest.split(':');
-                        for (const stmt of stmts) {
-                            const r = executeLine(stmt.trim());
-                            if (r) return r;
+                        for (const stmt of splitStatements(rest)) {
+                            const r = executeStatement(stmt, stmt.toUpperCase(), env, lineIndex, procedure);
+                            if (r?.return || r?.exitProcedure) return r;
                         }
                     }
                     return null;
                 }
 
-                if (!cond) {
-                    skipToElseOrEndIf();
-                }
-                return null;
-            }
-
-            if (upper.startsWith('ELSEIF ') && upper.includes(' THEN')) {
-                return null;
-            }
-
-            if (upper === 'ELSE') {
-                return null;
-            }
-
-            if (upper === 'END IF') {
-                return null;
-            }
-
-            if (upper.startsWith('SUB ')) {
-                const nameMatch = line.match(/^Sub\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\(([^)]*)\))?/i);
-                if (nameMatch) {
-                    const name = nameMatch[1].toUpperCase();
-                    const params = nameMatch[2] ? nameMatch[2].split(',').map(p => p.trim().replace(/\s+As\s+\w+/i, '').toUpperCase()) : [];
-                    const { body, endLine } = parseBlock(pc + 1, 'sub');
-                    subs[name] = { params, body, startLine: pc, endLine };
-                    pc = endLine;
-                }
-                return null;
-            }
-
-            if (upper === 'END SUB') {
-                return null;
-            }
-
-            if (upper.startsWith('FUNCTION ')) {
-                const nameMatch = line.match(/^Function\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\(([^)]*)\))?/i);
-                if (nameMatch) {
-                    const name = nameMatch[1].toUpperCase();
-                    const params = nameMatch[2] ? nameMatch[2].split(',').map(p => p.trim().replace(/\s+As\s+\w+/i, '').toUpperCase()) : [];
-                    const { body, endLine } = parseBlock(pc + 1, 'function');
-                    functions[name] = { params, body, startLine: pc, endLine };
-                    pc = endLine;
-                }
-                return null;
-            }
-
-            if (upper === 'END FUNCTION') {
-                return null;
-            }
-
-            if (upper.startsWith('CALL ')) {
-                const callExpr = line.substring(5).trim();
-                const fnMatch = callExpr.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\(([^)]*)\))?$/);
-                if (fnMatch) {
-                    const name = fnMatch[1].toUpperCase();
-                    const argStr = fnMatch[2] || '';
-                    const args = argStr ? splitArgs(argStr).map(a => evaluate(a.trim())) : [];
-                    if (subs[name]) {
-                        return callSub(name, args);
-                    }
-                    evaluate(callExpr);
-                }
-                return null;
-            }
-
-            if (upper.startsWith('FOR ')) {
-                const forMatch = line.match(/^For\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.+?)\s+To\s+(.+?)(?:\s+Step\s+(.+))?$/i);
-                if (forMatch) {
-                    const varName = forMatch[1].toUpperCase();
-                    const from = toNum(evaluate(forMatch[2]));
-                    const to = toNum(evaluate(forMatch[3]));
-                    const step = forMatch[4] ? toNum(evaluate(forMatch[4])) : 1;
-                    vars[varName] = from;
-                    forStack.push({ varName, to, step, startPc: pc + 1, loopStartLine: pc });
-                }
-                return null;
-            }
-
-            if (upper.startsWith('FOR EACH ') || upper.startsWith('FOREACH ')) {
-                const feMatch = line.match(/^For\s+Each\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+In\s+(.+?)$/i) || line.match(/^ForEach\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+In\s+(.+?)$/i);
-                if (feMatch) {
-                    const varName = feMatch[1].toUpperCase();
-                    const collection = evaluate(feMatch[2]);
-                    const arr = Array.isArray(collection) ? collection : [];
-                    forStack.push({ varName, collection: arr, index: 0, startPc: pc + 1, isForEach: true, loopStartLine: pc });
-                    if (arr.length > 0) vars[varName] = arr[0];
-                    else {
-                        skipToNext();
-                    }
-                }
-                return null;
-            }
-
-            if (upper === 'NEXT') {
-                if (forStack.length > 0) {
-                    const ctx = forStack[forStack.length - 1];
-                    if (ctx.isForEach) {
-                        ctx.index++;
-                        if (ctx.index < ctx.collection.length) {
-                            vars[ctx.varName] = ctx.collection[ctx.index];
-                            pc = ctx.startPc;
-                        } else {
-                            forStack.pop();
-                        }
+                const endIf = findMatchingEndIf(lineIndex);
+                const branches = findIfBranches(lineIndex, endIf);
+                let selected = null;
+                for (const b of branches) {
+                    if (b.start === lineIndex) {
+                        if (cond) { selected = { from: lineIndex + 1, to: b.end }; break; }
                     } else {
-                        vars[ctx.varName] += ctx.step;
-                        const done = ctx.step > 0 ? vars[ctx.varName] > ctx.to : vars[ctx.varName] < ctx.to;
-                        if (!done) pc = ctx.startPc;
-                        else forStack.pop();
-                    }
-                }
-                return null;
-            }
-
-            if (upper.startsWith('NEXT ')) {
-                return executeLine('Next');
-            }
-
-            if (upper.startsWith('DO ') || upper === 'DO') {
-                const doMatch = upper.match(/^DO\s+(WHILE|UNTIL)\s+(.+)$/);
-                if (doMatch) {
-                    const type = doMatch[1];
-                    const cond = doMatch[2].trim();
-                    const condVal = type === 'WHILE' ? toBool(evaluate(cond)) : !toBool(evaluate(cond));
-                    doStack.push({ type: 'do', condType: type, cond, startPc: pc + 1, condStr: cond, loopStartLine: pc });
-                    if (!condVal) skipToLoopEnd();
-                } else {
-                    doStack.push({ type: 'do', condType: null, startPc: pc + 1, loopStartLine: pc });
-                }
-                return null;
-            }
-
-            if (upper.startsWith('LOOP')) {
-                const loopMatch = upper.match(/^LOOP\s*(WHILE|UNTIL)?\s*(.*)?$/);
-                if (doStack.length > 0) {
-                    const ctx = doStack[doStack.length - 1];
-                    if (loopMatch && loopMatch[1]) {
-                        const loopType = loopMatch[1];
-                        const cond = loopMatch[2] ? loopMatch[2].trim() : ctx.condStr;
-                        const condVal = loopType === 'WHILE' ? toBool(evaluate(cond)) : !toBool(evaluate(cond));
-                        if (condVal) pc = ctx.startPc;
-                        else doStack.pop();
-                    } else {
-                        if (ctx.condType) {
-                            const condVal = ctx.condType === 'WHILE' ? toBool(evaluate(ctx.condStr)) : !toBool(evaluate(ctx.condStr));
-                            if (condVal) pc = ctx.startPc;
-                            else doStack.pop();
-                        } else {
-                            pc = ctx.startPc;
+                        const bLine = lines[b.line].trim();
+                        if (/^ELSEIF\b/i.test(bLine)) {
+                            const p = findKeywordOutsideQuotes(bLine, 'THEN');
+                            if (toBool(evaluate(bLine.slice(6, p).trim(), env))) {
+                                selected = { from: b.line + 1, to: b.end };
+                                break;
+                            }
+                        } else if (/^ELSE$/i.test(bLine)) {
+                            selected = { from: b.line + 1, to: b.end };
+                            break;
                         }
                     }
                 }
-                return null;
+                if (selected) executeRange(selected.from, selected.to, env, procedure);
+                return { jump: endIf + 1 };
             }
 
-            if (upper.startsWith('WHILE ') || upper === 'WHILE') {
-                const whileMatch = upper.match(/^WHILE\s+(.+)$/);
-                if (whileMatch) {
-                    const cond = whileMatch[1].trim();
-                    const condVal = toBool(evaluate(cond));
-                    doStack.push({ type: 'while', cond, startPc: pc + 1, condStr: cond, loopStartLine: pc });
-                    if (!condVal) skipToWend();
-                }
-                return null;
-            }
-
-            if (upper === 'WEND') {
-                if (doStack.length > 0 && doStack[doStack.length - 1].type === 'while') {
-                    const ctx = doStack.pop();
-                    const condVal = toBool(evaluate(ctx.condStr));
-                    if (condVal) pc = ctx.startPc;
-                }
-                return null;
-            }
-
-            if (upper.startsWith('EXIT FOR')) {
-                if (forStack.length > 0) {
-                    const ctx = forStack.pop();
-                    skipToNext();
-                }
-                return null;
-            }
-
-            if (upper.startsWith('EXIT DO')) {
-                if (doStack.length > 0) {
-                    doStack.pop();
-                    skipToLoopEnd();
-                }
-                return null;
-            }
-
-            if (upper.startsWith('EXIT SUB') || upper === 'EXIT SUB') {
-                return { type: 'exit' };
-            }
-
-            if (upper.startsWith('EXIT FUNCTION') || upper === 'EXIT FUNCTION') {
-                return { type: 'exit' };
-            }
-
-            if (upper.startsWith('ON ERROR RESUME NEXT')) {
-                errorResume = true;
-                return null;
-            }
-
-            if (upper.startsWith('ON ERROR GOTO 0') || upper === 'ON ERROR GOTO 0') {
-                errorResume = false;
-                return null;
-            }
-
-            if (upper.startsWith('WSCRIPT.ECHO ') || upper === 'WSCRIPT.ECHO') {
-                const args = splitArgs(line.substring(13).trim());
-                const msg = args.map(a => valueOf(evaluate(a))).join(' ');
-                printFn(msg);
-                return null;
-            }
-
-            if (upper.startsWith('WSCRIPT.STDOUT.WRITELINE ') || upper === 'WSCRIPT.STDOUT.WRITELINE') {
-                const arg = line.substring(25).trim();
-                printFn(toStr(evaluate(arg)));
-                return null;
-            }
-
-            if (upper.startsWith('WSCRIPT.STDOUT.WRITE ') || upper === 'WSCRIPT.STDOUT.WRITE') {
-                const arg = line.substring(21).trim();
-                printFn(toStr(evaluate(arg)));
-                return null;
-            }
-
-            if (upper.startsWith('WSCRIPT.SLEEP ')) {
-                return null;
-            }
-
-            if (upper === 'STOP' || upper === 'END') {
-                running = false;
-                stopRequested = true;
-                return null;
-            }
-
-            const assignMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_.]*(?:\([^)]*\))?)\s*=\s*(.+)$/);
-            if (assignMatch) {
-                const left = assignMatch[1].trim();
-                const right = assignMatch[2].trim();
-                const val = evaluate(right);
-
-                const dotIdx = left.indexOf('.');
-                const parenIdx = left.indexOf('(');
-                if (dotIdx > -1 && (parenIdx === -1 || dotIdx < parenIdx)) {
-                    const objName = left.substring(0, dotIdx).trim().toUpperCase();
-                    const chain = left.substring(dotIdx + 1).trim();
-                    const obj = vars[objName];
-                    if (obj && typeof obj === 'object') {
-                        executePropertyAssign(obj, chain, val);
-                    }
-                } else if (parenIdx > -1) {
-                    const arrMatch = left.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*\((.+?)\)$/);
-                    if (arrMatch) {
-                        const arrName = arrMatch[1].toUpperCase();
-                        const idx = toNum(evaluate(arrMatch[2]));
-                        if (vars[arrName] && Array.isArray(vars[arrName])) {
-                            vars[arrName][idx] = val;
-                        }
-                    }
-                } else {
-                    const varName = left.toUpperCase();
-                    if (functions[varName]) {
-                        vars[varName] = val;
-                    } else {
-                        vars[varName] = val;
+            if (/^SELECT\s+CASE\b/i.test(line)) {
+                const end = findLoopEnd(lineIndex, 'SELECT');
+                const wanted = evaluate(line.replace(/^Select\s+Case\s+/i, ''), env);
+                const cases = [];
+                let current = null;
+                for (let j = lineIndex + 1; j < end; j++) {
+                    const x = lines[j].trim();
+                    if (/^CASE\b/i.test(x)) {
+                        if (current) current.end = j;
+                        const exprText = x.replace(/^Case\s+/i, '').trim();
+                        current = { line: j, expr: exprText, start: j + 1, end };
+                        cases.push(current);
                     }
                 }
+                if (current) current.end = end;
+
+                let chosen = cases.find(c => !/^ELSE$/i.test(c.expr) && caseMatches(wanted, c.expr, env));
+                if (!chosen) chosen = cases.find(c => /^ELSE$/i.test(c.expr));
+
+                if (chosen) executeRange(chosen.start, chosen.end, env, procedure);
+                return { jump: end + 1 };
+            }
+
+            if (/^FOR\s+EACH\b/i.test(line)) {
+                const end = findLoopEnd(lineIndex, 'FOR');
+                const m = line.match(/^For\s+Each\s+([A-Za-z_][A-Za-z0-9_]*)\s+In\s+(.+)$/i);
+                if (!m) return { jump: end + 1 };
+                const collection = evaluate(m[2], env);
+                const arr = Array.isArray(collection) ? collection : (collection?.__vbCollection ? collection : []);
+                if (Array.isArray(arr)) {
+                    for (const item of arr) {
+                        env[key(m[1])] = item;
+                        executeRange(lineIndex + 1, end, env, procedure);
+                        if (!running) break;
+                    }
+                }
+                return { jump: end + 1 };
+            }
+
+            if (/^FOR\b/i.test(line)) {
+                const end = findLoopEnd(lineIndex, 'FOR');
+                const m = line.match(/^For\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s+To\s+(.+?)(?:\s+Step\s+(.+))?$/i);
+                if (!m) return { jump: end + 1 };
+                const name = key(m[1]);
+                let value = toNum(evaluate(m[2], env));
+                const limit = toNum(evaluate(m[3], env));
+                const step = m[4] ? toNum(evaluate(m[4], env)) : 1;
+                if (step === 0) throw makeRuntimeError(5, 'Invalid procedure call or argument');
+                const condition = () => step > 0 ? value <= limit : value >= limit;
+                while (condition() && running) {
+                    env[name] = value;
+                    executeRange(lineIndex + 1, end, env, procedure);
+                    value += step;
+                }
+                return { jump: end + 1 };
+            }
+
+            if (/^DO(?:\s|$)/i.test(line)) {
+                const end = findLoopEnd(lineIndex, 'DO');
+                const suffix = line.replace(/^Do\s*/i, '').trim();
+                const preWhile = /^While\s+(.+)$/i.exec(suffix);
+                const preUntil = /^Until\s+(.+)$/i.exec(suffix);
+                while (running) {
+                    if (preWhile && !toBool(evaluate(preWhile[1], env))) break;
+                    if (preUntil && toBool(evaluate(preUntil[1], env))) break;
+                    executeRange(lineIndex + 1, end, env, procedure);
+                    if (!running) break;
+                    const tail = lines[end].trim().replace(/^Loop\s*/i, '').trim();
+                    if (/^While\s+/i.test(tail) && !toBool(evaluate(tail.replace(/^While\s+/i, ''), env))) break;
+                    if (/^Until\s+/i.test(tail) && toBool(evaluate(tail.replace(/^Until\s+/i, ''), env))) break;
+                }
+                return { jump: end + 1 };
+            }
+
+            if (/^WHILE\b/i.test(line)) {
+                const end = findLoopEnd(lineIndex, 'WHILE');
+                const cond = line.replace(/^While\s+/i, '');
+                while (running && toBool(evaluate(cond, env))) executeRange(lineIndex + 1, end, env, procedure);
+                return { jump: end + 1 };
+            }
+
+            if (/^WEND$/i.test(line) || /^NEXT(?:\s+\w+)?$/i.test(line) || /^LOOP\b/i.test(line) || /^END\s+(IF|SELECT|CLASS|SUB|FUNCTION|PROPERTY)$/i.test(line) || /^ELSE(?:IF)?\b/i.test(line) || /^CASE\b/i.test(line)) return null;
+
+            if (/^WSCRIPT\.ECHO(?:\s|$)/i.test(line)) {
+                const rest = line.replace(/^WScript\.Echo\s*/i, '');
+                const parts = splitTopLevel(rest);
+                WScript.Echo(...parts.map(x => evaluate(x, env)));
+                return null;
+            }
+            if (/^WSCRIPT\.STDOUT\.WRITELINE(?:\s|$)/i.test(line)) {
+                WScript.StdOut.WriteLine(evaluate(line.replace(/^WScript\.StdOut\.WriteLine\s*/i, ''), env));
+                return null;
+            }
+            if (/^WSCRIPT\.STDOUT\.WRITE(?:\s|$)/i.test(line)) {
+                WScript.StdOut.Write(evaluate(line.replace(/^WScript\.StdOut\.Write\s*/i, ''), env));
+                return null;
+            }
+            if (/^WSCRIPT\.SLEEP\b/i.test(line)) return null;
+
+            if (/^CALL\b/i.test(line)) {
+                const parsed = parseCallStatement(line.slice(4).trim());
+                if (parsed && subs[key(parsed.name)]) callSub(parsed.name, parsed.args);
+                else if (parsed && functions[key(parsed.name)]) callFunction(parsed.name, parsed.args);
                 return null;
             }
 
-            const upperClean = upper.replace(/\s+/g, ' ').trim();
-
-            if (upperClean.startsWith('MSGBOX ')) {
-                const args = splitArgs(line.substring(7).trim());
-                const msg = args.map(a => valueOf(evaluate(a))).join(' ');
-                printFn(msg);
+            // "Set x = expr" and normal assignments.
+            const assignmentText = line.replace(/^SET\s+/i, '');
+            const eq = findTopLevelEquals(assignmentText);
+            if (eq >= 0 && !/^IF\b/i.test(line)) {
+                const lhs = assignmentText.slice(0, eq).trim();
+                const rhs = assignmentText.slice(eq + 1).trim();
+                assign(lhs, evaluate(rhs, env), env);
                 return null;
             }
 
-            const subCallMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\(([^)]*)\))?$/);
-            if (subCallMatch) {
-                const name = subCallMatch[1].toUpperCase();
-                const argStr = subCallMatch[2] || '';
-                const args = argStr ? splitArgs(argStr).map(a => evaluate(a.trim())) : [];
-                if (subs[name]) return callSub(name, args);
-                if (functions[name]) { callFunction(name, args); return null; }
-                evaluate(line);
+            const callMatch = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*(.*)$/s);
+            if (callMatch && (subs[key(callMatch[1])] || functions[key(callMatch[1])] || builtInStatement(key(callMatch[1])))) {
+                const name = key(callMatch[1]);
+                const rest = callMatch[2].trim();
+                const callArgs = rest ? splitTopLevel(rest.startsWith('(') && rest.endsWith(')') ? rest.slice(1, -1) : rest).map(x => evaluate(x, env)) : [];
+                if (subs[name]) callSub(name, callArgs);
+                else if (functions[name]) callFunction(name, callArgs);
+                else callBuiltin(name, callArgs);
                 return null;
             }
 
-            } catch (e) {
-                Err.Number = 11;
-                Err.Description = e.message || String(e);
-                if (!errorResume) printFn('Error: ' + Err.Description);
+            if (/^MSGBOX(?:\s|$)/i.test(line)) {
+                WScript.Echo(evaluate(line.replace(/^MsgBox\s*/i, ''), env));
+                return null;
             }
 
+            // Object method statements such as Err.Clear or fso.DeleteFile "x".
+            const methodStmt = line.match(/^([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+)\s*(.*)$/s);
+            if (methodStmt) {
+                const chain = methodStmt[1].split('.');
+                let obj = getVar(chain.shift(), env);
+                for (const prop of chain.slice(0, -1)) obj = getProperty(obj, prop);
+                const method = chain.at(-1);
+                const rest = methodStmt[2].trim();
+                const argsList = rest ? splitTopLevel(rest.startsWith('(') && rest.endsWith(')') ? rest.slice(1, -1) : rest).map(x => evaluate(x, env)) : [];
+                const fn = obj?.[method] ?? obj?.[method.toUpperCase()];
+                if (typeof fn === 'function') fn.apply(obj, argsList);
+                else if (rest || obj) invoke(obj, method, argsList);
+                return null;
+            }
+
+            // Bare expression statement.
+            evaluate(line, env);
             return null;
         }
 
-        function callSub(name, args) {
-            const sub = subs[name];
-            if (!sub) return null;
-            const savedVars = { ...vars };
-            if (sub.params) {
-                sub.params.forEach((p, i) => { vars[p] = args[i] !== undefined ? args[i] : ''; });
-            }
-            const result = executeBlock(sub.body, sub.startLine + 1, 'sub');
-            vars = savedVars;
-            return result;
+        function builtInStatement(name) {
+            return ['MSGBOX', 'INPUTBOX'].includes(name);
         }
 
-        function skipToElseOrEndIf() {
-            let depth = 1;
-            let i = pc + 1;
-            while (i < lines.length && depth > 0) {
-                const line = lines[i].trim().toUpperCase().replace(/\s+/g, ' ');
-                if (line.startsWith('IF ') && line.includes(' THEN')) depth++;
-                else if (line === 'END IF') depth--;
-                else if (depth === 1 && (line === 'ELSE' || line.startsWith('ELSEIF '))) {
-                    pc = i;
-                    return;
+        function findKeywordOutsideQuotes(text, keyword) {
+            let quote = false, depth = 0;
+            const u = text.toUpperCase();
+            for (let i = 0; i <= text.length - keyword.length; i++) {
+                if (text[i] === '"') {
+                    if (quote && text[i + 1] === '"') { i++; continue; }
+                    quote = !quote;
+                } else if (!quote) {
+                    if (text[i] === '(') depth++;
+                    else if (text[i] === ')') depth--;
+                    if (depth === 0 && u.slice(i, i + keyword.length) === keyword &&
+                        (i === 0 || /\s/.test(text[i - 1])) &&
+                        (i + keyword.length === text.length || /\s/.test(text[i + keyword.length]))) return i;
                 }
-                if (depth === 0) { pc = i; return; }
-                i++;
-            }
-            pc = i;
-        }
-
-        function skipToNext() {
-            let depth = 1;
-            let i = pc + 1;
-            while (i < lines.length && depth > 0) {
-                const line = lines[i].trim().toUpperCase().replace(/\s+/g, ' ');
-                if (line.startsWith('FOR ') || line.startsWith('FOR EACH ') || line.startsWith('FOREACH ')) depth++;
-                else if (line.startsWith('NEXT')) depth--;
-                if (depth === 0) { pc = i; return; }
-                i++;
-            }
-            pc = i;
-        }
-
-        function skipToLoopEnd() {
-            let depth = 1;
-            let i = pc + 1;
-            while (i < lines.length && depth > 0) {
-                const line = lines[i].trim().toUpperCase().replace(/\s+/g, ' ');
-                if (line.startsWith('DO ') || line === 'DO') depth++;
-                else if (line.startsWith('LOOP') || line === 'LOOP') depth--;
-                if (depth === 0) { pc = i; return; }
-                i++;
-            }
-            pc = i;
-        }
-
-        function skipToWend() {
-            let depth = 1;
-            let i = pc + 1;
-            while (i < lines.length && depth > 0) {
-                const line = lines[i].trim().toUpperCase().replace(/\s+/g, ' ');
-                if (line.startsWith('WHILE ')) depth++;
-                else if (line === 'WEND') depth--;
-                if (depth === 0) { pc = i; return; }
-                i++;
-            }
-            pc = i;
-        }
-
-        function findEquals(str) {
-            let depth = 0;
-            let inStr = false;
-            let strChar = '';
-            for (let i = 0; i < str.length; i++) {
-                const ch = str[i];
-                if (inStr) {
-                    if (ch === strChar && str[i + 1] !== strChar) inStr = false;
-                    continue;
-                }
-                if (ch === '"' || ch === "'") { inStr = true; strChar = ch; continue; }
-                if (ch === '(') { depth++; continue; }
-                if (ch === ')') { depth--; continue; }
-                if (ch === '=' && depth === 0 && i > 0) return i;
             }
             return -1;
         }
 
-        function run(script, args) {
-            lines = script.split('\n').map(l => l.replace(/\r/g, ''));
+        function splitStatements(rest) {
+            const out = [];
+            let cur = '', quote = false;
+            for (let i = 0; i < rest.length; i++) {
+                const ch = rest[i];
+                if (ch === '"') {
+                    if (quote && rest[i + 1] === '"') { cur += '""'; i++; continue; }
+                    quote = !quote;
+                    cur += ch;
+                } else if (ch === ':' && !quote) {
+                    if (cur.trim()) out.push(cur.trim());
+                    cur = '';
+                } else cur += ch;
+            }
+            if (cur.trim()) out.push(cur.trim());
+            return out;
+        }
+
+        function caseMatches(wanted, expression, env) {
+            for (const item of splitTopLevel(expression)) {
+                const x = item.trim();
+                const m = x.match(/^Is\s*(<>|<=|>=|<|>|=)\s*(.*)$/i);
+                if (m) {
+                    if (compare(wanted, evaluate(m[2], env), m[1])) return true;
+                } else {
+                    const range = x.match(/^(.+?)\s+To\s+(.+)$/i);
+                    if (range && toNum(wanted) >= toNum(evaluate(range[1], env)) && toNum(wanted) <= toNum(evaluate(range[2], env))) return true;
+                    if (compare(wanted, evaluate(x, env), '=')) return true;
+                }
+            }
+            return false;
+        }
+
+        function findExitTarget(index, type) {
+            if (type === 'FOR') return findLoopEnd(index, 'FOR') + 1;
+            if (type === 'DO') return findLoopEnd(index, 'DO') + 1;
+            return index + 1;
+        }
+
+        function run(script, runArgs = []) {
+            lines = String(script ?? '').split(/\r?\n/);
             pc = 0;
             running = true;
-            errorLevel = 0;
-            vars = {};
-            subs = {};
-            functions = {};
-            consts = {};
-            callStack = [];
-            forStack = [];
-            doStack = [];
-            selectStack = [];
-            errorResume = false;
             stopRequested = false;
+            errorResumeNext = false;
+            args = (runArgs || []).map(String);
+            scriptName = 'script.vbs';
+            mainEnv = Object.create(null);
+            declared = new Set();
 
-            WScript.Arguments = { Count: args ? args.length : 0, Item: (i) => args ? args[i] || '' : '', Named: {} };
-            WScript.ScriptName = 'script.vbs';
+            WScript.Arguments = {
+                Count: args.length,
+                Item: i => args[Number(i)] ?? '',
+                Named: Object.create(null)
+            };
 
-            if (args) {
-                vars['WSCRIPT.ARGUMENTS'] = args;
-            }
+            setVar('WSCRIPT', WScript, mainEnv);
+            setVar('ERR', Err, mainEnv);
+            setVar('NOTHING', null, mainEnv);
+            setVar('NULL', null, mainEnv);
+            WScript.ScriptName = scriptName;
+            WScript.ScriptFullName = `C:\\${scriptName}`;
 
-            vars['WSCRIPT'] = WScript;
-            vars['WSCRIPT.SCRIPTNAME'] = 'script.vbs';
-            vars['ERR'] = Err;
-            vars['NOTHING'] = null;
-            vars['NULL'] = null;
+            Err.Clear();
+            preprocess();
 
-            const maxIter = 500000;
-            let iter = 0;
-
-            while (pc < lines.length && running && iter < maxIter) {
-                iter++;
+            // Skip declarations/procedure definitions are handled by the range executor;
+            // all procedure bodies are skipped when encountered on the main path.
+            while (pc < lines.length && running && !stopRequested) {
                 const line = lines[pc].trim();
-
-                const upper = line.toUpperCase().replace(/\s+/g, ' ').trim();
-
-                if (upper === 'OPTION EXPLICIT') { pc++; continue; }
-
-                if (upper.startsWith('SUB ') || upper.startsWith('FUNCTION ') || upper.startsWith('CLASS ')) {
-                    const blockType = upper.startsWith('CLASS ') ? 'class' : upper.startsWith('SUB ') ? 'sub' : 'function';
-                    const { endLine } = parseBlock(pc + 1, blockType);
-                    pc = endLine + 1;
+                const up = line.toUpperCase();
+                if (/^SUB\b/i.test(line)) {
+                    pc = subs[key(line.match(/^Sub\s+([A-Za-z_][A-Za-z0-9_]*)/i)?.[1] || '')]?.end + 1 || pc + 1;
+                    continue;
+                }
+                if (/^FUNCTION\b/i.test(line)) {
+                    pc = functions[key(line.match(/^Function\s+([A-Za-z_][A-Za-z0-9_]*)/i)?.[1] || '')]?.end + 1 || pc + 1;
+                    continue;
+                }
+                if (/^CLASS\b/i.test(line)) {
+                    pc = findEnd(pc + 1, /^End\s+Class$/i) + 1;
                     continue;
                 }
 
-                if (upper.startsWith('DIM ') || upper.startsWith('CONST ') || upper.startsWith('REDIM ') || upper.startsWith('REDIMPRESERVE ')) {
-                    executeLine(line);
-                    pc++;
-                    continue;
+                const before = pc;
+                try {
+                    const r = executeStatement(line, up, mainEnv, pc);
+                    if (r?.jump !== undefined) pc = r.jump;
+                    else pc++;
+                } catch (e) {
+                    Err.Number = e?.vbNumber || 5;
+                    Err.Description = e?.message || String(e);
+                    if (errorResumeNext) pc++;
+                    else {
+                        printFn(`Error ${Err.Number}: ${Err.Description}`);
+                        errorLevel = Err.Number;
+                        running = false;
+                    }
                 }
 
-                if (upper.startsWith('CLASS ')) {
-                    const { endLine } = parseBlock(pc + 1, 'class');
-                    pc = endLine + 1;
-                    continue;
-                }
-
-                if (upper === 'END CLASS') { pc++; continue; }
-
-                const oldPc = pc;
-                executeLine(line);
-
-                if (running && !stopRequested && pc === oldPc) {
-                    pc++;
-                }
-            }
-
-            if (iter >= maxIter) {
-                printFn('VBScript exceeded maximum iterations (possible infinite loop).');
+                if (pc === before) pc++;
             }
 
             running = false;
-            return errorLevel;
+            return typeof errorLevel === 'number' ? errorLevel : 0;
         }
 
+        let errorLevel = 0;
         return { run };
     }
 

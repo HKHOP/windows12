@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4260] - 2026-09-01
+
+### Changed
+- Complete rewrite of VBScript engine with new parser architecture (range-based execution, procedure pre-scan, improved error handling)
+- Complete rewrite of Batch engine with improved command parsing and execution
+
 ## [12.0.4250] - 2026-09-01
 
 ### Fixed
