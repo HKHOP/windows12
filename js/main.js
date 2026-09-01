@@ -18,6 +18,7 @@ import Calculator from './apps/calculator.js';
 import Clock from './apps/clock.js';
 import Paint from './apps/paint.js';
 import Browser from './apps/browser.js';
+import Terminal from './apps/terminal.js';
 
 AppRegistry.register('settings', Settings);
 AppRegistry.register('notepad', Notepad);
@@ -29,6 +30,7 @@ AppRegistry.register('calculator', Calculator);
 AppRegistry.register('clock', Clock);
 AppRegistry.register('paint', Paint);
 AppRegistry.register('browser', Browser);
+AppRegistry.register('terminal', Terminal);
 
 document.addEventListener('DOMContentLoaded', () => {
     window.SystemConfig = SystemConfig;

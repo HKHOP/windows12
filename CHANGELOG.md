@@ -4,6 +4,15 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4170] - 2026-09-01
+
+### Added
+- Terminal app with filesystem browsing and command execution
+- Commands: ls/dir, cd, pwd, cat, echo, mkdir, touch, write, rm, rename, clear, history, whoami, date, neofetch, help
+- Command history with up/down arrow navigation
+- Ctrl+L to clear, Ctrl+C to cancel input
+- Path resolution supporting absolute (/), relative (./../), and home (~) paths
+
 ## [12.0.4160] - 2026-09-01
 
 ### Added
