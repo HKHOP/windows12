@@ -1,4 +1,5 @@
 import FileSystem from './fileSystem.js';
+import Popup from './popup.js';
 
 const BatchEngine = (() => {
     function create(printFn, getCwd, setCwd) {
@@ -13,6 +14,7 @@ const BatchEngine = (() => {
         let breakCalled = false;
         let forStack = [];
         let currentForCtx = null;
+        let waitingForAsync = false;
 
         const builtins = {
             '%DATE%': () => new Date().toLocaleDateString(),
@@ -270,6 +272,9 @@ const BatchEngine = (() => {
                 return;
             }
 
+            if (lower === 'echo off') { echoOn = false; return; }
+            if (lower === 'echo on') { echoOn = true; return; }
+
             if (lower.startsWith('echo ')) {
                 let text = line.substring(5);
                 if (text === '' || text === '.') {
@@ -284,9 +289,6 @@ const BatchEngine = (() => {
                 doPrint(echoOn ? 'ECHO is on.' : 'ECHO is off.', redirect);
                 return;
             }
-
-            if (lower === 'echo off') { echoOn = false; return; }
-            if (lower === 'echo on') { echoOn = true; return; }
 
             if (lower.startsWith('set ')) {
                 const rest = line.substring(4).trim();
@@ -514,6 +516,53 @@ const BatchEngine = (() => {
                 return;
             }
 
+            if (lower.startsWith('choice ')) {
+                const choiceArgs = line.substring(7).trim();
+                let choices = [];
+                let message = '';
+                let timeout = null;
+                let defaultChoice = null;
+                const parts = choiceArgs.split(/\s+/);
+                for (let i = 0; i < parts.length; i++) {
+                    const part = parts[i];
+                    if (part.toUpperCase() === '/C' && parts[i + 1]) {
+                        choices = parts[++i].split('');
+                    } else if (part.toUpperCase() === '/M' && parts[i + 1]) {
+                        message = parts[++i].replace(/^"|"$/g, '');
+                    } else if (part.toUpperCase() === '/T' && parts[i + 1]) {
+                        timeout = parseInt(parts[++i]);
+                    } else if (part.toUpperCase() === '/D' && parts[i + 1]) {
+                        defaultChoice = parts[++i];
+                    }
+                }
+                if (choices.length === 0) choices = ['Y', 'N'];
+                if (!message) message = choices.join(',') + '?';
+
+                doPrint(message, redirect);
+
+                const choiceChars = choices.map(c => c.toUpperCase());
+                const choiceButtons = choices.map((c, idx) => ({ label: `[${c.toUpperCase()}] ${c}`, value: idx + 1 }));
+
+                running = false;
+                waitingForAsync = true;
+
+                Popup.pick(message, choiceButtons).then(result => {
+                    if (result !== null && result !== undefined) {
+                        errorLevel = result;
+                    } else if (defaultChoice) {
+                        const idx = choiceChars.indexOf(defaultChoice.toUpperCase());
+                        errorLevel = idx >= 0 ? idx + 1 : 1;
+                    } else {
+                        errorLevel = 1;
+                    }
+                    resumeAfterAsync();
+                }).catch(() => {
+                    errorLevel = 1;
+                    resumeAfterAsync();
+                });
+                return;
+            }
+
             if (lower.startsWith('findstr ') || lower.startsWith('find ')) {
                 const args = parseArgs(line.replace(/^find(str)?\s+/i, '').trim());
                 if (args.length < 2) {
@@ -652,16 +701,32 @@ const BatchEngine = (() => {
         }
 
         function handleIf(expr) {
-            let condition, action;
-            const lowerExpr = expr.toLowerCase();
+            let condition, trueAction, falseAction;
 
             const elseIdx = findElseIndex(expr);
-            if (elseIdx >= 0) {
+
+            const parenStart = expr.indexOf('(');
+            if (parenStart >= 0 && (elseIdx < 0 || parenStart < elseIdx)) {
+                condition = expr.substring(0, parenStart).trim();
+                const blockEnd = findBlockEnd(expr.substring(parenStart));
+                if (blockEnd >= 0) {
+                    trueAction = expr.substring(parenStart + 1, parenStart + blockEnd).trim();
+                    const afterBlock = expr.substring(parenStart + blockEnd + 1).trim();
+                    const innerElseIdx = findElseIndex(afterBlock);
+                    if (innerElseIdx >= 0) {
+                        falseAction = afterBlock.substring(innerElseIdx + 4).trim();
+                    }
+                } else {
+                    trueAction = expr.substring(parenStart + 1).trim();
+                }
+            } else if (elseIdx >= 0) {
                 condition = expr.substring(0, elseIdx).trim();
-                action = expr.substring(elseIdx + 4).trim();
+                trueAction = null;
+                falseAction = expr.substring(elseIdx + 4).trim();
             } else {
                 condition = expr;
-                action = null;
+                trueAction = null;
+                falseAction = null;
             }
 
             let result = false;
@@ -677,12 +742,12 @@ const BatchEngine = (() => {
                     const path = resolvePathArray(expandVars(existCheck[2]).trim());
                     const exists = FileSystem.itemExists(path);
                     result = isExist ? exists : !exists;
-                    action = existCheck[3];
+                    trueAction = existCheck[3];
                 } else {
                     const eqCheck = condition.match(/^(.+?)\s*==\s*(.+?)\s+(.+)$/);
                     if (eqCheck) {
                         result = expandVars(eqCheck[1]).trim() === expandVars(eqCheck[2]).trim();
-                        action = eqCheck[3];
+                        trueAction = eqCheck[3];
                     } else {
                         result = evalCondition(condition);
                     }
@@ -690,26 +755,22 @@ const BatchEngine = (() => {
             }
 
             if (result) {
-                executeAction(action);
-            } else if (action) {
-                // action was already extracted above for structured if/else
-            } else if (elseIdx >= 0) {
-                const elseAction = expr.substring(elseIdx + 4).trim();
-                executeAction(elseAction);
+                if (trueAction) executeAction(trueAction);
+            } else {
+                if (falseAction) executeAction(falseAction);
             }
         }
 
         function findElseIndex(expr) {
             let depth = 0;
             let inQuote = false;
-            for (let i = 0; i < expr.length - 3; i++) {
+            for (let i = 0; i < expr.length - 4; i++) {
                 if (expr[i] === '"') inQuote = !inQuote;
                 if (inQuote) continue;
-                const sub = expr.substring(i, i + 5).toLowerCase();
-                if (sub === ' else') {
-                    let before = expr.substring(0, i).trim();
-                    let after = expr.substring(i + 5).trim();
-                    if (before && after) return i + 1;
+                if (expr[i] === '(') depth++;
+                if (expr[i] === ')') depth--;
+                if (depth === 0 && expr.substring(i, i + 5).toLowerCase() === ' else') {
+                    return i + 1;
                 }
             }
             return -1;
@@ -832,6 +893,7 @@ const BatchEngine = (() => {
             errorLevel = 0;
             labels = {};
             vars = {};
+            waitingForAsync = false;
 
             if (args) {
                 args.forEach((arg, i) => {
@@ -839,19 +901,45 @@ const BatchEngine = (() => {
                 });
             }
 
+            return executeLoop();
+        }
+
+        function executeLoop() {
             const maxIter = 100000;
             let iter = 0;
 
             while (pc < lines.length && running && iter < maxIter) {
                 iter++;
-                const line = lines[pc].trim();
+                let line = lines[pc].trim();
 
                 if (line.startsWith(':')) {
                     pc++;
                     continue;
                 }
 
-                executeLine(line);
+                let fullLine = line;
+                if (line.endsWith('(') && !line.toLowerCase().startsWith('rem')) {
+                    let depth = 1;
+                    let blockLines = [line];
+                    pc++;
+                    while (pc < lines.length && depth > 0 && iter < maxIter) {
+                        iter++;
+                        const nextLine = lines[pc].trim();
+                        blockLines.push(nextLine);
+                        for (const ch of nextLine) {
+                            if (ch === '(') depth++;
+                            if (ch === ')') depth--;
+                        }
+                        if (depth > 0) pc++;
+                    }
+                    fullLine = blockLines.join('\n');
+                }
+
+                executeLine(fullLine);
+
+                if (waitingForAsync) {
+                    return;
+                }
 
                 if (running) {
                     pc++;
@@ -864,6 +952,13 @@ const BatchEngine = (() => {
 
             running = false;
             return errorLevel;
+        }
+
+        function resumeAfterAsync() {
+            waitingForAsync = false;
+            running = true;
+            pc++;
+            executeLoop();
         }
 
         return { run };

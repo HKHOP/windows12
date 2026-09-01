@@ -4,6 +4,17 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4210] - 2026-09-01
+
+### Fixed
+- `@echo off` no longer outputs "off" (echo off/on checks now run before echo text handler)
+- `if/else` with parenthesized blocks now works correctly (findElseIndex tracks parentheses depth)
+- Multi-line `if (...) else (...)` blocks are properly accumulated and parsed
+- Closing `)` in if/else blocks no longer treated as unknown command
+
+### Added
+- `choice` command with /C, /M, /T, /D flags (shows popup for user selection, sets %errorlevel%)
+
 ## [12.0.4200] - 2026-09-01
 
 ### Added
