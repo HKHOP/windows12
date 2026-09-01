@@ -307,3 +307,32 @@ select option {
     background: #fff;
     color: #1a1a1a;
 }
+
+#touch-indicator {
+    touch-action: none;
+}
+
+@media (pointer: coarse) {
+    .window-header {
+        min-height: 44px;
+    }
+
+    .resize-handle {
+        width: 16px;
+        height: 16px;
+    }
+
+    .popup-btn {
+        min-height: 40px;
+        padding: 10px 20px;
+    }
+
+    .settings-nav-item {
+        min-height: 44px;
+    }
+
+    .taskbar-btn {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}

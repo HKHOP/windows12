@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4150] - 2026-09-01
+
+### Added
+- Touch screen support — tap to click, long-press (500ms) for right-click context menu
+- Visual touch indicator circle appears at touch point with pulse animation on tap
+- Touch-to-mouse event synthesis so all existing interactions work on touch devices
+- Larger hit targets for window headers, resize handles, taskbar buttons, and popup buttons on touch screens
+
 ## [12.0.4140] - 2026-09-01
 
 ### Added

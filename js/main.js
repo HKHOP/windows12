@@ -6,6 +6,7 @@ import FileSystem from './modules/fileSystem.js';
 import UserActivity from './modules/userActivity.js';
 import SystemConfig from './modules/systemConfig.js';
 import Scaling from './modules/scaling.js';
+import Touch from './modules/touch.js';
 import DesktopIcons from './modules/desktopIcons.js';
 import Settings from './apps/settings.js';
 import Notepad from './apps/notepad.js';
@@ -52,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     StartMenu.init();
     ContextMenu.init();
     DesktopIcons.init();
+    Touch.init();
 
     window._modules = { ContextMenu };
 
