@@ -9,6 +9,10 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 ### Added
 - Text highlighting (selection) support in Terminal output and Browser (content, new tab page, history, downloads)
 
+### Fixed
+- VBScript multi-line block skipping (`skipToElseOrEndIf`, `skipToNext`, `skipToLoopEnd`, `skipToWend`) and `pc` synchronization in `executeBlock` and top-level execution loop
+- VBScript logical `Not` operator precedence relative to `Is` (allows `Not fso Is Nothing` to correctly evaluate `Is` first)
+
 ## [12.0.4230] - 2026-09-01
 
 ### Fixed

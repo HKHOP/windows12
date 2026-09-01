@@ -268,7 +268,7 @@ const VBEngine = (() => {
                         const beforeOk = i === 0 || !/[a-zA-Z0-9_]/.test(before);
                         const afterOk = i + 3 >= expr.length || !/[a-zA-Z0-9_]/.test(after);
                         if (beforeOk && (afterOk || after === '(')) {
-                            const prec = 6; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'right'; i += 3; continue; }
+                            const prec = 3; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'right'; i += 3; continue; }
                         }
                     }
                 }
@@ -583,11 +583,21 @@ const VBEngine = (() => {
             while (i < body.length && running) {
                 pc = body[i];
                 const line = lines[body[i]].trim();
+                const oldPc = pc;
                 const result = executeLine(line);
                 if (result && (result.type === 'return' || result.type === 'exit' || result.type === 'continue' || result.type === 'break')) {
                     return result;
                 }
-                i++;
+                if (pc !== oldPc) {
+                    const newIdx = body.indexOf(pc);
+                    if (newIdx !== -1) {
+                        i = newIdx;
+                    } else {
+                        break;
+                    }
+                } else {
+                    i++;
+                }
             }
             return null;
         }
@@ -1069,13 +1079,13 @@ const VBEngine = (() => {
                 if (line.startsWith('IF ') && line.includes(' THEN')) depth++;
                 else if (line === 'END IF') depth--;
                 else if (depth === 1 && (line === 'ELSE' || line.startsWith('ELSEIF '))) {
-                    pc = i - 1;
+                    pc = i;
                     return;
                 }
-                if (depth === 0) { pc = i - 1; return; }
+                if (depth === 0) { pc = i; return; }
                 i++;
             }
-            pc = i - 1;
+            pc = i;
         }
 
         function skipToNext() {
@@ -1085,9 +1095,10 @@ const VBEngine = (() => {
                 const line = lines[i].trim().toUpperCase().replace(/\s+/g, ' ');
                 if (line.startsWith('FOR ') || line.startsWith('FOR EACH ') || line.startsWith('FOREACH ')) depth++;
                 else if (line.startsWith('NEXT')) depth--;
-                if (depth === 0) { pc = i - 1; return; }
+                if (depth === 0) { pc = i; return; }
                 i++;
             }
+            pc = i;
         }
 
         function skipToLoopEnd() {
@@ -1097,9 +1108,10 @@ const VBEngine = (() => {
                 const line = lines[i].trim().toUpperCase().replace(/\s+/g, ' ');
                 if (line.startsWith('DO ') || line === 'DO') depth++;
                 else if (line.startsWith('LOOP') || line === 'LOOP') depth--;
-                if (depth === 0) { pc = i - 1; return; }
+                if (depth === 0) { pc = i; return; }
                 i++;
             }
+            pc = i;
         }
 
         function skipToWend() {
@@ -1109,9 +1121,10 @@ const VBEngine = (() => {
                 const line = lines[i].trim().toUpperCase().replace(/\s+/g, ' ');
                 if (line.startsWith('WHILE ')) depth++;
                 else if (line === 'WEND') depth--;
-                if (depth === 0) { pc = i - 1; return; }
+                if (depth === 0) { pc = i; return; }
                 i++;
             }
+            pc = i;
         }
 
         function findEquals(str) {
@@ -1193,9 +1206,10 @@ const VBEngine = (() => {
 
                 if (upper === 'END CLASS') { pc++; continue; }
 
+                const oldPc = pc;
                 executeLine(line);
 
-                if (running && !stopRequested) {
+                if (running && !stopRequested && pc === oldPc) {
                     pc++;
                 }
             }
