@@ -639,14 +639,17 @@ const FileExplorer = (() => {
         const displayPath = itemPath.map((p, i) => i === 0 ? 'C:' : p).join('\\');
 
         const termContent = `
-            <div style="margin:0;padding:0;background:#0C0C0C;font-family:'Cascadia Mono','Consolas','Courier New',monospace;font-size:13px;overflow:hidden;display:flex;flex-direction:column;height:100%;">
-                <div class="term-output" style="flex:1;overflow-y:auto;padding:12px 14px;color:#CCCCCC;white-space:pre-wrap;word-break:break-all;line-height:1.4;"></div>
-                <div style="padding:4px 14px 8px;color:#555;font-size:11px;border-top:1px solid #222;">Script: ${displayPath}</div>
+            <div style="margin:0;padding:0;background:#0C0C0C;font-family:'Cascadia Mono','Consolas','Courier New',monospace;font-size:13px;overflow:hidden;display:flex;flex-direction:column;height:100%;user-select:text;-webkit-user-select:text;">
+                <div class="term-output" style="flex:1;overflow-y:auto;padding:12px 14px;color:#CCCCCC;white-space:pre-wrap;word-break:break-all;line-height:1.4;user-select:text;-webkit-user-select:text;"></div>
+                <div style="padding:4px 14px 8px;color:#555;font-size:11px;border-top:1px solid #222;user-select:none;-webkit-user-select:none;">Script: ${displayPath}</div>
             </div>
         `;
 
         const win = WindowManager.createWindow('terminal', `${name} - Terminal`, terminalIcon, termContent, { width: 700, height: 450 });
         const output = win.element.querySelector('.term-output');
+
+        output.addEventListener('selectstart', (e) => e.stopPropagation());
+        output.addEventListener('mousedown', (e) => e.stopPropagation());
 
         const printFn = (text) => {
             if (text === '\x1BCLS') {

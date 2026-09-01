@@ -8,6 +8,7 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 
 ### Fixed
 - Terminal text selection now works by stopping mousedown/selectstart propagation on the output area and only focusing input when no text is selected
+- Script execution terminal (BAT/VBS) now also supports text selection with same user-select and event listener fixes
 
 ## [12.0.4240] - 2026-09-01
 
