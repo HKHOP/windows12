@@ -5,6 +5,7 @@ import UserActivity from '../modules/userActivity.js';
 import SystemConfig from '../modules/systemConfig.js';
 import Popup from '../modules/popup.js';
 import DesktopIcons from '../modules/desktopIcons.js';
+import BatchEngine from '../modules/batchEngine.js';
 
 const FileExplorer = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 7V17C3 18.1 3.9 19 5 19H19C20.1 19 21 18.1 21 17V9C21 7.9 20.1 7 19 7H11L9 5H5C3.9 5 3 5.9 3 7Z" fill="#FFC107"/><path d="M3 7H21V9H3V7Z" fill="#FFD54F"/></svg>`;
@@ -309,6 +310,7 @@ const FileExplorer = (() => {
         const apps = [
             { name: 'Notepad', id: 'notepad', exts: ['txt', 'md', 'json', 'js', 'html', 'css', 'log', 'cfg'] },
             { name: 'Browser', id: 'browser', exts: ['html'] },
+            { name: 'Terminal', id: 'terminal', exts: ['bat', 'cmd'] },
             { name: 'Paint', id: 'paint', exts: ['png', 'jpg', 'jpeg', 'gif', 'bmp'] },
             { name: 'Photos', id: 'photos', exts: ['png', 'jpg', 'jpeg', 'gif'] }
         ];
@@ -329,7 +331,10 @@ const FileExplorer = (() => {
         const ext = entry.ext || '';
         const textExts = ['txt', 'md', 'json', 'js', 'html', 'css', 'log', 'cfg', 'xml', 'yml', 'yaml', 'csv'];
         const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'];
-        if (imageExts.includes(ext)) {
+        const batchExts = ['bat', 'cmd'];
+        if (batchExts.includes(ext)) {
+            openFileWithTerminal(itemPath, entry);
+        } else if (imageExts.includes(ext)) {
             openFileWithPhotos(itemPath, entry);
         } else if (textExts.includes(ext)) {
             openFileWithNotepad(itemPath);
@@ -365,6 +370,9 @@ const FileExplorer = (() => {
             openFileWithNotepad(itemPath);
         } else if (appId === 'browser') {
             openFileWithBrowser(itemPath);
+        } else if (appId === 'terminal') {
+            const entry = { name: itemPath[itemPath.length - 1], ext: itemPath[itemPath.length - 1].split('.').pop() };
+            openFileWithTerminal(itemPath, entry);
         } else if (appId === 'photos') {
             const entry = { name: itemPath[itemPath.length - 1], ext: itemPath[itemPath.length - 1].split('.').pop() };
             openFileWithPhotos(itemPath, entry);
@@ -411,6 +419,7 @@ const FileExplorer = (() => {
             'xls': '📗', 'xlsx': '📗', 'ppt': '📙',
             'zip': '📦', 'rar': '📦', '7z': '📦',
             'exe': '⚡', 'msi': '⚡',
+            'bat': '⬛', 'cmd': '⬛',
             'log': '📄', 'cfg': '⚙️', 'ini': '⚙️',
             'xml': '📄', 'csv': '📊', 'yml': '📄', 'yaml': '📄'
         };
@@ -614,6 +623,49 @@ const FileExplorer = (() => {
         `;
 
         WindowManager.createWindow('browser', `${name} - Browser`, browserIcon, content2, { width: 800, height: 500 });
+    }
+
+    function openFileWithTerminal(itemPath, entry) {
+        const content = FileSystem.readFile(itemPath);
+        if (content === null) return;
+        const name = entry.name || itemPath[itemPath.length - 1];
+        UserActivity.trackFileOpen(itemPath, name);
+
+        const terminalIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="18" rx="2" fill="#0C0C0C"/><polyline points="6 9 10 12 6 15" stroke="#CCCCCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="15" x2="18" y2="15" stroke="#CCCCCC" stroke-width="2" stroke-linecap="round"/></svg>`;
+
+        const displayPath = itemPath.map((p, i) => i === 0 ? 'C:' : p).join('\\');
+
+        const termContent = `
+            <div style="margin:0;padding:0;background:#0C0C0C;font-family:'Cascadia Mono','Consolas','Courier New',monospace;font-size:13px;overflow:hidden;display:flex;flex-direction:column;height:100%;">
+                <div class="term-output" style="flex:1;overflow-y:auto;padding:12px 14px;color:#CCCCCC;white-space:pre-wrap;word-break:break-all;line-height:1.4;"></div>
+                <div style="padding:4px 14px 8px;color:#555;font-size:11px;border-top:1px solid #222;">Script: ${displayPath}</div>
+            </div>
+        `;
+
+        const win = WindowManager.createWindow('terminal', `${name} - Terminal`, terminalIcon, termContent, { width: 700, height: 450 });
+        const output = win.element.querySelector('.term-output');
+
+        const printFn = (text) => {
+            if (text === '\x1BCLS') {
+                output.textContent = '';
+                return;
+            }
+            output.textContent += text + '\n';
+            output.scrollTop = output.scrollHeight;
+        };
+
+        let scriptCwd = [...itemPath.slice(0, -1)];
+        const batchGetCwd = () => [...scriptCwd];
+        const batchSetCwd = (newCwd) => { scriptCwd = newCwd; };
+
+        const engine = BatchEngine.create(printFn, batchGetCwd, batchSetCwd);
+
+        printFn(`Windows 12 Terminal - Running ${name}\n`);
+
+        setTimeout(() => {
+            engine.run(content);
+            printFn('\nScript finished.');
+        }, 50);
     }
 
     function sanitizeLocalHtml(html) {

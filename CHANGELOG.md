@@ -4,6 +4,13 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4190] - 2026-09-01
+
+### Added
+- .bat/.cmd files can be opened from File Explorer via double-click or context menu "Open"
+- "Open With > Terminal" option for batch files in File Explorer context menu
+- Batch file icon (⬛) in File Explorer
+
 ## [12.0.4180] - 2026-09-01
 
 ### Added
