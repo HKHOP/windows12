@@ -627,7 +627,7 @@ const Browser = (() => {
 
         function showHistoryPanel() {
             const history = getHistory();
-            let html = '<div style="padding:12px;height:100%;overflow-y:auto;">';
+            let html = '<div style="padding:12px;height:100%;overflow-y:auto;user-select:text;-webkit-user-select:text;">';
             html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">';
             html += '<span style="font-size:14px;font-weight:600;">History</span>';
             html += '<button id="bh-clear" style="background:none;border:1px solid rgba(255,255,255,0.15);color:#ccc;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;">Clear</button>';
@@ -673,7 +673,7 @@ const Browser = (() => {
 
         function showDownloadsPanel() {
             const downloads = getDownloads();
-            let html = '<div style="padding:12px;height:100%;overflow-y:auto;">';
+            let html = '<div style="padding:12px;height:100%;overflow-y:auto;user-select:text;-webkit-user-select:text;">';
             html += '<div style="font-size:14px;font-weight:600;margin-bottom:12px;">Downloads</div>';
             if (downloads.length === 0) {
                 html += '<div style="text-align:center;color:#666;padding:40px;">No downloads yet</div>';

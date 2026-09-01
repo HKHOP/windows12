@@ -20,12 +20,12 @@ const Terminal = (() => {
 
         const el = win.element;
         const body = el.querySelector('.window-body');
-        body.style.cssText = 'margin:0;padding:0;background:#0C0C0C;font-family:"Cascadia Mono","Consolas","Courier New",monospace;font-size:13px;overflow:hidden;display:flex;flex-direction:column;height:100%;';
+        body.style.cssText = 'margin:0;padding:0;background:#0C0C0C;font-family:"Cascadia Mono","Consolas","Courier New",monospace;font-size:13px;overflow:hidden;display:flex;flex-direction:column;height:100%;user-select:text;-webkit-user-select:text;';
 
         body.innerHTML = `
-            <div class="term-output" style="flex:1;overflow-y:auto;padding:12px 14px;color:#CCCCCC;white-space:pre-wrap;word-break:break-all;line-height:1.4;"></div>
-            <div class="term-input-row" style="display:flex;padding:0 14px 10px;align-items:center;">
-                <span class="term-prompt" style="color:#569CD6;white-space:pre;"></span>
+            <div class="term-output" style="flex:1;overflow-y:auto;padding:12px 14px;color:#CCCCCC;white-space:pre-wrap;word-break:break-all;line-height:1.4;user-select:text;-webkit-user-select:text;"></div>
+            <div class="term-input-row" style="display:flex;padding:0 14px 10px;align-items:center;user-select:none;-webkit-user-select:none;">
+                <span class="term-prompt" style="color:#569CD6;white-space:pre;user-select:none;-webkit-user-select:none;"></span>
                 <input class="term-input" type="text" style="flex:1;background:transparent;border:none;outline:none;color:#CCCCCC;font-family:inherit;font-size:inherit;caret-color:#CCCCCC;margin-left:4px;" spellcheck="false" autocomplete="off" autofocus>
             </div>
         `;

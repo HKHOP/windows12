@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4240] - 2026-09-01
+
+### Added
+- Text highlighting (selection) support in Terminal output and Browser (content, new tab page, history, downloads)
+
 ## [12.0.4230] - 2026-09-01
 
 ### Fixed

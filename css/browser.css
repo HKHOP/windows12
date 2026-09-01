@@ -3,6 +3,8 @@
     flex-direction: column;
     height: 100%;
     background: var(--window-bg);
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 /* Tab Bar */
@@ -181,6 +183,8 @@
     position: relative;
     overflow: hidden;
     background: #1a1a1a;
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .browser-content iframe {
@@ -198,7 +202,8 @@
     height: 100%;
     gap: 32px;
     padding: 40px;
-    user-select: none;
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .browser-newtab-clock {
