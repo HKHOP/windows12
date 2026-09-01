@@ -14,6 +14,14 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 - Scaling module now supports fixed scale overrides persisted via SystemConfig
 - WindowManager scale factor updates live when scaling changes
 
+### Fixed
+- All Display settings now persist (brightness, night light, resolution, orientation)
+- All Sound settings now persist (volume, output device, input device)
+- All Notification settings now persist (alerts toggle, per-app toggles)
+- All Power settings now persist (power mode, screen timeout, sleep timeout)
+- All Multitasking settings now persist (snap layout toggles)
+- Brightness now applies on load from saved config
+
 ## [12.0.4120] - 2026-08-31
 
 ### Added

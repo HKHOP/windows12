@@ -127,6 +127,7 @@ const Settings = (() => {
     }
 
     function renderDisplaySettings(el) {
+        const config = SystemConfig.getAll();
         const currentScaling = Scaling.getMode();
         el.innerHTML += `
             <div style="display:flex;flex-direction:column;gap:16px;">
@@ -134,7 +135,7 @@ const Settings = (() => {
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Brightness</div>
                     <div style="display:flex;align-items:center;gap:12px;">
                         <span style="font-size:16px;">🔅</span>
-                        <input type="range" min="20" max="100" value="80" style="flex:1;accent-color:var(--accent-color);" oninput="document.body.style.filter='brightness('+this.value/100+')'">
+                        <input type="range" class="brightness-slider" min="20" max="100" value="${config.brightness}" style="flex:1;accent-color:var(--accent-color);">
                         <span style="font-size:16px;">🔆</span>
                     </div>
                 </div>
@@ -145,7 +146,7 @@ const Settings = (() => {
                             <div style="font-size:13px;">Reduce blue light to help you sleep</div>
                         </div>
                         <label style="position:relative;display:inline-block;width:44px;height:24px;">
-                            <input type="checkbox" class="night-light-toggle" style="opacity:0;width:0;height:0;">
+                            <input type="checkbox" class="night-light-toggle" ${config.nightLight ? 'checked' : ''} style="opacity:0;width:0;height:0;">
                             <span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.15);border-radius:12px;transition:0.3s;"></span>
                         </label>
                     </div>
@@ -168,22 +169,41 @@ const Settings = (() => {
                     <div class="current-scale-label" style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Current scale: ${Math.round(Scaling.getScale() * 100)}%</div>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
                         <span style="font-size:13px;">Display resolution</span>
-                        <select style="font-size:13px;">
-                            <option>1920 x 1080 (Recommended)</option>
-                            <option>1600 x 900</option>
-                            <option>1366 x 768</option>
+                        <select class="resolution-select" style="font-size:13px;">
+                            <option value="1920x1080" ${config.displayResolution === '1920x1080' ? 'selected' : ''}>1920 x 1080 (Recommended)</option>
+                            <option value="1600x900" ${config.displayResolution === '1600x900' ? 'selected' : ''}>1600 x 900</option>
+                            <option value="1366x768" ${config.displayResolution === '1366x768' ? 'selected' : ''}>1366 x 768</option>
                         </select>
                     </div>
                     <div style="display:flex;justify-content:space-between;align-items:center;">
                         <span style="font-size:13px;">Display orientation</span>
-                        <select style="font-size:13px;">
-                            <option>Landscape</option>
-                            <option>Portrait</option>
+                        <select class="orientation-select" style="font-size:13px;">
+                            <option value="landscape" ${config.displayOrientation === 'landscape' ? 'selected' : ''}>Landscape</option>
+                            <option value="portrait" ${config.displayOrientation === 'portrait' ? 'selected' : ''}>Portrait</option>
                         </select>
                     </div>
                 </div>
             </div>
         `;
+
+        el.querySelector('.brightness-slider').addEventListener('input', (e) => {
+            document.body.style.filter = `brightness(${e.target.value / 100})`;
+        });
+        el.querySelector('.brightness-slider').addEventListener('change', (e) => {
+            SystemConfig.set('brightness', parseInt(e.target.value));
+        });
+
+        el.querySelector('.night-light-toggle').addEventListener('change', (e) => {
+            SystemConfig.set('nightLight', e.target.checked);
+        });
+
+        el.querySelector('.resolution-select').addEventListener('change', (e) => {
+            SystemConfig.set('displayResolution', e.target.value);
+        });
+
+        el.querySelector('.orientation-select').addEventListener('change', (e) => {
+            SystemConfig.set('displayOrientation', e.target.value);
+        });
 
         el.querySelector('.scaling-select').addEventListener('change', (e) => {
             const prevMode = Scaling.getMode();
@@ -253,55 +273,75 @@ const Settings = (() => {
     }
 
     function renderSoundSettings(el) {
+        const config = SystemConfig.getAll();
         el.innerHTML += `
             <div style="display:flex;flex-direction:column;gap:16px;">
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Master Volume</div>
                     <div style="display:flex;align-items:center;gap:12px;">
                         <span style="font-size:16px;">🔇</span>
-                        <input type="range" min="0" max="100" value="75" style="flex:1;accent-color:var(--accent-color);">
+                        <input type="range" class="volume-slider" min="0" max="100" value="${config.masterVolume}" style="flex:1;accent-color:var(--accent-color);">
                         <span style="font-size:16px;">🔊</span>
-                        <span style="font-size:13px;min-width:35px;">75%</span>
+                        <span class="volume-value" style="min-width:35px;text-align:right;font-size:13px;">${config.masterVolume}%</span>
                     </div>
                 </div>
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Output device</div>
-                    <select style="width:100%;padding:8px 12px;font-size:13px;">
-                        <option>Speakers (Realtek Audio)</option>
-                        <option>HDMI Output</option>
-                        <option>USB Audio Device</option>
+                    <select class="output-device-select" style="width:100%;padding:8px 12px;font-size:13px;">
+                        <option ${config.outputDevice === 'Speakers (Realtek Audio)' ? 'selected' : ''}>Speakers (Realtek Audio)</option>
+                        <option ${config.outputDevice === 'HDMI Output' ? 'selected' : ''}>HDMI Output</option>
+                        <option ${config.outputDevice === 'USB Audio Device' ? 'selected' : ''}>USB Audio Device</option>
                     </select>
                 </div>
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Input device</div>
-                    <select style="width:100%;padding:8px 12px;font-size:13px;">
-                        <option>Microphone (Realtek Audio)</option>
-                        <option>USB Microphone</option>
+                    <select class="input-device-select" style="width:100%;padding:8px 12px;font-size:13px;">
+                        <option ${config.inputDevice === 'Microphone (Realtek Audio)' ? 'selected' : ''}>Microphone (Realtek Audio)</option>
+                        <option ${config.inputDevice === 'USB Microphone' ? 'selected' : ''}>USB Microphone</option>
                     </select>
                 </div>
             </div>
         `;
+
+        const slider = el.querySelector('.volume-slider');
+        const sliderVal = el.querySelector('.volume-value');
+        slider.addEventListener('input', () => {
+            sliderVal.textContent = `${slider.value}%`;
+        });
+        slider.addEventListener('change', () => {
+            SystemConfig.set('masterVolume', parseInt(slider.value));
+        });
+
+        el.querySelector('.output-device-select').addEventListener('change', (e) => {
+            SystemConfig.set('outputDevice', e.target.value);
+        });
+
+        el.querySelector('.input-device-select').addEventListener('change', (e) => {
+            SystemConfig.set('inputDevice', e.target.value);
+        });
     }
 
     function renderNotificationSettings(el) {
+        const config = SystemConfig.getAll();
+        const apps = ['File Explorer', 'Notepad', 'Settings', 'Task Manager'];
         el.innerHTML += `
             <div style="display:flex;flex-direction:column;gap:16px;">
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                         <div style="font-size:14px;font-weight:500;">Notification alerts</div>
                         <label style="position:relative;display:inline-block;width:44px;height:24px;">
-                            <input type="checkbox" checked style="opacity:0;width:0;height:0;">
+                            <input type="checkbox" class="notification-alerts-toggle" ${config.notificationAlerts ? 'checked' : ''} style="opacity:0;width:0;height:0;">
                             <span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--accent-color);border-radius:12px;transition:0.3s;"></span>
                         </label>
                     </div>
                 </div>
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">App notifications</div>
-                    ${['File Explorer', 'Notepad', 'Settings', 'Task Manager'].map(app => `
+                    ${apps.map(app => `
                         <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--window-border);">
                             <span style="font-size:13px;">${app}</span>
                             <label style="position:relative;display:inline-block;width:44px;height:24px;">
-                                <input type="checkbox" checked style="opacity:0;width:0;height:0;">
+                                <input type="checkbox" class="app-notif-toggle" data-app="${app}" ${(config.appNotifications || {})[app] !== false ? 'checked' : ''} style="opacity:0;width:0;height:0;">
                                 <span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--accent-color);border-radius:12px;transition:0.3s;"></span>
                             </label>
                         </div>
@@ -309,17 +349,30 @@ const Settings = (() => {
                 </div>
             </div>
         `;
+
+        el.querySelector('.notification-alerts-toggle').addEventListener('change', (e) => {
+            SystemConfig.set('notificationAlerts', e.target.checked);
+        });
+
+        el.querySelectorAll('.app-notif-toggle').forEach(toggle => {
+            toggle.addEventListener('change', (e) => {
+                const appNotifs = { ...(config.appNotifications || {}) };
+                appNotifs[e.target.dataset.app] = e.target.checked;
+                SystemConfig.set('appNotifications', appNotifs);
+            });
+        });
     }
 
     function renderPowerSettings(el) {
+        const config = SystemConfig.getAll();
         el.innerHTML += `
             <div style="display:flex;flex-direction:column;gap:16px;">
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Power mode</div>
-                    <select style="width:100%;padding:8px 12px;font-size:13px;">
-                        <option>Best performance</option>
-                        <option>Balanced</option>
-                        <option>Best power efficiency</option>
+                    <select class="power-mode-select" style="width:100%;padding:8px 12px;font-size:13px;">
+                        <option value="performance" ${config.powerMode === 'performance' ? 'selected' : ''}>Best performance</option>
+                        <option value="balanced" ${config.powerMode === 'balanced' ? 'selected' : ''}>Balanced</option>
+                        <option value="efficiency" ${config.powerMode === 'efficiency' ? 'selected' : ''}>Best power efficiency</option>
                     </select>
                 </div>
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
@@ -327,14 +380,20 @@ const Settings = (() => {
                     <div style="display:flex;flex-direction:column;gap:12px;">
                         <div style="display:flex;justify-content:space-between;align-items:center;">
                             <span style="font-size:13px;">Turn off screen after</span>
-                            <select style="font-size:13px;">
-                                <option>5 minutes</option><option>10 minutes</option><option>15 minutes</option><option>Never</option>
+                            <select class="screen-timeout-select" style="font-size:13px;">
+                                <option ${config.screenTimeout === '5 minutes' ? 'selected' : ''}>5 minutes</option>
+                                <option ${config.screenTimeout === '10 minutes' ? 'selected' : ''}>10 minutes</option>
+                                <option ${config.screenTimeout === '15 minutes' ? 'selected' : ''}>15 minutes</option>
+                                <option ${config.screenTimeout === 'Never' ? 'selected' : ''}>Never</option>
                             </select>
                         </div>
                         <div style="display:flex;justify-content:space-between;align-items:center;">
                             <span style="font-size:13px;">Put to sleep after</span>
-                            <select style="font-size:13px;">
-                                <option>15 minutes</option><option>30 minutes</option><option>1 hour</option><option>Never</option>
+                            <select class="sleep-timeout-select" style="font-size:13px;">
+                                <option ${config.sleepTimeout === '15 minutes' ? 'selected' : ''}>15 minutes</option>
+                                <option ${config.sleepTimeout === '30 minutes' ? 'selected' : ''}>30 minutes</option>
+                                <option ${config.sleepTimeout === '1 hour' ? 'selected' : ''}>1 hour</option>
+                                <option ${config.sleepTimeout === 'Never' ? 'selected' : ''}>Never</option>
                             </select>
                         </div>
                     </div>
@@ -354,6 +413,18 @@ const Settings = (() => {
                 </div>
             </div>
         `;
+
+        el.querySelector('.power-mode-select').addEventListener('change', (e) => {
+            SystemConfig.set('powerMode', e.target.value);
+        });
+
+        el.querySelector('.screen-timeout-select').addEventListener('change', (e) => {
+            SystemConfig.set('screenTimeout', e.target.value);
+        });
+
+        el.querySelector('.sleep-timeout-select').addEventListener('change', (e) => {
+            SystemConfig.set('sleepTimeout', e.target.value);
+        });
     }
 
     function renderStorageSettings(el) {
@@ -390,19 +461,20 @@ const Settings = (() => {
     }
 
     function renderMultitaskingSettings(el) {
+        const config = SystemConfig.getAll();
         el.innerHTML += `
             <div style="display:flex;flex-direction:column;gap:16px;">
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Snap windows</div>
                     <div style="display:flex;flex-direction:column;gap:8px;">
                         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
-                            <input type="checkbox" checked style="accent-color:var(--accent-color);"> Show snap layouts when dragging windows
+                            <input type="checkbox" class="snap-layouts-toggle" ${config.snapLayouts ? 'checked' : ''} style="accent-color:var(--accent-color);"> Show snap layouts when dragging windows
                         </label>
                         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
-                            <input type="checkbox" checked style="accent-color:var(--accent-color);"> Show snap bar when dragging to top of screen
+                            <input type="checkbox" class="snap-bar-toggle" ${config.snapBar ? 'checked' : ''} style="accent-color:var(--accent-color);"> Show snap bar when dragging to top of screen
                         </label>
                         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
-                            <input type="checkbox" checked style="accent-color:var(--accent-color);"> Snap windows automatically
+                            <input type="checkbox" class="snap-auto-toggle" ${config.snapAuto ? 'checked' : ''} style="accent-color:var(--accent-color);"> Snap windows automatically
                         </label>
                     </div>
                 </div>
@@ -425,6 +497,18 @@ const Settings = (() => {
                 </div>
             </div>
         `;
+
+        el.querySelector('.snap-layouts-toggle').addEventListener('change', (e) => {
+            SystemConfig.set('snapLayouts', e.target.checked);
+        });
+
+        el.querySelector('.snap-bar-toggle').addEventListener('change', (e) => {
+            SystemConfig.set('snapBar', e.target.checked);
+        });
+
+        el.querySelector('.snap-auto-toggle').addEventListener('change', (e) => {
+            SystemConfig.set('snapAuto', e.target.checked);
+        });
     }
 
     function renderPersonalization(el) {

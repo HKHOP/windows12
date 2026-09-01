@@ -10,7 +10,22 @@ const SystemConfig = (() => {
         showSeconds: false,
         userName: 'User',
         darkMode: true,
-        scaling: 'auto'
+        scaling: 'auto',
+        brightness: 80,
+        nightLight: false,
+        displayResolution: '1920x1080',
+        displayOrientation: 'landscape',
+        masterVolume: 75,
+        outputDevice: 'Speakers (Realtek Audio)',
+        inputDevice: 'Microphone (Realtek Audio)',
+        notificationAlerts: true,
+        appNotifications: { 'File Explorer': true, 'Notepad': true, 'Settings': true, 'Task Manager': true },
+        powerMode: 'balanced',
+        screenTimeout: '5 minutes',
+        sleepTimeout: '15 minutes',
+        snapLayouts: true,
+        snapBar: true,
+        snapAuto: true
     };
 
     let config = { ...defaults };
@@ -62,6 +77,10 @@ const SystemConfig = (() => {
             taskbar.style.background = isDark
                 ? `rgba(32, 32, 32, ${opacity})`
                 : `rgba(240, 240, 240, ${opacity})`;
+        }
+
+        if (config.brightness !== undefined) {
+            document.body.style.filter = `brightness(${config.brightness / 100})`;
         }
 
         const desktop = document.getElementById('desktop');
