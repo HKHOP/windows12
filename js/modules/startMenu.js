@@ -27,7 +27,8 @@ const StartMenu = (() => {
         { id: 'paint', name: 'Paint' },
         { id: 'photos', name: 'Photos' },
         { id: 'settings', name: 'Settings' },
-        { id: 'taskManager', name: 'Task Manager' }
+        { id: 'taskManager', name: 'Task Manager' },
+        { id: 'terminal', name: 'Terminal' }
     ];
 
     let currentView = 'main';
