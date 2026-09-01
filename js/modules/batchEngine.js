@@ -878,7 +878,7 @@ const BatchEngine = (() => {
                 doPrint(message, redir);
                 waitingForAsync = true;
                 running = false;
-                Popup.pick(message, choices.map((c, i) => ({ label: `[${c}] ${c}`, value: i + 1 })))
+                Popup.pick('Choice', message, choices.map((c, i) => ({ label: `[${c}] ${c}`, value: i + 1 })))
                     .then(result => {
                         if (result !== null && result !== undefined) errorLevel = Number(result);
                         else if (defaultChoice) {

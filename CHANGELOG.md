@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4270] - 2026-09-01
+
+### Fixed
+- Batch `choice` command now correctly calls `Popup.pick()` with title parameter, allowing the selection popup to appear
+
 ## [12.0.4260] - 2026-09-01
 
 ### Changed
