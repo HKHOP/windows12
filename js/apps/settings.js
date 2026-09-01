@@ -1,6 +1,7 @@
 import WindowManager from '../modules/windowManager.js';
 import SystemConfig from '../modules/systemConfig.js';
 import Scaling from '../modules/scaling.js';
+import Popup from '../modules/popup.js';
 
 const Settings = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
@@ -185,11 +186,69 @@ const Settings = (() => {
         `;
 
         el.querySelector('.scaling-select').addEventListener('change', (e) => {
-            Scaling.setMode(e.target.value);
+            const prevMode = Scaling.getMode();
+            const newMode = e.target.value;
+
+            Scaling.setMode(newMode);
             const label = el.querySelector('.current-scale-label');
             if (label) {
                 label.textContent = `Current scale: ${Math.round(Scaling.getScale() * 100)}%`;
             }
+
+            let reverted = false;
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;bottom:70px;right:20px;background:var(--window-bg);border:1px solid var(--window-border);border-radius:10px;padding:16px 20px;font-size:13px;color:var(--text-primary);box-shadow:0 8px 32px rgba(0,0,0,0.4);z-index:99999;display:flex;flex-direction:column;gap:12px;min-width:300px;animation:windowOpen 0.2s ease-out;';
+
+            const timerDuration = 15;
+            let remaining = timerDuration;
+
+            overlay.innerHTML = `
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:18px;">🖥️</span>
+                    <div style="flex:1;">
+                        <div style="font-weight:500;">Display scaling changed</div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Reverting in <span class="scaling-countdown">${remaining}</span>s unless you keep changes.</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                    <button class="scaling-revert-btn" style="background:rgba(255,255,255,0.08);border:1px solid var(--window-border);border-radius:6px;padding:6px 14px;color:var(--text-primary);cursor:pointer;font-size:12px;">Revert</button>
+                    <button class="scaling-keep-btn" style="background:var(--accent-color);border:none;border-radius:6px;padding:6px 14px;color:white;cursor:pointer;font-size:12px;font-weight:500;">Keep changes</button>
+                </div>
+            `;
+
+            document.body.appendChild(overlay);
+
+            const countdownEl = overlay.querySelector('.scaling-countdown');
+
+            function doRevert() {
+                if (reverted) return;
+                reverted = true;
+                Scaling.setMode(prevMode);
+                if (label) {
+                    label.textContent = `Current scale: ${Math.round(Scaling.getScale() * 100)}%`;
+                }
+                const selectEl = el.querySelector('.scaling-select');
+                if (selectEl) selectEl.value = prevMode;
+                overlay.remove();
+                clearInterval(interval);
+            }
+
+            function doKeep() {
+                reverted = true;
+                overlay.remove();
+                clearInterval(interval);
+            }
+
+            overlay.querySelector('.scaling-keep-btn').addEventListener('click', doKeep);
+            overlay.querySelector('.scaling-revert-btn').addEventListener('click', doRevert);
+
+            const interval = setInterval(() => {
+                remaining--;
+                if (countdownEl) countdownEl.textContent = remaining;
+                if (remaining <= 0) {
+                    doRevert();
+                }
+            }, 1000);
         });
     }
 
