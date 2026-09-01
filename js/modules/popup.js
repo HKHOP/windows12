@@ -1,4 +1,5 @@
 import WindowManager from './windowManager.js';
+import Sounds from './sounds.js';
 
 const Popup = (() => {
     const popups = new Map();
@@ -89,6 +90,7 @@ const Popup = (() => {
     }
 
     function info(title, message) {
+        Sounds.info();
         const p = createPopup('info', title, `<div class="popup-message">${message}</div>`);
         addButtons(p, [
             { label: 'OK', value: 'ok', primary: true }
@@ -97,6 +99,7 @@ const Popup = (() => {
     }
 
     function warn(title, message) {
+        Sounds.warn();
         const p = createPopup('warn', title, `<div class="popup-message">${message}</div>`);
         addButtons(p, [
             { label: 'OK', value: 'ok', primary: true }
@@ -105,6 +108,7 @@ const Popup = (() => {
     }
 
     function error(title, message) {
+        Sounds.error();
         const p = createPopup('error', title, `<div class="popup-message">${message}</div>`, { width: 420 });
         addButtons(p, [
             { label: 'OK', value: 'ok', primary: true }
@@ -113,6 +117,7 @@ const Popup = (() => {
     }
 
     function confirm(title, message) {
+        Sounds.confirm();
         const p = createPopup('confirm', title, `<div class="popup-message">${message}</div>`);
         addButtons(p, [
             { label: 'Cancel', value: false },

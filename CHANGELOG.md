@@ -4,6 +4,19 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4160] - 2026-09-01
+
+### Added
+- System sounds via Web Audio API — no external audio files needed
+- Info popup sound (pleasant two-tone chime)
+- Warn popup sound (mid-pitched alert)
+- Error popup sound (descending three-tone alert)
+- Confirm popup sound (rising two-tone)
+- Recycle bin empty sound (noise sweep with low tone)
+
+### Changed
+- Volume respects the master volume slider in Settings > Sound
+
 ## [12.0.4150] - 2026-09-01
 
 ### Added

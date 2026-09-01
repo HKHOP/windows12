@@ -5,6 +5,7 @@ import UserActivity from './userActivity.js';
 import FileExplorer from '../apps/fileExplorer.js';
 import Popup from './popup.js';
 import Scaling from './scaling.js';
+import Sounds from './sounds.js';
 
 const DesktopIcons = (() => {
     const DESKTOP_PATH = ['/', 'users', 'default', 'Desktop'];
@@ -283,6 +284,7 @@ const DesktopIcons = (() => {
         if (emptyBtn) {
             emptyBtn.addEventListener('click', () => {
                 FileSystem.emptyRecycleBin();
+                Sounds.recycleBin();
                 win.element.querySelector('.window-body').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">Recycle Bin is empty</div>';
                 render();
             });
@@ -307,6 +309,7 @@ const DesktopIcons = (() => {
         Popup.confirm('Empty Recycle Bin', 'Are you sure you want to permanently delete all items in the Recycle Bin?').then(ok => {
             if (ok) {
                 FileSystem.emptyRecycleBin();
+                Sounds.recycleBin();
                 render();
             }
         });
