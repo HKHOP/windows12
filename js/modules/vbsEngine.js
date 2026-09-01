@@ -268,7 +268,7 @@ const VBEngine = (() => {
                         const beforeOk = i === 0 || !/[a-zA-Z0-9_]/.test(before);
                         const afterOk = i + 3 >= expr.length || !/[a-zA-Z0-9_]/.test(after);
                         if (beforeOk && (afterOk || after === '(')) {
-                            const prec = 5; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'left'; i += 3; continue; }
+                            const prec = 6; if (prec <= lowestPrec) { lowestOp = i; lowestPrec = prec; lowestAssoc = 'right'; i += 3; continue; }
                         }
                     }
                 }
@@ -286,10 +286,16 @@ const VBEngine = (() => {
                 i++;
             }
 
-            if (lowestOp > 0 && lowestPrec < 999) {
+            if (lowestOp >= 0 && lowestPrec < 999) {
                 const op = expr.substring(lowestOp, lowestOp + (expr[lowestOp + 1] === '>' || expr[lowestOp + 1] === '=' ? 2 : 1));
                 const left = expr.substring(0, lowestOp).trim();
                 const right = expr.substring(lowestOp + op.length).trim();
+
+                if (left === '') {
+                    if (op === '+') return toNum(evaluate(right));
+                    if (op === '-') return -toNum(evaluate(right));
+                    if (op.toLowerCase() === 'not') return !toBool(evaluate(right));
+                }
 
                 if (op === '+') {
                     const l = evaluate(left);
@@ -586,12 +592,27 @@ const VBEngine = (() => {
             return null;
         }
 
-        function executeLine(raw) {
-            const line = raw.trim();
-            if (!line) return null;
-            if (line.startsWith("'") || line.startsWith('Rem ') || line.startsWith('REM ')) return null;
+        function stripComment(line) {
+            let inStr = false;
+            let strChar = '';
+            for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (inStr) {
+                    if (ch === strChar && line[i + 1] !== strChar) inStr = false;
+                } else {
+                    if (ch === '"') { inStr = true; strChar = ch; }
+                    else if (ch === "'") return line.substring(0, i);
+                }
+            }
+            return line;
+        }
 
-            const upper = line.toUpperCase().replace(/\s+/g, ' ').trim();
+        function executeLine(raw) {
+            try {
+                const line = stripComment(raw.trim());
+                if (!line) return null;
+
+                const upper = line.toUpperCase().replace(/\s+/g, ' ').trim();
 
             if (upper.startsWith('DIM ')) {
                 const decls = line.substring(4).split(',');
@@ -989,7 +1010,12 @@ const VBEngine = (() => {
                         }
                     }
                 } else {
-                    vars[left.toUpperCase()] = val;
+                    const varName = left.toUpperCase();
+                    if (functions[varName]) {
+                        vars[varName] = val;
+                    } else {
+                        vars[varName] = val;
+                    }
                 }
                 return null;
             }
@@ -1014,10 +1040,8 @@ const VBEngine = (() => {
                 return null;
             }
 
-            try {
-                evaluate(line);
             } catch (e) {
-                Err.Number = 1;
+                Err.Number = 11;
                 Err.Description = e.message || String(e);
                 if (!errorResume) printFn('Error: ' + Err.Description);
             }

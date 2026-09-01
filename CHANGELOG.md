@@ -4,7 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
-## [12.0.4220] - 2026-09-01
+## [12.0.4230] - 2026-09-01
+
+### Fixed
+- VBScript unary `Not`, `-`, `+` operator support at expression start
+- VBScript `executeLine` try/catch block now wraps entire statement execution for robust `On Error Resume Next` error handling
+- VBScript comment stripping function integrated correctly into execution pipeline
 
 ### Fixed
 - File Explorer now uses VBScript engine for .vbs/.vbe files (was always using batch engine)
