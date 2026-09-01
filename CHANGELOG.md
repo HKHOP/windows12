@@ -8,6 +8,7 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 
 ### Added
 - Display scaling setting in Settings > System > Display — choose between Auto (adaptive) or fixed percentages (50%–200%)
+- Scaling change confirmation popup with 15s revert countdown — must click "Keep changes" to persist
 
 ### Changed
 - Scaling module now supports fixed scale overrides persisted via SystemConfig
