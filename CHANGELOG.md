@@ -4,6 +4,15 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4130] - 2026-09-01
+
+### Added
+- Display scaling setting in Settings > System > Display — choose between Auto (adaptive) or fixed percentages (50%–200%)
+
+### Changed
+- Scaling module now supports fixed scale overrides persisted via SystemConfig
+- WindowManager scale factor updates live when scaling changes
+
 ## [12.0.4120] - 2026-08-31
 
 ### Added

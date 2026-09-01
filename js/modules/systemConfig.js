@@ -9,7 +9,8 @@ const SystemConfig = (() => {
         windowAnimation: true,
         showSeconds: false,
         userName: 'User',
-        darkMode: true
+        darkMode: true,
+        scaling: 'auto'
     };
 
     let config = { ...defaults };

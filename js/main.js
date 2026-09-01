@@ -30,6 +30,8 @@ AppRegistry.register('paint', Paint);
 AppRegistry.register('browser', Browser);
 
 document.addEventListener('DOMContentLoaded', () => {
+    window.SystemConfig = SystemConfig;
+
     Scaling.init();
     const s = Scaling.getScale();
     WindowManager.setScale(s);
@@ -37,6 +39,14 @@ document.addEventListener('DOMContentLoaded', () => {
     FileSystem.init();
     UserActivity.init();
     SystemConfig.init();
+
+    Scaling.apply();
+    WindowManager.setScale(Scaling.getScale());
+
+    Scaling.setOnScaleChange((newScale) => {
+        WindowManager.setScale(newScale);
+    });
+
     WindowManager.init();
     Taskbar.init();
     StartMenu.init();

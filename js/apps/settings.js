@@ -1,5 +1,6 @@
 import WindowManager from '../modules/windowManager.js';
 import SystemConfig from '../modules/systemConfig.js';
+import Scaling from '../modules/scaling.js';
 
 const Settings = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
@@ -125,6 +126,7 @@ const Settings = (() => {
     }
 
     function renderDisplaySettings(el) {
+        const currentScaling = Scaling.getMode();
         el.innerHTML += `
             <div style="display:flex;flex-direction:column;gap:16px;">
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
@@ -150,6 +152,20 @@ const Settings = (() => {
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Scale & layout</div>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <span style="font-size:13px;">Display scaling</span>
+                        <select class="scaling-select" style="font-size:13px;">
+                            <option value="auto" ${currentScaling === 'auto' ? 'selected' : ''}>Auto (Adaptive)</option>
+                            <option value="50" ${currentScaling === '50' ? 'selected' : ''}>50%</option>
+                            <option value="75" ${currentScaling === '75' ? 'selected' : ''}>75%</option>
+                            <option value="100" ${currentScaling === '100' ? 'selected' : ''}>100%</option>
+                            <option value="125" ${currentScaling === '125' ? 'selected' : ''}>125%</option>
+                            <option value="150" ${currentScaling === '150' ? 'selected' : ''}>150%</option>
+                            <option value="175" ${currentScaling === '175' ? 'selected' : ''}>175%</option>
+                            <option value="200" ${currentScaling === '200' ? 'selected' : ''}>200%</option>
+                        </select>
+                    </div>
+                    <div class="current-scale-label" style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Current scale: ${Math.round(Scaling.getScale() * 100)}%</div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
                         <span style="font-size:13px;">Display resolution</span>
                         <select style="font-size:13px;">
                             <option>1920 x 1080 (Recommended)</option>
@@ -167,6 +183,14 @@ const Settings = (() => {
                 </div>
             </div>
         `;
+
+        el.querySelector('.scaling-select').addEventListener('change', (e) => {
+            Scaling.setMode(e.target.value);
+            const label = el.querySelector('.current-scale-label');
+            if (label) {
+                label.textContent = `Current scale: ${Math.round(Scaling.getScale() * 100)}%`;
+            }
+        });
     }
 
     function renderSoundSettings(el) {
