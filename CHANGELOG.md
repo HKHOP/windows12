@@ -7,7 +7,11 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 ## [12.0.4410] - 2026-09-03
 
 ### Changed
-- Improved Paint line smoothing using quadratic bezier curves for smoother strokes
+- Added cache busting with version query strings on all CSS/JS files
+- Added no-cache meta tags to prevent browser caching of old versions
+
+### Improved
+- Paint line smoothing using quadratic bezier curves for smoother strokes
 
 ## [12.0.4400] - 2026-09-03
 
