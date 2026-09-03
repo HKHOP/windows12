@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4320] - 2026-09-03
+
+### Fixed
+- Fixed touch interaction breaking mobile scrolling and form inputs by avoiding unconditional `preventDefault()` on touch events except when interacting with window headers, resize handles, desktop icons, and taskbar
+- Fixed mobile layout sizing issues on resolution layer and scaled viewports
+
 ## [12.0.4310] - 2026-09-03
 
 ### Added

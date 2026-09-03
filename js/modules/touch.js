@@ -54,6 +54,7 @@ const Touch = (() => {
     }
 
     function synthesizeMouse(type, target, x, y, button) {
+        if (!target) return;
         const ev = new MouseEvent(type, {
             bubbles: true,
             cancelable: true,
@@ -74,6 +75,12 @@ const Touch = (() => {
         const x = t.clientX;
         const y = t.clientY;
         const target = getTarget(x, y);
+
+        if (!target) return;
+
+        if (target.closest('input, textarea, select, button, [contenteditable]')) {
+            return;
+        }
 
         touchData = { x, y, target, longPressTriggered: false, moved: false };
 
@@ -98,7 +105,10 @@ const Touch = (() => {
         }, LONG_PRESS_MS);
 
         synthesizeMouse('mousedown', target, x, y, 0);
-        e.preventDefault();
+
+        if (target.closest('.window-header') || target.closest('.desktop-icon') || target.closest('.resize-handle') || target.closest('#taskbar')) {
+            e.preventDefault();
+        }
     }
 
     function handleTouchMove(e) {
@@ -115,11 +125,16 @@ const Touch = (() => {
             }
         }
 
-        indicator.style.left = t.clientX + 'px';
-        indicator.style.top = t.clientY + 'px';
+        if (indicator) {
+            indicator.style.left = t.clientX + 'px';
+            indicator.style.top = t.clientY + 'px';
+        }
 
         synthesizeMouse('mousemove', touchData.target, t.clientX, t.clientY, 0);
-        e.preventDefault();
+
+        if (touchData.target && (touchData.target.closest('.window-header') || touchData.target.closest('.desktop-icon') || touchData.target.closest('.resize-handle') || touchData.target.closest('#taskbar'))) {
+            e.preventDefault();
+        }
     }
 
     function handleTouchEnd(e) {
