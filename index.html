@@ -115,14 +115,5 @@
     })();
     </script>
     <script type="module" src="js/main.js?v=12.0.4520"></script>
-    <script>
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js')
-                .then(reg => console.log('SW registered:', reg.scope))
-                .catch(err => console.log('SW registration failed:', err));
-        });
-    }
-    </script>
 </body>
 </html>
