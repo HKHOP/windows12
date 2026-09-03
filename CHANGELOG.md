@@ -4,6 +4,15 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4510] - 2026-09-03
+
+### Added
+- Added "New Folder" option to VS Code File menu (Ctrl+Shift+N)
+
+### Fixed
+- Fixed VS Code explorer not refreshing after file/folder operations
+- Fixed module-level functions not having access to refreshTree
+
 ## [12.0.4500] - 2026-09-03
 
 ### Fixed

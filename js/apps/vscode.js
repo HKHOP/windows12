@@ -14,6 +14,7 @@ const VSCode = (() => {
     let menuOpen = null;
     let wordWrap = false;
     let minimap = false;
+    let refreshFn = null;
 
     const ICONS = {
         folder: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 7V17C3 18.1 3.9 19 5 19H19C20.1 19 21 18.1 21 17V9C21 7.9 20.1 7 19 7H11L9 5H5C3.9 5 3 5.9 3 7Z" fill="#E8A838"/></svg>`,
@@ -203,6 +204,7 @@ const VSCode = (() => {
         function refreshTree() {
             sidebarContent.innerHTML = buildTree(projectRoot);
             setupFileTreeEvents(el);
+            refreshFn = refreshTree;
         }
 
         function refreshSidebar(view) {
@@ -642,6 +644,7 @@ const VSCode = (() => {
         const menus = {
             file: [
                 { label: 'New File', shortcut: 'Ctrl+N', action: () => promptNewFile(el) },
+                { label: 'New Folder', shortcut: 'Ctrl+Shift+N', action: () => promptNewFolder(el) },
                 { label: 'Open Folder...', shortcut: 'Ctrl+K Ctrl+O', action: () => promptOpenFolder(el) },
                 'separator',
                 { label: 'Save', shortcut: 'Ctrl+S', action: () => saveCurrentFile(el) },
@@ -859,12 +862,59 @@ const VSCode = (() => {
             }
             FileSystem.createFile(parentPath, pathArr[pathArr.length - 1], '');
             close();
-            refreshTree();
+            if (refreshFn) refreshFn();
             openFile(el, pathArr);
         });
 
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') overlay.querySelector('.vsc-new-file-create').click();
+            if (e.key === 'Escape') close();
+        });
+    }
+
+    function promptNewFolder(el) {
+        const dropdown = el.querySelector('.vsc-menu-dropdown');
+        dropdown.style.display = 'none';
+        menuOpen = null;
+
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML = `
+            <div style="background:#252526;border:1px solid #3c3c3c;border-radius:8px;padding:20px;width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+                <div style="font-size:14px;font-weight:600;color:#ccc;margin-bottom:12px;">New Folder</div>
+                <div style="font-size:12px;color:#888;margin-bottom:8px;">Enter folder name (relative to project root):</div>
+                <input type="text" class="vsc-new-folder-input" style="width:100%;padding:8px 12px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;font-size:13px;outline:none;margin-bottom:12px;box-sizing:border-box;" placeholder="new-folder" autofocus>
+                <div style="display:flex;justify-content:flex-end;gap:8px;">
+                    <button class="vsc-new-folder-cancel" style="padding:6px 14px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;cursor:pointer;font-size:12px;">Cancel</button>
+                    <button class="vsc-new-folder-create" style="padding:6px 14px;background:#0078D4;border:none;border-radius:4px;color:white;cursor:pointer;font-size:12px;font-weight:500;">Create</button>
+                </div>
+            </div>
+        `;
+        el.appendChild(overlay);
+
+        const input = overlay.querySelector('.vsc-new-folder-input');
+        input.focus();
+
+        function close() { overlay.remove(); }
+
+        overlay.querySelector('.vsc-new-folder-cancel').addEventListener('click', close);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+        overlay.querySelector('.vsc-new-folder-create').addEventListener('click', () => {
+            const name = input.value.trim();
+            if (!name) return;
+            const pathArr = [...projectRoot, ...name.split('/')];
+            const parentPath = pathArr.slice(0, -1);
+            if (!FileSystem.itemExists(parentPath)) {
+                return;
+            }
+            FileSystem.createFolder(parentPath, pathArr[pathArr.length - 1]);
+            close();
+            if (refreshFn) refreshFn();
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') overlay.querySelector('.vsc-new-folder-create').click();
             if (e.key === 'Escape') close();
         });
     }
@@ -917,7 +967,7 @@ const VSCode = (() => {
             activeTab.original = activeTab.content;
             activeTab.modified = false;
             close();
-            refreshTree();
+            if (refreshFn) refreshFn();
             renderTabs(el);
         });
 
@@ -979,7 +1029,7 @@ const VSCode = (() => {
             termCwd = [...projectRoot];
             el.querySelector('.vsc-project-root').textContent = val;
             close();
-            refreshTree();
+            if (refreshFn) refreshFn();
         });
 
         input.addEventListener('keydown', (e) => {
