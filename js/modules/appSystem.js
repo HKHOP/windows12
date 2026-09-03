@@ -1,11 +1,15 @@
-import WindowManager from '../modules/windowManager.js';
 import { AppRegistry } from './taskbar.js';
 import SampleApp from '../apps/sampleApp.js';
+import VSCode from '../apps/vscode.js';
 import AppStore from '../apps/appStore.js';
 
 const AppSystem = (() => {
+    const appModules = {
+        sampleApp: SampleApp,
+        vscode: VSCode
+    };
+
     function init() {
-        AppRegistry.register('sampleApp', SampleApp);
         AppRegistry.register('appStore', AppStore);
         loadInstalledApps();
     }
@@ -13,8 +17,8 @@ const AppSystem = (() => {
     function loadInstalledApps() {
         const installed = JSON.parse(localStorage.getItem('installed_apps') || '[]');
         installed.forEach(appId => {
-            if (appId === 'sampleApp') {
-                AppRegistry.register('sampleApp', SampleApp);
+            if (appModules[appId]) {
+                AppRegistry.register(appId, appModules[appId]);
             }
         });
     }
@@ -25,8 +29,8 @@ const AppSystem = (() => {
             installed.push(appId);
             localStorage.setItem('installed_apps', JSON.stringify(installed));
         }
-        if (appId === 'sampleApp') {
-            AppRegistry.register('sampleApp', SampleApp);
+        if (appModules[appId]) {
+            AppRegistry.register(appId, appModules[appId]);
         }
         window.dispatchEvent(new CustomEvent('apps-changed'));
     }

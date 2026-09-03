@@ -667,6 +667,7 @@ const Settings = (() => {
     function renderApps(el) {
         const installed = AppSystem.getInstalledApps();
         const hasSample = installed.includes('sampleApp');
+        const hasVSCode = installed.includes('vscode');
 
         el.innerHTML = `
             <h2 style="font-size:28px;font-weight:600;margin-bottom:24px;">Apps</h2>
@@ -680,6 +681,7 @@ const Settings = (() => {
                 ${appRow('Clock', 'Built-in', false)}
                 ${appRow('Photos', 'Built-in', false)}
                 ${appRow('Paint', 'Built-in', false)}
+                ${hasVSCode ? appRow('Visual Studio Code', 'Installed from Store', true, 'vscode') : ''}
                 ${hasSample ? appRow('Sample App', 'Installed from Store', true, 'sampleApp') : ''}
             </div>
         `;

@@ -80,6 +80,16 @@ const AppMetadata = (() => {
             name: 'Terminal',
             icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="18" rx="2" fill="#0C0C0C" stroke="#555" stroke-width="1"/><polyline points="6 9 10 12 6 15" stroke="#CCCCCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="15" x2="18" y2="15" stroke="#CCCCCC" stroke-width="2" stroke-linecap="round"/></svg>`,
             iconSmall: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="18" rx="2" fill="#0C0C0C" stroke="#555" stroke-width="1"/><polyline points="6 9 10 12 6 15" stroke="#CCCCCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="15" x2="18" y2="15" stroke="#CCCCCC" stroke-width="2" stroke-linecap="round"/></svg>`
+        },
+        sampleApp: {
+            name: 'Sample App',
+            icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#6a11cb"/><text x="12" y="17" text-anchor="middle" fill="white" font-size="14" font-weight="bold" font-family="sans-serif">S</text></svg>`,
+            iconSmall: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#6a11cb"/><text x="12" y="17" text-anchor="middle" fill="white" font-size="14" font-weight="bold" font-family="sans-serif">S</text></svg>`
+        },
+        vscode: {
+            name: 'Visual Studio Code',
+            icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M17.5 2.5L6 12l11.5 9.5V2.5z" fill="#007ACC"/><path d="M6 12L2.5 9.5 6 12z" fill="#1E90FF"/><path d="M6 12l-3.5 2.5L6 12z" fill="#1E90FF"/><path d="M21 12l-3.5 2.5V9.5L21 12z" fill="#1E90FF"/></svg>`,
+            iconSmall: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M17.5 2.5L6 12l11.5 9.5V2.5z" fill="#007ACC"/></svg>`
         }
     };
 

@@ -31,7 +31,8 @@ const StartMenu = (() => {
         { id: 'sampleApp', name: 'Sample App' },
         { id: 'settings', name: 'Settings' },
         { id: 'taskManager', name: 'Task Manager' },
-        { id: 'terminal', name: 'Terminal' }
+        { id: 'terminal', name: 'Terminal' },
+        { id: 'vscode', name: 'Visual Studio Code' }
     ];
 
     let currentView = 'main';
@@ -332,8 +333,9 @@ const StartMenu = (() => {
         drawer.appendChild(header);
 
         const installed = AppSystem.getInstalledApps();
+        const userApps = ['sampleApp', 'vscode'];
         const filteredApps = allApps.filter(app => {
-            if (app.id === 'sampleApp') return installed.includes('sampleApp');
+            if (userApps.includes(app.id)) return installed.includes(app.id);
             return true;
         });
 
@@ -373,7 +375,8 @@ const StartMenu = (() => {
                     e.preventDefault();
                     e.stopPropagation();
                     const pinned = isPinned(app.id);
-                    const isUserApp = app.id === 'sampleApp';
+                    const userAppList = ['sampleApp', 'vscode'];
+                    const isUserApp = userAppList.includes(app.id);
                     const items = [
                         { label: app.name, icon: '', disabled: true },
                         'separator',
@@ -417,9 +420,10 @@ const StartMenu = (() => {
         if (!container) return;
         container.innerHTML = '';
         const installed = AppSystem.getInstalledApps();
+        const userApps = ['sampleApp', 'vscode'];
 
         const activePinned = pinnedApps.filter(appId => {
-            if (appId === 'sampleApp') return installed.includes('sampleApp');
+            if (userApps.includes(appId)) return installed.includes(appId);
             return true;
         });
 
@@ -441,7 +445,7 @@ const StartMenu = (() => {
             el.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const isUserApp = appId === 'sampleApp';
+                const isUserApp = userApps.includes(appId);
                 const items = [
                     { label: meta.name, icon: '', disabled: true },
                     'separator',

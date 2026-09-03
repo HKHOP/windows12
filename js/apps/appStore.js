@@ -84,6 +84,19 @@ const AppStore = (() => {
                             <div style="display:flex;gap:16px;flex-wrap:wrap;">
                                 <div style="background:#2a2a2a;border-radius:8px;padding:16px;width:220px;display:flex;flex-direction:column;gap:12px;border:1px solid #333;">
                                     <div style="display:flex;align-items:center;gap:12px;">
+                                        <div style="width:48px;height:48px;background:#007ACC;border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M17.5 2.5L6 12l11.5 9.5V2.5z" fill="white"/></svg>
+                                        </div>
+                                        <div>
+                                            <div style="font-weight:600;font-size:13px;margin-bottom:2px;">Visual Studio Code</div>
+                                            <div style="font-size:11px;color:#888;">Developer Tools</div>
+                                        </div>
+                                    </div>
+                                    <p style="font-size:12px;color:#aaa;line-height:1.4;">Code editor with file explorer, syntax highlighting, and integrated terminal.</p>
+                                    <button class="store-install-btn" data-app="vscode" style="background:#0078D4;border:none;color:white;padding:6px;border-radius:4px;font-weight:600;cursor:pointer;font-size:12px;width:100%;transition:background 0.2s;">Install</button>
+                                </div>
+                                <div style="background:#2a2a2a;border-radius:8px;padding:16px;width:220px;display:flex;flex-direction:column;gap:12px;border:1px solid #333;">
+                                    <div style="display:flex;align-items:center;gap:12px;">
                                         <div style="width:48px;height:48px;background:linear-gradient(135deg, #6a11cb, #2575fc);border-radius:10px;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:22px;">S</div>
                                         <div>
                                             <div style="font-weight:600;font-size:13px;margin-bottom:2px;">Sample App</div>
@@ -106,11 +119,7 @@ const AppStore = (() => {
         const installedApps = JSON.parse(localStorage.getItem('installed_apps') || '[]');
         buttons.forEach(btn => {
             const appId = btn.getAttribute('data-app');
-            if (appId === 'sampleApp' && installedApps.includes('sampleApp')) {
-                btn.textContent = 'Installed';
-                btn.style.background = 'rgba(255,255,255,0.1)';
-                btn.style.color = '#aaa';
-            } else if (appId === 'copilot' && installedApps.includes('copilot')) {
+            if (appId && installedApps.includes(appId)) {
                 btn.textContent = 'Installed';
                 btn.style.background = 'rgba(255,255,255,0.1)';
                 btn.style.color = '#aaa';

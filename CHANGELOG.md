@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4370] - 2026-09-03
+
+### Added
+- Added Visual Studio Code app installable from Microsoft Store with file explorer sidebar, code editor with syntax highlighting, and integrated terminal
+
 ## [12.0.4360] - 2026-09-03
 
 ### Fixed
