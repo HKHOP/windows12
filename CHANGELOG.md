@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4560] - 2026-09-03
+
+### Fixed
+- Fixed VS Code syntax highlighting showing broken HTML tags
+- Fixed VS Code file save not persisting content (path filtering fix)
+- Fixed VS Code terminal rm command using non-existent removeItem method
+- Fixed VS Code save to sync textarea content before writing
+
 ## [12.0.4550] - 2026-09-03
 
 ### Added
