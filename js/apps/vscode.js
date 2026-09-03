@@ -16,6 +16,10 @@ const VSCode = (() => {
     let minimap = false;
     let refreshFn = null;
     let cleanupFn = null;
+    let acVisible = false;
+    let acItems = [];
+    let acIdx = 0;
+    let acWordStart = 0;
 
     const ICONS = {
         folder: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 7V17C3 18.1 3.9 19 5 19H19C20.1 19 21 18.1 21 17V9C21 7.9 20.1 7 19 7H11L9 5H5C3.9 5 3 5.9 3 7Z" fill="#E8A838"/></svg>`,
@@ -49,6 +53,34 @@ const VSCode = (() => {
         if (ext === 'md') return 'markdown';
         if (ext === 'txt') return 'plaintext';
         return 'plaintext';
+    }
+
+    const JS_KEYWORDS = ['abstract','async','await','break','case','catch','class','const','continue','debugger','default','delete','do','else','enum','export','extends','final','finally','for','from','function','if','implements','import','in','instanceof','interface','let','new','of','package','private','protected','public','return','static','super','switch','this','throw','try','typeof','var','void','while','with','yield'];
+    const JS_BUILTINS = ['Array','Boolean','Date','Error','Function','JSON','Map','Math','Number','Object','Promise','Proxy','RegExp','Set','String','Symbol','console','document','window','navigator','fetch','setTimeout','setInterval','clearTimeout','clearInterval','parseInt','parseFloat','isNaN','undefined','null','true','false','NaN','Infinity','globalThis'];
+    const JS_METHODS = ['log','warn','error','info','debug','table','dir','clear','createElement','getElementById','querySelector','querySelectorAll','addEventListener','removeEventListener','appendChild','removeChild','insertBefore','replaceChild','cloneNode','textContent','innerHTML','outerHTML','style','classList','className','setAttribute','getAttribute','removeAttribute','hasAttribute','closest','matches','scrollIntoView','getBoundingClientRect','focus','blur','click','forEach','map','filter','reduce','find','some','every','includes','indexOf','lastIndexOf','keys','values','entries','push','pop','shift','unshift','splice','slice','concat','join','split','replace','trim','toLowerCase','toUpperCase','charAt','startsWith','endsWith','repeat','padStart','padEnd','substring','toString','parse','stringify','assign','freeze','now','getDate','getDay','getFullYear','getHours','getMinutes','getMonth','getSeconds','getTime','setDate','setFullYear','setHours','setMinutes','setMonth','setSeconds','setTime','toDateString','toISOString','toJSON','toLocaleDateString','toLocaleTimeString'];
+    const CSS_PROPERTIES = ['align-content','align-items','align-self','animation','background','background-color','background-image','background-position','background-repeat','background-size','border','border-color','border-radius','border-style','border-width','bottom','box-shadow','box-sizing','clear','clip','color','column-count','column-gap','content','cursor','direction','display','filter','flex','flex-basis','flex-direction','flex-flow','flex-grow','flex-shrink','flex-wrap','float','font','font-family','font-size','font-style','font-weight','gap','grid','grid-area','grid-column','grid-row','grid-template','height','justify-content','left','letter-spacing','line-height','list-style','margin','max-height','max-width','min-height','min-width','opacity','order','outline','overflow','padding','position','resize','right','text-align','text-decoration','text-indent','text-overflow','text-shadow','text-transform','top','transform','transition','vertical-align','visibility','white-space','width','word-break','word-spacing','word-wrap','z-index'];
+    const CSS_VALUES = ['auto','inherit','initial','none','normal','center','left','right','top','bottom','solid','dashed','dotted','absolute','relative','fixed','sticky','block','inline','inline-block','flex','grid','hidden','visible','scroll','nowrap','pre','pre-wrap','bold','italic','uppercase','lowercase','capitalize','pointer','default','not-allowed','transparent','currentColor'];
+    const HTML_TAGS = ['a','abbr','address','area','article','aside','audio','b','base','bdi','bdo','blockquote','body','br','button','canvas','caption','cite','code','col','colgroup','data','datalist','dd','del','details','dfn','dialog','div','dl','dt','em','embed','fieldset','figcaption','figure','footer','form','h1','h2','h3','h4','h5','h6','head','header','hr','html','i','iframe','img','input','ins','kbd','label','legend','li','link','main','map','mark','meta','meter','nav','noscript','object','ol','optgroup','option','output','p','param','picture','pre','progress','q','rp','rt','ruby','s','samp','script','section','select','small','source','span','strong','style','sub','summary','sup','table','tbody','td','template','textarea','tfoot','th','thead','time','title','tr','track','u','ul','var','video','wbr'];
+    const HTML_ATTRS = ['accept','action','alt','autocomplete','autofocus','checked','class','cols','colspan','content','controls','crossorigin','data','datetime','default','defer','dir','disabled','download','draggable','enctype','hidden','href','hreflang','id','inputmode','integrity','kind','lang','list','loading','loop','max','maxlength','media','method','min','minlength','multiple','muted','name','novalidate','open','pattern','placeholder','playsinline','poster','preload','readonly','referrerpolicy','rel','required','role','rows','rowspan','sandbox','scope','selected','shape','size','sizes','slot','span','spellcheck','src','srcdoc','srclang','srcset','start','step','style','tabindex','target','title','translate','type','usemap','value','width','wrap'];
+
+    const AC_COLORS = { keyword: '#569CD6', builtin: '#4EC9B0', method: '#DCDCAA', property: '#9CDCFE', value: '#CE9178', tag: '#569CD6', attribute: '#9CDCFE' };
+
+    function getSuggestions(word, lang) {
+        if (!word || word.length < 1) return [];
+        const lower = word.toLowerCase();
+        let items = [];
+        if (lang === 'javascript') {
+            JS_KEYWORDS.forEach(kw => items.push({ text: kw, type: 'keyword' }));
+            JS_BUILTINS.forEach(kw => items.push({ text: kw, type: 'builtin' }));
+            JS_METHODS.forEach(kw => items.push({ text: kw, type: 'method' }));
+        } else if (lang === 'css') {
+            CSS_PROPERTIES.forEach(kw => items.push({ text: kw, type: 'property' }));
+            CSS_VALUES.forEach(kw => items.push({ text: kw, type: 'value' }));
+        } else if (lang === 'html') {
+            HTML_TAGS.forEach(kw => items.push({ text: kw, type: 'tag' }));
+            HTML_ATTRS.forEach(kw => items.push({ text: kw, type: 'attribute' }));
+        }
+        return items.filter(item => item.text.toLowerCase().startsWith(lower)).slice(0, 12);
     }
 
     function highlightCode(code, lang) {
@@ -365,6 +397,7 @@ const VSCode = (() => {
             <div class="vsc-code-wrapper" style="flex:1;overflow:auto;position:relative;">
                 <textarea class="vsc-code-input" style="position:absolute;top:0;left:0;width:100%;height:100%;background:transparent;color:transparent;caret-color:#aeafad;border:none;outline:none;resize:none;padding:8px 12px;font-family:'Cascadia Mono','Consolas','Courier New',monospace;font-size:13px;line-height:1.5;white-space:pre;overflow:hidden;tab-size:4;z-index:2;" spellcheck="false" autocomplete="off">${activeTab.content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
                 <pre class="vsc-code-display" style="margin:0;padding:8px 12px;font-family:'Cascadia Mono','Consolas','Courier New',monospace;font-size:13px;line-height:1.5;white-space:pre;overflow:hidden;tab-size:4;z-index:1;pointer-events:none;">${highlighted}</pre>
+                <div class="vsc-autocomplete" style="display:none;position:absolute;background:#252526;border:1px solid #454545;border-radius:4px;box-shadow:0 4px 16px rgba(0,0,0,0.4);z-index:10;max-height:240px;overflow-y:auto;min-width:220px;font-family:'Cascadia Mono','Consolas',monospace;font-size:13px;"></div>
             </div>
         </div>`;
 
@@ -375,11 +408,13 @@ const VSCode = (() => {
         const display = editor.querySelector('.vsc-code-display');
         const codeWrapper = editor.querySelector('.vsc-code-wrapper');
         const lineNumbers = el.querySelector('.vsc-line-numbers');
+        const acPopup = codeWrapper.querySelector('.vsc-autocomplete');
 
         function syncScroll() {
             display.scrollTop = textarea.scrollTop;
             display.scrollLeft = textarea.scrollLeft;
             lineNumbers.scrollTop = textarea.scrollTop;
+            positionAcPopup(textarea, acPopup);
         }
         textarea.addEventListener('scroll', syncScroll);
 
@@ -390,11 +425,23 @@ const VSCode = (() => {
             const pos = getCursorPos(textarea);
             statusPos.textContent = `Ln ${pos.line}, Col ${pos.col}`;
             renderTabs(el);
+            if (lang !== 'plaintext') {
+                const ac = getAcWord(textarea);
+                acWordStart = ac.start;
+                const suggestions = getSuggestions(ac.word, lang);
+                if (suggestions.length > 0 && ac.word.length > 0) {
+                    showAcPopup(acPopup, suggestions);
+                    positionAcPopup(textarea, acPopup);
+                } else {
+                    hideAcPopup(acPopup);
+                }
+            }
         });
 
         textarea.addEventListener('click', () => {
             const pos = getCursorPos(textarea);
             statusPos.textContent = `Ln ${pos.line}, Col ${pos.col}`;
+            hideAcPopup(acPopup);
         });
 
         textarea.addEventListener('keyup', () => {
@@ -403,6 +450,30 @@ const VSCode = (() => {
         });
 
         textarea.addEventListener('keydown', (e) => {
+            if (acVisible) {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    acIdx = (acIdx + 1) % acItems.length;
+                    renderAcPopup(acPopup);
+                    return;
+                }
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    acIdx = (acIdx - 1 + acItems.length) % acItems.length;
+                    renderAcPopup(acPopup);
+                    return;
+                }
+                if (e.key === 'Enter' || e.key === 'Tab') {
+                    e.preventDefault();
+                    insertAcSuggestion(textarea, acPopup);
+                    return;
+                }
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    hideAcPopup(acPopup);
+                    return;
+                }
+            }
             if (e.key === 'Tab') {
                 e.preventDefault();
                 const start = textarea.selectionStart;
@@ -426,6 +497,82 @@ const VSCode = (() => {
         const text = textarea.value.substring(0, textarea.selectionStart);
         const lines = text.split('\n');
         return { line: lines.length, col: lines[lines.length - 1].length + 1 };
+    }
+
+    function getAcWord(textarea) {
+        const pos = textarea.selectionStart;
+        const text = textarea.value;
+        let start = pos;
+        while (start > 0 && /[\w$]/.test(text[start - 1])) start--;
+        return { word: text.substring(start, pos), start };
+    }
+
+    function showAcPopup(popup, items) {
+        acItems = items;
+        acIdx = 0;
+        acVisible = true;
+        renderAcPopup(popup);
+        popup.style.display = 'block';
+    }
+
+    function hideAcPopup(popup) {
+        acVisible = false;
+        acItems = [];
+        if (popup) popup.style.display = 'none';
+    }
+
+    function renderAcPopup(popup) {
+        popup.innerHTML = acItems.map((item, i) => {
+            const color = AC_COLORS[item.type] || '#ccc';
+            const bg = i === acIdx ? '#094771' : 'transparent';
+            const fg = i === acIdx ? '#fff' : color;
+            const typeLabel = item.type.charAt(0).toUpperCase();
+            return `<div class="vsc-ac-item" data-idx="${i}" style="padding:3px 8px;cursor:pointer;display:flex;align-items:center;gap:6px;background:${bg};color:${fg};font-size:12px;">
+                <span style="font-size:9px;color:${i === acIdx ? '#aaa' : '#555'};min-width:14px;text-align:center;border:1px solid ${i === acIdx ? '#555' : '#333'};border-radius:2px;padding:0 2px;">${typeLabel}</span>
+                <span>${item.text}</span>
+            </div>`;
+        }).join('');
+        popup.querySelectorAll('.vsc-ac-item').forEach(el => {
+            el.addEventListener('mouseenter', () => { acIdx = parseInt(el.dataset.idx); renderAcPopup(popup); });
+            el.addEventListener('mousedown', (e) => { e.preventDefault(); acIdx = parseInt(el.dataset.idx); });
+        });
+    }
+
+    function positionAcPopup(textarea, popup) {
+        if (!acVisible || !popup) return;
+        const pos = textarea.selectionStart;
+        const text = textarea.value.substring(0, pos);
+        const lineNum = text.split('\n').length;
+        const lineHeight = 19.5;
+        let top = 8 + lineNum * lineHeight;
+        let left = 62;
+        popup.style.left = left + 'px';
+        popup.style.top = top + 'px';
+        const wrapper = textarea.parentElement;
+        const visibleBottom = wrapper.scrollTop + wrapper.clientHeight;
+        if (top + popup.offsetHeight > visibleBottom) {
+            top = 8 + (lineNum - 1) * lineHeight - popup.offsetHeight;
+            if (top < wrapper.scrollTop) top = wrapper.scrollTop;
+            popup.style.top = top + 'px';
+        }
+        const visibleRight = wrapper.scrollLeft + wrapper.clientWidth;
+        if (left + popup.offsetWidth > visibleRight) {
+            left = visibleRight - popup.offsetWidth - 8;
+            if (left < 0) left = 8;
+            popup.style.left = left + 'px';
+        }
+    }
+
+    function insertAcSuggestion(textarea, popup) {
+        if (!acVisible || acItems.length === 0) return false;
+        const item = acItems[acIdx];
+        const before = textarea.value.substring(0, acWordStart);
+        const after = textarea.value.substring(textarea.selectionStart);
+        textarea.value = before + item.text + after;
+        textarea.selectionStart = textarea.selectionEnd = acWordStart + item.text.length;
+        hideAcPopup(popup);
+        textarea.dispatchEvent(new Event('input'));
+        return true;
     }
 
     function saveCurrentFile(el) {
