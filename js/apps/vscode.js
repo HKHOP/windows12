@@ -94,10 +94,10 @@ const VSCode = (() => {
         return entries.map(e => {
             if (e.item.type === 'folder') {
                 const children = buildTree(e.path);
-                return `<div class="fs-folder" data-path="${e.path.join('/')}">
+                return `            <div class="fs-folder" data-path="${e.path.join('/')}">
                     <div class="fs-item fs-folder-toggle" style="display:flex;align-items:center;gap:4px;padding:2px 4px;cursor:pointer;font-size:12px;color:#ccc;border-radius:3px;" data-path="${e.path.join('/')}">
                         <span class="fs-arrow" style="font-size:10px;color:#888;transition:transform 0.15s;">&#9654;</span>
-                        <span>${ICONS.folder}</span>
+                        <span class="fs-icon">${ICONS.folder}</span>
                         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.name}</span>
                     </div>
                     <div class="fs-children" style="display:none;padding-left:16px;">${children}</div>
@@ -197,15 +197,16 @@ const VSCode = (() => {
         el.querySelectorAll('.fs-folder-toggle').forEach(toggle => {
             toggle.addEventListener('click', () => {
                 const arrow = toggle.querySelector('.fs-arrow');
+                const icon = toggle.querySelector('.fs-icon');
                 const children = toggle.nextElementSibling;
                 if (children.style.display === 'none') {
                     children.style.display = 'block';
                     arrow.style.transform = 'rotate(90deg)';
-                    toggle.querySelector('span:nth-child(2)').outerHTML = ICONS.folderOpen;
+                    if (icon) icon.innerHTML = ICONS.folderOpen;
                 } else {
                     children.style.display = 'none';
                     arrow.style.transform = 'rotate(0deg)';
-                    toggle.querySelector('span:nth-child(2)').outerHTML = ICONS.folder;
+                    if (icon) icon.innerHTML = ICONS.folder;
                 }
             });
             toggle.addEventListener('mouseenter', () => toggle.style.background = 'rgba(255,255,255,0.08)');
