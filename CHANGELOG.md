@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4420] - 2026-09-03
+
+### Fixed
+- Fixed Paint touch drawing position by accounting for CSS zoom scaling
+- Fixed touch event handling by moving touchmove/touchend to document level so drawing continues when finger moves off canvas
+
 ## [12.0.4410] - 2026-09-03
 
 ### Added

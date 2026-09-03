@@ -142,9 +142,10 @@ const Paint = (() => {
 
         function getPos(e) {
             const rect = canvas.getBoundingClientRect();
+            const zoom = parseFloat(getComputedStyle(document.getElementById('resolution-layer')).zoom) || 1;
             return {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
+                x: (e.clientX - rect.left) / zoom,
+                y: (e.clientY - rect.top) / zoom
             };
         }
 
@@ -254,7 +255,8 @@ const Paint = (() => {
             e.preventDefault();
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
-            const pos = { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+            const zoom = parseFloat(getComputedStyle(document.getElementById('resolution-layer')).zoom) || 1;
+            const pos = { x: (touch.clientX - rect.left) / zoom, y: (touch.clientY - rect.top) / zoom };
             isDrawing = true;
             startX = pos.x;
             startY = pos.y;
@@ -273,12 +275,13 @@ const Paint = (() => {
             }
         }, { passive: false });
 
-        el.addEventListener('touchmove', (e) => {
-            if (!isDrawing || !e.target.closest('.paint-canvas')) return;
+        document.addEventListener('touchmove', (e) => {
+            if (!isDrawing) return;
             e.preventDefault();
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
-            const pos = { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+            const zoom = parseFloat(getComputedStyle(document.getElementById('resolution-layer')).zoom) || 1;
+            const pos = { x: (touch.clientX - rect.left) / zoom, y: (touch.clientY - rect.top) / zoom };
 
             if (currentTool === 'pencil' || currentTool === 'brush' || currentTool === 'eraser') {
                 const size = currentTool === 'brush' ? brushSize * 2 : (currentTool === 'eraser' ? brushSize * 3 : brushSize);
@@ -306,8 +309,8 @@ const Paint = (() => {
             }
         }, { passive: false });
 
-        el.addEventListener('touchend', () => { isDrawing = false; points = []; });
-        el.addEventListener('touchcancel', () => { isDrawing = false; points = []; });
+        document.addEventListener('touchend', () => { if (isDrawing) { isDrawing = false; points = []; } });
+        document.addEventListener('touchcancel', () => { if (isDrawing) { isDrawing = false; points = []; } });
 
         el.querySelectorAll('.paint-tool-btn').forEach(btn => {
             btn.addEventListener('click', () => setTool(btn.dataset.tool));
