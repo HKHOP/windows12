@@ -4,6 +4,16 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4550] - 2026-09-03
+
+### Added
+- Added app detail pages in Microsoft Store
+- Added back button to return to main store view
+- Added app description, features, and screenshots sections
+- Added "Discover more" sidebar with related apps
+- Added app info panel with size, age rating, and category
+- Added hover effects on app cards
+
 ## [12.0.4540] - 2026-09-03
 
 ### Added
