@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4480] - 2026-09-03
+
+### Fixed
+- Fixed Paint touch coordinate calculation by using canvas scale ratio instead of body zoom
+
 ## [12.0.4470] - 2026-09-03
 
 ### Added

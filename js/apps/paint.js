@@ -141,10 +141,11 @@ const Paint = (() => {
 
         function getPos(e) {
             const rect = canvas.getBoundingClientRect();
-            const zoom = parseFloat(getComputedStyle(document.body).zoom) || 1;
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
             return {
-                x: (e.clientX - rect.left) / zoom,
-                y: (e.clientY - rect.top) / zoom
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
             };
         }
 
@@ -273,16 +274,18 @@ const Paint = (() => {
             e.preventDefault();
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
-            const zoom = parseFloat(getComputedStyle(document.body).zoom) || 1;
-            startDrawing({ x: (touch.clientX - rect.left) / zoom, y: (touch.clientY - rect.top) / zoom });
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            startDrawing({ x: (touch.clientX - rect.left) * scaleX, y: (touch.clientY - rect.top) * scaleY });
         }, { passive: false });
 
         canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
-            const zoom = parseFloat(getComputedStyle(document.body).zoom) || 1;
-            moveDrawing({ x: (touch.clientX - rect.left) / zoom, y: (touch.clientY - rect.top) / zoom });
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            moveDrawing({ x: (touch.clientX - rect.left) * scaleX, y: (touch.clientY - rect.top) * scaleY });
         }, { passive: false });
 
         canvas.addEventListener('touchend', (e) => { e.preventDefault(); endDrawing(); });
