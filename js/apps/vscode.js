@@ -65,10 +65,11 @@ const VSCode = (() => {
             escaped = escaped.replace(/:\s*(\d+)/g, (m, n) => `: <span style="color:#B5CEA8">${n}</span>`);
             escaped = escaped.replace(/:\s*(true|false|null)/g, (m, kw) => `: <span style="color:#569CD6">${kw}</span>`);
         } else if (lang === 'html') {
-            escaped = escaped.replace(/&lt;\/?[\w-]+/g, m => `<span style="color:#569CD6">${m}</span>`);
+            escaped = escaped.replace(/&lt;!--[\s\S]*?--&gt;/g, m => `<span style="color:#6A9955">${m}</span>`);
+            escaped = escaped.replace(/&lt;\/?([a-zA-Z][a-zA-Z0-9]*)/g, (m, tag) => `<span style="color:#569CD6">&lt;${tag.includes('/') ? '/' : ''}${tag.replace('/', '')}</span>`);
+            escaped = escaped.replace(/\s([\w-]+)=/g, (m, attr) => ` <span style="color:#9CDCFE">${attr}</span>=`);
+            escaped = escaped.replace(/"([^"]*)"/g, m => `<span style="color:#CE9178">${m}</span>`);
             escaped = escaped.replace(/&gt;/g, `<span style="color:#569CD6">&gt;</span>`);
-            escaped = escaped.replace(/[\w-]+=/g, m => `<span style="color:#9CDCFE">${m}</span>`);
-            escaped = escaped.replace(/"[^"]*"/g, m => `<span style="color:#CE9178">${m}</span>`);
         } else if (lang === 'css') {
             escaped = escaped.replace(/\/\*[\s\S]*?\*\//g, m => `<span style="color:#6A9955">${m}</span>`);
             escaped = escaped.replace(/[\w.-]+(?=\s*\{)/g, m => `<span style="color:#D7BA7D">${m}</span>`);
