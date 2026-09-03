@@ -6,6 +6,9 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 
 ## [12.0.4410] - 2026-09-03
 
+### Added
+- Added `update-version.js` script to auto-update cache busting version from CHANGELOG.md
+
 ### Changed
 - Added cache busting with version query strings on all CSS/JS files
 - Added no-cache meta tags to prevent browser caching of old versions
