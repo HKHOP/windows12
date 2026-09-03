@@ -51,33 +51,61 @@ const VSCode = (() => {
     }
 
     function highlightCode(code, lang) {
-        let escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         if (lang === 'javascript') {
-            escaped = escaped.replace(/\b(const|let|var|function|return|if|else|for|while|class|import|export|from|default|new|this|try|catch|throw|async|await|switch|case|break|continue|typeof|instanceof|in|of|null|undefined|true|false)\b/g, m => `<span style="color:#569CD6">${m}</span>`);
-            escaped = escaped.replace(/(\/\/.*$)/gm, m => `<span style="color:#6A9955">${m}</span>`);
-            escaped = escaped.replace(/(\/\*[\s\S]*?\*\/)/g, m => `<span style="color:#6A9955">${m}</span>`);
-            escaped = escaped.replace(/('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")/g, m => `<span style="color:#CE9178">${m}</span>`);
-            escaped = escaped.replace(/\b(\d+\.?\d*)\b/g, m => `<span style="color:#B5CEA8">${m}</span>`);
+            let result = code;
+            result = result.replace(/\b(const|let|var|function|return|if|else|for|while|class|import|export|from|default|new|this|try|catch|throw|async|await|switch|case|break|continue|typeof|instanceof|null|undefined|true|false)\b/g, m => `%%KW%%${m}%%/KW%%`);
+            result = result.replace(/('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`)/g, m => `%%STR%%${m}%%/STR%%`);
+            result = result.replace(/(\/\/[^\n]*)/g, m => `%%CMT%%${m}%%/CMT%%`);
+            result = result.replace(/\b(\d+\.?\d*)\b/g, m => `%%NUM%%${m}%%/NUM%%`);
+            result = result.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            result = result.replace(/%%KW%%(.*?)%%\/KW%%/g, '<span style="color:#569CD6">$1</span>');
+            result = result.replace(/%%STR%%(.*?)%%\/STR%%/g, '<span style="color:#CE9178">$1</span>');
+            result = result.replace(/%%CMT%%(.*?)%%\/CMT%%/g, '<span style="color:#6A9955">$1</span>');
+            result = result.replace(/%%NUM%%(.*?)%%\/NUM%%/g, '<span style="color:#B5CEA8">$1</span>');
+            return result;
         } else if (lang === 'json') {
-            escaped = escaped.replace(/("[\w\s]*")\s*:/g, m => `<span style="color:#9CDCFE">${m}</span>`);
-            escaped = escaped.replace(/:\s*("(?:[^"\\]|\\.)*")/g, m => `<span style="color:#CE9178">${m}</span>`);
-            escaped = escaped.replace(/:\s*(\d+\.?\d*)/g, (m, n) => `: <span style="color:#B5CEA8">${n}</span>`);
-            escaped = escaped.replace(/:\s*(true|false|null)/g, (m, kw) => `: <span style="color:#569CD6">${kw}</span>`);
+            let result = code;
+            result = result.replace(/("[\w\s]*")\s*:/g, m => `%%KEY%%${m}%%/KEY%%`);
+            result = result.replace(/:\s*("(?:[^"\\]|\\.)*")/g, m => `%%STR%%${m}%%/STR%%`);
+            result = result.replace(/:\s*(\d+\.?\d*)/g, (m, n) => `: %%NUM%%${n}%%/NUM%%`);
+            result = result.replace(/:\s*(true|false|null)/g, (m, kw) => `: %%KW%%${kw}%%/KW%%`);
+            result = result.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            result = result.replace(/%%KEY%%(.*?)%%\/KEY%%/g, '<span style="color:#9CDCFE">$1</span>');
+            result = result.replace(/%%STR%%(.*?)%%\/STR%%/g, '<span style="color:#CE9178">$1</span>');
+            result = result.replace(/%%NUM%%(.*?)%%\/NUM%%/g, '<span style="color:#B5CEA8">$1</span>');
+            result = result.replace(/%%KW%%(.*?)%%\/KW%%/g, '<span style="color:#569CD6">$1</span>');
+            return result;
         } else if (lang === 'html') {
-            escaped = escaped.replace(/(&lt;!--[\s\S]*?--&gt;)/g, m => `<span style="color:#6A9955">${m}</span>`);
-            escaped = escaped.replace(/(&lt;\/?)([\w-]+)/g, (m, bracket, tag) => `<span style="color:#569CD6">${bracket}${tag}</span>`);
-            escaped = escaped.replace(/\s([\w-]+)(=)/g, (m, attr, eq) => ` <span style="color:#9CDCFE">${attr}</span>${eq}`);
-            escaped = escaped.replace(/"([^"]*)"/g, m => `<span style="color:#CE9178">${m}</span>`);
+            let result = code;
+            result = result.replace(/(&lt;\/?)([\w-]+)/g, (m, bracket, tag) => `%%TAG%%${bracket}%%/TAG%%%%TN%%${tag}%%/TN%%`);
+            result = result.replace(/\s([\w-]+)(=)/g, (m, attr, eq) => ` %%ATTR%%${attr}%%/ATTR%%${eq}`);
+            result = result.replace(/"([^"]*)"/g, m => `%%VAL%%${m}%%/VAL%%`);
+            result = result.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            result = result.replace(/%%TAG%%(.*?)%%\/TAG%%/g, '<span style="color:#569CD6">$1</span>');
+            result = result.replace(/%%TN%%(.*?)%%\/TN%%/g, '<span style="color:#569CD6">$1</span>');
+            result = result.replace(/%%ATTR%%(.*?)%%\/ATTR%%/g, '<span style="color:#9CDCFE">$1</span>');
+            result = result.replace(/%%VAL%%(.*?)%%\/VAL%%/g, '<span style="color:#CE9178">$1</span>');
+            return result;
         } else if (lang === 'css') {
-            escaped = escaped.replace(/(\/\*[\s\S]*?\*\/)/g, m => `<span style="color:#6A9955">${m}</span>`);
-            escaped = escaped.replace(/([\w.-]+)(?=\s*\{)/g, m => `<span style="color:#D7BA7D">${m}</span>`);
-            escaped = escaped.replace(/([\w-]+)\s*:/g, (m, prop) => `<span style="color:#9CDCFE">${prop}</span>:`);
+            let result = code;
+            result = result.replace(/([\w.-]+)(?=\s*\{)/g, m => `%%SEL%%${m}%%/SEL%%`);
+            result = result.replace(/([\w-]+)\s*:/g, (m, prop) => `%%PROP%%${prop}%%/PROP%%:`);
+            result = result.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            result = result.replace(/%%SEL%%(.*?)%%\/SEL%%/g, '<span style="color:#D7BA7D">$1</span>');
+            result = result.replace(/%%PROP%%(.*?)%%\/PROP%%/g, '<span style="color:#9CDCFE">$1</span>');
+            return result;
         } else if (lang === 'markdown') {
-            escaped = escaped.replace(/^(#{1,3}\s.+)$/gm, m => `<span style="color:#569CD6;font-weight:bold">${m}</span>`);
-            escaped = escaped.replace(/(\*\*[^*]+\*\*)/g, m => `<span style="font-weight:bold">${m}</span>`);
-            escaped = escaped.replace(/(`[^`]+`)/g, m => `<span style="color:#CE9178">${m}</span>`);
+            let result = code;
+            result = result.replace(/^(#{1,3}\s.+)$/gm, m => `%%HD%%${m}%%/HD%%`);
+            result = result.replace(/(\*\*[^*]+\*\*)/g, m => `%%BOLD%%${m}%%/BOLD%%`);
+            result = result.replace(/(`[^`]+`)/g, m => `%%CODE%%${m}%%/CODE%%`);
+            result = result.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            result = result.replace(/%%HD%%(.*?)%%\/HD%%/g, '<span style="color:#569CD6;font-weight:bold">$1</span>');
+            result = result.replace(/%%BOLD%%(.*?)%%\/BOLD%%/g, '<span style="font-weight:bold">$1</span>');
+            result = result.replace(/%%CODE%%(.*?)%%\/CODE%%/g, '<span style="color:#CE9178">$1</span>');
+            return result;
         }
-        return escaped;
+        return code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
     function buildTree(path) {
