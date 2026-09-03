@@ -80,7 +80,19 @@ const Touch = (() => {
         target.dispatchEvent(ev);
     }
 
+    function requestFullscreen() {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            const docEl = document.documentElement;
+            if (docEl.requestFullscreen) {
+                docEl.requestFullscreen().catch(() => {});
+            } else if (docEl.webkitRequestFullscreen) {
+                docEl.webkitRequestFullscreen();
+            }
+        }
+    }
+
     function handleTouchStart(e) {
+        requestFullscreen();
         if (e.touches.length > 1) return;
         const t = e.touches[0];
         const x = t.clientX;

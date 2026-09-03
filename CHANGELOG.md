@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4350] - 2026-09-03
+
+### Added
+- Added automatic fullscreen request on touch events for mobile touch devices
+
 ## [12.0.4340] - 2026-09-03
 
 ### Added
