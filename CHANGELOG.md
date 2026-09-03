@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4300] - 2026-09-03
+
+### Fixed
+- Fixed mobile and small screen layout issue where the desktop appeared small in the corner due to mismatched resolution-layer sizing under scaled viewports
+
 ## [12.0.4290] - 2026-09-01
 
 ### Fixed
