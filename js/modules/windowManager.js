@@ -1,3 +1,5 @@
+import WindowState from './windowState.js';
+
 const WindowManager = (() => {
     let windows = new Map();
     let zCounter = 100;
@@ -14,6 +16,7 @@ const WindowManager = (() => {
     function init() {
         container = document.getElementById('windows-container');
         createSnapIndicator();
+        WindowState.init();
     }
 
     function createSnapIndicator() {
@@ -73,17 +76,31 @@ const WindowManager = (() => {
             width: 700,
             height: 500,
             minWidth: 400,
-            minHeight: 300
+            minHeight: 300,
+            saveState: true
         };
         const opts = { ...defaults, ...options };
 
-        const x = Math.max(50, (window.innerWidth / s - opts.width) / 2 + Math.random() * 60 - 30);
-        const y = Math.max(30, (window.innerHeight / s - opts.height - 48) / 2 + Math.random() * 40 - 20);
+        let x, y, width, height, isMaximized = false;
+        const savedState = opts.saveState ? WindowState.getWindowState(appId) : null;
+
+        if (savedState) {
+            x = savedState.x;
+            y = savedState.y;
+            width = savedState.width;
+            height = savedState.height;
+            isMaximized = savedState.maximized || false;
+        } else {
+            x = Math.max(50, (window.innerWidth / s - opts.width) / 2 + Math.random() * 60 - 30);
+            y = Math.max(30, (window.innerHeight / s - opts.height - 48) / 2 + Math.random() * 40 - 20);
+            width = opts.width;
+            height = opts.height;
+        }
 
         const win = document.createElement('div');
         win.className = 'app-window';
         win.id = id;
-        win.style.cssText = `left:${x}px;top:${y}px;width:${opts.width}px;height:${opts.height}px;z-index:${++zCounter}`;
+        win.style.cssText = `left:${x}px;top:${y}px;width:${width}px;height:${height}px;z-index:${++zCounter}`;
 
         win.innerHTML = `
             <div class="resize-handle top"></div>
@@ -122,9 +139,14 @@ const WindowManager = (() => {
             title,
             icon,
             element: win,
-            isMaximized: false,
-            prevBounds: null
+            isMaximized: isMaximized,
+            prevBounds: null,
+            saveState: opts.saveState
         };
+
+        if (isMaximized) {
+            win.classList.add('maximized');
+        }
 
         windows.set(id, windowData);
         setupDrag(win, windowData);
@@ -222,6 +244,17 @@ const WindowManager = (() => {
                     currentSnap = null;
                 }
                 hideSnapIndicator();
+
+                if (data.saveState) {
+                    const rect = win.getBoundingClientRect();
+                    WindowState.saveWindowState(data.appId, {
+                        x: rect.left,
+                        y: rect.top,
+                        width: rect.width,
+                        height: rect.height,
+                        maximized: data.isMaximized
+                    });
+                }
             }
         });
 
@@ -283,6 +316,16 @@ const WindowManager = (() => {
         });
 
         document.addEventListener('mouseup', () => {
+            if (isResizing && data.saveState) {
+                const rect = win.getBoundingClientRect();
+                WindowState.saveWindowState(data.appId, {
+                    x: rect.left,
+                    y: rect.top,
+                    width: rect.width,
+                    height: rect.height,
+                    maximized: data.isMaximized
+                });
+            }
             isResizing = false;
             currentHandle = null;
         });
@@ -324,14 +367,38 @@ const WindowManager = (() => {
             win.style.left = '0';
             win.style.top = '0';
             win.style.width = '100%';
-            win.style.height = '100%';
+            win.style.height = 'calc(100% - 48px)';
             data.isMaximized = true;
         }
+
+        if (data.saveState) {
+            const rect = win.getBoundingClientRect();
+            WindowState.saveWindowState(data.appId, {
+                x: rect.left,
+                y: rect.top,
+                width: rect.width,
+                height: rect.height,
+                maximized: data.isMaximized
+            });
+        }
+    }
     }
 
     function closeWindow(id) {
         const data = windows.get(id);
         if (!data) return;
+
+        if (data.saveState) {
+            const rect = data.element.getBoundingClientRect();
+            WindowState.saveWindowState(data.appId, {
+                x: rect.left,
+                y: rect.top,
+                width: rect.width,
+                height: rect.height,
+                maximized: data.isMaximized
+            });
+        }
+
         data.element.remove();
         const appId = data.appId;
         windows.delete(id);
