@@ -4,6 +4,17 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4430] - 2026-09-03
+
+### Fixed
+- Optimized Paint to prevent browser crashes during long drawing sessions
+
+### Changed
+- Undo stack now uses ImageData instead of base64 data URLs (3-5x less memory)
+- Brush tools now draw incremental segments instead of redrawing entire stroke
+- Shape tools cache preview state once instead of reloading on every mouse move
+- Reduced max undo states from 30 to 20 for better memory usage
+
 ## [12.0.4420] - 2026-09-03
 
 ### Fixed

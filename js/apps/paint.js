@@ -5,7 +5,7 @@ import SavePrompt from '../modules/saveprompt.js';
 const Paint = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#1565C0"/><circle cx="8" cy="8" r="2" fill="#FF5722"/><circle cx="14" cy="9" r="2" fill="#4CAF50"/><circle cx="10" cy="14" r="2" fill="#FFC107"/><circle cx="16" cy="15" r="2" fill="#9C27B0"/></svg>`;
 
-    const MAX_UNDO = 30;
+    const MAX_UNDO = 20;
 
     function getContent() {
         return `
@@ -85,7 +85,7 @@ const Paint = (() => {
         const el = win.element;
 
         const canvas = el.querySelector('.paint-canvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: false });
         const container = el.querySelector('.paint-canvas-container');
         const sizeSlider = el.querySelector('.paint-size-slider');
         const sizeLabel = el.querySelector('.paint-size-label');
@@ -101,12 +101,16 @@ const Paint = (() => {
         let previewCanvas = document.createElement('canvas');
         let previewCtx = previewCanvas.getContext('2d');
         let points = [];
+        let shapePreviewData = null;
 
         function resizeCanvas() {
             const w = container.clientWidth;
             const h = container.clientHeight;
             if (canvas.width === w && canvas.height === h) return;
-            const imageData = canvas.width > 0 ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
+            let imageData = null;
+            if (canvas.width > 0 && canvas.height > 0) {
+                try { imageData = ctx.getImageData(0, 0, canvas.width, canvas.height); } catch(e) {}
+            }
             canvas.width = w;
             canvas.height = h;
             ctx.fillStyle = '#FFFFFF';
@@ -118,16 +122,11 @@ const Paint = (() => {
 
         function saveState() {
             if (undoStack.length >= MAX_UNDO) undoStack.shift();
-            undoStack.push(canvas.toDataURL());
+            undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
         }
 
-        function restoreState(dataUrl) {
-            const img = new Image();
-            img.onload = () => {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(img, 0, 0);
-            };
-            img.src = dataUrl;
+        function restoreState(imageData) {
+            ctx.putImageData(imageData, 0, 0);
         }
 
         function setTool(tool) {
@@ -149,56 +148,77 @@ const Paint = (() => {
             };
         }
 
-        function drawSmoothLine(context, pts, color, size) {
+        function getBrushSize() {
+            return currentTool === 'brush' ? brushSize * 2 : (currentTool === 'eraser' ? brushSize * 3 : brushSize);
+        }
+
+        function getColor() {
+            return currentTool === 'eraser' ? '#FFFFFF' : currentColor;
+        }
+
+        function drawSegment(x1, y1, x2, y2, color, size) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+        }
+
+        function drawSmoothSegment(pts, color, size) {
             if (pts.length < 2) return;
-            context.strokeStyle = color;
-            context.lineWidth = size;
-            context.lineCap = 'round';
-            context.lineJoin = 'round';
-            context.beginPath();
-            context.moveTo(pts[0].x, pts[0].y);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
             if (pts.length === 2) {
-                context.lineTo(pts[1].x, pts[1].y);
+                ctx.lineTo(pts[1].x, pts[1].y);
             } else {
                 for (let i = 1; i < pts.length - 1; i++) {
                     const mx = (pts[i].x + pts[i + 1].x) / 2;
                     const my = (pts[i].y + pts[i + 1].y) / 2;
-                    context.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+                    ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
                 }
                 const last = pts[pts.length - 1];
                 const prev = pts[pts.length - 2];
-                context.quadraticCurveTo(prev.x, prev.y, last.x, last.y);
+                ctx.quadraticCurveTo(prev.x, prev.y, last.x, last.y);
             }
-            context.stroke();
+            ctx.stroke();
         }
 
-        function drawShape(context, tool, sx, sy, ex, ey, color, size) {
-            context.strokeStyle = color;
-            context.lineWidth = size;
-            context.lineCap = 'round';
-            context.lineJoin = 'round';
+        function drawShape(tool, sx, sy, ex, ey, color, size) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
             if (tool === 'line') {
-                context.beginPath();
-                context.moveTo(sx, sy);
-                context.lineTo(ex, ey);
-                context.stroke();
+                ctx.beginPath();
+                ctx.moveTo(sx, sy);
+                ctx.lineTo(ex, ey);
+                ctx.stroke();
             } else if (tool === 'rect') {
-                context.strokeRect(sx, sy, ex - sx, ey - sy);
+                ctx.strokeRect(sx, sy, ex - sx, ey - sy);
             } else if (tool === 'circle') {
                 const cx = (sx + ex) / 2;
                 const cy = (sy + ey) / 2;
                 const rx = Math.abs(ex - sx) / 2;
                 const ry = Math.abs(ey - sy) / 2;
-                context.beginPath();
-                context.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-                context.stroke();
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+                ctx.stroke();
             }
         }
 
-        el.addEventListener('mousedown', (e) => {
-            if (!e.target.closest('.paint-canvas')) return;
+        function isBrushTool() {
+            return currentTool === 'pencil' || currentTool === 'brush' || currentTool === 'eraser';
+        }
+
+        function startDrawing(pos) {
             isDrawing = true;
-            const pos = getPos(e);
             startX = pos.x;
             startY = pos.y;
             lastX = pos.x;
@@ -207,48 +227,47 @@ const Paint = (() => {
 
             saveState();
 
-            if (currentTool === 'pencil' || currentTool === 'brush' || currentTool === 'eraser') {
-                const size = currentTool === 'brush' ? brushSize * 2 : (currentTool === 'eraser' ? brushSize * 3 : brushSize);
-                const color = currentTool === 'eraser' ? '#FFFFFF' : currentColor;
-                drawSmoothLine(ctx, points, color, size);
+            if (isBrushTool()) {
+                drawSegment(pos.x, pos.y, pos.x, pos.y, getColor(), getBrushSize());
             } else {
-                previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+                shapePreviewData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             }
+        }
+
+        function moveDrawing(pos) {
+            if (!isDrawing) return;
+
+            if (isBrushTool()) {
+                drawSegment(lastX, lastY, pos.x, pos.y, getColor(), getBrushSize());
+                lastX = pos.x;
+                lastY = pos.y;
+            } else {
+                if (shapePreviewData) {
+                    ctx.putImageData(shapePreviewData, 0, 0);
+                }
+                drawShape(currentTool, startX, startY, pos.x, pos.y, currentColor, brushSize);
+            }
+        }
+
+        function endDrawing() {
+            if (!isDrawing) return;
+            isDrawing = false;
+            points = [];
+            shapePreviewData = null;
+        }
+
+        el.addEventListener('mousedown', (e) => {
+            if (!e.target.closest('.paint-canvas')) return;
+            startDrawing(getPos(e));
         });
 
         el.addEventListener('mousemove', (e) => {
             if (!isDrawing || !e.target.closest('.paint-canvas')) return;
-            const pos = getPos(e);
-
-            if (currentTool === 'pencil' || currentTool === 'brush' || currentTool === 'eraser') {
-                const size = currentTool === 'brush' ? brushSize * 2 : (currentTool === 'eraser' ? brushSize * 3 : brushSize);
-                const color = currentTool === 'eraser' ? '#FFFFFF' : currentColor;
-                points.push(pos);
-                drawSmoothLine(ctx, points, color, size);
-                lastX = pos.x;
-                lastY = pos.y;
-            } else {
-                const saved = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const dataUrl = undoStack[undoStack.length - 1];
-                if (dataUrl) {
-                    const img = new Image();
-                    img.onload = () => {
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        ctx.drawImage(img, 0, 0);
-                        drawShape(ctx, currentTool, startX, startY, pos.x, pos.y, currentColor, brushSize);
-                    };
-                    img.src = dataUrl;
-                } else {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    drawShape(ctx, currentTool, startX, startY, pos.x, pos.y, currentColor, brushSize);
-                }
-            }
+            moveDrawing(getPos(e));
         });
 
-        el.addEventListener('mouseup', () => { isDrawing = false; points = []; });
-        el.addEventListener('mouseleave', () => { isDrawing = false; points = []; });
+        el.addEventListener('mouseup', endDrawing);
+        el.addEventListener('mouseleave', endDrawing);
 
         el.addEventListener('touchstart', (e) => {
             if (!e.target.closest('.paint-canvas')) return;
@@ -256,23 +275,7 @@ const Paint = (() => {
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
             const zoom = parseFloat(getComputedStyle(document.getElementById('resolution-layer')).zoom) || 1;
-            const pos = { x: (touch.clientX - rect.left) / zoom, y: (touch.clientY - rect.top) / zoom };
-            isDrawing = true;
-            startX = pos.x;
-            startY = pos.y;
-            lastX = pos.x;
-            lastY = pos.y;
-            points = [pos];
-
-            saveState();
-
-            if (currentTool === 'pencil' || currentTool === 'brush' || currentTool === 'eraser') {
-                const size = currentTool === 'brush' ? brushSize * 2 : (currentTool === 'eraser' ? brushSize * 3 : brushSize);
-                const color = currentTool === 'eraser' ? '#FFFFFF' : currentColor;
-                drawSmoothLine(ctx, points, color, size);
-            } else {
-                previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-            }
+            startDrawing({ x: (touch.clientX - rect.left) / zoom, y: (touch.clientY - rect.top) / zoom });
         }, { passive: false });
 
         document.addEventListener('touchmove', (e) => {
@@ -281,36 +284,11 @@ const Paint = (() => {
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
             const zoom = parseFloat(getComputedStyle(document.getElementById('resolution-layer')).zoom) || 1;
-            const pos = { x: (touch.clientX - rect.left) / zoom, y: (touch.clientY - rect.top) / zoom };
-
-            if (currentTool === 'pencil' || currentTool === 'brush' || currentTool === 'eraser') {
-                const size = currentTool === 'brush' ? brushSize * 2 : (currentTool === 'eraser' ? brushSize * 3 : brushSize);
-                const color = currentTool === 'eraser' ? '#FFFFFF' : currentColor;
-                points.push(pos);
-                drawSmoothLine(ctx, points, color, size);
-                lastX = pos.x;
-                lastY = pos.y;
-            } else {
-                const dataUrl = undoStack[undoStack.length - 1];
-                if (dataUrl) {
-                    const img = new Image();
-                    img.onload = () => {
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        ctx.drawImage(img, 0, 0);
-                        drawShape(ctx, currentTool, startX, startY, pos.x, pos.y, currentColor, brushSize);
-                    };
-                    img.src = dataUrl;
-                } else {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    drawShape(ctx, currentTool, startX, startY, pos.x, pos.y, currentColor, brushSize);
-                }
-            }
+            moveDrawing({ x: (touch.clientX - rect.left) / zoom, y: (touch.clientY - rect.top) / zoom });
         }, { passive: false });
 
-        document.addEventListener('touchend', () => { if (isDrawing) { isDrawing = false; points = []; } });
-        document.addEventListener('touchcancel', () => { if (isDrawing) { isDrawing = false; points = []; } });
+        document.addEventListener('touchend', endDrawing);
+        document.addEventListener('touchcancel', endDrawing);
 
         el.querySelectorAll('.paint-tool-btn').forEach(btn => {
             btn.addEventListener('click', () => setTool(btn.dataset.tool));
