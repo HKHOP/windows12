@@ -20,6 +20,7 @@ import Paint from './apps/paint.js';
 import Browser from './apps/browser.js';
 import Terminal from './apps/terminal.js';
 import AppStore from './apps/appStore.js';
+import AppSystem from './modules/appSystem.js';
 
 AppRegistry.register('settings', Settings);
 AppRegistry.register('notepad', Notepad);
@@ -33,6 +34,8 @@ AppRegistry.register('paint', Paint);
 AppRegistry.register('browser', Browser);
 AppRegistry.register('terminal', Terminal);
 AppRegistry.register('appStore', AppStore);
+
+AppSystem.init();
 
 document.addEventListener('DOMContentLoaded', () => {
     window.SystemConfig = SystemConfig;

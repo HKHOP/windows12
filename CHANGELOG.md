@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4340] - 2026-09-03
+
+### Added
+- Implemented real application system (`AppSystem`) supporting install/uninstall pipeline via Microsoft Store, Settings app, and Start Menu right-click context menu
+- Added functional Sample App with interactive features and full system registration
+
 ## [12.0.4330] - 2026-09-03
 
 ### Fixed

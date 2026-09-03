@@ -3,6 +3,7 @@ import { AppRegistry, AppMetadata } from './taskbar.js';
 import UserActivity from './userActivity.js';
 import FileSystem from './fileSystem.js';
 import SystemConfig from '../modules/systemConfig.js';
+import AppSystem from './appSystem.js';
 
 const StartMenu = (() => {
     let pinnedApps = [];
@@ -27,6 +28,7 @@ const StartMenu = (() => {
         { id: 'notepad', name: 'Notepad' },
         { id: 'paint', name: 'Paint' },
         { id: 'photos', name: 'Photos' },
+        { id: 'sampleApp', name: 'Sample App' },
         { id: 'settings', name: 'Settings' },
         { id: 'taskManager', name: 'Task Manager' },
         { id: 'terminal', name: 'Terminal' }
@@ -46,6 +48,13 @@ const StartMenu = (() => {
         setupAllAppsButton();
         setupPowerButton();
         updateUserInfo();
+
+        window.addEventListener('apps-changed', () => {
+            renderPinnedApps();
+            if (currentView === 'allApps') {
+                showAllApps();
+            }
+        });
     }
 
     function ensureDir(path) {
@@ -322,8 +331,14 @@ const StartMenu = (() => {
         header.appendChild(title);
         drawer.appendChild(header);
 
+        const installed = AppSystem.getInstalledApps();
+        const filteredApps = allApps.filter(app => {
+            if (app.id === 'sampleApp') return installed.includes('sampleApp');
+            return true;
+        });
+
         const letters = {};
-        allApps.forEach(app => {
+        filteredApps.forEach(app => {
             const letter = app.name[0].toUpperCase();
             if (!letters[letter]) letters[letter] = [];
             letters[letter].push(app);
@@ -358,12 +373,17 @@ const StartMenu = (() => {
                     e.preventDefault();
                     e.stopPropagation();
                     const pinned = isPinned(app.id);
+                    const isUserApp = app.id === 'sampleApp';
                     const items = [
                         { label: app.name, icon: '', disabled: true },
                         'separator',
                         pinned
                             ? { label: 'Unpin from Start', icon: '📌', action: () => { unpinApp(app.id); showAllApps(); } }
-                            : { label: 'Pin to Start', icon: '📍', action: () => { pinApp(app.id); showAllApps(); } }
+                            : { label: 'Pin to Start', icon: '📍', action: () => { pinApp(app.id); showAllApps(); } },
+                        ...(isUserApp ? [
+                            'separator',
+                            { label: 'Uninstall', icon: '🗑️', action: () => { AppSystem.uninstallApp(app.id); showAllApps(); } }
+                        ] : [])
                     ];
                     if (window._modules && window._modules.ContextMenu) {
                         window._modules.ContextMenu.show(e.clientX, e.clientY, items);
@@ -396,7 +416,14 @@ const StartMenu = (() => {
         const container = document.getElementById('pinned-apps');
         if (!container) return;
         container.innerHTML = '';
-        pinnedApps.forEach(appId => {
+        const installed = AppSystem.getInstalledApps();
+
+        const activePinned = pinnedApps.filter(appId => {
+            if (appId === 'sampleApp') return installed.includes('sampleApp');
+            return true;
+        });
+
+        activePinned.forEach(appId => {
             const meta = AppMetadata.get(appId);
             const el = document.createElement('div');
             el.className = 'app-item';
@@ -414,6 +441,7 @@ const StartMenu = (() => {
             el.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                const isUserApp = appId === 'sampleApp';
                 const items = [
                     { label: meta.name, icon: '', disabled: true },
                     'separator',
@@ -421,7 +449,11 @@ const StartMenu = (() => {
                     { label: 'Open', icon: '🚀', action: () => {
                         document.getElementById('start-menu').classList.add('hidden');
                         launchApp(appId);
-                    }}
+                    }},
+                    ...(isUserApp ? [
+                        'separator',
+                        { label: 'Uninstall', icon: '🗑️', action: () => AppSystem.uninstallApp(appId) }
+                    ] : [])
                 ];
                 if (window._modules && window._modules.ContextMenu) {
                     window._modules.ContextMenu.show(e.clientX, e.clientY, items);

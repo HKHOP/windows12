@@ -2,6 +2,8 @@ import WindowManager from '../modules/windowManager.js';
 import SystemConfig from '../modules/systemConfig.js';
 import Scaling from '../modules/scaling.js';
 import Popup from '../modules/popup.js';
+import AppSystem from '../modules/appSystem.js';
+import AppSystem from '../modules/appSystem.js';
 
 const Settings = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
@@ -664,20 +666,32 @@ const Settings = (() => {
     }
 
     function renderApps(el) {
+        const installed = AppSystem.getInstalledApps();
+        const hasSample = installed.includes('sampleApp');
+
         el.innerHTML = `
             <h2 style="font-size:28px;font-weight:600;margin-bottom:24px;">Apps</h2>
-            <div style="display:flex;flex-direction:column;gap:4px;">
-                ${appRow('File Explorer', 'Built-in')}
-                ${appRow('Notepad', 'Built-in')}
-                ${appRow('Settings', 'Built-in')}
-                ${appRow('Task Manager', 'Built-in')}
-                ${appRow('Calculator', 'Built-in')}
-                ${appRow('Calendar', 'Built-in')}
-                ${appRow('Clock', 'Built-in')}
-                ${appRow('Photos', 'Built-in')}
-                ${appRow('Paint', 'Built-in')}
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                ${appRow('File Explorer', 'Built-in', false)}
+                ${appRow('Notepad', 'Built-in', false)}
+                ${appRow('Settings', 'Built-in', false)}
+                ${appRow('Task Manager', 'Built-in', false)}
+                ${appRow('Calculator', 'Built-in', false)}
+                ${appRow('Calendar', 'Built-in', false)}
+                ${appRow('Clock', 'Built-in', false)}
+                ${appRow('Photos', 'Built-in', false)}
+                ${appRow('Paint', 'Built-in', false)}
+                ${hasSample ? appRow('Sample App', 'Installed from Store', true, 'sampleApp') : ''}
             </div>
         `;
+
+        el.querySelectorAll('.settings-uninstall-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const appId = btn.dataset.app;
+                AppSystem.uninstallApp(appId);
+                renderApps(el);
+            });
+        });
     }
 
     function renderAccounts(el) {
@@ -790,12 +804,13 @@ const Settings = (() => {
         </div>`;
     }
 
-    function appRow(name, detail) {
+    function appRow(name, detail, removable, appId) {
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:rgba(255,255,255,0.04);border-radius:6px;">
             <div>
                 <div style="font-size:14px;font-weight:500;">${name}</div>
                 <div style="font-size:12px;color:#888;">${detail}</div>
             </div>
+            ${removable ? `<button class="settings-uninstall-btn" data-app="${appId}" style="background:rgba(233,17,35,0.2);border:1px solid rgba(233,17,35,0.4);border-radius:4px;padding:6px 12px;color:#ff6666;cursor:pointer;font-size:12px;">Uninstall</button>` : ''}
         </div>`;
     }
 
