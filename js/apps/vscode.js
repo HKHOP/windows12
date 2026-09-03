@@ -432,10 +432,20 @@ const VSCode = (() => {
         const parentPath = pathArr.slice(0, -1);
         const fileName = pathArr[pathArr.length - 1];
 
+        let saved = false;
         if (FileSystem.itemExists(pathArr)) {
-            FileSystem.writeFile(pathArr, activeTab.content);
-        } else if (FileSystem.itemExists(parentPath)) {
-            FileSystem.createFile(parentPath, fileName, activeTab.content);
+            saved = FileSystem.writeFile(pathArr, activeTab.content);
+        }
+        if (!saved && FileSystem.itemExists(parentPath)) {
+            saved = FileSystem.createFile(parentPath, fileName, activeTab.content);
+        }
+        if (!saved) {
+            const node = FileSystem.getNode(pathArr);
+            if (node && node.type === 'file') {
+                node.content = activeTab.content;
+                node.modified = Date.now();
+                saved = true;
+            }
         }
         activeTab.original = activeTab.content;
         activeTab.modified = false;
