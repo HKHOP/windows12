@@ -15,6 +15,7 @@ const VSCode = (() => {
     let wordWrap = false;
     let minimap = false;
     let refreshFn = null;
+    let cleanupFn = null;
 
     const ICONS = {
         folder: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 7V17C3 18.1 3.9 19 5 19H19C20.1 19 21 18.1 21 17V9C21 7.9 20.1 7 19 7H11L9 5H5C3.9 5 3 5.9 3 7Z" fill="#E8A838"/></svg>`,
@@ -141,6 +142,7 @@ const VSCode = (() => {
     }
 
     function launch() {
+        if (cleanupFn) cleanupFn();
         openTabs = [];
         activeTab = null;
         terminalVisible = false;
@@ -305,7 +307,7 @@ const VSCode = (() => {
         const tabsContainer = el.querySelector('.vsc-tabs');
         tabsContainer.innerHTML = openTabs.map(t => {
             const isActive = t === activeTab;
-            const dot = t.modified ? '<span style="width:6px;height:6px;background:#E8A838;border-radius:50;margin-left:6px;"></span>' : '';
+            const dot = t.modified ? '<span style="width:6px;height:6px;background:#E8A838;border-radius:50%;margin-left:6px;"></span>' : '';
             return `<div class="vsc-tab" data-path="${t.path}" style="display:flex;align-items:center;gap:6px;padding:0 12px;height:32px;font-size:12px;cursor:pointer;white-space:nowrap;border-right:1px solid #3c3c3c;${isActive ? 'background:#1e1e1e;border-bottom:2px solid #0078D4;color:#fff;' : 'background:#2d2d2d;color:#969696;'}">
                 <span>${getFileIcon(t.name)}</span>
                 <span>${t.name}</span>
@@ -361,7 +363,7 @@ const VSCode = (() => {
         editor.innerHTML = `<div style="display:flex;height:100%;">
             <div class="vsc-line-numbers" style="padding:8px 0;text-align:right;color:#858585;font-family:'Cascadia Mono','Consolas','Courier New',monospace;font-size:13px;line-height:1.5;min-width:50px;padding-right:12px;padding-left:12px;user-select:none;border-right:1px solid #3c3c3c;overflow:hidden;">${lines.map((_, i) => `<div>${i + 1}</div>`).join('')}</div>
             <div class="vsc-code-wrapper" style="flex:1;overflow:auto;position:relative;">
-                <textarea class="vsc-code-input" style="position:absolute;top:0;left:0;width:100%;height:100%;background:transparent;color:transparent;caret-color:#aeafad;border:none;outline:none;resize:none;padding:8px 12px;font-family:'Cascadia Mono','Consolas','Courier New',monospace;font-size:13px;line-height:1.5;white-space:pre;overflow:hidden;tab-size:4;z-index:2;" spellcheck="false" autocomplete="off">${activeTab.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+                <textarea class="vsc-code-input" style="position:absolute;top:0;left:0;width:100%;height:100%;background:transparent;color:transparent;caret-color:#aeafad;border:none;outline:none;resize:none;padding:8px 12px;font-family:'Cascadia Mono','Consolas','Courier New',monospace;font-size:13px;line-height:1.5;white-space:pre;overflow:hidden;tab-size:4;z-index:2;" spellcheck="false" autocomplete="off">${activeTab.content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
                 <pre class="vsc-code-display" style="margin:0;padding:8px 12px;font-family:'Cascadia Mono','Consolas','Courier New',monospace;font-size:13px;line-height:1.5;white-space:pre;overflow:hidden;tab-size:4;z-index:1;pointer-events:none;">${highlighted}</pre>
             </div>
         </div>`;
@@ -790,8 +792,10 @@ const VSCode = (() => {
             el.querySelectorAll('.vsc-menu-item').forEach(mi => mi.style.background = '');
         }
 
-        document.addEventListener('click', () => closeMenu());
+        document.addEventListener('click', closeMenu);
         dropdown.addEventListener('click', (e) => e.stopPropagation());
+
+        cleanupFn = () => document.removeEventListener('click', closeMenu);
 
         el.querySelector('.vsc-project-root').addEventListener('click', () => promptOpenFolder(el));
     }
@@ -961,7 +965,7 @@ const VSCode = (() => {
             <div style="background:#252526;border:1px solid #3c3c3c;border-radius:8px;padding:20px;width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
                 <div style="font-size:14px;font-weight:600;color:#ccc;margin-bottom:12px;">Save As</div>
                 <div style="font-size:12px;color:#888;margin-bottom:8px;">Enter new file path (relative to project root):</div>
-                <input type="text" class="vsc-saveas-input" style="width:100%;padding:8px 12px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;font-size:13px;outline:none;margin-bottom:12px;box-sizing:border-box;" value="${activeTab.name}" autofocus>
+                <input type="text" class="vsc-saveas-input" style="width:100%;padding:8px 12px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;font-size:13px;outline:none;margin-bottom:12px;box-sizing:border-box;" value="${activeTab.name.replace(/"/g, '&quot;')}" autofocus>
                 <div style="display:flex;justify-content:flex-end;gap:8px;">
                     <button class="vsc-saveas-cancel" style="padding:6px 14px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;cursor:pointer;font-size:12px;">Cancel</button>
                     <button class="vsc-saveas-save" style="padding:6px 14px;background:#0078D4;border:none;border-radius:4px;color:white;cursor:pointer;font-size:12px;font-weight:500;">Save</button>
@@ -1025,7 +1029,7 @@ const VSCode = (() => {
                     <span class="vsc-folder-shortcut" data-path="/users/default/Documents/Projects" style="padding:4px 10px;background:#3c3c3c;border:1px solid #555;border-radius:4px;font-size:11px;color:#aaa;cursor:pointer;">~/Projects</span>
                     <span class="vsc-folder-shortcut" data-path="/" style="padding:4px 10px;background:#3c3c3c;border:1px solid #555;border-radius:4px;font-size:11px;color:#aaa;cursor:pointer;">/ (root)</span>
                 </div>
-                <input type="text" class="vsc-folder-input" style="width:100%;padding:8px 12px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;font-size:13px;outline:none;margin-bottom:12px;box-sizing:border-box;" value="${projectRoot.join('/')}" autofocus>
+                <input type="text" class="vsc-folder-input" style="width:100%;padding:8px 12px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;font-size:13px;outline:none;margin-bottom:12px;box-sizing:border-box;" value="${projectRoot.join('/').replace(/"/g, '&quot;')}" autofocus>
                 <div style="display:flex;justify-content:flex-end;gap:8px;">
                     <button class="vsc-folder-cancel" style="padding:6px 14px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;cursor:pointer;font-size:12px;">Cancel</button>
                     <button class="vsc-folder-open" style="padding:6px 14px;background:#0078D4;border:none;border-radius:4px;color:white;cursor:pointer;font-size:12px;font-weight:500;">Open</button>

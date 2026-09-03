@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4570] - 2026-09-04
+
+### Fixed
+- Fixed VS Code modified-file dot indicator not being circular (missing % in border-radius)
+- Fixed VS Code textarea not escaping & characters, causing files with & to display incorrectly
+- Fixed VS Code document click listener leak when opening the app multiple times
+- Fixed VS Code Save As and Open Folder dialogs not escaping quotes in input values
+
 ## [12.0.4560] - 2026-09-03
 
 ### Fixed
