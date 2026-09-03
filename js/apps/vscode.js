@@ -7,9 +7,13 @@ const VSCode = (() => {
     let openTabs = [];
     let activeTab = null;
     let terminalVisible = false;
-    let termCwd = ['/', 'users', 'default'];
+    let projectRoot = ['/', 'users', 'default'];
+    let termCwd = [...projectRoot];
     let termHistory = [];
     let termHistIdx = -1;
+    let menuOpen = null;
+    let wordWrap = false;
+    let minimap = false;
 
     const ICONS = {
         folder: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 7V17C3 18.1 3.9 19 5 19H19C20.1 19 21 18.1 21 17V9C21 7.9 20.1 7 19 7H11L9 5H5C3.9 5 3 5.9 3 7Z" fill="#E8A838"/></svg>`,
@@ -114,9 +118,13 @@ const VSCode = (() => {
         openTabs = [];
         activeTab = null;
         terminalVisible = false;
-        termCwd = ['/', 'users', 'default'];
+        projectRoot = ['/', 'users', 'default'];
+        termCwd = [...projectRoot];
         termHistory = [];
         termHistIdx = -1;
+        menuOpen = null;
+        wordWrap = false;
+        minimap = false;
 
         const win = WindowManager.createWindow('vscode', 'Visual Studio Code', icon, '', {
             width: 950, height: 620, minWidth: 500, minHeight: 350
@@ -126,13 +134,15 @@ const VSCode = (() => {
         body.style.cssText = 'margin:0;padding:0;display:flex;flex-direction:column;height:100%;overflow:hidden;background:#1e1e1e;color:#cccccc;font-family:"Segoe UI",system-ui,sans-serif;font-size:13px;';
 
         body.innerHTML = `
-            <div class="vsc-topbar" style="display:flex;align-items:center;height:32px;background:#323233;border-bottom:1px solid #3c3c3c;padding:0 8px;gap:8px;flex-shrink:0;">
-                <span style="font-size:11px;color:#999;">File</span>
-                <span style="font-size:11px;color:#999;">Edit</span>
-                <span style="font-size:11px;color:#999;">View</span>
-                <span style="font-size:11px;color:#999;">Run</span>
-                <span style="font-size:11px;color:#999;">Help</span>
+            <div class="vsc-topbar" style="display:flex;align-items:center;height:32px;background:#323233;border-bottom:1px solid #3c3c3c;padding:0 8px;gap:2px;flex-shrink:0;position:relative;">
+                <span class="vsc-menu-item" data-menu="file" style="font-size:11px;color:#ccc;padding:4px 8px;border-radius:4px;cursor:pointer;">File</span>
+                <span class="vsc-menu-item" data-menu="edit" style="font-size:11px;color:#ccc;padding:4px 8px;border-radius:4px;cursor:pointer;">Edit</span>
+                <span class="vsc-menu-item" data-menu="selection" style="font-size:11px;color:#ccc;padding:4px 8px;border-radius:4px;cursor:pointer;">Selection</span>
+                <span class="vsc-menu-item" data-menu="view" style="font-size:11px;color:#ccc;padding:4px 8px;border-radius:4px;cursor:pointer;">View</span>
+                <span class="vsc-menu-item" data-menu="run" style="font-size:11px;color:#ccc;padding:4px 8px;border-radius:4px;cursor:pointer;">Run</span>
+                <span class="vsc-menu-item" data-menu="help" style="font-size:11px;color:#ccc;padding:4px 8px;border-radius:4px;cursor:pointer;">Help</span>
             </div>
+            <div class="vsc-menu-dropdown" style="display:none;position:absolute;top:32px;left:0;background:#252526;border:1px solid #3c3c3c;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.4);z-index:9999;min-width:220px;padding:4px 0;"></div>
             <div class="vsc-main" style="display:flex;flex:1;overflow:hidden;">
                 <div class="vsc-activitybar" style="width:48px;background:#333333;display:flex;flex-direction:column;align-items:center;padding-top:4px;flex-shrink:0;border-right:1px solid #3c3c3c;">
                     <div class="vsc-ab-btn active" data-panel="explorer" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-left:2px solid #0078D4;color:#fff;margin-bottom:2px;" title="Explorer">
@@ -147,7 +157,10 @@ const VSCode = (() => {
                     </div>
                 </div>
                 <div class="vsc-sidebar" style="width:220px;background:#252526;border-right:1px solid #3c3c3c;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;">
-                    <div class="vsc-sidebar-header" style="padding:8px 12px;font-size:11px;font-weight:600;text-transform:uppercase;color:#999;letter-spacing:0.5px;">Explorer</div>
+                    <div class="vsc-sidebar-header" style="padding:8px 12px;font-size:11px;font-weight:600;text-transform:uppercase;color:#999;letter-spacing:0.5px;display:flex;align-items:center;justify-content:space-between;">
+                        <span class="vsc-project-label">EXPLORER</span>
+                        <span class="vsc-project-root" style="font-size:10px;font-weight:400;color:#666;text-transform:none;cursor:pointer;" title="Change project root">~/default</span>
+                    </div>
                     <div class="vsc-sidebar-content" style="flex:1;overflow-y:auto;padding:0 4px;"></div>
                 </div>
                 <div class="vsc-editor-area" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
@@ -185,12 +198,13 @@ const VSCode = (() => {
         `;
 
         const sidebarContent = body.querySelector('.vsc-sidebar-content');
-        sidebarContent.innerHTML = buildTree(['/', 'users', 'default']);
+        sidebarContent.innerHTML = buildTree(projectRoot);
 
         setupFileTreeEvents(el);
         setupActivityBar(el);
         setupTerminal(el);
         setupEditorEvents(el);
+        setupMenus(el);
     }
 
     function setupFileTreeEvents(el) {
@@ -509,7 +523,7 @@ const VSCode = (() => {
                 }
                 case 'cd': {
                     if (!args[0] || args[0] === '~') {
-                        termCwd = ['/', 'users', 'default'];
+                        termCwd = [...projectRoot];
                     } else if (args[0] === '/') {
                         termCwd = ['/'];
                     } else {
@@ -591,7 +605,7 @@ const VSCode = (() => {
 
         function refreshTree(el) {
             const sidebarContent = el.querySelector('.vsc-sidebar-content');
-            sidebarContent.innerHTML = buildTree(['/', 'users', 'default']);
+            sidebarContent.innerHTML = buildTree(projectRoot);
             setupFileTreeEvents(el);
         }
 
@@ -603,6 +617,381 @@ const VSCode = (() => {
                 toggleTerminal();
             }
         });
+    }
+
+    function setupMenus(el) {
+        const menus = {
+            file: [
+                { label: 'New File', shortcut: 'Ctrl+N', action: () => promptNewFile(el) },
+                { label: 'Open Folder...', shortcut: 'Ctrl+K Ctrl+O', action: () => promptOpenFolder(el) },
+                'separator',
+                { label: 'Save', shortcut: 'Ctrl+S', action: () => saveCurrentFile(el) },
+                { label: 'Save As...', shortcut: 'Ctrl+Shift+S', action: () => promptSaveAs(el) },
+                { label: 'Save All', shortcut: 'Ctrl+K S', action: () => saveAllFiles(el) },
+                'separator',
+                { label: 'Close Editor', shortcut: 'Ctrl+W', action: () => closeActiveTab(el) },
+                { label: 'Close All', shortcut: 'Ctrl+K Ctrl+W', action: () => closeAllTabs(el) }
+            ],
+            edit: [
+                { label: 'Undo', shortcut: 'Ctrl+Z', action: () => document.execCommand('undo') },
+                { label: 'Redo', shortcut: 'Ctrl+Y', action: () => document.execCommand('redo') },
+                'separator',
+                { label: 'Cut', shortcut: 'Ctrl+X', action: () => document.execCommand('cut') },
+                { label: 'Copy', shortcut: 'Ctrl+C', action: () => document.execCommand('copy') },
+                { label: 'Paste', shortcut: 'Ctrl+V', action: () => document.execCommand('paste') },
+                'separator',
+                { label: 'Find', shortcut: 'Ctrl+F', action: () => {} },
+                { label: 'Replace', shortcut: 'Ctrl+H', action: () => {} }
+            ],
+            selection: [
+                { label: 'Select All', shortcut: 'Ctrl+A', action: () => { const ta = el.querySelector('.vsc-code-input'); if (ta) ta.select(); } },
+                { label: 'Expand Selection', shortcut: 'Shift+Alt+→', action: () => {} },
+                { label: 'Shrink Selection', shortcut: 'Shift+Alt+←', action: () => {} }
+            ],
+            view: [
+                { label: 'Command Palette...', shortcut: 'Ctrl+Shift+P', action: () => {} },
+                'separator',
+                { label: 'Explorer', shortcut: 'Ctrl+Shift+E', action: () => togglePanel(el, 'explorer') },
+                { label: 'Search', shortcut: 'Ctrl+Shift+F', action: () => togglePanel(el, 'search') },
+                { label: 'Terminal', shortcut: 'Ctrl+`', action: () => toggleTerminalPanel(el) },
+                'separator',
+                { label: 'Word Wrap', shortcut: 'Alt+Z', action: () => toggleWordWrap(el), checked: () => wordWrap },
+                { label: 'Minimap', action: () => toggleMinimap(el), checked: () => minimap },
+                'separator',
+                { label: 'Zoom In', shortcut: 'Ctrl+=', action: () => { el.style.fontSize = (parseInt(el.style.fontSize || 13) + 1) + 'px'; } },
+                { label: 'Zoom Out', shortcut: 'Ctrl+-', action: () => { el.style.fontSize = Math.max(10, parseInt(el.style.fontSize || 13) - 1) + 'px'; } },
+                { label: 'Reset Zoom', shortcut: 'Ctrl+0', action: () => { el.style.fontSize = '13px'; } }
+            ],
+            run: [
+                { label: 'Run Without Debugging', shortcut: 'Ctrl+F5', action: () => {} },
+                { label: 'Start Debugging', shortcut: 'F5', action: () => {} },
+                'separator',
+                { label: 'Stop Debugging', shortcut: 'Shift+F5', action: () => {} },
+                { label: 'Restart Debugging', shortcut: 'Ctrl+Shift+F5', action: () => {} }
+            ],
+            help: [
+                { label: 'Welcome', action: () => {} },
+                { label: 'Documentation', action: () => {} },
+                'separator',
+                { label: 'Release Notes', action: () => {} },
+                'separator',
+                { label: 'About Visual Studio Code', action: () => showAbout(el) }
+            ]
+        };
+
+        const dropdown = el.querySelector('.vsc-menu-dropdown');
+
+        el.querySelectorAll('.vsc-menu-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const menuId = item.dataset.menu;
+                if (menuOpen === menuId) {
+                    closeMenu();
+                    return;
+                }
+                openMenu(menuId, item, el);
+            });
+            item.addEventListener('mouseenter', () => {
+                if (menuOpen) {
+                    const menuId = item.dataset.menu;
+                    openMenu(menuId, item, el);
+                }
+            });
+        });
+
+        function openMenu(menuId, anchor, el) {
+            menuOpen = menuId;
+            const items = menus[menuId];
+            if (!items) return;
+
+            el.querySelectorAll('.vsc-menu-item').forEach(mi => {
+                mi.style.background = mi.dataset.menu === menuId ? 'rgba(255,255,255,0.1)' : '';
+            });
+
+            dropdown.innerHTML = items.map(item => {
+                if (item === 'separator') {
+                    return '<div style="height:1px;background:#3c3c3c;margin:4px 8px;"></div>';
+                }
+                const checked = item.checked && item.checked() ? '&#10003; ' : '';
+                return `<div class="vsc-menu-entry" style="display:flex;align-items:center;justify-content:space-between;padding:6px 16px;font-size:12px;color:#ccc;cursor:pointer;border-radius:4px;margin:0 4px;" data-action="${item.label}">
+                    <span>${checked}${item.label}</span>
+                    ${item.shortcut ? `<span style="color:#888;font-size:11px;margin-left:24px;">${item.shortcut}</span>` : ''}
+                </div>`;
+            }).join('');
+
+            dropdown.querySelectorAll('.vsc-menu-entry').forEach(entry => {
+                entry.addEventListener('mouseenter', () => entry.style.background = 'rgba(255,255,255,0.08)');
+                entry.addEventListener('mouseleave', () => entry.style.background = '');
+                entry.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const actionName = entry.dataset.action;
+                    const menuItem = items.find(i => i !== 'separator' && i.label === actionName);
+                    if (menuItem && menuItem.action) menuItem.action();
+                    closeMenu();
+                });
+            });
+
+            const rect = anchor.getBoundingClientRect();
+            const bodyRect = el.querySelector('.window-body').getBoundingClientRect();
+            dropdown.style.left = (rect.left - bodyRect.left) + 'px';
+            dropdown.style.display = 'block';
+        }
+
+        function closeMenu() {
+            menuOpen = null;
+            dropdown.style.display = 'none';
+            el.querySelectorAll('.vsc-menu-item').forEach(mi => mi.style.background = '');
+        }
+
+        document.addEventListener('click', () => closeMenu());
+        dropdown.addEventListener('click', (e) => e.stopPropagation());
+
+        el.querySelector('.vsc-project-root').addEventListener('click', () => promptOpenFolder(el));
+    }
+
+    function togglePanel(el, panel) {
+        const btn = el.querySelector(`.vsc-ab-btn[data-panel="${panel}"]`);
+        if (btn) btn.click();
+    }
+
+    function toggleTerminalPanel(el) {
+        const termPanel = el.querySelector('.vsc-terminal-panel');
+        terminalVisible = !terminalVisible;
+        termPanel.style.display = terminalVisible ? 'flex' : 'none';
+        if (terminalVisible) el.querySelector('.vsc-term-input').focus();
+    }
+
+    function toggleWordWrap(el) {
+        wordWrap = !wordWrap;
+        const textarea = el.querySelector('.vsc-code-input');
+        const display = el.querySelector('.vsc-code-display');
+        if (textarea) textarea.style.whiteSpace = wordWrap ? 'pre-wrap' : 'pre';
+        if (display) display.style.whiteSpace = wordWrap ? 'pre-wrap' : 'pre';
+    }
+
+    function toggleMinimap(el) {
+        minimap = !minimap;
+    }
+
+    function closeActiveTab(el) {
+        if (!activeTab) return;
+        openTabs = openTabs.filter(t => t !== activeTab);
+        activeTab = openTabs[openTabs.length - 1] || null;
+        renderTabs(el);
+        renderEditor(el);
+    }
+
+    function closeAllTabs(el) {
+        openTabs = [];
+        activeTab = null;
+        renderTabs(el);
+        renderEditor(el);
+    }
+
+    function saveAllFiles(el) {
+        openTabs.forEach(tab => {
+            if (tab.modified) {
+                const pathArr = tab.path.split('/');
+                if (FileSystem.itemExists(pathArr)) {
+                    FileSystem.writeFile(pathArr, tab.content);
+                }
+                tab.original = tab.content;
+                tab.modified = false;
+            }
+        });
+        renderTabs(el);
+    }
+
+    function promptNewFile(el) {
+        const dropdown = el.querySelector('.vsc-menu-dropdown');
+        dropdown.style.display = 'none';
+        menuOpen = null;
+
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML = `
+            <div style="background:#252526;border:1px solid #3c3c3c;border-radius:8px;padding:20px;width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+                <div style="font-size:14px;font-weight:600;color:#ccc;margin-bottom:12px;">New File</div>
+                <div style="font-size:12px;color:#888;margin-bottom:8px;">Enter file name (relative to project root):</div>
+                <input type="text" class="vsc-new-file-input" style="width:100%;padding:8px 12px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;font-size:13px;outline:none;margin-bottom:12px;box-sizing:border-box;" placeholder="example.js" autofocus>
+                <div style="display:flex;justify-content:flex-end;gap:8px;">
+                    <button class="vsc-new-file-cancel" style="padding:6px 14px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;cursor:pointer;font-size:12px;">Cancel</button>
+                    <button class="vsc-new-file-create" style="padding:6px 14px;background:#0078D4;border:none;border-radius:4px;color:white;cursor:pointer;font-size:12px;font-weight:500;">Create</button>
+                </div>
+            </div>
+        `;
+        el.appendChild(overlay);
+
+        const input = overlay.querySelector('.vsc-new-file-input');
+        input.focus();
+
+        function close() { overlay.remove(); }
+
+        overlay.querySelector('.vsc-new-file-cancel').addEventListener('click', close);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+        overlay.querySelector('.vsc-new-file-create').addEventListener('click', () => {
+            const name = input.value.trim();
+            if (!name) return;
+            const pathArr = [...projectRoot, ...name.split('/')];
+            const parentPath = pathArr.slice(0, -1);
+            if (!FileSystem.itemExists(parentPath)) {
+                return;
+            }
+            FileSystem.createFile(parentPath, pathArr[pathArr.length - 1], '');
+            close();
+            refreshTree(el);
+            openFile(el, pathArr);
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') overlay.querySelector('.vsc-new-file-create').click();
+            if (e.key === 'Escape') close();
+        });
+    }
+
+    function promptSaveAs(el) {
+        if (!activeTab) return;
+        const dropdown = el.querySelector('.vsc-menu-dropdown');
+        dropdown.style.display = 'none';
+        menuOpen = null;
+
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML = `
+            <div style="background:#252526;border:1px solid #3c3c3c;border-radius:8px;padding:20px;width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+                <div style="font-size:14px;font-weight:600;color:#ccc;margin-bottom:12px;">Save As</div>
+                <div style="font-size:12px;color:#888;margin-bottom:8px;">Enter new file path (relative to project root):</div>
+                <input type="text" class="vsc-saveas-input" style="width:100%;padding:8px 12px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;font-size:13px;outline:none;margin-bottom:12px;box-sizing:border-box;" value="${activeTab.name}" autofocus>
+                <div style="display:flex;justify-content:flex-end;gap:8px;">
+                    <button class="vsc-saveas-cancel" style="padding:6px 14px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;cursor:pointer;font-size:12px;">Cancel</button>
+                    <button class="vsc-saveas-save" style="padding:6px 14px;background:#0078D4;border:none;border-radius:4px;color:white;cursor:pointer;font-size:12px;font-weight:500;">Save</button>
+                </div>
+            </div>
+        `;
+        el.appendChild(overlay);
+
+        const input = overlay.querySelector('.vsc-saveas-input');
+        input.focus();
+        input.select();
+
+        function close() { overlay.remove(); }
+
+        overlay.querySelector('.vsc-saveas-cancel').addEventListener('click', close);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+        overlay.querySelector('.vsc-saveas-save').addEventListener('click', () => {
+            const name = input.value.trim();
+            if (!name) return;
+            const pathArr = [...projectRoot, ...name.split('/')];
+            const parentPath = pathArr.slice(0, -1);
+            if (!FileSystem.itemExists(parentPath)) {
+                return;
+            }
+            if (FileSystem.itemExists(pathArr)) {
+                FileSystem.writeFile(pathArr, activeTab.content);
+            } else {
+                FileSystem.createFile(parentPath, pathArr[pathArr.length - 1], activeTab.content);
+            }
+            activeTab.path = pathArr.join('/');
+            activeTab.name = pathArr[pathArr.length - 1];
+            activeTab.original = activeTab.content;
+            activeTab.modified = false;
+            close();
+            refreshTree(el);
+            renderTabs(el);
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') overlay.querySelector('.vsc-saveas-save').click();
+            if (e.key === 'Escape') close();
+        });
+    }
+
+    function promptOpenFolder(el) {
+        const dropdown = el.querySelector('.vsc-menu-dropdown');
+        if (dropdown) dropdown.style.display = 'none';
+        menuOpen = null;
+
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML = `
+            <div style="background:#252526;border:1px solid #3c3c3c;border-radius:8px;padding:20px;width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+                <div style="font-size:14px;font-weight:600;color:#ccc;margin-bottom:12px;">Open Folder</div>
+                <div style="font-size:12px;color:#888;margin-bottom:8px;">Enter folder path to open as project root:</div>
+                <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+                    <span class="vsc-folder-shortcut" data-path="/users/default" style="padding:4px 10px;background:#3c3c3c;border:1px solid #555;border-radius:4px;font-size:11px;color:#aaa;cursor:pointer;">~/default</span>
+                    <span class="vsc-folder-shortcut" data-path="/users/default/Desktop" style="padding:4px 10px;background:#3c3c3c;border:1px solid #555;border-radius:4px;font-size:11px;color:#aaa;cursor:pointer;">~/Desktop</span>
+                    <span class="vsc-folder-shortcut" data-path="/users/default/Documents" style="padding:4px 10px;background:#3c3c3c;border:1px solid #555;border-radius:4px;font-size:11px;color:#aaa;cursor:pointer;">~/Documents</span>
+                    <span class="vsc-folder-shortcut" data-path="/users/default/Documents/Projects" style="padding:4px 10px;background:#3c3c3c;border:1px solid #555;border-radius:4px;font-size:11px;color:#aaa;cursor:pointer;">~/Projects</span>
+                    <span class="vsc-folder-shortcut" data-path="/" style="padding:4px 10px;background:#3c3c3c;border:1px solid #555;border-radius:4px;font-size:11px;color:#aaa;cursor:pointer;">/ (root)</span>
+                </div>
+                <input type="text" class="vsc-folder-input" style="width:100%;padding:8px 12px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;font-size:13px;outline:none;margin-bottom:12px;box-sizing:border-box;" value="${projectRoot.join('/')}" autofocus>
+                <div style="display:flex;justify-content:flex-end;gap:8px;">
+                    <button class="vsc-folder-cancel" style="padding:6px 14px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;cursor:pointer;font-size:12px;">Cancel</button>
+                    <button class="vsc-folder-open" style="padding:6px 14px;background:#0078D4;border:none;border-radius:4px;color:white;cursor:pointer;font-size:12px;font-weight:500;">Open</button>
+                </div>
+            </div>
+        `;
+        el.appendChild(overlay);
+
+        const input = overlay.querySelector('.vsc-folder-input');
+        input.focus();
+        input.select();
+
+        overlay.querySelectorAll('.vsc-folder-shortcut').forEach(btn => {
+            btn.addEventListener('click', () => {
+                input.value = btn.dataset.path;
+            });
+            btn.addEventListener('mouseenter', () => btn.style.background = '#4a4a4a');
+            btn.addEventListener('mouseleave', () => btn.style.background = '#3c3c3c');
+        });
+
+        function close() { overlay.remove(); }
+
+        overlay.querySelector('.vsc-folder-cancel').addEventListener('click', close);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+        overlay.querySelector('.vsc-folder-open').addEventListener('click', () => {
+            const val = input.value.trim();
+            if (!val) return;
+            const parts = val.split('/').filter(Boolean);
+            projectRoot = ['/', ...parts];
+            termCwd = [...projectRoot];
+            el.querySelector('.vsc-project-root').textContent = val;
+            close();
+            refreshTree(el);
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') overlay.querySelector('.vsc-folder-open').click();
+            if (e.key === 'Escape') close();
+        });
+    }
+
+    function showAbout(el) {
+        const dropdown = el.querySelector('.vsc-menu-dropdown');
+        if (dropdown) dropdown.style.display = 'none';
+        menuOpen = null;
+
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML = `
+            <div style="background:#252526;border:1px solid #3c3c3c;border-radius:8px;padding:24px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,0.5);text-align:center;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style="margin-bottom:12px;"><path d="M17.5 2.5L6 12l11.5 9.5V2.5z" fill="#007ACC"/></svg>
+                <div style="font-size:16px;font-weight:600;color:#ccc;margin-bottom:4px;">Visual Studio Code</div>
+                <div style="font-size:12px;color:#888;margin-bottom:12px;">Windows 12 Edition</div>
+                <div style="font-size:11px;color:#666;line-height:1.6;">
+                    Version 1.0.0<br>
+                    Electron: Web Browser<br>
+                    OS: Windows 12 Web Simulation
+                </div>
+                <button class="vsc-about-close" style="margin-top:16px;padding:6px 20px;background:#0078D4;border:none;border-radius:4px;color:white;cursor:pointer;font-size:12px;">OK</button>
+            </div>
+        `;
+        el.appendChild(overlay);
+        overlay.querySelector('.vsc-about-close').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
     }
 
     return { launch, icon };

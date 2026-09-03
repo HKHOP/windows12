@@ -4,6 +4,13 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4380] - 2026-09-03
+
+### Added
+- Added functional top menu bar (File, Edit, Selection, View, Run, Help) to VS Code with dropdown menus and keyboard shortcuts
+- Added project root folder selection with quick-access shortcuts (~/default, ~/Desktop, ~/Documents, ~/Projects)
+- Added New File, Save As, Save All, Close Editor/All, Word Wrap, Zoom controls, and About dialog
+
 ## [12.0.4370] - 2026-09-03
 
 ### Added
