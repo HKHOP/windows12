@@ -382,7 +382,6 @@ const WindowManager = (() => {
             });
         }
     }
-    }
 
     function closeWindow(id) {
         const data = windows.get(id);
