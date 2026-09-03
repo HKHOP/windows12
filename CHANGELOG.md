@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4530] - 2026-09-03
+
+### Added
+- Added service worker (sw.js) for PWA support
+- Added manifest.json for installability on mobile devices
+- Added Apple-specific meta tags for iOS home screen support
+- Website can now be installed as an app on Android and iPhone
+
 ## [12.0.4520] - 2026-09-03
 
 ### Fixed

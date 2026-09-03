@@ -1,0 +1,19 @@
+{
+    "name": "Windows 12",
+    "short_name": "Win12",
+    "description": "A web-based OS simulation built with vanilla HTML, CSS, and JavaScript",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#000000",
+    "theme_color": "#0078D4",
+    "orientation": "any",
+    "icons": [
+        {
+            "src": "favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": ["utilities", "productivity"]
+}
