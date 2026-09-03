@@ -101,7 +101,7 @@ const Touch = (() => {
 
         if (!target) return;
 
-        if (target.closest('input, textarea, select, button, [contenteditable]')) {
+        if (target.closest('input, textarea, select, button, [contenteditable], canvas')) {
             return;
         }
 

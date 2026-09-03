@@ -234,6 +234,64 @@ const Paint = (() => {
         el.addEventListener('mouseup', () => { isDrawing = false; });
         el.addEventListener('mouseleave', () => { isDrawing = false; });
 
+        el.addEventListener('touchstart', (e) => {
+            if (!e.target.closest('.paint-canvas')) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const pos = { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+            isDrawing = true;
+            startX = pos.x;
+            startY = pos.y;
+            lastX = pos.x;
+            lastY = pos.y;
+
+            saveState();
+
+            if (currentTool === 'pencil' || currentTool === 'brush' || currentTool === 'eraser') {
+                const size = currentTool === 'brush' ? brushSize * 2 : (currentTool === 'eraser' ? brushSize * 3 : brushSize);
+                const color = currentTool === 'eraser' ? '#FFFFFF' : currentColor;
+                drawLine(ctx, pos.x, pos.y, pos.x, pos.y, color, size);
+            } else {
+                previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+            }
+        }, { passive: false });
+
+        el.addEventListener('touchmove', (e) => {
+            if (!isDrawing || !e.target.closest('.paint-canvas')) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const pos = { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+
+            if (currentTool === 'pencil' || currentTool === 'brush' || currentTool === 'eraser') {
+                const size = currentTool === 'brush' ? brushSize * 2 : (currentTool === 'eraser' ? brushSize * 3 : brushSize);
+                const color = currentTool === 'eraser' ? '#FFFFFF' : currentColor;
+                drawLine(ctx, lastX, lastY, pos.x, pos.y, color, size);
+                lastX = pos.x;
+                lastY = pos.y;
+            } else {
+                const dataUrl = undoStack[undoStack.length - 1];
+                if (dataUrl) {
+                    const img = new Image();
+                    img.onload = () => {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        ctx.drawImage(img, 0, 0);
+                        drawShape(ctx, currentTool, startX, startY, pos.x, pos.y, currentColor, brushSize);
+                    };
+                    img.src = dataUrl;
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    drawShape(ctx, currentTool, startX, startY, pos.x, pos.y, currentColor, brushSize);
+                }
+            }
+        }, { passive: false });
+
+        el.addEventListener('touchend', () => { isDrawing = false; });
+        el.addEventListener('touchcancel', () => { isDrawing = false; });
+
         el.querySelectorAll('.paint-tool-btn').forEach(btn => {
             btn.addEventListener('click', () => setTool(btn.dataset.tool));
         });
