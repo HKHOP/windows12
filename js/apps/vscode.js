@@ -430,12 +430,10 @@ const VSCode = (() => {
         const parentPath = pathArr.slice(0, -1);
         const fileName = pathArr[pathArr.length - 1];
 
-        if (FileSystem.itemExists(parentPath)) {
-            if (FileSystem.itemExists(pathArr)) {
-                FileSystem.writeFile(pathArr, activeTab.content);
-            } else {
-                FileSystem.createFile(parentPath, fileName, activeTab.content);
-            }
+        if (FileSystem.itemExists(pathArr)) {
+            FileSystem.writeFile(pathArr, activeTab.content);
+        } else if (FileSystem.itemExists(parentPath)) {
+            FileSystem.createFile(parentPath, fileName, activeTab.content);
         }
         activeTab.original = activeTab.content;
         activeTab.modified = false;
@@ -841,6 +839,11 @@ const VSCode = (() => {
                 const pathArr = tab.path.split('/').filter(Boolean);
                 if (FileSystem.itemExists(pathArr)) {
                     FileSystem.writeFile(pathArr, tab.content);
+                } else {
+                    const parentPath = pathArr.slice(0, -1);
+                    if (FileSystem.itemExists(parentPath)) {
+                        FileSystem.createFile(parentPath, pathArr[pathArr.length - 1], tab.content);
+                    }
                 }
                 tab.original = tab.content;
                 tab.modified = false;
