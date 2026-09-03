@@ -100,6 +100,7 @@ const Paint = (() => {
         let undoStack = [];
         let previewCanvas = document.createElement('canvas');
         let previewCtx = previewCanvas.getContext('2d');
+        let points = [];
 
         function resizeCanvas() {
             const w = container.clientWidth;
@@ -147,14 +148,26 @@ const Paint = (() => {
             };
         }
 
-        function drawLine(context, x1, y1, x2, y2, color, size) {
+        function drawSmoothLine(context, pts, color, size) {
+            if (pts.length < 2) return;
             context.strokeStyle = color;
             context.lineWidth = size;
             context.lineCap = 'round';
             context.lineJoin = 'round';
             context.beginPath();
-            context.moveTo(x1, y1);
-            context.lineTo(x2, y2);
+            context.moveTo(pts[0].x, pts[0].y);
+            if (pts.length === 2) {
+                context.lineTo(pts[1].x, pts[1].y);
+            } else {
+                for (let i = 1; i < pts.length - 1; i++) {
+                    const mx = (pts[i].x + pts[i + 1].x) / 2;
+                    const my = (pts[i].y + pts[i + 1].y) / 2;
+                    context.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+                }
+                const last = pts[pts.length - 1];
+                const prev = pts[pts.length - 2];
+                context.quadraticCurveTo(prev.x, prev.y, last.x, last.y);
+            }
             context.stroke();
         }
 
@@ -189,13 +202,14 @@ const Paint = (() => {
             startY = pos.y;
             lastX = pos.x;
             lastY = pos.y;
+            points = [pos];
 
             saveState();
 
             if (currentTool === 'pencil' || currentTool === 'brush' || currentTool === 'eraser') {
                 const size = currentTool === 'brush' ? brushSize * 2 : (currentTool === 'eraser' ? brushSize * 3 : brushSize);
                 const color = currentTool === 'eraser' ? '#FFFFFF' : currentColor;
-                drawLine(ctx, pos.x, pos.y, pos.x, pos.y, color, size);
+                drawSmoothLine(ctx, points, color, size);
             } else {
                 previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
             }
@@ -208,7 +222,8 @@ const Paint = (() => {
             if (currentTool === 'pencil' || currentTool === 'brush' || currentTool === 'eraser') {
                 const size = currentTool === 'brush' ? brushSize * 2 : (currentTool === 'eraser' ? brushSize * 3 : brushSize);
                 const color = currentTool === 'eraser' ? '#FFFFFF' : currentColor;
-                drawLine(ctx, lastX, lastY, pos.x, pos.y, color, size);
+                points.push(pos);
+                drawSmoothLine(ctx, points, color, size);
                 lastX = pos.x;
                 lastY = pos.y;
             } else {
@@ -231,8 +246,8 @@ const Paint = (() => {
             }
         });
 
-        el.addEventListener('mouseup', () => { isDrawing = false; });
-        el.addEventListener('mouseleave', () => { isDrawing = false; });
+        el.addEventListener('mouseup', () => { isDrawing = false; points = []; });
+        el.addEventListener('mouseleave', () => { isDrawing = false; points = []; });
 
         el.addEventListener('touchstart', (e) => {
             if (!e.target.closest('.paint-canvas')) return;
@@ -245,13 +260,14 @@ const Paint = (() => {
             startY = pos.y;
             lastX = pos.x;
             lastY = pos.y;
+            points = [pos];
 
             saveState();
 
             if (currentTool === 'pencil' || currentTool === 'brush' || currentTool === 'eraser') {
                 const size = currentTool === 'brush' ? brushSize * 2 : (currentTool === 'eraser' ? brushSize * 3 : brushSize);
                 const color = currentTool === 'eraser' ? '#FFFFFF' : currentColor;
-                drawLine(ctx, pos.x, pos.y, pos.x, pos.y, color, size);
+                drawSmoothLine(ctx, points, color, size);
             } else {
                 previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
             }
@@ -267,7 +283,8 @@ const Paint = (() => {
             if (currentTool === 'pencil' || currentTool === 'brush' || currentTool === 'eraser') {
                 const size = currentTool === 'brush' ? brushSize * 2 : (currentTool === 'eraser' ? brushSize * 3 : brushSize);
                 const color = currentTool === 'eraser' ? '#FFFFFF' : currentColor;
-                drawLine(ctx, lastX, lastY, pos.x, pos.y, color, size);
+                points.push(pos);
+                drawSmoothLine(ctx, points, color, size);
                 lastX = pos.x;
                 lastY = pos.y;
             } else {
@@ -289,8 +306,8 @@ const Paint = (() => {
             }
         }, { passive: false });
 
-        el.addEventListener('touchend', () => { isDrawing = false; });
-        el.addEventListener('touchcancel', () => { isDrawing = false; });
+        el.addEventListener('touchend', () => { isDrawing = false; points = []; });
+        el.addEventListener('touchcancel', () => { isDrawing = false; points = []; });
 
         el.querySelectorAll('.paint-tool-btn').forEach(btn => {
             btn.addEventListener('click', () => setTool(btn.dataset.tool));

@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4410] - 2026-09-03
+
+### Changed
+- Improved Paint line smoothing using quadratic bezier curves for smoother strokes
+
 ## [12.0.4400] - 2026-09-03
 
 ### Fixed
