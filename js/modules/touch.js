@@ -1,9 +1,17 @@
+import Scaling from './scaling.js';
+
 const Touch = (() => {
     const LONG_PRESS_MS = 500;
     const MOVE_THRESHOLD = 10;
 
     let indicator = null;
     let touchData = null;
+
+    function getScale() {
+        const scale = Scaling.getScale() || 1;
+        const resScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--res-scale')) || 1;
+        return scale * resScale;
+    }
 
     function createIndicator() {
         const el = document.createElement('div');
@@ -15,9 +23,12 @@ const Touch = (() => {
 
     function showIndicator(x, y) {
         if (!indicator) indicator = createIndicator();
+        const scale = getScale();
+        const scaledX = x / scale;
+        const scaledY = y / scale;
         indicator.style.display = 'block';
-        indicator.style.left = x + 'px';
-        indicator.style.top = y + 'px';
+        indicator.style.left = scaledX + 'px';
+        indicator.style.top = scaledY + 'px';
         indicator.style.opacity = '1';
         indicator.style.transform = 'translate(-50%,-50%) scale(1)';
     }
@@ -125,9 +136,10 @@ const Touch = (() => {
             }
         }
 
+        const scale = getScale();
         if (indicator) {
-            indicator.style.left = t.clientX + 'px';
-            indicator.style.top = t.clientY + 'px';
+            indicator.style.left = (t.clientX / scale) + 'px';
+            indicator.style.top = (t.clientY / scale) + 'px';
         }
 
         synthesizeMouse('mousemove', touchData.target, t.clientX, t.clientY, 0);
