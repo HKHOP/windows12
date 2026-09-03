@@ -53,33 +53,29 @@ const VSCode = (() => {
     function highlightCode(code, lang) {
         let escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         if (lang === 'javascript') {
-            escaped = escaped.replace(/\/\/.*/g, m => `<span style="color:#6A9955">${m}</span>`);
-            escaped = escaped.replace(/\/\*[\s\S]*?\*\//g, m => `<span style="color:#6A9955">${m}</span>`);
-            escaped = escaped.replace(/'[^']*'/g, m => `<span style="color:#CE9178">${m}</span>`);
-            escaped = escaped.replace(/"[^"]*"/g, m => `<span style="color:#CE9178">${m}</span>`);
             escaped = escaped.replace(/\b(const|let|var|function|return|if|else|for|while|class|import|export|from|default|new|this|try|catch|throw|async|await|switch|case|break|continue|typeof|instanceof|in|of|null|undefined|true|false)\b/g, m => `<span style="color:#569CD6">${m}</span>`);
-            escaped = escaped.replace(/\b(\d+)\b/g, m => `<span style="color:#B5CEA8">${m}</span>`);
+            escaped = escaped.replace(/(\/\/.*$)/gm, m => `<span style="color:#6A9955">${m}</span>`);
+            escaped = escaped.replace(/(\/\*[\s\S]*?\*\/)/g, m => `<span style="color:#6A9955">${m}</span>`);
+            escaped = escaped.replace(/('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")/g, m => `<span style="color:#CE9178">${m}</span>`);
+            escaped = escaped.replace(/\b(\d+\.?\d*)\b/g, m => `<span style="color:#B5CEA8">${m}</span>`);
         } else if (lang === 'json') {
-            escaped = escaped.replace(/"[^"]*"\s*:/g, m => `<span style="color:#9CDCFE">${m}</span>`);
-            escaped = escaped.replace(/:\s*"[^"]*"/g, m => `<span style="color:#CE9178">${m}</span>`);
-            escaped = escaped.replace(/:\s*(\d+)/g, (m, n) => `: <span style="color:#B5CEA8">${n}</span>`);
+            escaped = escaped.replace(/("[\w\s]*")\s*:/g, m => `<span style="color:#9CDCFE">${m}</span>`);
+            escaped = escaped.replace(/:\s*("(?:[^"\\]|\\.)*")/g, m => `<span style="color:#CE9178">${m}</span>`);
+            escaped = escaped.replace(/:\s*(\d+\.?\d*)/g, (m, n) => `: <span style="color:#B5CEA8">${n}</span>`);
             escaped = escaped.replace(/:\s*(true|false|null)/g, (m, kw) => `: <span style="color:#569CD6">${kw}</span>`);
         } else if (lang === 'html') {
-            escaped = escaped.replace(/&lt;!--[\s\S]*?--&gt;/g, m => `<span style="color:#6A9955">${m}</span>`);
-            escaped = escaped.replace(/&lt;\/?([a-zA-Z][a-zA-Z0-9]*)/g, (m, tag) => `<span style="color:#569CD6">&lt;${tag.includes('/') ? '/' : ''}${tag.replace('/', '')}</span>`);
-            escaped = escaped.replace(/\s([\w-]+)=/g, (m, attr) => ` <span style="color:#9CDCFE">${attr}</span>=`);
+            escaped = escaped.replace(/(&lt;!--[\s\S]*?--&gt;)/g, m => `<span style="color:#6A9955">${m}</span>`);
+            escaped = escaped.replace(/(&lt;\/?)([\w-]+)/g, (m, bracket, tag) => `<span style="color:#569CD6">${bracket}${tag}</span>`);
+            escaped = escaped.replace(/\s([\w-]+)(=)/g, (m, attr, eq) => ` <span style="color:#9CDCFE">${attr}</span>${eq}`);
             escaped = escaped.replace(/"([^"]*)"/g, m => `<span style="color:#CE9178">${m}</span>`);
-            escaped = escaped.replace(/&gt;/g, `<span style="color:#569CD6">&gt;</span>`);
         } else if (lang === 'css') {
-            escaped = escaped.replace(/\/\*[\s\S]*?\*\//g, m => `<span style="color:#6A9955">${m}</span>`);
-            escaped = escaped.replace(/[\w.-]+(?=\s*\{)/g, m => `<span style="color:#D7BA7D">${m}</span>`);
-            escaped = escaped.replace(/:[^;{]+/g, m => `<span style="color:#9CDCFE">${m}</span>`);
+            escaped = escaped.replace(/(\/\*[\s\S]*?\*\/)/g, m => `<span style="color:#6A9955">${m}</span>`);
+            escaped = escaped.replace(/([\w.-]+)(?=\s*\{)/g, m => `<span style="color:#D7BA7D">${m}</span>`);
+            escaped = escaped.replace(/([\w-]+)\s*:/g, (m, prop) => `<span style="color:#9CDCFE">${prop}</span>:`);
         } else if (lang === 'markdown') {
-            escaped = escaped.replace(/^### .+$/gm, m => `<span style="color:#569CD6;font-weight:bold">${m}</span>`);
-            escaped = escaped.replace(/^## .+$/gm, m => `<span style="color:#569CD6;font-weight:bold">${m}</span>`);
-            escaped = escaped.replace(/^# .+$/gm, m => `<span style="color:#569CD6;font-weight:bold">${m}</span>`);
-            escaped = escaped.replace(/\*\*[^*]+\*\*/g, m => `<span style="font-weight:bold">${m}</span>`);
-            escaped = escaped.replace(/`[^`]+`/g, m => `<span style="color:#CE9178">${m}</span>`);
+            escaped = escaped.replace(/^(#{1,3}\s.+)$/gm, m => `<span style="color:#569CD6;font-weight:bold">${m}</span>`);
+            escaped = escaped.replace(/(\*\*[^*]+\*\*)/g, m => `<span style="font-weight:bold">${m}</span>`);
+            escaped = escaped.replace(/(`[^`]+`)/g, m => `<span style="color:#CE9178">${m}</span>`);
         }
         return escaped;
     }
@@ -402,7 +398,7 @@ const VSCode = (() => {
 
     function saveCurrentFile(el) {
         if (!activeTab) return;
-        const pathArr = activeTab.path.split('/');
+        const pathArr = activeTab.path.split('/').filter(Boolean);
         const parentPath = pathArr.slice(0, -1);
         const fileName = pathArr[pathArr.length - 1];
 
@@ -814,7 +810,7 @@ const VSCode = (() => {
     function saveAllFiles(el) {
         openTabs.forEach(tab => {
             if (tab.modified) {
-                const pathArr = tab.path.split('/');
+                const pathArr = tab.path.split('/').filter(Boolean);
                 if (FileSystem.itemExists(pathArr)) {
                     FileSystem.writeFile(pathArr, tab.content);
                 }
