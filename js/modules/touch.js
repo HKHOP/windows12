@@ -169,7 +169,9 @@ const Touch = (() => {
         }
 
         touchData = null;
-        e.preventDefault();
+        if (e.cancelable) {
+            e.preventDefault();
+        }
     }
 
     function handleTouchCancel() {
