@@ -280,7 +280,7 @@ const VSCode = (() => {
             file.addEventListener('click', () => {
                 el.querySelectorAll('.fs-file').forEach(f => f.style.background = '');
                 file.style.background = 'rgba(255,255,255,0.1)';
-                const path = file.dataset.path.split('/');
+                const path = file.dataset.path.split('/').filter(Boolean);
                 openFile(el, path);
             });
             file.addEventListener('mouseenter', () => { if (!file.style.background) file.style.background = 'rgba(255,255,255,0.05)'; });
