@@ -367,7 +367,7 @@ const WindowManager = (() => {
             win.style.left = '0';
             win.style.top = '0';
             win.style.width = '100%';
-            win.style.height = 'calc(100% - 48px)';
+            win.style.height = '100%';
             data.isMaximized = true;
         }
 
