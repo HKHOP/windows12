@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4310] - 2026-09-03
+
+### Added
+- Added Microsoft Store application (`AppStore`) matching the native Windows design with hero banners, trending sections, and app installation capabilities
+
 ## [12.0.4300] - 2026-09-03
 
 ### Fixed

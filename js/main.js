@@ -19,6 +19,7 @@ import Clock from './apps/clock.js';
 import Paint from './apps/paint.js';
 import Browser from './apps/browser.js';
 import Terminal from './apps/terminal.js';
+import AppStore from './apps/appStore.js';
 
 AppRegistry.register('settings', Settings);
 AppRegistry.register('notepad', Notepad);
@@ -31,6 +32,7 @@ AppRegistry.register('clock', Clock);
 AppRegistry.register('paint', Paint);
 AppRegistry.register('browser', Browser);
 AppRegistry.register('terminal', Terminal);
+AppRegistry.register('appStore', AppStore);
 
 document.addEventListener('DOMContentLoaded', () => {
     window.SystemConfig = SystemConfig;
