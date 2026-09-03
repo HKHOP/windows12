@@ -79,10 +79,10 @@ const VSCode = (() => {
     }
 
     function buildTree(path) {
-        const node = FileSystem.readDirectory(path);
-        if (!node) return '';
+        const node = FileSystem.getNode(path);
+        if (!node || node.type !== 'folder' || !node.children) return '';
         const entries = [];
-        for (const [name, item] of Object.entries(node)) {
+        for (const [name, item] of Object.entries(node.children)) {
             if (name.startsWith('.')) continue;
             entries.push({ name, item, path: [...path, name] });
         }
@@ -499,10 +499,10 @@ const VSCode = (() => {
             switch (command) {
                 case 'ls': {
                     const target = args[0] ? resolveTermPath(args[0]) : [...termCwd];
-                    const node = FileSystem.readDirectory(target);
-                    if (!node) { termPrint(`ls: cannot access '${args[0] || '.'}': No such directory`); break; }
-                    const items = Object.keys(node).filter(n => !n.startsWith('.'));
-                    const colored = items.map(n => node[n].type === 'folder' ? `\x1b[34m${n}\x1b[0m` : n);
+                    const node = FileSystem.getNode(target);
+                    if (!node || node.type !== 'folder') { termPrint(`ls: cannot access '${args[0] || '.'}': No such directory`); break; }
+                    const items = Object.keys(node.children || {}).filter(n => !n.startsWith('.'));
+                    const colored = items.map(n => (node.children[n].type === 'folder') ? `\x1b[34m${n}\x1b[0m` : n);
                     termPrint(colored.join('  '));
                     break;
                 }
@@ -513,8 +513,8 @@ const VSCode = (() => {
                         termCwd = ['/'];
                     } else {
                         const target = resolveTermPath(args[0]);
-                        const node = FileSystem.readDirectory(target);
-                        if (!node) { termPrint(`cd: no such file or directory: ${args[0]}`); break; }
+                        const node = FileSystem.getNode(target);
+                        if (!node || node.type !== 'folder') { termPrint(`cd: no such file or directory: ${args[0]}`); break; }
                         termCwd = target;
                     }
                     updateTermPrompt();
