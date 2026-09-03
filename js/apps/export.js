@@ -302,22 +302,31 @@ const ExportImport = (() => {
             exportBtn.textContent = count > 0 ? `Download ${count} file(s)` : 'Download Selected';
         }
 
-        exportBtn.addEventListener('click', () => {
+        exportBtn.addEventListener('click', async () => {
             if (exportSelection.size === 0) return;
+            exportBtn.disabled = true;
             exportStatus.textContent = 'Preparing downloads...';
             exportStatus.style.color = '#0078D4';
 
             let downloaded = 0;
-            exportSelection.forEach(pathStr => {
+            const files = Array.from(exportSelection);
+
+            for (let i = 0; i < files.length; i++) {
+                const pathStr = files[i];
                 const pathArr = pathStr.split('/').filter(Boolean);
                 const content = FileSystem.readFile(['/', ...pathArr]);
                 if (content !== null) {
                     const name = pathArr[pathArr.length - 1];
                     downloadFile(name, content);
                     downloaded++;
+                    if (i < files.length - 1) {
+                        await new Promise(r => setTimeout(r, 300));
+                    }
                 }
-            });
+            }
 
+            exportBtn.disabled = false;
+            updateExportBtn();
             exportStatus.textContent = `Downloaded ${downloaded} file(s)`;
             exportStatus.style.color = '#4CAF50';
         });
