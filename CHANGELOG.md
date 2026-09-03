@@ -4,6 +4,13 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4500] - 2026-09-03
+
+### Fixed
+- Added aggressive cache busting for mobile browsers that can't hard refresh
+- Version check script forces reload when update is detected
+- Updated all resource query strings to latest version
+
 ## [12.0.4490] - 2026-09-03
 
 ### Added

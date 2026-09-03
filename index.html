@@ -7,14 +7,14 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Windows 12</title>
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=12.0.4410">
-    <link rel="stylesheet" href="css/main.css?v=12.0.4410">
-    <link rel="stylesheet" href="css/taskbar.css?v=12.0.4410">
-    <link rel="stylesheet" href="css/startmenu.css?v=12.0.4410">
-    <link rel="stylesheet" href="css/windows.css?v=12.0.4410">
-    <link rel="stylesheet" href="css/contextmenu.css?v=12.0.4410">
-    <link rel="stylesheet" href="css/browser.css?v=12.0.4410">
-    <link rel="stylesheet" href="css/popup.css?v=12.0.4410">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=12.0.4490">
+    <link rel="stylesheet" href="css/main.css?v=12.0.4490">
+    <link rel="stylesheet" href="css/taskbar.css?v=12.0.4490">
+    <link rel="stylesheet" href="css/startmenu.css?v=12.0.4490">
+    <link rel="stylesheet" href="css/windows.css?v=12.0.4490">
+    <link rel="stylesheet" href="css/contextmenu.css?v=12.0.4490">
+    <link rel="stylesheet" href="css/browser.css?v=12.0.4490">
+    <link rel="stylesheet" href="css/popup.css?v=12.0.4490">
 </head>
 <body>
     <div id="boot-screen">
@@ -92,6 +92,21 @@
 
     <div id="context-menu" class="hidden"></div>
 
-    <script type="module" src="js/main.js?v=12.0.4410"></script>
+    <script>
+    (function() {
+        var ver = '12.0.4490';
+        var stored = localStorage.getItem('app_version');
+        if (stored && stored !== ver) {
+            localStorage.setItem('app_version', ver);
+            location.reload(true);
+            return;
+        }
+        localStorage.setItem('app_version', ver);
+        if ('performance' in window && performance.navigation && performance.navigation.type === 2) {
+            location.reload(true);
+        }
+    })();
+    </script>
+    <script type="module" src="js/main.js?v=12.0.4490"></script>
 </body>
 </html>
