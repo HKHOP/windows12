@@ -420,7 +420,7 @@ const StartMenu = (() => {
         if (!container) return;
         container.innerHTML = '';
         const installed = AppSystem.getInstalledApps();
-        const userApps = ['sampleApp', 'vscode'];
+        const userApps = ['sampleApp', 'vscode', 'export'];
 
         const activePinned = pinnedApps.filter(appId => {
             if (userApps.includes(appId)) return installed.includes(appId);

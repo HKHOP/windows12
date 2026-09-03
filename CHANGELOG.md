@@ -11,6 +11,8 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 - Ex/port supports drag-and-drop file import with multiple destination folders
 - Ex/port allows browsing and selecting virtual files to download to device
 - Added Ex/port to Microsoft Store for installation
+- Added Ex/port to AppMetadata for Start Menu visibility
+- Added Ex/port to userApps list for proper installation tracking
 
 ## [12.0.4530] - 2026-09-03
 
