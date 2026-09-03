@@ -24,6 +24,7 @@ const StartMenu = (() => {
         { id: 'calculator', name: 'Calculator' },
         { id: 'calendar', name: 'Calendar' },
         { id: 'clock', name: 'Clock' },
+        { id: 'export', name: 'Ex/port' },
         { id: 'fileExplorer', name: 'File Explorer' },
         { id: 'notepad', name: 'Notepad' },
         { id: 'paint', name: 'Paint' },
