@@ -141,7 +141,7 @@ const Paint = (() => {
 
         function getPos(e) {
             const rect = canvas.getBoundingClientRect();
-            const zoom = parseFloat(getComputedStyle(document.getElementById('resolution-layer')).zoom) || 1;
+            const zoom = parseFloat(getComputedStyle(document.body).zoom) || 1;
             return {
                 x: (e.clientX - rect.left) / zoom,
                 y: (e.clientY - rect.top) / zoom
@@ -273,7 +273,7 @@ const Paint = (() => {
             e.preventDefault();
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
-            const zoom = parseFloat(getComputedStyle(document.getElementById('resolution-layer')).zoom) || 1;
+            const zoom = parseFloat(getComputedStyle(document.body).zoom) || 1;
             startDrawing({ x: (touch.clientX - rect.left) / zoom, y: (touch.clientY - rect.top) / zoom });
         }, { passive: false });
 
@@ -281,7 +281,7 @@ const Paint = (() => {
             e.preventDefault();
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
-            const zoom = parseFloat(getComputedStyle(document.getElementById('resolution-layer')).zoom) || 1;
+            const zoom = parseFloat(getComputedStyle(document.body).zoom) || 1;
             moveDrawing({ x: (touch.clientX - rect.left) / zoom, y: (touch.clientY - rect.top) / zoom });
         }, { passive: false });
 
