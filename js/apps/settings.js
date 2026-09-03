@@ -3,6 +3,7 @@ import SystemConfig from '../modules/systemConfig.js';
 import Scaling from '../modules/scaling.js';
 import Popup from '../modules/popup.js';
 import AppSystem from '../modules/appSystem.js';
+import WindowsUpdate from '../modules/windowsUpdate.js';
 
 const Settings = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
@@ -727,16 +728,39 @@ const Settings = (() => {
     }
 
     function renderUpdate(el) {
+        const hasUpdate = WindowsUpdate.isUpdateAvailable();
+        const currentVersion = WindowsUpdate.getCurrentVersion();
+        const latestVersion = WindowsUpdate.getLatestVersion();
+
         el.innerHTML = `
             <h2 style="font-size:28px;font-weight:600;margin-bottom:24px;">Windows Update</h2>
-            <div style="background:rgba(0,150,0,0.15);border:1px solid rgba(0,150,0,0.3);border-radius:8px;padding:16px;display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-                <span style="font-size:24px;">✓</span>
+            <div style="background:${hasUpdate ? 'rgba(255,152,0,0.15)' : 'rgba(0,150,0,0.15)'};border:1px solid ${hasUpdate ? 'rgba(255,152,0,0.3)' : 'rgba(0,150,0,0.3)'};border-radius:8px;padding:16px;display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                <span style="font-size:24px;">${hasUpdate ? '⬆' : '✓'}</span>
                 <div>
-                    <div style="font-weight:500;">You're up to date</div>
-                    <div style="font-size:13px;color:#888;">Last checked: ${new Date().toLocaleString()}</div>
+                    <div style="font-weight:500;">${hasUpdate ? 'Update available' : 'You\'re up to date'}</div>
+                    <div style="font-size:13px;color:#888;">${hasUpdate ? `Version ${latestVersion} is available` : `Current version: ${currentVersion}`}</div>
                 </div>
             </div>
+            ${hasUpdate ? `
+                <button class="settings-update-refresh" style="width:100%;padding:12px;background:#0078D4;border:none;border-radius:6px;color:white;cursor:pointer;font-size:14px;font-weight:500;margin-bottom:16px;">Refresh to Update</button>
+            ` : ''}
+            <button class="settings-update-check" style="width:100%;padding:12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:var(--text-primary);cursor:pointer;font-size:14px;">Check for updates</button>
+            <div style="margin-top:16px;font-size:12px;color:#888;">Last checked: ${new Date().toLocaleString()}</div>
         `;
+
+        el.querySelector('.settings-update-check').addEventListener('click', async () => {
+            const btn = el.querySelector('.settings-update-check');
+            btn.textContent = 'Checking...';
+            btn.disabled = true;
+            await WindowsUpdate.checkForUpdates(false);
+            renderUpdate(el);
+        });
+
+        if (hasUpdate) {
+            el.querySelector('.settings-update-refresh').addEventListener('click', () => {
+                location.reload();
+            });
+        }
     }
 
     function renderAbout(el) {
@@ -791,8 +815,9 @@ const Settings = (() => {
                 el.querySelector('.about-date').textContent = match[2];
             }
         }).catch(() => {
-            el.querySelector('.about-version').textContent = '12.0.4000';
-            el.querySelector('.about-build').textContent = '1204000';
+            const v = WindowsUpdate.getCurrentVersion() || '12.0.4000';
+            el.querySelector('.about-version').textContent = v;
+            el.querySelector('.about-build').textContent = v.replace(/\./g, '');
             el.querySelector('.about-date').textContent = '2026-08-31';
         });
     }

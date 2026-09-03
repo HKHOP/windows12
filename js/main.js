@@ -21,6 +21,7 @@ import Browser from './apps/browser.js';
 import Terminal from './apps/terminal.js';
 import AppStore from './apps/appStore.js';
 import AppSystem from './modules/appSystem.js';
+import WindowsUpdate from './modules/windowsUpdate.js';
 
 AppRegistry.register('settings', Settings);
 AppRegistry.register('notepad', Notepad);
@@ -61,6 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ContextMenu.init();
     DesktopIcons.init();
     Touch.init();
+    WindowsUpdate.init();
 
     window._modules = { ContextMenu };
 
