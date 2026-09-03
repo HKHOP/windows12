@@ -630,7 +630,7 @@ const VSCode = (() => {
                     if (!args[0]) { termPrint('rm: missing operand'); break; }
                     const target = resolveTermPath(args[0]);
                     if (!FileSystem.itemExists(target)) { termPrint(`rm: ${args[0]}: No such file`); break; }
-                    FileSystem.removeItem(target);
+                    FileSystem.deleteItem(target);
                     termPrint(`Removed: ${args[0]}`);
                     openTabs = openTabs.filter(t => t.path !== target.join('/'));
                     if (activeTab && activeTab.path === target.join('/')) {
