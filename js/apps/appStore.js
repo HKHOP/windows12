@@ -106,6 +106,19 @@ const AppStore = (() => {
                                     <p style="font-size:12px;color:#aaa;line-height:1.4;">Interactive sample app that demonstrates full system installation, uninstallation, and launching.</p>
                                     <button class="store-install-btn" data-app="sampleApp" style="background:#0078D4;border:none;color:white;padding:6px;border-radius:4px;font-weight:600;cursor:pointer;font-size:12px;width:100%;transition:background 0.2s;">Install</button>
                                 </div>
+                                <div style="background:#2a2a2a;border-radius:8px;padding:16px;width:220px;display:flex;flex-direction:column;gap:12px;border:1px solid #333;">
+                                    <div style="display:flex;align-items:center;gap:12px;">
+                                        <div style="width:48px;height:48px;background:linear-gradient(135deg, #0078D4, #00BCF2);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4" stroke="white" stroke-width="2" stroke-linecap="round"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+                                        </div>
+                                        <div>
+                                            <div style="font-weight:600;font-size:13px;margin-bottom:2px;">Ex/port</div>
+                                            <div style="font-size:11px;color:#888;">Utilities</div>
+                                        </div>
+                                    </div>
+                                    <p style="font-size:12px;color:#aaa;line-height:1.4;">Import files from your device to the filesystem, or export files to download.</p>
+                                    <button class="store-install-btn" data-app="export" style="background:#0078D4;border:none;color:white;padding:6px;border-radius:4px;font-weight:600;cursor:pointer;font-size:12px;width:100%;transition:background 0.2s;">Install</button>
+                                </div>
                             </div>
                         </div>
                     </div>

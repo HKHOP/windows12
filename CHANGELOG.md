@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4540] - 2026-09-03
+
+### Added
+- Added Ex/port app for importing/exporting files between device and filesystem
+- Ex/port supports drag-and-drop file import with multiple destination folders
+- Ex/port allows browsing and selecting virtual files to download to device
+- Added Ex/port to Microsoft Store for installation
+
 ## [12.0.4530] - 2026-09-03
 
 ### Added
