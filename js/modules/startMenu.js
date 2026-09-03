@@ -333,7 +333,7 @@ const StartMenu = (() => {
         drawer.appendChild(header);
 
         const installed = AppSystem.getInstalledApps();
-        const userApps = ['sampleApp', 'vscode'];
+        const userApps = ['sampleApp', 'vscode', 'export'];
         const filteredApps = allApps.filter(app => {
             if (userApps.includes(app.id)) return installed.includes(app.id);
             return true;
@@ -375,7 +375,7 @@ const StartMenu = (() => {
                     e.preventDefault();
                     e.stopPropagation();
                     const pinned = isPinned(app.id);
-                    const userAppList = ['sampleApp', 'vscode'];
+                    const userAppList = ['sampleApp', 'vscode', 'export'];
                     const isUserApp = userAppList.includes(app.id);
                     const items = [
                         { label: app.name, icon: '', disabled: true },

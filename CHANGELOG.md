@@ -12,7 +12,8 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 - Ex/port allows browsing and selecting virtual files to download to device
 - Added Ex/port to Microsoft Store for installation
 - Added Ex/port to AppMetadata for Start Menu visibility
-- Added Ex/port to userApps list for proper installation tracking
+- Added Ex/port to all userApps lists for proper installation tracking
+- Fixed Ex/port not appearing in Start Menu after installation
 
 ## [12.0.4530] - 2026-09-03
 
