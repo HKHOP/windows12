@@ -4,6 +4,18 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4490] - 2026-09-03
+
+### Added
+- Added paint bucket (flood fill) tool to Paint
+- Added triangle shape tool to Paint
+- Added tabbed toolbar (Home/View) similar to Windows Paint
+- Added status bar showing canvas size and cursor position
+
+### Changed
+- Redesigned Paint toolbar with vertical tool buttons and section separators
+- Improved tool button styling with active state highlighting
+
 ## [12.0.4480] - 2026-09-03
 
 ### Fixed
