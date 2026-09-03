@@ -269,8 +269,7 @@ const Paint = (() => {
         el.addEventListener('mouseup', endDrawing);
         el.addEventListener('mouseleave', endDrawing);
 
-        el.addEventListener('touchstart', (e) => {
-            if (!e.target.closest('.paint-canvas')) return;
+        canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
@@ -278,8 +277,7 @@ const Paint = (() => {
             startDrawing({ x: (touch.clientX - rect.left) / zoom, y: (touch.clientY - rect.top) / zoom });
         }, { passive: false });
 
-        document.addEventListener('touchmove', (e) => {
-            if (!isDrawing) return;
+        canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
@@ -287,8 +285,8 @@ const Paint = (() => {
             moveDrawing({ x: (touch.clientX - rect.left) / zoom, y: (touch.clientY - rect.top) / zoom });
         }, { passive: false });
 
-        document.addEventListener('touchend', endDrawing);
-        document.addEventListener('touchcancel', endDrawing);
+        canvas.addEventListener('touchend', (e) => { e.preventDefault(); endDrawing(); });
+        canvas.addEventListener('touchcancel', endDrawing);
 
         el.querySelectorAll('.paint-tool-btn').forEach(btn => {
             btn.addEventListener('click', () => setTool(btn.dataset.tool));
