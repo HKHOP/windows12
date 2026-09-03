@@ -411,6 +411,8 @@ const VSCode = (() => {
             }
             if (e.ctrlKey && e.key === 's') {
                 e.preventDefault();
+                const ta = el.querySelector('.vsc-code-input');
+                if (ta && activeTab) activeTab.content = ta.value;
                 saveCurrentFile(el);
             }
         });
