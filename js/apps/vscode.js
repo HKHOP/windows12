@@ -200,8 +200,30 @@ const VSCode = (() => {
         const sidebarContent = body.querySelector('.vsc-sidebar-content');
         sidebarContent.innerHTML = buildTree(projectRoot);
 
+        function refreshTree() {
+            sidebarContent.innerHTML = buildTree(projectRoot);
+            setupFileTreeEvents(el);
+        }
+
+        function refreshSidebar(view) {
+            const sidebarHeader = el.querySelector('.vsc-sidebar-header');
+            if (view === 'explorer') {
+                sidebarContent.innerHTML = buildTree(projectRoot);
+                setupFileTreeEvents(el);
+                sidebarHeader.querySelector('.vsc-project-label').textContent = 'EXPLORER';
+            } else if (view === 'search') {
+                sidebarContent.innerHTML = `
+                    <div style="padding:8px;">
+                        <input type="text" placeholder="Search" style="width:100%;padding:6px 10px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;font-size:12px;outline:none;margin-bottom:8px;box-sizing:border-box;">
+                        <div style="font-size:11px;color:#888;">Type to search across files</div>
+                    </div>
+                `;
+                sidebarHeader.querySelector('.vsc-project-label').textContent = 'SEARCH';
+            }
+        }
+
         setupFileTreeEvents(el);
-        setupActivityBar(el);
+        setupActivityBar(el, refreshSidebar);
         setupTerminal(el);
         setupEditorEvents(el);
         setupMenus(el);
@@ -399,7 +421,7 @@ const VSCode = (() => {
         });
     }
 
-    function setupActivityBar(el) {
+    function setupActivityBar(el, refreshSidebar) {
         el.querySelectorAll('.vsc-ab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const panel = btn.dataset.panel;
@@ -416,6 +438,9 @@ const VSCode = (() => {
                 btn.style.borderLeftColor = '#0078D4';
                 btn.style.color = '#fff';
                 btn.classList.add('active');
+                if (panel === 'explorer' || panel === 'search') {
+                    refreshSidebar(panel);
+                }
             });
         });
     }
@@ -554,7 +579,7 @@ const VSCode = (() => {
                     if (!FileSystem.itemExists(parent)) { termPrint(`mkdir: cannot create directory '${args[0]}': No such file or directory`); break; }
                     FileSystem.createFolder(parent, name);
                     termPrint(`Created directory: ${args[0]}`);
-                    refreshTree(el);
+                    refreshTree();
                     break;
                 }
                 case 'touch':
@@ -571,7 +596,7 @@ const VSCode = (() => {
                         FileSystem.createFile(parent, name, content);
                     }
                     termPrint(`Written: ${args[0]}`);
-                    refreshTree(el);
+                    refreshTree();
                     break;
                 }
                 case 'rm': {
@@ -586,7 +611,7 @@ const VSCode = (() => {
                         renderTabs(el);
                         renderEditor(el);
                     }
-                    refreshTree(el);
+                    refreshTree();
                     break;
                 }
                 case 'clear':
@@ -601,12 +626,6 @@ const VSCode = (() => {
                 default:
                     termPrint(`${command}: command not found. Type 'help' for available commands.`);
             }
-        }
-
-        function refreshTree(el) {
-            const sidebarContent = el.querySelector('.vsc-sidebar-content');
-            sidebarContent.innerHTML = buildTree(projectRoot);
-            setupFileTreeEvents(el);
         }
 
         el.querySelector('.vsc-statusbar').addEventListener('dblclick', toggleTerminal);
@@ -840,7 +859,7 @@ const VSCode = (() => {
             }
             FileSystem.createFile(parentPath, pathArr[pathArr.length - 1], '');
             close();
-            refreshTree(el);
+            refreshTree();
             openFile(el, pathArr);
         });
 
@@ -898,7 +917,7 @@ const VSCode = (() => {
             activeTab.original = activeTab.content;
             activeTab.modified = false;
             close();
-            refreshTree(el);
+            refreshTree();
             renderTabs(el);
         });
 
@@ -960,7 +979,7 @@ const VSCode = (() => {
             termCwd = [...projectRoot];
             el.querySelector('.vsc-project-root').textContent = val;
             close();
-            refreshTree(el);
+            refreshTree();
         });
 
         input.addEventListener('keydown', (e) => {

@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4390] - 2026-09-03
+
+### Fixed
+- Fixed VS Code folder picker not updating the file explorer tree after selecting a new root folder
+- Fixed activity bar buttons (Explorer/Search) not toggling sidebar content
+
 ## [12.0.4380] - 2026-09-03
 
 ### Added
