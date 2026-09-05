@@ -3,12 +3,14 @@ import SampleApp from '../apps/sampleApp.js';
 import VSCode from '../apps/vscode.js';
 import AppStore from '../apps/appStore.js';
 import ExportImport from '../apps/export.js';
+import Words from '../apps/words.js';
 
 const AppSystem = (() => {
     const appModules = {
         sampleApp: SampleApp,
         vscode: VSCode,
-        export: ExportImport
+        export: ExportImport,
+        words: Words
     };
 
     function init() {

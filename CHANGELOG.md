@@ -8,6 +8,7 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 
 ### Added
 - Added "Pin to taskbar" / "Unpin from taskbar" options to start menu app context menus
+- Added Words — rich text word processor app (installable from Microsoft Store)
 
 ### Changed
 - Consolidated all app icons into single AppIcons module (one SVG per app, no more duplicates)
