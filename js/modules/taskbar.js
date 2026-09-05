@@ -102,6 +102,9 @@ const Taskbar = (() => {
         updateClock();
         clockInterval = setInterval(updateClock, 1000);
         renderTaskbarButtons();
+        window.addEventListener('open-search', (e) => {
+            Search.open(e.detail.query);
+        });
     }
 
     function loadPinnedApps() {

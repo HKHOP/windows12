@@ -584,19 +584,11 @@ const StartMenu = (() => {
     function setupSearch() {
         const searchInput = document.getElementById('start-search');
         searchInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            if (currentView === 'allApps') {
-                const items = document.querySelectorAll('#all-apps-drawer .app-item');
-                items.forEach(item => {
-                    const name = item.querySelector('span').textContent.toLowerCase();
-                    item.style.display = name.includes(query) ? '' : 'none';
-                });
-            } else {
-                const items = document.querySelectorAll('#pinned-apps .app-item');
-                items.forEach(item => {
-                    const name = item.querySelector('.app-name').textContent.toLowerCase();
-                    item.style.display = name.includes(query) ? '' : 'none';
-                });
+            const query = e.target.value;
+            if (query.length > 0) {
+                document.getElementById('start-menu').classList.add('hidden');
+                window.dispatchEvent(new CustomEvent('open-search', { detail: { query } }));
+                searchInput.value = '';
             }
         });
     }

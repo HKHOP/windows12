@@ -239,12 +239,12 @@ const Search = (() => {
         else open();
     }
 
-    function open() {
+    function open(query = '') {
         if (!panel) return;
         isOpen = true;
         panel.classList.remove('hidden');
-        searchInput.value = '';
-        render('');
+        searchInput.value = query;
+        render(query);
         setTimeout(() => searchInput.focus(), 50);
     }
 
