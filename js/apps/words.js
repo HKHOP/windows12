@@ -423,11 +423,12 @@ const Words = (() => {
         const win=WindowManager.createWindow(APP_ID,'Words',icon,content(),{width:1120,height:800,minWidth:700,minHeight:540,saveState:true});
         state.title='Untitled document';state.path=null;state.dirty=false;state.zoom=100;UserActivity.trackAppOpen(APP_ID);
         const cleanups=wire(win);setZoom(win,100);
-        const close=win.element.querySelector('.close-btn');
-        if(close){
-            const handler=async e=>{if(!state.dirty)return;e.preventDefault();const ok=await Popup.confirm('Unsaved Changes','Save this document before closing Words?');if(!ok)return;if(await save(win)){cleanups.forEach(f=>f());WindowManager.closeWindow(win.id)}};
-            close.addEventListener('click',handler);cleanups.push(()=>close.removeEventListener('click',handler));
-        }
+        WindowManager.setCloseHandler(APP_ID, async () => {
+            if (!state.dirty) return true;
+            const result = await Popup.confirm('Unsaved Changes', 'Save this document before closing?');
+            if (!result) return false;
+            return await save(win);
+        });
         return win;
     }
 
