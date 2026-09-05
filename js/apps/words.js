@@ -181,6 +181,30 @@ const Words = (() => {
 
     function download(blob, name) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); }
 
+    function printDoc(win) {
+        const editor = win.element.querySelector('.words-editor');
+        if (!editor) return;
+        const { html } = buildDocumentPayload(win);
+        const frame = document.createElement('iframe');
+        frame.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;z-index:999999;visibility:hidden';
+        document.body.appendChild(frame);
+        const doc = frame.contentDocument;
+        doc.open();
+        doc.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(state.title)}</title><style>
+            body{margin:0;background:#fff;color:#111;font-family:Arial,sans-serif;line-height:1.55}
+            .page{max-width:820px;min-height:1050px;margin:0 auto;padding:40px;box-sizing:border-box}
+            table{border-collapse:collapse;width:100%}
+            td,th{border:1px solid #999;padding:7px}
+            img{max-width:100%;height:auto}
+        </style></head><body><div class="page">${html}</div></body></html>`);
+        doc.close();
+        frame.contentWindow.focus();
+        setTimeout(() => {
+            frame.contentWindow.print();
+            setTimeout(() => frame.remove(), 1000);
+        }, 200);
+    }
+
     function updateStats(win) {
         const text = (win.element.querySelector('.words-editor')?.innerText || '').replace(/\u00a0/g,' ').trim();
         const words = text ? text.split(/\s+/).length : 0;
@@ -373,7 +397,7 @@ const Words = (() => {
         root.querySelectorAll('.words-tab').forEach(tab=>on(tab,'click',()=>{root.querySelectorAll('.words-tab').forEach(t=>t.classList.toggle('active',t===tab));root.querySelectorAll('.words-panel').forEach(p=>p.classList.toggle('hidden',p.dataset.panel!==tab.dataset.tab))}));
         root.querySelectorAll('[data-action]').forEach(btn=>on(btn,'click',async()=>{
             const a=btn.dataset.action;
-            if(a==='new')return newDoc(win);if(a==='open')return open(win);if(a==='save')return save(win);if(a==='saveas')return save(win,true);if(a==='print'){window.print();return}if(a==='image')return insertImage(win);if(a==='shape')return insertShape(win);if(a==='table')return insertTable(win);if(a==='link')return insertLink(win);if(a==='pagebreak')return exec(win,'insertHTML','<div style="break-before:page;page-break-before:always;height:1px"></div><p><br></p>');
+            if(a==='new')return newDoc(win);if(a==='open')return open(win);if(a==='save')return save(win);if(a==='saveas')return save(win,true);if(a==='print'){printDoc(win);return}if(a==='image')return insertImage(win);if(a==='shape')return insertShape(win);if(a==='table')return insertTable(win);if(a==='link')return insertLink(win);if(a==='pagebreak')return exec(win,'insertHTML','<div style="break-before:page;page-break-before:always;height:1px"></div><p><br></p>');
             if(a==='cut')return exec(win,'cut');if(a==='copy')return exec(win,'copy');if(a==='paste')return exec(win,'paste');if(a==='bold')return exec(win,'bold');if(a==='italic')return exec(win,'italic');if(a==='underline')return exec(win,'underline');if(a==='strike')return exec(win,'strikeThrough');if(a==='justifyLeft'||a==='justifyCenter'||a==='justifyRight'||a==='justifyFull')return exec(win,a);if(a==='bullets')return exec(win,'insertUnorderedList');if(a==='numbers')return exec(win,'insertOrderedList');if(a==='outdent'||a==='indent')return exec(win,a);if(a==='clear')return exec(win,'removeFormat');
             if(a==='find'){const q=await Popup.textbox('Find','Search for:');if(q)window.find(q);return}if(a==='replace'){const d=await Popup.forum('Replace',[{key:'find',label:'Find'},{key:'with',label:'Replace with'}]);if(d?.find){const text=editor.innerHTML.replaceAll(d.find,d.with||'');editor.innerHTML=text;setDirty(win,true);updateStats(win)}return}
             if(a==='margins'){const v=await Popup.pick('Margins','Select margin:',[{label:'Normal'},{label:'Narrow'},{label:'Wide'}]);if(v){const m={Normal:82,Narrow:45,Wide:125}[typeof v==='string'?v:v.label];editor.style.paddingLeft=`${m}px`;editor.style.paddingRight=`${m}px`;setDirty(win,true)}return}if(a==='orientation'){const v=await Popup.pick('Orientation','Select orientation:',['Portrait','Landscape']);if(v==='Landscape'){win.element.querySelector('.words-paper').style.width='1050px';editor.style.minHeight='820px'}else if(v==='Portrait'){win.element.querySelector('.words-paper').style.width='820px';editor.style.minHeight='1050px'}setDirty(win,true);return}
