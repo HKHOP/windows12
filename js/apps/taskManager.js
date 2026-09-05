@@ -1,8 +1,10 @@
 import WindowManager from '../modules/windowManager.js';
 import AppIcons from '../modules/appIcons.js';
+import ContextMenu from '../modules/contextMenu.js';
 
 const TaskManager = (() => {
     const icon = AppIcons.get('taskManager');
+    let tmState = { selectedId: null, dialogOpen: false };
 
     function getContent() {
         return `
@@ -22,12 +24,14 @@ const TaskManager = (() => {
     }
 
     function launch() {
+        tmState = { selectedId: null, dialogOpen: false };
         const win = WindowManager.createWindow('taskManager', 'Task Manager', icon, getContent(), { width: 650, height: 450 });
 
         setupTabs(win);
         showProcesses(win);
 
         let updateInterval = setInterval(() => {
+            if (tmState.dialogOpen) return;
             const activeTab = win.element.querySelector('.tm-tab-active')?.dataset.tab;
             if (activeTab === 'processes') showProcesses(win, false);
             else if (activeTab === 'performance') showPerformance(win);
@@ -76,11 +80,7 @@ const TaskManager = (() => {
         }
     }
 
-    function showProcesses(win, animate = true) {
-        const content = win.element.querySelector('.tm-content');
-        const endBtn = win.element.querySelector('.tm-end-btn');
-        const status = win.element.querySelector('.tm-status');
-
+    function getProcesses() {
         const windows = WindowManager.getAllWindows();
         const processes = windows.map(w => ({
             id: w.id,
@@ -130,7 +130,15 @@ const TaskManager = (() => {
             isSystem: true
         });
 
-        let selectedId = null;
+        return processes;
+    }
+
+    function showProcesses(win, animate = true) {
+        const content = win.element.querySelector('.tm-content');
+        const endBtn = win.element.querySelector('.tm-end-btn');
+        const status = win.element.querySelector('.tm-status');
+
+        const processes = getProcesses();
 
         content.innerHTML = `
             <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -164,26 +172,54 @@ const TaskManager = (() => {
         status.textContent = `${processes.length} processes | CPU: ${totalCpu}% | Memory: ${totalMem} MB`;
 
         content.querySelectorAll('.tm-process').forEach(row => {
-            row.addEventListener('mouseenter', () => { if (row.dataset.id !== selectedId) row.style.background = 'var(--hover-bg)'; });
-            row.addEventListener('mouseleave', () => { if (row.dataset.id !== selectedId) row.style.background = 'transparent'; });
+            row.addEventListener('mouseenter', () => { if (row.dataset.id !== tmState.selectedId) row.style.background = 'var(--hover-bg)'; });
+            row.addEventListener('mouseleave', () => { if (row.dataset.id !== tmState.selectedId) row.style.background = 'transparent'; });
             row.addEventListener('click', () => {
                 content.querySelectorAll('.tm-process').forEach(r => r.style.background = 'transparent');
                 row.style.background = 'rgba(0,120,212,0.2)';
-                selectedId = row.dataset.id;
+                tmState.selectedId = row.dataset.id;
                 endBtn.disabled = row.dataset.system === 'true';
+            });
+
+            row.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                content.querySelectorAll('.tm-process').forEach(r => r.style.background = 'transparent');
+                row.style.background = 'rgba(0,120,212,0.2)';
+                tmState.selectedId = row.dataset.id;
+                endBtn.disabled = row.dataset.system === 'true';
+
+                const isSystem = row.dataset.system === 'true';
+                const processName = row.querySelector('td').textContent;
+                const processId = row.dataset.id;
+
+                const items = [
+                    { label: processName, disabled: true },
+                    'separator'
+                ];
+
+                if (!isSystem) {
+                    items.push({ label: 'End task', icon: '✕', action: () => showKillConfirmation(win, processId, processName) });
+                } else {
+                    items.push({ label: 'End task', disabled: true });
+                }
+
+                ContextMenu.show(e.clientX, e.clientY, items);
             });
         });
 
         endBtn.onclick = () => {
-            if (selectedId && selectedId !== 'system') {
-                const row = content.querySelector(`.tm-process[data-id="${selectedId}"]`);
-                const processName = row ? row.querySelector('td').textContent : 'Unknown';
-                showKillConfirmation(win, selectedId, processName);
+            if (tmState.selectedId) {
+                const row = content.querySelector(`.tm-process[data-id="${tmState.selectedId}"]`);
+                if (row && row.dataset.system !== 'true') {
+                    showKillConfirmation(win, tmState.selectedId, row.querySelector('td').textContent);
+                }
             }
         };
     }
 
     function showKillConfirmation(win, processId, processName) {
+        tmState.dialogOpen = true;
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;border-radius:var(--radius);';
 
@@ -211,14 +247,22 @@ const TaskManager = (() => {
 
         win.element.appendChild(overlay);
 
-        overlay.querySelector('.tm-confirm-cancel').addEventListener('click', () => overlay.remove());
+        overlay.querySelector('.tm-confirm-cancel').addEventListener('click', () => {
+            tmState.dialogOpen = false;
+            overlay.remove();
+        });
         overlay.querySelector('.tm-confirm-end').addEventListener('click', () => {
             WindowManager.closeWindow(processId);
+            tmState.selectedId = null;
+            tmState.dialogOpen = false;
             overlay.remove();
             showProcesses(win);
         });
         overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) overlay.remove();
+            if (e.target === overlay) {
+                tmState.dialogOpen = false;
+                overlay.remove();
+            }
         });
     }
 
