@@ -191,8 +191,10 @@ const Words = (() => {
         const doc = frame.contentDocument;
         doc.open();
         doc.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(state.title)}</title><style>
-            body{margin:0;background:#fff;color:#111;font-family:Arial,sans-serif;line-height:1.55}
-            .page{max-width:820px;min-height:1050px;margin:0 auto;padding:40px;box-sizing:border-box}
+            @page{size:auto;margin:0!important}
+            @media print{html,body{margin:0!important;padding:0!important;height:auto!important;overflow:visible!important}}
+            body{margin:0;background:#fff;color:#111;font-family:Arial,sans-serif;line-height:1.55;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+            .page{max-width:820px;margin:0 auto;padding:40px;box-sizing:border-box}
             table{border-collapse:collapse;width:100%}
             td,th{border:1px solid #999;padding:7px}
             img{max-width:100%;height:auto}
@@ -209,7 +211,9 @@ const Words = (() => {
         const text = (win.element.querySelector('.words-editor')?.innerText || '').replace(/\u00a0/g,' ').trim();
         const words = text ? text.split(/\s+/).length : 0;
         const chars = text.length;
-        win.element.querySelector('.words-status').textContent = `${words.toLocaleString()} words • ${chars.toLocaleString()} characters`;
+        const editor = win.element.querySelector('.words-editor');
+        const pages = editor ? Math.max(1, Math.ceil(editor.scrollHeight / 1050)) : 1;
+        win.element.querySelector('.words-status').textContent = `${words.toLocaleString()} words • ${chars.toLocaleString()} characters • Page 1 of ${pages}`;
     }
 
     function exec(win, command, value = null) {
