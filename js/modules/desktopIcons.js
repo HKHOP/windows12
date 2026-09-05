@@ -139,24 +139,7 @@ const DesktopIcons = (() => {
         let isDragging = false;
         let startX, startY, origX, origY;
 
-        el.addEventListener('mousedown', (e) => {
-            if (e.button !== 0) return;
-            if (e.target.closest('button')) return;
-
-            isDragging = true;
-            startX = e.clientX;
-            startY = e.clientY;
-            origX = parseInt(el.style.left) || 0;
-            origY = parseInt(el.style.top) || 0;
-
-            el.style.transition = 'none';
-            el.style.zIndex = '9999';
-            el.style.opacity = '0.85';
-
-            e.preventDefault();
-        });
-
-        document.addEventListener('mousemove', (e) => {
+        function onMouseMove(e) {
             if (!isDragging) return;
 
             const s = Scaling.getScale();
@@ -168,11 +151,14 @@ const DesktopIcons = (() => {
 
             el.style.left = newX + 'px';
             el.style.top = newY + 'px';
-        });
+        }
 
-        document.addEventListener('mouseup', () => {
+        function onMouseUp() {
             if (!isDragging) return;
             isDragging = false;
+
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
 
             el.style.transition = 'background 0.12s';
             el.style.zIndex = '';
@@ -193,6 +179,26 @@ const DesktopIcons = (() => {
 
             positions[name] = { x, y };
             savePositions();
+        }
+
+        el.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            if (e.target.closest('button')) return;
+
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            origX = parseInt(el.style.left) || 0;
+            origY = parseInt(el.style.top) || 0;
+
+            el.style.transition = 'none';
+            el.style.zIndex = '9999';
+            el.style.opacity = '0.85';
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+
+            e.preventDefault();
         });
     }
 

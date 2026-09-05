@@ -225,7 +225,6 @@ const SavePrompt = (() => {
                 if (existing !== null) {
                     Popup.confirm('Replace File', `"${fullName}" already exists. Replace it?`).then(ok => {
                         if (!ok) return;
-                        FileSystem.createFile(currentPath, fullName, '', ext);
                         WindowManager.closeWindow(saveWin.id);
                         showToast(`Saved "${fullName}" to ${pathDisplay}`);
                         resolve({ path: currentPath.slice(), name: fullName, fullName, ext });
@@ -233,7 +232,6 @@ const SavePrompt = (() => {
                     return;
                 }
 
-                FileSystem.createFile(currentPath, fullName, '', ext);
                 WindowManager.closeWindow(saveWin.id);
                 showToast(`Saved "${fullName}" to ${pathDisplay}`);
                 resolve({ path: currentPath.slice(), name: fullName, fullName, ext });

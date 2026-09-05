@@ -4,6 +4,20 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4590] - 2026-09-05
+
+### Fixed
+- Fixed FileSystem save crashing on localStorage quota exceeded
+- Fixed FileExplorer shared state causing multi-window navigation corruption
+- Fixed TaskManager shared interval causing multi-window timer leaks
+- Fixed Browser shared state causing multi-window tab corruption
+- Fixed FileExplorer event listener leaks on repeated navigate calls
+- Fixed DesktopIcons document-level drag listeners accumulating on each icon
+- Fixed Paint keydown listener leaking after window close
+- Fixed FileExplorer allowing drag-drop onto self or into own subfolder
+- Fixed SavePrompt creating empty files before caller writes actual content
+- Fixed WindowManager minimize button referencing undefined Taskbar variable
+
 ## [12.0.4580] - 2026-09-04
 
 ### Added

@@ -89,7 +89,11 @@ const FileSystem = (() => {
     }
 
     function save() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(root));
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(root));
+        } catch (e) {
+            console.error('FileSystem: Failed to save to localStorage:', e.name);
+        }
     }
 
     function getNode(path) {

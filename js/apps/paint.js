@@ -454,13 +454,18 @@ const Paint = (() => {
         const observer = new ResizeObserver(() => resizeCanvas());
         observer.observe(container);
 
-        document.addEventListener('keydown', (e) => {
-            if (!el.isConnected) { observer.disconnect(); return; }
+        function handleKeydown(e) {
+            if (!el.isConnected) {
+                document.removeEventListener('keydown', handleKeydown);
+                observer.disconnect();
+                return;
+            }
             if (e.ctrlKey && e.key === 'z') {
                 e.preventDefault();
                 if (undoStack.length > 0) restoreState(undoStack.pop());
             }
-        });
+        }
+        document.addEventListener('keydown', handleKeydown);
 
         setTool('pencil');
         resizeCanvas();

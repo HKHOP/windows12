@@ -82,6 +82,10 @@ document.addEventListener('DOMContentLoaded', () => {
         Taskbar.removeRunningApp(appId, windowId);
     });
 
+    WindowManager.setOnWindowMinimized(() => {
+        Taskbar.updateRunningState();
+    });
+
     setupDesktopContextMenu();
     setupTaskbarContextMenu();
     setupWindowTitleBarContextMenu();

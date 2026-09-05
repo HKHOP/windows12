@@ -8,8 +8,6 @@ const TaskManager = (() => {
         <rect x="14" y="14" width="7" height="7" rx="1" fill="#0078D4"/>
     </svg>`;
 
-    let updateInterval = null;
-
     function getContent() {
         return `
             <div style="display:flex;flex-direction:column;height:100%;">
@@ -33,7 +31,7 @@ const TaskManager = (() => {
         setupTabs(win);
         showProcesses(win);
 
-        updateInterval = setInterval(() => {
+        let updateInterval = setInterval(() => {
             const activeTab = win.element.querySelector('.tm-tab-active')?.dataset.tab;
             if (activeTab === 'processes') showProcesses(win, false);
             else if (activeTab === 'performance') showPerformance(win);

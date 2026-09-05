@@ -11,11 +11,6 @@ import VBEngine from '../modules/vbsEngine.js';
 const FileExplorer = (() => {
     const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 7V17C3 18.1 3.9 19 5 19H19C20.1 19 21 18.1 21 17V9C21 7.9 20.1 7 19 7H11L9 5H5C3.9 5 3 5.9 3 7Z" fill="#FFC107"/><path d="M3 7H21V9H3V7Z" fill="#FFD54F"/></svg>`;
 
-    let pathHistory = [['/']];
-    let historyIndex = 0;
-    let clipboard = null;
-    let clipboardAction = 'copy';
-
     function getContent() {
         return `
             <div style="display:flex;flex-direction:column;height:100%;">
@@ -127,13 +122,13 @@ const FileExplorer = (() => {
         });
     }
 
-    function navigate(win, path, addToHistory = true) {
+    function navigate(win, path, addToHistory = true, state) {
         if (!FileSystem.isFolder(path)) return;
 
-        if (addToHistory) {
-            pathHistory = pathHistory.slice(0, historyIndex + 1);
-            pathHistory.push(path);
-            historyIndex = pathHistory.length - 1;
+        if (state && addToHistory) {
+            state.pathHistory = state.pathHistory.slice(0, state.historyIndex + 1);
+            state.pathHistory.push(path);
+            state.historyIndex = state.pathHistory.length - 1;
         }
 
         const pathEl = win.element.querySelector('.fe-path');
@@ -148,8 +143,11 @@ const FileExplorer = (() => {
         pathEl.value = displayPath;
         pathEl.dataset.rawPath = path.join('/');
         pathText.textContent = displayPath;
-        backBtn.disabled = historyIndex <= 0;
-        forwardBtn.disabled = historyIndex >= pathHistory.length - 1;
+        win.element.dataset.currentPath = JSON.stringify(path);
+        if (state) {
+            backBtn.disabled = state.historyIndex <= 0;
+            forwardBtn.disabled = state.historyIndex >= state.pathHistory.length - 1;
+        }
         upBtn.disabled = path.length <= 1;
 
         const entries = FileSystem.getChildren(path);
@@ -159,20 +157,6 @@ const FileExplorer = (() => {
         });
 
         contentEl.innerHTML = '';
-
-        contentEl.addEventListener('contextmenu', (e) => {
-            if (e.target !== contentEl) return;
-            e.preventDefault();
-            const menuItems = [
-                { label: 'New folder', icon: '📁', action: () => createNewFolder(win, path) },
-                { label: 'New text file', icon: '📄', action: () => createNewFile(win, path) },
-                'separator'
-            ];
-            if (clipboard) {
-                menuItems.push({ label: `Paste (${clipboardAction === 'copy' ? 'Ctrl+V' : 'Ctrl+X'})`, icon: '📋', action: () => pasteItems(win, path) });
-            }
-            ContextMenu.show(e.clientX, e.clientY, menuItems);
-        });
 
         if (entries.length === 0) {
             contentEl.innerHTML = '<div style="width:100%;text-align:center;padding:60px 20px;color:#666;font-size:14px;">This folder is empty</div>';
@@ -199,7 +183,7 @@ const FileExplorer = (() => {
 
             item.addEventListener('dblclick', () => {
                 if (isDir) {
-                    navigate(win, [...path, entry.name]);
+                    navigate(win, [...path, entry.name], true, state);
                 } else {
                     openFileWithDefaultApp([...path, entry.name], entry);
                 }
@@ -210,10 +194,10 @@ const FileExplorer = (() => {
                 e.stopPropagation();
                 const itemPath = [...path, entry.name];
                 const menuItems = isDir ? [
-                    { label: 'Open', icon: '📂', action: () => navigate(win, itemPath) },
+                    { label: 'Open', icon: '📂', action: () => navigate(win, itemPath, true, state) },
                     'separator',
-                    { label: 'Cut (Ctrl+X)', icon: '✂', action: () => { clipboard = { path: itemPath, name: entry.name, type: entry.type }; clipboardAction = 'cut'; } },
-                    { label: 'Copy (Ctrl+C)', icon: '📋', action: () => { clipboard = { path: itemPath, name: entry.name, type: entry.type }; clipboardAction = 'copy'; } },
+                    { label: 'Cut (Ctrl+X)', icon: '✂', action: () => { if (state) { state.clipboard = { path: itemPath, name: entry.name, type: entry.type }; state.clipboardAction = 'cut'; } } },
+                    { label: 'Copy (Ctrl+C)', icon: '📋', action: () => { if (state) { state.clipboard = { path: itemPath, name: entry.name, type: entry.type }; state.clipboardAction = 'copy'; } } },
                     'separator',
                     { label: 'Rename', icon: '✏', action: () => renameItem(win, itemPath) },
                     { label: 'Delete', icon: '🗑', action: () => deleteItem(win, itemPath) },
@@ -223,8 +207,8 @@ const FileExplorer = (() => {
                     { label: 'Open', icon: '📝', action: () => openFileWithDefaultApp(itemPath, entry) },
                     { label: 'Open With...', icon: '📂', action: () => showOpenWithMenu(itemPath, entry) },
                     'separator',
-                    { label: 'Cut (Ctrl+X)', icon: '✂', action: () => { clipboard = { path: itemPath, name: entry.name, type: entry.type }; clipboardAction = 'cut'; } },
-                    { label: 'Copy (Ctrl+C)', icon: '📋', action: () => { clipboard = { path: itemPath, name: entry.name, type: entry.type }; clipboardAction = 'copy'; } },
+                    { label: 'Cut (Ctrl+X)', icon: '✂', action: () => { if (state) { state.clipboard = { path: itemPath, name: entry.name, type: entry.type }; state.clipboardAction = 'cut'; } } },
+                    { label: 'Copy (Ctrl+C)', icon: '📋', action: () => { if (state) { state.clipboard = { path: itemPath, name: entry.name, type: entry.type }; state.clipboardAction = 'copy'; } } },
                     'separator',
                     { label: 'Rename', icon: '✏', action: () => renameItem(win, itemPath) },
                     { label: 'Delete', icon: '🗑', action: () => deleteItem(win, itemPath) },
@@ -247,7 +231,7 @@ const FileExplorer = (() => {
             if (isDir) {
                 item.addEventListener('dragover', (e) => {
                     e.preventDefault();
-                    e.dataTransfer.dropEffect = clipboardAction === 'cut' ? 'move' : 'copy';
+                    e.dataTransfer.dropEffect = state && state.clipboardAction === 'cut' ? 'move' : 'copy';
                     item.style.background = 'rgba(0,120,212,0.2)';
                     item.style.outline = '2px solid var(--accent-color)';
                 });
@@ -262,12 +246,13 @@ const FileExplorer = (() => {
                     try {
                         const data = JSON.parse(e.dataTransfer.getData('text/plain'));
                         if (data.path) {
-                            const destPath = [...path, entry.name, data.name];
-                            const parentPath = data.path.slice(0, -1);
+                            const destPath = [...path, entry.name];
+                            if (data.path.join('/') === destPath.join('/')) return;
+                            if (destPath.join('/').startsWith(data.path.join('/'))) return;
                             showProgressBar(win);
                             setTimeout(() => {
                                 FileSystem.renameItem(data.path, data.name);
-                                navigate(win, path, false);
+                                navigate(win, path, false, state);
                                 refreshIfDesktop([...path, entry.name]);
                                 hideProgressBar(win);
                             }, 300);
@@ -277,12 +262,6 @@ const FileExplorer = (() => {
             }
 
             contentEl.appendChild(item);
-        });
-
-        contentEl.addEventListener('dragover', (e) => {
-            if (e.target === contentEl) {
-                e.preventDefault();
-            }
         });
 
         countEl.textContent = `${entries.length} item${entries.length !== 1 ? 's' : ''}`;
@@ -436,25 +415,25 @@ const FileExplorer = (() => {
         }
     }
 
-    function createNewFolder(win, path) {
+    function createNewFolder(win, path, state) {
         let name = 'New Folder';
         let i = 1;
         while (FileSystem.itemExists([...path, name])) {
             name = `New Folder (${i++})`;
         }
         FileSystem.createFolder(path, name);
-        navigate(win, path, false);
+        navigate(win, path, false, state);
         refreshIfDesktop(path);
     }
 
-    function createNewFile(win, path) {
+    function createNewFile(win, path, state) {
         let name = 'New Text Document.txt';
         let i = 1;
         while (FileSystem.itemExists([...path, name])) {
             name = `New Text Document (${i++}).txt`;
         }
         FileSystem.createFile(path, name, '', 'txt');
-        navigate(win, path, false);
+        navigate(win, path, false, state);
         refreshIfDesktop(path);
     }
 
@@ -484,19 +463,19 @@ const FileExplorer = (() => {
         });
     }
 
-    function pasteItems(win, destPath) {
-        if (!clipboard) return;
+    function pasteItems(win, destPath, state) {
+        if (!state || !state.clipboard) return;
         showProgressBar(win);
         setTimeout(() => {
-            if (clipboardAction === 'cut') {
-                FileSystem.renameItem(clipboard.path, clipboard.name);
+            if (state.clipboardAction === 'cut') {
+                FileSystem.renameItem(state.clipboard.path, state.clipboard.name);
             } else {
-                const content = FileSystem.readFile(clipboard.path) || '';
-                FileSystem.createFile(destPath, clipboard.name, content, clipboard.ext || '');
+                const content = FileSystem.readFile(state.clipboard.path) || '';
+                FileSystem.createFile(destPath, state.clipboard.name, content, state.clipboard.ext || '');
             }
-            navigate(win, destPath, false);
+            navigate(win, destPath, false, state);
             hideProgressBar(win);
-            clipboard = null;
+            state.clipboard = null;
         }, 300);
     }
 
@@ -707,28 +686,56 @@ const FileExplorer = (() => {
     }
 
     function launch() {
+        const state = {
+            pathHistory: [['/']],
+            historyIndex: 0,
+            clipboard: null,
+            clipboardAction: 'copy'
+        };
+
         const win = WindowManager.createWindow('fileExplorer', 'File Explorer', icon, getContent(), { width: 800, height: 500 });
 
-        navigate(win, ['/', 'users', 'default']);
+        const contentEl = win.element.querySelector('.fe-content');
+        contentEl.addEventListener('contextmenu', (e) => {
+            if (e.target !== contentEl) return;
+            e.preventDefault();
+            const currentPath = JSON.parse(win.element.dataset.currentPath || '["/"]');
+            const menuItems = [
+                { label: 'New folder', icon: '📁', action: () => createNewFolder(win, currentPath, state) },
+                { label: 'New text file', icon: '📄', action: () => createNewFile(win, currentPath, state) },
+                'separator'
+            ];
+            if (state.clipboard) {
+                menuItems.push({ label: `Paste (${state.clipboardAction === 'copy' ? 'Ctrl+V' : 'Ctrl+X'})`, icon: '📋', action: () => pasteItems(win, currentPath, state) });
+            }
+            ContextMenu.show(e.clientX, e.clientY, menuItems);
+        });
+        contentEl.addEventListener('dragover', (e) => {
+            if (e.target === contentEl) {
+                e.preventDefault();
+            }
+        });
+
+        navigate(win, ['/', 'users', 'default'], true, state);
 
         win.element.querySelector('.fe-back').addEventListener('click', () => {
-            if (historyIndex > 0) {
-                historyIndex--;
-                navigate(win, pathHistory[historyIndex], false);
+            if (state.historyIndex > 0) {
+                state.historyIndex--;
+                navigate(win, state.pathHistory[state.historyIndex], false, state);
             }
         });
 
         win.element.querySelector('.fe-forward').addEventListener('click', () => {
-            if (historyIndex < pathHistory.length - 1) {
-                historyIndex++;
-                navigate(win, pathHistory[historyIndex], false);
+            if (state.historyIndex < state.pathHistory.length - 1) {
+                state.historyIndex++;
+                navigate(win, state.pathHistory[state.historyIndex], false, state);
             }
         });
 
         win.element.querySelector('.fe-up').addEventListener('click', () => {
-            const current = pathHistory[historyIndex];
+            const current = state.pathHistory[state.historyIndex];
             if (current.length > 1) {
-                navigate(win, current.slice(0, -1));
+                navigate(win, current.slice(0, -1), true, state);
             }
         });
 
@@ -740,15 +747,15 @@ const FileExplorer = (() => {
                 const rawPath = inputPath.split('/').filter(p => p);
                 if (rawPath.length === 0) rawPath.unshift('/');
                 if (FileSystem.isFolder(rawPath)) {
-                    navigate(win, rawPath);
+                    navigate(win, rawPath, true, state);
                 } else if (FileSystem.itemExists(rawPath)) {
-                    navigate(win, rawPath.slice(0, -1));
+                    navigate(win, rawPath.slice(0, -1), true, state);
                 } else {
                     Popup.error('Path Not Found', 'Path not found: ' + inputPath);
-                    pathInput.value = formatPath(pathHistory[historyIndex]);
+                    pathInput.value = formatPath(state.pathHistory[state.historyIndex]);
                 }
             } else if (e.key === 'Escape') {
-                pathInput.value = formatPath(pathHistory[historyIndex]);
+                pathInput.value = formatPath(state.pathHistory[state.historyIndex]);
                 pathInput.blur();
             }
         });
@@ -761,27 +768,35 @@ const FileExplorer = (() => {
                 if (path[0] === '__thispc__') {
                     showThisPC(win);
                 } else {
-                    navigate(win, path);
+                    navigate(win, path, true, state);
                 }
             });
         });
 
-        document.addEventListener('keydown', (e) => {
+        function handleKeydown(e) {
             if (!win.element.contains(document.activeElement) && document.activeElement !== document.body) return;
-            if (e.ctrlKey && e.key === 'c' && clipboard === null) {
+            if (e.ctrlKey && e.key === 'c' && state.clipboard === null) {
                 const selected = win.element.querySelector('.fe-item[style*="rgba(0,120,212"]');
                 if (selected) {
                     const name = selected.dataset.name;
-                    const currentPath = pathHistory[historyIndex];
-                    clipboard = { path: [...currentPath, name], name, type: selected.dataset.type, ext: selected.dataset.ext };
-                    clipboardAction = 'copy';
+                    const currentPath = state.pathHistory[state.historyIndex];
+                    state.clipboard = { path: [...currentPath, name], name, type: selected.dataset.type, ext: selected.dataset.ext };
+                    state.clipboardAction = 'copy';
                 }
             }
-            if (e.ctrlKey && e.key === 'v' && clipboard) {
-                const currentPath = pathHistory[historyIndex];
-                pasteItems(win, currentPath);
+            if (e.ctrlKey && e.key === 'v' && state.clipboard) {
+                const currentPath = state.pathHistory[state.historyIndex];
+                pasteItems(win, currentPath, state);
             }
-        });
+        }
+        document.addEventListener('keydown', handleKeydown);
+
+        const closeBtn = win.element.querySelector('.close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                document.removeEventListener('keydown', handleKeydown);
+            });
+        }
     }
 
     return { launch };

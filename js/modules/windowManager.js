@@ -7,6 +7,7 @@ const WindowManager = (() => {
     let onFocusChanged = null;
     let onWindowCreated = null;
     let onWindowClosed = null;
+    let onWindowMinimized = null;
     let snapIndicator = null;
     let scale = 1;
 
@@ -67,6 +68,10 @@ const WindowManager = (() => {
 
     function setOnWindowClosed(cb) {
         onWindowClosed = cb;
+    }
+
+    function setOnWindowMinimized(cb) {
+        onWindowMinimized = cb;
     }
 
     function createWindow(appId, title, icon, content, options = {}) {
@@ -334,7 +339,7 @@ const WindowManager = (() => {
     function setupControls(win, data) {
         win.querySelector('.minimize-btn').addEventListener('click', () => {
             win.style.display = 'none';
-            if (typeof Taskbar !== 'undefined') Taskbar.updateRunningState();
+            if (onWindowMinimized) onWindowMinimized(data.appId);
         });
 
         win.querySelector('.maximize-btn').addEventListener('click', () => {
@@ -430,7 +435,7 @@ const WindowManager = (() => {
         return Array.from(windows.values());
     }
 
-    return { init, setScale, getScale, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, createWindow, focusWindow, closeWindow, getWindowsByApp, getAllWindows, minimizeAll, toggleMaximize, _getWindow };
+    return { init, setScale, getScale, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, setOnWindowMinimized, createWindow, focusWindow, closeWindow, getWindowsByApp, getAllWindows, minimizeAll, toggleMaximize, _getWindow };
 })();
 
 export default WindowManager;

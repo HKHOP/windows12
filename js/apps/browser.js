@@ -18,15 +18,10 @@ const Browser = (() => {
 
     const HISTORY_PATH = ['/', 'system', 'programs data', 'browser', 'history.json'];
     const DOWNLOADS_PATH = ['/', 'system', 'programs data', 'browser', 'downloads.json'];
-    const closedTabs = [];
     const MAX_CLOSED = 20;
 
-    let tabCounter = 0;
-    const tabs = new Map();
-    let activeTabId = null;
-
-    function createTab(url) {
-        const id = `tab-${Date.now()}-${++tabCounter}`;
+    function createTab(url, state) {
+        const id = `tab-${Date.now()}-${++state.tabCounter}`;
         const tab = {
             id,
             title: 'New Tab',
@@ -44,7 +39,7 @@ const Browser = (() => {
             tab.history = [url];
             tab.historyIndex = 0;
         }
-        tabs.set(id, tab);
+        state.tabs.set(id, tab);
         return tab;
     }
 
@@ -167,8 +162,8 @@ const Browser = (() => {
     }
 
     function launch() {
-        const firstTab = createTab();
-        activeTabId = firstTab.id;
+        const firstTab = createTab(null, tabState);
+        tabState.activeTabId = firstTab.id;
 
         const win = WindowManager.createWindow('browser', 'Browser', icon, getTabHtml(), { width: 900, height: 600 });
         const el = win.element;
@@ -192,6 +187,13 @@ const Browser = (() => {
         const findClose = el.querySelector('.browser-find-close');
         const dlBtn = el.querySelector('.browser-dl-btn');
 
+        const tabState = {
+            tabs: new Map(),
+            activeTabId: null,
+            tabCounter: 0,
+            closedTabs: []
+        };
+
         let clockInterval = null;
 
         function updateClock() {
@@ -205,7 +207,7 @@ const Browser = (() => {
         }
 
         function updateZoomDisplay() {
-            const tab = tabs.get(activeTabId);
+            const tab = tabState.tabs.get(tabState.activeTabId);
             if (!tab) return;
             const pct = Math.round(tab.zoom * 100);
             statusZoom.textContent = pct !== 100 ? `${pct}%` : '';
@@ -233,9 +235,9 @@ const Browser = (() => {
 
         function renderTabs() {
             tabsList.innerHTML = '';
-            for (const [, tab] of tabs) {
+            for (const [, tab] of tabState.tabs) {
                 const tabEl = document.createElement('div');
-                tabEl.className = 'browser-tab' + (tab.id === activeTabId ? ' active' : '');
+                tabEl.className = 'browser-tab' + (tab.id === tabState.activeTabId ? ' active' : '');
                 tabEl.dataset.tabId = tab.id;
                 tabEl.innerHTML = `
                     <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${tab.title}</span>
@@ -259,7 +261,7 @@ const Browser = (() => {
         }
 
         function showTabContextMenu(x, y, tabId) {
-            const tab = tabs.get(tabId);
+            const tab = tabState.tabs.get(tabId);
             if (!tab) return;
             const items = [
                 { label: 'New Tab', icon: '+', action: () => addTab() },
@@ -276,37 +278,37 @@ const Browser = (() => {
         }
 
         function closeOtherTabs(keepId) {
-            for (const [id, tab] of tabs) {
+            for (const [id, tab] of tabState.tabs) {
                 if (id !== keepId) {
                     if (tab.iframeEl) tab.iframeEl.remove();
-                    closedTabs.push({ url: tab.url, title: tab.title });
-                    tabs.delete(id);
+                    tabState.closedTabs.push({ url: tab.url, title: tab.title });
+                    tabState.tabs.delete(id);
                 }
             }
-            activeTabId = keepId;
+            tabState.activeTabId = keepId;
             renderTabs();
-            switchTab(activeTabId);
+            switchTab(tabState.activeTabId);
         }
 
         function closeTabsToRight(tabId) {
-            const ids = [...tabs.keys()];
+            const ids = [...tabState.tabs.keys()];
             const idx = ids.indexOf(tabId);
             if (idx < 0) return;
             for (let i = ids.length - 1; i > idx; i--) {
-                const tab = tabs.get(ids[i]);
+                const tab = tabState.tabs.get(ids[i]);
                 if (tab.iframeEl) tab.iframeEl.remove();
-                closedTabs.push({ url: tab.url, title: tab.title });
-                tabs.delete(ids[i]);
+                tabState.closedTabs.push({ url: tab.url, title: tab.title });
+                tabState.tabs.delete(ids[i]);
             }
             renderTabs();
-            switchTab(activeTabId);
+            switchTab(tabState.activeTabId);
         }
 
         function switchTab(tabId) {
-            if (!tabs.has(tabId)) return;
-            activeTabId = tabId;
+            if (!tabState.tabs.has(tabId)) return;
+            tabState.activeTabId = tabId;
             renderTabs();
-            const tab = tabs.get(tabId);
+            const tab = tabState.tabs.get(tabId);
             updateNavState(tab);
             updateUrlBar(tab);
             updateZoomDisplay();
@@ -319,29 +321,29 @@ const Browser = (() => {
         }
 
         function closeTab(tabId) {
-            if (tabs.size <= 1) return;
-            const tab = tabs.get(tabId);
-            closedTabs.push({ url: tab.url, title: tab.title });
-            if (closedTabs.length > MAX_CLOSED) closedTabs.shift();
+            if (tabState.tabs.size <= 1) return;
+            const tab = tabState.tabs.get(tabId);
+            tabState.closedTabs.push({ url: tab.url, title: tab.title });
+            if (tabState.closedTabs.length > MAX_CLOSED) tabState.closedTabs.shift();
             if (tab.iframeEl) tab.iframeEl.remove();
-            tabs.delete(tabId);
-            if (activeTabId === tabId) {
-                const remaining = [...tabs.keys()];
-                activeTabId = remaining[remaining.length - 1];
+            tabState.tabs.delete(tabId);
+            if (tabState.activeTabId === tabId) {
+                const remaining = [...tabState.tabs.keys()];
+                tabState.activeTabId = remaining[remaining.length - 1];
             }
             renderTabs();
-            switchTab(activeTabId);
+            switchTab(tabState.activeTabId);
         }
 
         function reopenClosedTab() {
-            if (closedTabs.length === 0) return;
-            const last = closedTabs.pop();
+            if (tabState.closedTabs.length === 0) return;
+            const last = tabState.closedTabs.pop();
             addTab(last.url);
         }
 
         function addTab(url) {
-            const tab = createTab(url);
-            activeTabId = tab.id;
+            const tab = createTab(url, tabState);
+            tabState.activeTabId = tab.id;
             renderTabs();
             if (url) {
                 updateUrlBar(tab);
@@ -359,7 +361,7 @@ const Browser = (() => {
         }
 
         function showNewTab() {
-            const tab = tabs.get(activeTabId);
+            const tab = tabState.tabs.get(tabState.activeTabId);
             if (!tab) return;
 
             if (tab.iframeEl) {
@@ -443,7 +445,7 @@ const Browser = (() => {
         }
 
         function navigateTo(url) {
-            const tab = tabs.get(activeTabId);
+            const tab = tabState.tabs.get(tabState.activeTabId);
             if (!tab) return;
             if (!url) return;
 
@@ -493,7 +495,7 @@ const Browser = (() => {
         }
 
         function onIframeLoad(tab) {
-            if (tab.id !== activeTabId) return;
+            if (tab.id !== tabState.activeTabId) return;
 
             statusDot.className = 'browser-status-dot';
             statusText.textContent = 'Done';
@@ -570,7 +572,7 @@ const Browser = (() => {
         }
 
         function goBack() {
-            const tab = tabs.get(activeTabId);
+            const tab = tabState.tabs.get(tabState.activeTabId);
             if (!tab || tab.historyIndex <= 0) return;
             tab.historyIndex--;
             const url = tab.history[tab.historyIndex];
@@ -582,7 +584,7 @@ const Browser = (() => {
         }
 
         function goForward() {
-            const tab = tabs.get(activeTabId);
+            const tab = tabState.tabs.get(tabState.activeTabId);
             if (!tab || tab.historyIndex >= tab.history.length - 1) return;
             tab.historyIndex++;
             const url = tab.history[tab.historyIndex];
@@ -605,7 +607,7 @@ const Browser = (() => {
             findInput.value = '';
             findCount.textContent = '';
             try {
-                const tab = tabs.get(activeTabId);
+                const tab = tabState.tabs.get(tabState.activeTabId);
                 if (tab?.iframeEl?.contentWindow) {
                     tab.iframeEl.contentWindow.find('', false, false, false);
                 }
@@ -616,7 +618,7 @@ const Browser = (() => {
             const query = findInput.value;
             if (!query) { findCount.textContent = ''; return; }
             try {
-                const tab = tabs.get(activeTabId);
+                const tab = tabState.tabs.get(tabState.activeTabId);
                 if (tab?.iframeEl?.contentWindow) {
                     tab.iframeEl.contentWindow.find(query, false, direction === 'prev', false);
                 }
@@ -700,7 +702,7 @@ const Browser = (() => {
         backBtn.addEventListener('click', goBack);
         forwardBtn.addEventListener('click', goForward);
         refreshBtn.addEventListener('click', () => {
-            const tab = tabs.get(activeTabId);
+            const tab = tabState.tabs.get(tabState.activeTabId);
             if (tab && tab.url) loadUrlInTab(tab, tab.url);
         });
         dlBtn.addEventListener('click', () => showDownloadsPanel());
@@ -714,12 +716,12 @@ const Browser = (() => {
                 { label: 'History', icon: '🕐', action: () => showHistoryPanel() },
                 { label: 'Downloads', icon: '⬇', action: () => showDownloadsPanel() },
                 'separator',
-                { label: 'Zoom In', icon: '+', action: () => { const tab = tabs.get(activeTabId); if (tab) { tab.zoom = Math.min(tab.zoom + 0.1, 3); applyZoom(tab); } } },
-                { label: 'Zoom Out', icon: '−', action: () => { const tab = tabs.get(activeTabId); if (tab) { tab.zoom = Math.max(tab.zoom - 0.1, 0.3); applyZoom(tab); } } },
-                { label: 'Reset Zoom', icon: '', action: () => { const tab = tabs.get(activeTabId); if (tab) { tab.zoom = 1; applyZoom(tab); } } },
+                { label: 'Zoom In', icon: '+', action: () => { const tab = tabState.tabs.get(tabState.activeTabId); if (tab) { tab.zoom = Math.min(tab.zoom + 0.1, 3); applyZoom(tab); } } },
+                { label: 'Zoom Out', icon: '−', action: () => { const tab = tabState.tabs.get(tabState.activeTabId); if (tab) { tab.zoom = Math.max(tab.zoom - 0.1, 0.3); applyZoom(tab); } } },
+                { label: 'Reset Zoom', icon: '', action: () => { const tab = tabState.tabs.get(tabState.activeTabId); if (tab) { tab.zoom = 1; applyZoom(tab); } } },
                 'separator',
                 { label: 'Clear History', icon: '🗑', action: () => { clearHistory(); } },
-                { label: 'Close Tab', icon: '×', action: () => closeTab(activeTabId) },
+                { label: 'Close Tab', icon: '×', action: () => closeTab(tabState.activeTabId) },
             ];
             ContextMenu.show(e.clientX, e.clientY, items);
         });
@@ -728,7 +730,7 @@ const Browser = (() => {
             if (e.key === 'Enter') {
                 const val = urlInput.value.trim();
                 if (val) {
-                    const tab = tabs.get(activeTabId);
+                    const tab = tabState.tabs.get(tabState.activeTabId);
                     if (tab) {
                         if (tab.historyIndex < tab.history.length - 1) {
                             tab.history = tab.history.slice(0, tab.historyIndex + 1);
@@ -755,16 +757,16 @@ const Browser = (() => {
         el.addEventListener('keydown', (e) => {
             if (!el.contains(document.activeElement) && document.activeElement !== document.body) return;
             if (e.altKey && e.key === 't') { e.preventDefault(); addTab(); }
-            if (e.altKey && e.key === 'w') { e.preventDefault(); closeTab(activeTabId); }
+            if (e.altKey && e.key === 'w') { e.preventDefault(); closeTab(tabState.activeTabId); }
             if (e.altKey && e.key === 'q') { e.preventDefault(); reopenClosedTab(); }
             if (e.ctrlKey && e.key === 'l') { e.preventDefault(); urlInput.focus(); urlInput.select(); }
             if (e.altKey && e.key === 'r') { e.preventDefault(); refreshBtn.click(); }
             if (e.altKey && e.key === 'f') { e.preventDefault(); openFindBar(); }
             if (e.altKey && e.key === 'h') { e.preventDefault(); showHistoryPanel(); }
             if (e.altKey && e.key === 'j') { e.preventDefault(); showDownloadsPanel(); }
-            if (e.altKey && e.key === '=') { e.preventDefault(); const tab = tabs.get(activeTabId); if (tab) { tab.zoom = Math.min(tab.zoom + 0.1, 3); applyZoom(tab); } }
-            if (e.altKey && e.key === '-') { e.preventDefault(); const tab = tabs.get(activeTabId); if (tab) { tab.zoom = Math.max(tab.zoom - 0.1, 0.3); applyZoom(tab); } }
-            if (e.altKey && e.key === '0') { e.preventDefault(); const tab = tabs.get(activeTabId); if (tab) { tab.zoom = 1; applyZoom(tab); } }
+            if (e.altKey && e.key === '=') { e.preventDefault(); const tab = tabState.tabs.get(tabState.activeTabId); if (tab) { tab.zoom = Math.min(tab.zoom + 0.1, 3); applyZoom(tab); } }
+            if (e.altKey && e.key === '-') { e.preventDefault(); const tab = tabState.tabs.get(tabState.activeTabId); if (tab) { tab.zoom = Math.max(tab.zoom - 0.1, 0.3); applyZoom(tab); } }
+            if (e.altKey && e.key === '0') { e.preventDefault(); const tab = tabState.tabs.get(tabState.activeTabId); if (tab) { tab.zoom = 1; applyZoom(tab); } }
         });
 
         renderTabs();
@@ -772,7 +774,7 @@ const Browser = (() => {
 
         window.addEventListener('message', (e) => {
             if (e.data?.type === 'browser-nav') {
-                const tab = tabs.get(activeTabId);
+                const tab = tabState.tabs.get(tabState.activeTabId);
                 if (!tab) return;
 
                 if (e.data.title && e.data.title !== tab.title) {
