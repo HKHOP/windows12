@@ -6,6 +6,9 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 
 ## [12.0.4590] - 2026-09-05
 
+### Added
+- Added "Pin to taskbar" / "Unpin from taskbar" options to start menu app context menus
+
 ### Fixed
 - Fixed FileSystem save crashing on localStorage quota exceeded
 - Fixed FileExplorer shared state causing multi-window navigation corruption

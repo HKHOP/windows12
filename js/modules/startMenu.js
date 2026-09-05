@@ -1,5 +1,5 @@
 import WindowManager from './windowManager.js';
-import { AppRegistry, AppMetadata } from './taskbar.js';
+import { Taskbar, AppRegistry, AppMetadata } from './taskbar.js';
 import UserActivity from './userActivity.js';
 import FileSystem from './fileSystem.js';
 import SystemConfig from '../modules/systemConfig.js';
@@ -376,6 +376,7 @@ const StartMenu = (() => {
                     e.preventDefault();
                     e.stopPropagation();
                     const pinned = isPinned(app.id);
+                    const taskbarPinned = Taskbar.isPinned(app.id);
                     const userAppList = ['sampleApp', 'vscode', 'export'];
                     const isUserApp = userAppList.includes(app.id);
                     const items = [
@@ -384,6 +385,9 @@ const StartMenu = (() => {
                         pinned
                             ? { label: 'Unpin from Start', icon: '📌', action: () => { unpinApp(app.id); showAllApps(); } }
                             : { label: 'Pin to Start', icon: '📍', action: () => { pinApp(app.id); showAllApps(); } },
+                        taskbarPinned
+                            ? { label: 'Unpin from taskbar', icon: '📌', action: () => Taskbar.unpinApp(app.id) }
+                            : { label: 'Pin to taskbar', icon: '📍', action: () => Taskbar.pinApp(app.id) },
                         ...(isUserApp ? [
                             'separator',
                             { label: 'Uninstall', icon: '🗑️', action: () => { AppSystem.uninstallApp(app.id); showAllApps(); } }
@@ -447,10 +451,14 @@ const StartMenu = (() => {
                 e.preventDefault();
                 e.stopPropagation();
                 const isUserApp = userApps.includes(appId);
+                const taskbarPinned = Taskbar.isPinned(appId);
                 const items = [
                     { label: meta.name, icon: '', disabled: true },
                     'separator',
                     { label: 'Unpin from Start', icon: '📌', action: () => unpinApp(appId) },
+                    taskbarPinned
+                        ? { label: 'Unpin from taskbar', icon: '📌', action: () => Taskbar.unpinApp(appId) }
+                        : { label: 'Pin to taskbar', icon: '📍', action: () => Taskbar.pinApp(appId) },
                     { label: 'Open', icon: '🚀', action: () => {
                         document.getElementById('start-menu').classList.add('hidden');
                         launchApp(appId);
