@@ -10,6 +10,7 @@ const WindowManager = (() => {
     let onWindowMinimized = null;
     let snapIndicator = null;
     let scale = 1;
+    const closeHandlers = new Map();
 
     function setScale(s) { scale = s; }
     function getScale() { return scale; }
@@ -72,6 +73,46 @@ const WindowManager = (() => {
 
     function setOnWindowMinimized(cb) {
         onWindowMinimized = cb;
+    }
+
+    function setCloseHandler(appId, handler) {
+        closeHandlers.set(appId, handler);
+    }
+
+    function removeCloseHandler(appId) {
+        closeHandlers.delete(appId);
+    }
+
+    async function requestClose(id) {
+        const data = windows.get(id);
+        if (!data) return false;
+
+        const handler = closeHandlers.get(data.appId);
+        if (handler) {
+            const allowed = await handler(data);
+            if (allowed === false) return false;
+        }
+
+        closeWindow(id);
+        return true;
+    }
+
+    function closeAllWindows(appId) {
+        const toClose = [];
+        windows.forEach((data, id) => {
+            if (data.appId === appId) toClose.push(id);
+        });
+        toClose.forEach(id => closeWindow(id));
+    }
+
+    async function requestCloseAllWindows(appId) {
+        const toClose = [];
+        windows.forEach((data, id) => {
+            if (data.appId === appId) toClose.push(id);
+        });
+        for (const id of toClose) {
+            await requestClose(id);
+        }
     }
 
     function createWindow(appId, title, icon, content, options = {}) {
@@ -347,7 +388,7 @@ const WindowManager = (() => {
         });
 
         win.querySelector('.close-btn').addEventListener('click', () => {
-            closeWindow(data.id);
+            requestClose(data.id);
         });
     }
 
@@ -435,7 +476,7 @@ const WindowManager = (() => {
         return Array.from(windows.values());
     }
 
-    return { init, setScale, getScale, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, setOnWindowMinimized, createWindow, focusWindow, closeWindow, getWindowsByApp, getAllWindows, minimizeAll, toggleMaximize, _getWindow };
+    return { init, setScale, getScale, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, setOnWindowMinimized, setCloseHandler, removeCloseHandler, requestClose, closeAllWindows, requestCloseAllWindows, createWindow, focusWindow, closeWindow, getWindowsByApp, getAllWindows, minimizeAll, toggleMaximize, _getWindow };
 })();
 
 export default WindowManager;

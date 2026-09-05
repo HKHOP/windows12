@@ -8,6 +8,7 @@ import Popup from '../modules/popup.js';
 import DesktopIcons from '../modules/desktopIcons.js';
 import BatchEngine from '../modules/batchEngine.js';
 import VBEngine from '../modules/vbsEngine.js';
+import FileAssociations from '../modules/fileAssociations.js';
 
 const FileExplorer = (() => {
     const icon = AppIcons.get('fileExplorer');
@@ -310,6 +311,14 @@ const FileExplorer = (() => {
 
     function openFileWithDefaultApp(itemPath, entry) {
         const ext = entry.ext || '';
+        if (ext && FileAssociations.getHandler(ext)) {
+            const content = FileSystem.readFile(itemPath);
+            if (content !== null) {
+                FileAssociations.getHandler(ext).openFn(itemPath, content);
+                UserActivity.trackFileOpen(itemPath, entry.name);
+                return;
+            }
+        }
         const textExts = ['txt', 'md', 'json', 'js', 'html', 'css', 'log', 'cfg', 'xml', 'yml', 'yaml', 'csv'];
         const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'];
         const batchExts = ['bat', 'cmd'];
@@ -318,11 +327,10 @@ const FileExplorer = (() => {
             openFileWithTerminal(itemPath, entry);
         } else if (imageExts.includes(ext)) {
             openFileWithPhotos(itemPath, entry);
-        } else if (textExts.includes(ext)) {
-            openFileWithNotepad(itemPath);
         } else {
             openFileWithNotepad(itemPath);
         }
+    }
     }
 
     function openFileWithPhotos(itemPath, entry) {

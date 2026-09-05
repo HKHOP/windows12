@@ -4,6 +4,16 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4600] - 2026-09-05
+
+### Added
+- Added close handler API — apps can intercept window close to show unsaved-changes prompts (`setCloseHandler` / `removeCloseHandler` / `requestClose`)
+- Added `closeAllWindows` and `requestCloseAllWindows` to close all windows for an app programmatically
+- Added File Associations API — register apps to handle file extensions, auto-dispatch from File Explorer
+
+### Changed
+- File Explorer now checks registered file associations before falling back to built-in handlers
+
 ## [12.0.4590] - 2026-09-05
 
 ### Added

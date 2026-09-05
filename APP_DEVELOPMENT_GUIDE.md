@@ -172,7 +172,30 @@ root.innerHTML = '<p>Loaded!</p>';
 ```
 
 ### `closeWindow(id)`
-Closes and removes a window.
+Closes and removes a window immediately (no close handler check).
+
+### `requestClose(id)` → `Promise<boolean>`
+Attempts to close a window. Runs the app's close handler (if registered) first. Returns `true` if the window was closed, `false` if the handler blocked it.
+
+### `setCloseHandler(appId, handler)`
+Registers an async handler that runs before a window closes. Return `false` to cancel the close (e.g. to show an "unsaved changes" popup). Return `true` or nothing to allow it.
+
+```js
+WindowManager.setCloseHandler('myApp', async (windowData) => {
+    const ok = await Popup.confirm('Unsaved Changes', 'Save before closing?');
+    if (ok) saveDocument();
+    return true; // allow close
+});
+```
+
+### `removeCloseHandler(appId)`
+Removes the close handler for an app.
+
+### `closeAllWindows(appId)`
+Closes all windows for an app immediately (no close handler check).
+
+### `requestCloseAllWindows(appId)` → `Promise<void>`
+Attempts to close all windows for an app, running each through its close handler.
 
 ### `focusWindow(id)`
 Brings a window to front.
@@ -461,7 +484,55 @@ SavePrompt.show({
 
 ---
 
-## 13. App Icons
+## 13. File Associations API
+
+**Import:** `import FileAssociations from '../modules/fileAssociations.js';`
+
+Register your app to handle specific file extensions. When a user double-clicks a file in File Explorer, it checks registered handlers first.
+
+### `register(appId, extensions, openFn)`
+Register an app to handle one or more file extensions.
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `appId` | `string` | Your app's ID |
+| `extensions` | `string[]` | Extensions to handle (without dots), e.g. `['md', 'txt']` |
+| `openFn` | `(path, content) => void` | Called with the file path array and content string |
+
+### `unregister(appId)`
+Remove all handlers for an app.
+
+### `getHandler(extension)` → `{ appId, openFn } | null`
+Get the handler for an extension.
+
+### `openFile(path)` → `boolean`
+Open a file by reading it from the filesystem and dispatching to the registered handler. Returns `true` if a handler was found, `false` otherwise.
+
+### `getSupportedExtensions()` → `string[]`
+Returns all registered extensions.
+
+**Example:**
+```js
+import FileAssociations from '../modules/fileAssociations.js';
+
+const MyMarkdown = (() => {
+    function open(path, content) {
+        const win = WindowManager.createWindow('myMarkdown', 'Markdown Viewer', icon,
+            `<div style="padding:16px;color:white;">${renderMarkdown(content)}</div>`);
+    }
+
+    function launch() {
+        FileAssociations.register('myMarkdown', ['md', 'markdown'], open);
+        // ... create your main window
+    }
+
+    return { launch, open };
+})();
+```
+
+---
+
+## 14. App Icons
 
 **Import:** `import AppIcons from '../modules/appIcons.js';`
 
@@ -470,11 +541,11 @@ SavePrompt.show({
 | `AppIcons.get(id)` | Returns SVG string for an app |
 | `AppIcons.getAll()` | Returns all icon mappings |
 
-Known IDs: `fileExplorer`, `settings`, `notepad`, `calendar`, `taskManager`, `photos`, `calculator`, `clock`, `paint`, `browser`, `appStore`, `terminal`, `sampleApp`, `vscode`, `export`, `windowsUpdate`
+Known IDs: `fileExplorer`, `settings`, `notepad`, `calendar`, `taskManager`, `photos`, `calculator`, `clock`, `paint`, `browser`, `appStore`, `terminal`, `sampleApp`, `vscode`, `export`, `windowsUpdate`, `words`
 
 ---
 
-## 14. CSS Classes Reference
+## 15. CSS Classes Reference
 
 ### Window
 ```
@@ -514,7 +585,7 @@ Known IDs: `fileExplorer`, `settings`, `notepad`, `calendar`, `taskManager`, `ph
 
 ---
 
-## 15. All Available Imports
+## 16. All Available Imports
 
 ```js
 import WindowManager from '../modules/windowManager.js';
@@ -529,11 +600,12 @@ import Sounds from '../modules/sounds.js';
 import AppSystem from '../modules/appSystem.js';
 import AppIcons from '../modules/appIcons.js';
 import SavePrompt from '../modules/saveprompt.js';
+import FileAssociations from '../modules/fileAssociations.js';
 ```
 
 ---
 
-## 16. Complete Example: Reddit-Style App
+## 17. Complete Example: Reddit-Style App
 
 ```js
 import WindowManager from '../modules/windowManager.js';
@@ -647,7 +719,7 @@ export default MyReddit;
 
 ---
 
-## 17. Gotchas & Rules
+## 18. Gotchas & Rules
 
 1. **Never use native `alert()`, `confirm()`, `prompt()`** — use Popup API
 2. **Never use `localStorage` directly** — use FileSystem for persistence
