@@ -425,8 +425,9 @@ const Words = (() => {
         const cleanups=wire(win);setZoom(win,100);
         WindowManager.setCloseHandler(APP_ID, async () => {
             if (!state.dirty) return true;
-            const result = await Popup.confirm('Unsaved Changes', 'Save this document before closing?');
-            if (!result) return false;
+            const result = await Popup.pick('Unsaved Changes', 'Do you want to save changes to this document?', [{label:'Save'},{label:"Don't Save"},{label:'Cancel'}]);
+            if (!result || result === 'Cancel') return false;
+            if (result === "Don't Save") return true;
             return await save(win);
         });
         return win;
