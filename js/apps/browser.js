@@ -163,6 +163,13 @@ const Browser = (() => {
     }
 
     function launch() {
+        const tabState = {
+            tabs: new Map(),
+            activeTabId: null,
+            tabCounter: 0,
+            closedTabs: []
+        };
+
         const firstTab = createTab(null, tabState);
         tabState.activeTabId = firstTab.id;
 
@@ -187,13 +194,6 @@ const Browser = (() => {
         const findNext = el.querySelector('.browser-find-next');
         const findClose = el.querySelector('.browser-find-close');
         const dlBtn = el.querySelector('.browser-dl-btn');
-
-        const tabState = {
-            tabs: new Map(),
-            activeTabId: null,
-            tabCounter: 0,
-            closedTabs: []
-        };
 
         let clockInterval = null;
 
