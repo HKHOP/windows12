@@ -1,9 +1,10 @@
 import WindowManager from '../modules/windowManager.js';
 import FileSystem from '../modules/fileSystem.js';
 import SavePrompt from '../modules/saveprompt.js';
+import AppIcons from '../modules/appIcons.js';
 
 const Paint = (() => {
-    const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#1565C0"/><circle cx="8" cy="8" r="2" fill="#FF5722"/><circle cx="14" cy="9" r="2" fill="#4CAF50"/><circle cx="10" cy="14" r="2" fill="#FFC107"/><circle cx="16" cy="15" r="2" fill="#9C27B0"/></svg>`;
+    const icon = AppIcons.get('paint');
 
     const MAX_UNDO = 20;
 

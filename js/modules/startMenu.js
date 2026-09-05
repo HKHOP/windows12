@@ -359,7 +359,7 @@ const StartMenu = (() => {
                 el.className = 'app-item';
                 el.style.cssText = 'display:flex;align-items:center;gap:12px;padding:8px;border-radius:6px;cursor:pointer;transition:background 0.12s;';
                 el.innerHTML = `
-                    <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;">${meta.icon}</div>
+                    <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;">${meta.icon.replace('<svg', '<svg style="width:20px;height:20px"')}</div>
                     <span style="font-size:13px;">${app.name}</span>
                 `;
                 el.addEventListener('mouseenter', () => el.style.background = 'var(--hover-bg)');

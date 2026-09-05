@@ -1,8 +1,9 @@
 import WindowManager from '../modules/windowManager.js';
 import FileSystem from '../modules/fileSystem.js';
+import AppIcons from '../modules/appIcons.js';
 
 const ExportImport = (() => {
-    const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4" stroke="#0078D4" stroke-width="2" stroke-linecap="round"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="#0078D4" stroke-width="2" stroke-linecap="round"/></svg>`;
+    const icon = AppIcons.get('export');
 
     function getContent() {
         return `

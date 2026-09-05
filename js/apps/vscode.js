@@ -1,8 +1,9 @@
 import WindowManager from '../modules/windowManager.js';
 import FileSystem from '../modules/fileSystem.js';
+import AppIcons from '../modules/appIcons.js';
 
 const VSCode = (() => {
-    const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M17.5 2.5L6 12l11.5 9.5V2.5z" fill="#007ACC"/><path d="M6 12L2.5 9.5 6 12z" fill="#1E90FF"/><path d="M6 12l-3.5 2.5L6 12z" fill="#1E90FF"/><path d="M21 12l-3.5 2.5V9.5L21 12z" fill="#1E90FF"/></svg>`;
+    const icon = AppIcons.get('vscode');
 
     let openTabs = [];
     let activeTab = null;

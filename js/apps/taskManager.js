@@ -1,12 +1,8 @@
 import WindowManager from '../modules/windowManager.js';
+import AppIcons from '../modules/appIcons.js';
 
 const TaskManager = (() => {
-    const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-        <rect x="3" y="3" width="7" height="7" rx="1" fill="#0078D4"/>
-        <rect x="14" y="3" width="7" height="7" rx="1" fill="#0078D4"/>
-        <rect x="3" y="14" width="7" height="7" rx="1" fill="#0078D4"/>
-        <rect x="14" y="14" width="7" height="7" rx="1" fill="#0078D4"/>
-    </svg>`;
+    const icon = AppIcons.get('taskManager');
 
     function getContent() {
         return `

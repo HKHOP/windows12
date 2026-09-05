@@ -60,6 +60,11 @@
     justify-content: center;
 }
 
+.window-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
 .window-title {
     font-size: 12px;
     color: var(--text-primary);

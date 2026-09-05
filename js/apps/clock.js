@@ -1,7 +1,8 @@
 import WindowManager from '../modules/windowManager.js';
+import AppIcons from '../modules/appIcons.js';
 
 const Clock = (() => {
-    const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+    const icon = AppIcons.get('clock');
 
     let activeTab = 'clock';
     let win = null;

@@ -117,6 +117,11 @@
     justify-content: center;
 }
 
+.start-menu-grid .app-item .app-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
 .start-menu-grid .app-item .app-name {
     font-size: 12px;
     text-align: center;

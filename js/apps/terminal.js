@@ -3,9 +3,10 @@ import FileSystem from '../modules/fileSystem.js';
 import SystemConfig from '../modules/systemConfig.js';
 import BatchEngine from '../modules/batchEngine.js';
 import VBEngine from '../modules/vbsEngine.js';
+import AppIcons from '../modules/appIcons.js';
 
 const Terminal = (() => {
-    const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="18" rx="2" fill="#0C0C0C"/><polyline points="6 9 10 12 6 15" stroke="#CCCCCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="15" x2="18" y2="15" stroke="#CCCCCC" stroke-width="2" stroke-linecap="round"/></svg>`;
+    const icon = AppIcons.get('terminal');
 
     const HOME = ['/', 'users', 'default'];
 

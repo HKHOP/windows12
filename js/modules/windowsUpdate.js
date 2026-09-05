@@ -1,8 +1,9 @@
 import WindowManager from './windowManager.js';
 import Popup from './popup.js';
+import AppIcons from './appIcons.js';
 
 const WindowsUpdate = (() => {
-    const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" fill="#0078D4"/></svg>`;
+    const icon = AppIcons.get('windowsUpdate');
 
     let currentVersion = null;
     let latestVersion = null;

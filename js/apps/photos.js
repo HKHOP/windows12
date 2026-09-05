@@ -1,8 +1,9 @@
 import WindowManager from '../modules/windowManager.js';
 import FileSystem from '../modules/fileSystem.js';
+import AppIcons from '../modules/appIcons.js';
 
 const Photos = (() => {
-    const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" fill="#0078D4"/><circle cx="9" cy="10" r="2.5" fill="white"/><path d="M3 17L8 12L12 16L16 11L21 17V19C21 20.1 20.1 21 19 21H5C3.9 21 3 20.1 3 19V17Z" fill="white"/></svg>`;
+    const icon = AppIcons.get('photos');
 
     const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'];
 

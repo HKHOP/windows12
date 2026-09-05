@@ -2,9 +2,10 @@ import WindowManager from '../modules/windowManager.js';
 import FileSystem from '../modules/fileSystem.js';
 import ContextMenu from '../modules/contextMenu.js';
 import SavePrompt from '../modules/saveprompt.js';
+import AppIcons from '../modules/appIcons.js';
 
 const Notepad = (() => {
-    const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="4" y="2" width="16" height="20" rx="2" fill="#1E88E5"/><rect x="7" y="6" width="10" height="1.5" rx="0.5" fill="white"/><rect x="7" y="9.5" width="8" height="1.5" rx="0.5" fill="white"/><rect x="7" y="13" width="10" height="1.5" rx="0.5" fill="white"/></svg>`;
+    const icon = AppIcons.get('notepad');
 
     function getContent() {
         return `

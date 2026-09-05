@@ -1,8 +1,9 @@
 import WindowManager from '../modules/windowManager.js';
 import AppSystem from '../modules/appSystem.js';
+import AppIcons from '../modules/appIcons.js';
 
 const AppStore = (() => {
-    const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 3H10V10H3V3Z" fill="#0078D4"/><path d="M14 3H21V10H14V3Z" fill="#0078D4"/><path d="M3 14H10V21H3V14Z" fill="#0078D4"/><path d="M14 14H21V21H14V14Z" fill="#0078D4"/></svg>`;
+    const icon = AppIcons.get('appStore');
 
     const appDetails = {
         vscode: {

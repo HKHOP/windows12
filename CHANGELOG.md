@@ -9,6 +9,11 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 ### Added
 - Added "Pin to taskbar" / "Unpin from taskbar" options to start menu app context menus
 
+### Changed
+- Consolidated all app icons into single AppIcons module (one SVG per app, no more duplicates)
+- Redesigned Microsoft Store icon (shopping bag with window grid)
+- Taskbar and start menu now use the same canonical icon source
+
 ### Fixed
 - Fixed FileSystem save crashing on localStorage quota exceeded
 - Fixed FileExplorer shared state causing multi-window navigation corruption

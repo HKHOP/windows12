@@ -1,7 +1,8 @@
 import WindowManager from '../modules/windowManager.js';
+import AppIcons from '../modules/appIcons.js';
 
 const Calendar = (() => {
-    const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" fill="#E53935"/><rect x="3" y="4" width="18" height="6" rx="2" fill="#B71C1C"/><rect x="7" y="2" width="2" height="4" rx="1" fill="#ccc"/><rect x="15" y="2" width="2" height="4" rx="1" fill="#ccc"/><text x="12" y="18" text-anchor="middle" fill="white" font-size="8" font-weight="bold" font-family="sans-serif">31</text></svg>`;
+    const icon = AppIcons.get('calendar');
 
     const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];

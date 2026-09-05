@@ -1,7 +1,8 @@
 import WindowManager from '../modules/windowManager.js';
+import AppIcons from '../modules/appIcons.js';
 
 const Calculator = (() => {
-    const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="4" y="2" width="16" height="20" rx="2" fill="#0078D4"/><rect x="7" y="4" width="10" height="5" rx="1" fill="#B3E5FC"/><rect x="7" y="11" width="2.5" height="2.5" rx="0.5" fill="white"/><rect x="10.75" y="11" width="2.5" height="2.5" rx="0.5" fill="white"/><rect x="14.5" y="11" width="2.5" height="2.5" rx="0.5" fill="#FFB74D"/><rect x="7" y="14.75" width="2.5" height="2.5" rx="0.5" fill="white"/><rect x="10.75" y="14.75" width="2.5" height="2.5" rx="0.5" fill="white"/><rect x="14.5" y="14.75" width="2.5" height="2.5" rx="0.5" fill="#FFB74D"/><rect x="7" y="18.5" width="6.25" height="2.5" rx="0.5" fill="white"/><rect x="14.5" y="18.5" width="2.5" height="2.5" rx="0.5" fill="#FFB74D"/></svg>`;
+    const icon = AppIcons.get('calculator');
 
     function getContent() {
         return `

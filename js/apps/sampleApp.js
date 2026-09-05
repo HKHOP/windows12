@@ -1,7 +1,8 @@
 import WindowManager from '../modules/windowManager.js';
+import AppIcons from '../modules/appIcons.js';
 
 const SampleApp = (() => {
-    const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="url(#paint0_linear)"/><text x="12" y="17" text-anchor="middle" fill="white" font-size="14" font-weight="bold" font-family="sans-serif">S</text><defs><linearGradient id="paint0_linear" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse"><stop stop-color="#6a11cb"/><stop offset="1" stop-color="#2575fc"/></linearGradient></defs></svg>`;
+    const icon = AppIcons.get('sampleApp');
 
     function getContent() {
         return `
