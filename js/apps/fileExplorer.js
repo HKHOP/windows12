@@ -331,7 +331,6 @@ const FileExplorer = (() => {
             openFileWithNotepad(itemPath);
         }
     }
-    }
 
     function openFileWithPhotos(itemPath, entry) {
         const content = FileSystem.readFile(itemPath);
