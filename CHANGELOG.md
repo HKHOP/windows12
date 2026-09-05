@@ -10,6 +10,7 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 - Added close handler API — apps can intercept window close to show unsaved-changes prompts (`setCloseHandler` / `removeCloseHandler` / `requestClose`)
 - Added `closeAllWindows` and `requestCloseAllWindows` to close all windows for an app programmatically
 - Added File Associations API — register apps to handle file extensions, auto-dispatch from File Explorer
+- Added Search interface — click search icon in taskbar to search apps and files
 
 ### Changed
 - File Explorer now checks registered file associations before falling back to built-in handlers

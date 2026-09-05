@@ -1,6 +1,7 @@
 import WindowManager from './windowManager.js';
 import FileSystem from './fileSystem.js';
 import AppIcons from './appIcons.js';
+import Search from './search.js';
 
 const AppRegistry = (() => {
     const apps = {};
@@ -146,6 +147,10 @@ const Taskbar = (() => {
         searchBtn.dataset.app = 'search';
         searchBtn.title = 'Search';
         searchBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="7"/><line x1="15.5" y1="15.5" x2="21" y2="21"/></svg>`;
+        searchBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            Search.toggle();
+        });
         center.appendChild(searchBtn);
 
         const separator = document.createElement('div');
@@ -252,6 +257,7 @@ const Taskbar = (() => {
 
         startBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            Search.close();
             startMenu.classList.toggle('hidden');
         });
 
