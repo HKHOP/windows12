@@ -39,7 +39,8 @@ const AppMetadata = (() => {
         vscode: 'Visual Studio Code',
         export: 'Ex/port',
         words: 'Words',
-        sledgePoint: 'Sledge Point'
+        sledgePoint: 'Sledge Point',
+        cellESheet: 'Cell ESheet'
     };
 
     const fallbackIcon = `<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="2" fill="#666"/></svg>`;

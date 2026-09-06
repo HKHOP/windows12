@@ -110,6 +110,27 @@ const AppStore = (() => {
             ],
             size: '3 MB',
             ageRating: '3+'
+        },
+        cellESheet: {
+            name: 'Cell ESheet',
+            developer: 'Windows 12',
+            category: 'Productivity',
+            rating: '4.5',
+            reviews: '987',
+            description: 'A spreadsheet application with formulas, multi-sheet support, and a familiar ribbon UI. Create and manage your data with ease.',
+            features: [
+                'Formula support (SUM, AVERAGE, MIN, MAX)',
+                'Multi-sheet workbooks',
+                'Ribbon-style toolbar',
+                'Cell references and range selection',
+                'Save/load from virtual filesystem'
+            ],
+            screenshots: [
+                { bg: 'linear-gradient(135deg, #217346, #33a867)', text: 'Spreadsheet Editor' },
+                { bg: 'linear-gradient(135deg, #33a867, #217346)', text: 'Formula Bar' }
+            ],
+            size: '4 MB',
+            ageRating: '3+'
         }
     };
 
@@ -253,6 +274,19 @@ const AppStore = (() => {
                                     </div>
                                     <p style="font-size:12px;color:#aaa;line-height:1.4;">Create presentations with a ribbon UI, slide transitions, drawing tools, and export options.</p>
                                     <button class="store-install-btn" data-app="sledgePoint" style="background:#0078D4;border:none;color:white;padding:6px;border-radius:4px;font-weight:600;cursor:pointer;font-size:12px;width:100%;transition:background 0.2s;">Install</button>
+                                </div>
+                                <div class="store-app-card" data-app="cellESheet" style="background:#2a2a2a;border-radius:8px;padding:16px;width:220px;display:flex;flex-direction:column;gap:12px;border:1px solid #333;cursor:pointer;transition:background 0.2s;">
+                                    <div style="display:flex;align-items:center;gap:12px;">
+                                        <div style="width:48px;height:48px;background:#217346;border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="3" y="2" width="18" height="20" rx="3" fill="white" fill-opacity="0.3"/><path d="M7 7h10M7 11h10M7 15h10M11 5v14M15 5v14" stroke="white" stroke-width="1.4"/></svg>
+                                        </div>
+                                        <div>
+                                            <div style="font-weight:600;font-size:13px;margin-bottom:2px;">Cell ESheet</div>
+                                            <div style="font-size:11px;color:#888;">Productivity</div>
+                                        </div>
+                                    </div>
+                                    <p style="font-size:12px;color:#aaa;line-height:1.4;">Spreadsheet app with formulas, multi-sheet support, and a ribbon UI.</p>
+                                    <button class="store-install-btn" data-app="cellESheet" style="background:#0078D4;border:none;color:white;padding:6px;border-radius:4px;font-weight:600;cursor:pointer;font-size:12px;width:100%;transition:background 0.2s;">Install</button>
                                 </div>
                             </div>
                         </div>
@@ -418,6 +452,7 @@ const AppStore = (() => {
         const allApps = [
             { id: 'vscode', name: 'Visual Studio Code', bg: '#007ACC', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M17.5 2.5L6 12l11.5 9.5V2.5z" fill="white"/></svg>` },
             { id: 'words', name: 'Words', bg: '#3b82f6', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="2" width="18" height="20" rx="2" fill="white" fill-opacity="0.3"/><path d="M7 7h10M7 11h10M7 15h7" stroke="white" stroke-width="1.6" stroke-linecap="round"/></svg>` },
+            { id: 'cellESheet', name: 'Cell ESheet', bg: '#217346', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="2" width="18" height="20" rx="2" fill="white" fill-opacity="0.3"/><path d="M7 7h10M7 11h10M7 15h10M11 5v14M15 5v14" stroke="white" stroke-width="1.4"/></svg>` },
             { id: 'sampleApp', name: 'Sample App', bg: 'linear-gradient(135deg, #6a11cb, #2575fc)', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="white" fill-opacity="0.3"/><text x="12" y="17" text-anchor="middle" fill="white" font-size="14" font-weight="bold">S</text></svg>` },
             { id: 'export', name: 'Ex/port', bg: 'linear-gradient(135deg, #0078D4, #00BCF2)', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4" stroke="white" stroke-width="2" stroke-linecap="round"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>` }
         ];

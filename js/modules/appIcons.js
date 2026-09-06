@@ -34,7 +34,8 @@ const AppIcons = (() => {
 
         words: `<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="2" width="18" height="20" rx="2" fill="#3b82f6"/><path d="M7 7h10M7 11h10M7 15h7" stroke="white" stroke-width="1.6" stroke-linecap="round"/></svg>`,
 
-        sledgePoint: `<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#D83B01"/><path d="M7 8h4v8H7V8zm6 3h4v5h-4v-5z" fill="white"/></svg>`
+        sledgePoint: `<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#D83B01"/><path d="M7 8h4v8H7V8zm6 3h4v5h-4v-5z" fill="white"/></svg>`,
+        cellESheet: `<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="2" width="18" height="20" rx="3" fill="#217346"/><path d="M7 7h10M7 11h10M7 15h10M11 5v14M15 5v14" stroke="white" stroke-width="1.4"/></svg>`
     };
 
     const fallback = `<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="2" fill="#666"/></svg>`;

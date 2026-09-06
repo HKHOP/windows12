@@ -35,7 +35,8 @@ const StartMenu = (() => {
         { id: 'terminal', name: 'Terminal' },
         { id: 'vscode', name: 'Visual Studio Code' },
         { id: 'words', name: 'Words' },
-        { id: 'sledgePoint', name: 'Sledge Point' }
+        { id: 'sledgePoint', name: 'Sledge Point' },
+        { id: 'cellESheet', name: 'Cell ESheet' }
     ];
 
     let currentView = 'main';
@@ -341,7 +342,7 @@ const StartMenu = (() => {
         drawer.appendChild(header);
 
         const installed = AppSystem.getInstalledApps();
-        const userApps = ['sampleApp', 'vscode', 'export', 'words', 'sledgePoint'];
+        const userApps = ['sampleApp', 'vscode', 'export', 'words', 'sledgePoint', 'cellESheet'];
         const filteredApps = allApps.filter(app => {
             if (userApps.includes(app.id)) return installed.includes(app.id);
             return true;
@@ -432,7 +433,7 @@ const StartMenu = (() => {
         if (!container) return;
         container.innerHTML = '';
         const installed = AppSystem.getInstalledApps();
-        const userApps = ['sampleApp', 'vscode', 'export', 'words', 'sledgePoint'];
+        const userApps = ['sampleApp', 'vscode', 'export', 'words', 'sledgePoint', 'cellESheet'];
 
         const activePinned = pinnedApps.filter(appId => {
             if (userApps.includes(appId)) return installed.includes(appId);

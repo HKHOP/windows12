@@ -5,6 +5,7 @@ import AppStore from '../apps/appStore.js';
 import ExportImport from '../apps/export.js';
 import Words from '../apps/words.js';
 import SledgePoint from '../apps/sledgePoint.js';
+import CellESheet from '../apps/cellESheet.js';
 
 const AppSystem = (() => {
     const appModules = {
@@ -12,7 +13,8 @@ const AppSystem = (() => {
         vscode: VSCode,
         export: ExportImport,
         words: Words,
-        sledgePoint: SledgePoint
+        sledgePoint: SledgePoint,
+        cellESheet: CellESheet
     };
 
     function init() {

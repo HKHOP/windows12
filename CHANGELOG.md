@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4700] - 2026-09-06
+
+### Added
+- Cell ESheet spreadsheet app — installable from Microsoft Store with formulas, multi-sheet support, and ribbon UI
+- File associations for .xlsx and .csv files
+
 ## [12.0.4690] - 2026-09-06
 
 ### Fixed
