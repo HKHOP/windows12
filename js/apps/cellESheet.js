@@ -154,10 +154,31 @@ const CellESheet = (() => {
     if(a==='Help')return Popup.info('Cell ESheet Help','Ctrl+S save • Ctrl+Shift+S save as\nCtrl+C copy • Ctrl+V paste • F2 or double-click to edit\nDelete clears cell • Insert adds row above');
     return Popup.info(a,`The ${a} command is available in the Cell ESheet ribbon.`);
   }
-  async function save(st,root,saveAs=false){let path=st.path;if(!path||saveAs){const r=await SavePrompt.show({defaultName:st.name+'.cesheet',defaultPath:DOCS,extensions:[{value:'cesheet',label:'Cell ESheet Workbook'},{value:'json',label:'JSON Workbook'}],parentApp:APP_ID});if(!r)return false;path=[...r.path,r.fullName];st.path=path;st.name=r.fullName.replace(/\.[^.]+$/,'')}const data=JSON.stringify({version:1,name:st.name,sheets:st.sheets},null,2);const ok=FileSystem.itemExists(path)?FileSystem.writeFile(path,data):FileSystem.createFile(path.slice(0,-1),path.at(-1),data,path.at(-1).split('.').pop());if(ok){st.dirty=false;render(root,st)}return ok;}
+  async function save(st,root,saveAs=false){let path=st.path;if(!path||saveAs){const r=await SavePrompt.show({defaultName:st.name+'.cesheet',defaultPath:DOCS,extensions:[{value:'cesheet',label:'Cell ESheet Workbook'},{value:'csv',label:'CSV Spreadsheet'},{value:'json',label:'JSON Workbook'}],parentApp:APP_ID});if(!r)return false;path=[...r.path,r.fullName];st.path=path;st.name=r.fullName.replace(/\.[^.]+$/,'')}const ext=(path.at(-1)||'').split('.').pop().toLowerCase();let data;if(ext==='csv'){const s=st.sheets[st.activeSheet];const used=Object.entries(s.cells).filter(([,v])=>!v?.hidden&&v?.v!==''&&v?.v!=null).map(([k])=>refToRC(k)).filter(Boolean);if(used.length){const mr=Math.max(...used.map(x=>x.r)),mc=Math.max(...used.map(x=>x.c));data=Array.from({length:mr+1},(_,r)=>Array.from({length:mc+1},(_,c)=>{const v=String(s.cells[rcToRef(r,c)]?.v??'');return /[",\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v}).join(',')).join('\n');}else data='';}else{data=JSON.stringify({version:1,name:st.name,sheets:st.sheets},null,2);}const ok=FileSystem.itemExists(path)?FileSystem.writeFile(path,data):FileSystem.createFile(path.slice(0,-1),path.at(-1),data,ext);if(ok){st.dirty=false;render(root,st)}return ok;}
   function wire(win,st){const root=win.element.querySelector('.ce');ribbon(root,st);render(root,st);root.querySelectorAll('.ce-tab').forEach(b=>b.onclick=()=>{root.querySelectorAll('.ce-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');ribbon(root,st)});root.querySelectorAll('td[data-ref]').forEach(td=>{td.onclick=()=>{st.active=td.dataset.ref;render(root,st)};td.ondblclick=()=>{st.active=td.dataset.ref;td.classList.add('editing');const raw=st.sheets[st.activeSheet].cells[st.active]?.v??'';td.innerHTML=`<input value="${esc(raw)}">`;const i=td.firstChild;i.focus();i.select();const done=()=>{td.classList.remove('editing');commit(root,st,st.active,i.value)};i.onblur=done;i.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();done()}if(e.key==='Escape'){render(root,st)}};};td.oncontextmenu=e=>{e.preventDefault();ContextMenu.show(e.clientX,e.clientY,[{label:'Copy',shortcut:'Ctrl+C',action:()=>action(root,st,'Copy')},{label:'Paste',shortcut:'Ctrl+V',action:()=>action(root,st,'Paste')},'separator',{label:'Clear',action:()=>commit(root,st,td.dataset.ref,'')}]);};});root.querySelector('.ce-name').onkeydown=e=>{if(e.key==='Enter'&&refToRC(e.target.value.toUpperCase())){st.active=e.target.value.toUpperCase();render(root,st)}};root.querySelector('.ce-finput').onkeydown=e=>{if(e.key==='Enter')commit(root,st,st.active,e.target.value)};root.querySelector('[data-addsheet]').onclick=()=>{st.sheets.push({name:'Sheet'+(st.sheets.length+1),cells:{}});st.activeSheet=st.sheets.length-1;render(root,st)};root.addEventListener('keydown',async e=>{const k=e.key.toLowerCase();if(e.ctrlKey&&k==='s'){e.preventDefault();await save(st,root,e.shiftKey)}if(e.ctrlKey&&k==='c'){e.preventDefault();await action(root,st,'Copy')}if(e.ctrlKey&&k==='v'){e.preventDefault();await action(root,st,'Paste')}if(e.key==='F2'){e.preventDefault();root.querySelector(`td[data-ref=\"${st.active}\"]`)?.ondblclick?.()}if(e.key==='Delete'){e.preventDefault();commit(root,st,st.active,'')}});setInterval(()=>{if(win.element.isConnected)root.dataset.theme=theme()},700);}
   function launch(){const win=WindowManager.createWindow(APP_ID,'Cell ESheet',icon,content(),{width:1280,height:820,minWidth:760,minHeight:520});wire(win,fresh());}
-  function open(path,contentText){let d;try{d=JSON.parse(contentText)}catch{d=null}const win=WindowManager.createWindow(APP_ID,'Cell ESheet',icon,content(),{width:1280,height:820,minWidth:760,minHeight:520});const st=fresh();if(d?.sheets){st.name=d.name||'Workbook';st.sheets=d.sheets;st.path=path;}wire(win,st);}
+  function open(path,contentText){
+    const ext=(path.at(-1)||'').split('.').pop().toLowerCase();
+    let st=fresh();
+    if(ext==='csv'){
+      const lines=contentText.split(/\r?\n/).filter(l=>l.length>0);
+      lines.forEach((line,ri)=>{
+        const cols=line.split(',');
+        cols.forEach((val,ci)=>{
+          const ref=rcToRef(ri,ci);
+          const v=val.replace(/^"|"$/g,'').replace(/""/g,'"').trim();
+          if(v!=='')st.sheets[0].cells[ref]={v:isNaN(Number(v))?v:Number(v)};
+        });
+      });
+      st.name=(path.at(-1)||'Book1').replace(/\.[^.]+$/,'');
+      st.path=path;
+    }else{
+      let d;try{d=JSON.parse(contentText)}catch{d=null}
+      if(d?.sheets){st.name=d.name||'Workbook';st.sheets=d.sheets;st.path=path;}
+    }
+    const win=WindowManager.createWindow(APP_ID,'Cell ESheet',icon,content(),{width:1280,height:820,minWidth:760,minHeight:520});
+    wire(win,st);
+  }
   FileAssociations.register(APP_ID,['cesheet','celsheet','csv'],open);return {launch,open};
 })();
 export default CellESheet;
