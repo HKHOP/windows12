@@ -226,6 +226,7 @@ const SledgePoint = (() => {
         state.slide = state.doc.slides[state.doc.activeSlide];
         state.canvas.style.background = state.slide.background || '#fff';
         state.canvas.innerHTML = state.slide.elements.sort((a,b)=>a.z-b.z).map(elementHTML).join('');
+        state.canvasSize = { w: state.canvas.clientWidth || 960, h: state.canvas.clientHeight || 540 };
         if (state.selected) {
             const target = state.canvas.querySelector(`[data-id="${state.selected}"]`);
             if (target) addSelectionUI(state,target);
@@ -441,7 +442,13 @@ const SledgePoint = (() => {
     }
 
     function cloneSlideDOM(state, index) {
-        const s=state.doc.slides[index];const wrap=document.createElement('div');wrap.className='sp-present-slide';wrap.style.background=s.background||'#fff';wrap.innerHTML=s.elements.map(elementHTML).join('');return wrap;
+        const s=state.doc.slides[index];const wrap=document.createElement('div');wrap.className='sp-present-slide';wrap.style.background=s.background||'#fff';
+        const scaleEl=document.createElement('div');scaleEl.className='sp-present-scale';scaleEl.style.cssText='position:absolute;inset:0;transform-origin:top left;width:100%;height:100%;';
+        scaleEl.innerHTML=s.elements.map(elementHTML).join('');
+        wrap.appendChild(scaleEl);
+        const cw=(state.canvasSize&&state.canvasSize.w)||960,ch=(state.canvasSize&&state.canvasSize.h)||540;
+        requestAnimationFrame(()=>{const sx=wrap.clientWidth/cw,sy=wrap.clientHeight/ch;scaleEl.style.transform=`scale(${Math.min(sx,sy)})`;});
+        return wrap;
     }
 
     function present(state,start=0) {

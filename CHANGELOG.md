@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4660] - 2026-09-06
+
+### Fixed
+- Presentation mode now scales elements to fit the viewport, matching the edit canvas layout
+
 ## [12.0.4650] - 2026-09-06
 
 ### Fixed
