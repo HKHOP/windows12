@@ -4,6 +4,7 @@ import SystemConfig from '../modules/systemConfig.js';
 import Scaling from '../modules/scaling.js';
 import Popup from '../modules/popup.js';
 import AppSystem from '../modules/appSystem.js';
+import { AppMetadata } from '../modules/taskbar.js';
 import WindowsUpdate from '../modules/windowsUpdate.js';
 
 const Settings = (() => {
@@ -668,23 +669,17 @@ const Settings = (() => {
 
     function renderApps(el) {
         const installed = AppSystem.getInstalledApps();
-        const hasSample = installed.includes('sampleApp');
-        const hasVSCode = installed.includes('vscode');
+        const builtIn = ['fileExplorer', 'settings', 'notepad', 'taskManager', 'calculator', 'calendar', 'clock', 'photos', 'paint', 'browser', 'terminal', 'appStore'];
+        const allMeta = AppMetadata.getAll();
 
         el.innerHTML = `
             <h2 style="font-size:28px;font-weight:600;margin-bottom:24px;">Apps</h2>
             <div style="display:flex;flex-direction:column;gap:8px;">
-                ${appRow('File Explorer', 'Built-in', false)}
-                ${appRow('Notepad', 'Built-in', false)}
-                ${appRow('Settings', 'Built-in', false)}
-                ${appRow('Task Manager', 'Built-in', false)}
-                ${appRow('Calculator', 'Built-in', false)}
-                ${appRow('Calendar', 'Built-in', false)}
-                ${appRow('Clock', 'Built-in', false)}
-                ${appRow('Photos', 'Built-in', false)}
-                ${appRow('Paint', 'Built-in', false)}
-                ${hasVSCode ? appRow('Visual Studio Code', 'Installed from Store', true, 'vscode') : ''}
-                ${hasSample ? appRow('Sample App', 'Installed from Store', true, 'sampleApp') : ''}
+                ${Object.entries(allMeta).map(([id, meta]) => {
+                    if (builtIn.includes(id)) return appRow(meta.name, 'Built-in', false);
+                    if (installed.includes(id)) return appRow(meta.name, 'Installed from Store', true, id);
+                    return '';
+                }).join('')}
             </div>
         `;
 
