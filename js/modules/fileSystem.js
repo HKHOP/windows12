@@ -1,5 +1,6 @@
 const FileSystem = (() => {
     let root = {};
+    let saveTimeout = null;
     const RECYCLE_BIN_PATH = ['/', 'system', '$Recycle.Bin'];
     const STORAGE_KEY = 'windows12-filesystem';
 
@@ -88,12 +89,24 @@ const FileSystem = (() => {
         }
     }
 
-    function save() {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(root));
-        } catch (e) {
-            console.error('FileSystem: Failed to save to localStorage:', e.name);
+    function save(immediate = false) {
+        if (immediate) {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(root));
+            } catch (e) {
+                console.error('FileSystem: Failed to save to localStorage:', e.name);
+            }
+            return;
         }
+        if (saveTimeout) clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(root));
+            } catch (e) {
+                console.error('FileSystem: Failed to save to localStorage:', e.name);
+            }
+            saveTimeout = null;
+        }, 500);
     }
 
     function getNode(path) {
@@ -255,6 +268,22 @@ const FileSystem = (() => {
         return true;
     }
 
+    function moveItem(srcPath, destPath) {
+        if (srcPath.length === 0 || destPath.length === 0) return false;
+        const name = srcPath[srcPath.length - 1];
+        const srcParentPath = srcPath.slice(0, -1);
+        const srcParent = getNode(srcParentPath);
+        const destParent = getNode(destPath);
+        if (!srcParent || srcParent.type !== 'folder') return false;
+        if (!destParent || destParent.type !== 'folder') return false;
+        if (!srcParent.children[name]) return false;
+        if (destParent.children[name]) return false;
+        destParent.children[name] = srcParent.children[name];
+        delete srcParent.children[name];
+        save();
+        return true;
+    }
+
     function itemExists(path) {
         return getNode(path) !== null;
     }
@@ -266,7 +295,7 @@ const FileSystem = (() => {
         return node !== null && node.type === 'folder';
     }
 
-    return { init, getNode, getChildren, createFolder, createFile, readFile, writeFile, deleteItem, permanentDelete, restoreFromRecycleBin, emptyRecycleBin, getRecycleBinContent, renameItem, itemExists, isFolder };
+    return { init, getNode, getChildren, createFolder, createFile, readFile, writeFile, deleteItem, permanentDelete, restoreFromRecycleBin, emptyRecycleBin, getRecycleBinContent, renameItem, moveItem, itemExists, isFolder };
 })();
 
 window._FileSystem = FileSystem;

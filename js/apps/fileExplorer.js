@@ -557,26 +557,42 @@ const FileExplorer = (() => {
         if (!state || !state.clipboard || state.clipboard.length === 0) return;
         showProgressBar(win);
         setTimeout(() => {
+            const moved = [];
             state.clipboard.forEach(item => {
                 const destExists = FileSystem.itemExists([...destPath, item.name]);
                 if (state.clipboardAction === 'cut') {
+                    const finalName = destExists ? item.name + ' - Copy' : item.name;
                     if (destExists) {
-                        FileSystem.renameItem(item.path, item.name + ' - Copy');
+                        FileSystem.renameItem(item.path, finalName);
+                        FileSystem.moveItem([...item.path.slice(0, -1), finalName], destPath);
                     } else {
-                        FileSystem.renameItem(item.path, item.name);
+                        FileSystem.moveItem(item.path, destPath);
                     }
                 } else {
                     if (item.type === 'folder') {
-                        if (!destExists) FileSystem.createFolder(destPath, item.name);
+                        if (!destExists) {
+                            const stack = [[[], item.name]];
+                            while (stack.length) {
+                                const [rel, n] = stack.pop();
+                                const absDest = [...destPath, ...rel];
+                                FileSystem.createFolder(absDest, n);
+                                const srcChildren = FileSystem.getChildren([...item.path, ...rel]);
+                                srcChildren.forEach(c => {
+                                    if (c.type === 'folder') stack.push([[...rel, n], c.name]);
+                                    else {
+                                        const content = FileSystem.readFile([...item.path, ...rel, c.name]) || '';
+                                        FileSystem.createFile([...destPath, ...rel, n], c.name, content, c.ext);
+                                    }
+                                });
+                            }
+                        }
                     } else {
                         const content = FileSystem.readFile(item.path) || '';
-                        if (destExists) {
-                            FileSystem.writeFile([...destPath, item.name], content);
-                        } else {
-                            FileSystem.createFile(destPath, item.name, content, item.ext);
-                        }
+                        const finalName = destExists ? item.name.replace(/(\.[^.]+)?$/, ' - Copy$1') : item.name;
+                        FileSystem.createFile(destPath, finalName, content, item.ext);
                     }
                 }
+                moved.push(item.name);
             });
             navigate(win, destPath, false, state);
             hideProgressBar(win);
