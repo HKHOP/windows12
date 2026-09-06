@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4630] - 2026-09-06
+
+### Changed
+- Replaced all emoji/unicode ribbon and context menu icons in Sledge Point with inline SVGs
+
 ## [12.0.4620] - 2026-09-06
 
 ### Changed

@@ -17,6 +17,40 @@ const SledgePoint = (() => {
     const esc = (s = '') => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const deep = v => JSON.parse(JSON.stringify(v));
 
+    const ico = {
+        plus: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+        folder: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V17a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>`,
+        save: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
+        download: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
+        play: `<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6,3 20,12 6,21"/></svg>`,
+        playSmall: `<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,4 18,12 8,20"/></svg>`,
+        copy: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`,
+        text: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="8" y1="20" x2="16" y2="20"/></svg>`,
+        image: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
+        table: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>`,
+        rect: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="14" rx="1"/></svg>`,
+        ellipse: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="7"/></svg>`,
+        triangle: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><polygon points="12,4 22,20 2,20"/></svg>`,
+        line: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="19" x2="19" y2="5"/></svg>`,
+        pen: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>`,
+        eraser: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16a1 1 0 010-1.41l9.59-9.59a2 2 0 012.82 0l5.59 5.59a2 2 0 010 2.82L14 20"/><line x1="18" y1="13" x2="11" y2="6"/></svg>`,
+        palette: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c1.1 0 2-.9 2-2 0-.51-.2-.98-.54-1.34-.32-.34-.46-.78-.46-1.16 0-.88.72-1.6 1.6-1.6H16c3.31 0 6-2.69 6-6 0-5.17-4.36-9-10-9z"/><circle cx="7.5" cy="11.5" r="1.5" fill="currentColor"/><circle cx="10" cy="7.5" r="1.5" fill="currentColor"/><circle cx="14.5" cy="7.5" r="1.5" fill="currentColor"/><circle cx="17" cy="11.5" r="1.5" fill="currentColor"/></svg>`,
+        fade: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 010 18" fill="currentColor" fill-opacity="0.25"/></svg>`,
+        slide: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="14 7 19 12 14 17"/></svg>`,
+        zoom: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/></svg>`,
+        dash: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+        sun: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/></svg>`,
+        moon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/></svg>`,
+        grid: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>`,
+        fit: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>`,
+        arrowsUp: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>`,
+        arrowsDown: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>`,
+        rotateLeft: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>`,
+        rotateRight: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>`,
+        trash: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 3h4a1 1 0 011 1v2H9V4a1 1 0 011-1z"/></svg>`,
+        slides: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`
+    };
+
     function emptySlide() {
         return {
             id: uid(),
@@ -61,7 +95,7 @@ const SledgePoint = (() => {
 .sp-group{min-width:max-content;padding:0 8px;border-right:1px solid var(--line);display:flex;align-items:center;gap:5px;position:relative}
 .sp-group-label{position:absolute;bottom:0;left:0;right:0;text-align:center;color:var(--muted);font-size:10px;padding-bottom:1px}
 .sp-btn{border:1px solid transparent;background:transparent;color:var(--text);border-radius:4px;min-width:44px;min-height:52px;padding:4px 6px;font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
-.sp-btn:hover{background:rgba(127,127,127,.12);border-color:rgba(127,127,127,.15)}.sp-btn .ico{font-size:22px;line-height:20px}
+.sp-btn:hover{background:rgba(127,127,127,.12);border-color:rgba(127,127,127,.15)}.sp-btn .ico{width:22px;height:22px;display:flex;align-items:center;justify-content:center;flex-shrink:0}.sp-btn .ico svg{width:100%;height:100%}
 .sp-btn.small{min-width:30px;min-height:28px;flex-direction:row;font-size:12px}.sp-main{min-height:0;flex:1;display:flex}
 .sp-slides{width:210px;min-width:130px;overflow:auto;background:var(--surface2);border-right:1px solid var(--line);padding:10px}
 .sp-slide-thumb{display:flex;gap:7px;padding:6px;margin-bottom:7px;border-radius:4px;cursor:pointer}.sp-slide-thumb.active{background:color-mix(in srgb,var(--accent) 20%,transparent);outline:1px solid var(--accent)}
@@ -95,30 +129,30 @@ const SledgePoint = (() => {
 
     function ribbon(state) {
         const g = (label, buttons) => `<div class="sp-group">${buttons}<span class="sp-group-label">${label}</span></div>`;
-        const b = (action, iconText, label) => `<button class="sp-btn" data-action="${action}"><span class="ico">${iconText}</span><span>${label}</span></button>`;
+        const b = (action, iconHtml, label) => `<button class="sp-btn" data-action="${action}"><span class="ico">${iconHtml}</span><span>${label}</span></button>`;
         const active = state.tab;
         if (active === 'File') return [
-            g('Presentation', b('new','＋','New')+b('open','📂','Open')+b('save','💾','Save')+b('export','⇩','Export')),
-            g('Presentation', b('present','▶','Present'))
+            g('Presentation', b('new',ico.plus,'New')+b('open',ico.folder,'Open')+b('save',ico.save,'Save')+b('export',ico.download,'Export')),
+            g('Presentation', b('present',ico.play,'Present'))
         ].join('');
         if (active === 'Insert') return [
-            g('Slides', b('newSlide','＋','New Slide')+b('duplicateSlide','⧉','Duplicate')),
-            g('Content', b('text','T','Text Box')+b('image','▣','Image')+b('table','▦','Table')),
-            g('Shapes', b('rect','▭','Rectangle')+b('ellipse','◯','Ellipse')+b('triangle','△','Triangle')+b('line','╱','Line'))
+            g('Slides', b('newSlide',ico.plus,'New Slide')+b('duplicateSlide',ico.copy,'Duplicate')),
+            g('Content', b('text',ico.text,'Text Box')+b('image',ico.image,'Image')+b('table',ico.table,'Table')),
+            g('Shapes', b('rect',ico.rect,'Rectangle')+b('ellipse',ico.ellipse,'Ellipse')+b('triangle',ico.triangle,'Triangle')+b('line',ico.line,'Line'))
         ].join('');
-        if (active === 'Draw') return g('Ink', b('draw','✎','Pen')+b('eraser','⌫','Eraser')+`<label class="sp-btn"><span class="ico">🎨</span><span>Ink</span><input class="sp-color" data-role="inkColor" type="color" value="#222222"></label>`);
-        if (active === 'Transitions') return g('Transition', ['fade','slide','zoom','none'].map(x=>b(`transition:${x}`, x==='fade'?'◌':x==='slide'?'⇢':x==='zoom'?'⊙':'—', x[0].toUpperCase()+x.slice(1))).join(''));
-        if (active === 'Slide Show') return g('Show', b('present','▶','From Start')+b('presentCurrent','▸','Current Slide'));
+        if (active === 'Draw') return g('Ink', b('draw',ico.pen,'Pen')+b('eraser',ico.eraser,'Eraser')+`<label class="sp-btn"><span class="ico">${ico.palette}</span><span>Ink</span><input class="sp-color" data-role="inkColor" type="color" value="#222222"></label>`);
+        if (active === 'Transitions') return g('Transition', ['fade','slide','zoom','none'].map(x=>b(`transition:${x}`, x==='fade'?ico.fade:x==='slide'?ico.slide:x==='zoom'?ico.zoom:ico.dash, x[0].toUpperCase()+x.slice(1))).join(''));
+        if (active === 'Slide Show') return g('Show', b('present',ico.play,'From Start')+b('presentCurrent',ico.playSmall,'Current Slide'));
         if (active === 'Design') return [
-            g('Theme', b('lightCanvas','☀','Light Slide')+b('darkCanvas','◐','Dark Slide')),
-            g('Background', `<label class="sp-btn"><span class="ico">▧</span><span>Color</span><input class="sp-color" data-role="bgColor" type="color" value="#ffffff"></label>`)
+            g('Theme', b('lightCanvas',ico.sun,'Light Slide')+b('darkCanvas',ico.moon,'Dark Slide')),
+            g('Background', `<label class="sp-btn"><span class="ico">${ico.grid}</span><span>Color</span><input class="sp-color" data-role="bgColor" type="color" value="#ffffff"></label>`)
         ].join('');
-        if (active === 'View') return g('View', b('toggleSlides','☷','Slides')+b('fit','⛶','Fit')+b('present','⛶','Full Screen'));
+        if (active === 'View') return g('View', b('toggleSlides',ico.slides,'Slides')+b('fit',ico.fit,'Fit')+b('present',ico.fit,'Full Screen'));
         return [
-            g('Clipboard', b('duplicate','⧉','Duplicate')+b('delete','⌫','Delete')),
-            g('Slides', b('newSlide','＋','New Slide')+b('duplicateSlide','⧉','Duplicate')),
-            g('Insert', b('text','T','Text')+b('image','▣','Image')+b('table','▦','Table')+b('rect','▭','Shape')),
-            g('Arrange', b('front','⇧','Bring Front')+b('back','⇩','Send Back')+b('rotateLeft','↶','Rotate')+b('rotateRight','↷','Rotate'))
+            g('Clipboard', b('duplicate',ico.copy,'Duplicate')+b('delete',ico.trash,'Delete')),
+            g('Slides', b('newSlide',ico.plus,'New Slide')+b('duplicateSlide',ico.copy,'Duplicate')),
+            g('Insert', b('text',ico.text,'Text')+b('image',ico.image,'Image')+b('table',ico.table,'Table')+b('rect',ico.rect,'Shape')),
+            g('Arrange', b('front',ico.arrowsUp,'Bring Front')+b('back',ico.arrowsDown,'Send Back')+b('rotateLeft',ico.rotateLeft,'Rotate')+b('rotateRight',ico.rotateRight,'Rotate'))
         ].join('');
     }
 
@@ -144,7 +178,13 @@ const SledgePoint = (() => {
         const scale = 145 / state.doc.size.width;
         return `<div class="sp-slide-thumb ${i===state.doc.activeSlide?'active':''}" data-slide-index="${i}">
             <div class="sp-num">${i+1}</div><div class="sp-thumb-canvas">
-              ${slide.elements.map(el => `<div style="position:absolute;left:${el.x*scale}px;top:${el.y*scale}px;width:${el.w*scale}px;height:${el.h*scale}px;transform:rotate(${el.rotate||0}deg);overflow:hidden;font-size:${Math.max(4,(el.style?.fontSize||20)*scale)}px;background:${el.type==='shape'?el.style?.fill:'transparent'};border:${el.type==='shape'?Math.max(1,(el.style?.lineWidth||1)*scale)+'px solid '+(el.style?.stroke||'#000'):'none'}">${el.type==='text'?esc(el.text):el.type==='table'?'▦':el.type==='image'?'▣':el.type==='path'?'✎':''}</div>`).join('')}
+              ${slide.elements.map(el => {
+                  const iconSvg = el.type==='table'?'<svg viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" style="width:12px;height:12px"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/></svg>'
+                    :el.type==='image'?'<svg viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" style="width:12px;height:12px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="2"/><polyline points="21 15 16 10 5 21"/></svg>'
+                    :el.type==='path'?'<svg viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" style="width:12px;height:12px"><path d="M12 19l7-7 3 3-7 7z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z"/></svg>'
+                    :'';
+                  return `<div style="position:absolute;left:${el.x*scale}px;top:${el.y*scale}px;width:${el.w*scale}px;height:${el.h*scale}px;transform:rotate(${el.rotate||0}deg);overflow:hidden;font-size:${Math.max(4,(el.style?.fontSize||20)*scale)}px;background:${el.type==='shape'?el.style?.fill:'transparent'};border:${el.type==='shape'?Math.max(1,(el.style?.lineWidth||1)*scale)+'px solid '+(el.style?.stroke||'#000'):'none'};display:flex;align-items:center;justify-content:center">${el.type==='text'?esc(el.text):iconSvg}</div>`;
+              }).join('')}
             </div></div>`;
     }
 
@@ -156,9 +196,9 @@ const SledgePoint = (() => {
         state.slidesEl.querySelectorAll('.sp-slide-thumb').forEach(el => el.addEventListener('contextmenu', e => {
             e.preventDefault(); const idx=Number(el.dataset.slideIndex);
             ContextMenu.show(e.clientX,e.clientY,[
-                {label:'New Slide',icon:'＋',action:()=>newSlide(state,idx+1)},
-                {label:'Duplicate Slide',icon:'⧉',action:()=>duplicateSlide(state,idx)},
-                {label:'Delete Slide',icon:'🗑',disabled:state.doc.slides.length===1,action:()=>deleteSlide(state,idx)}
+                {label:'New Slide',icon:ico.plus,action:()=>newSlide(state,idx+1)},
+                {label:'Duplicate Slide',icon:ico.copy,action:()=>duplicateSlide(state,idx)},
+                {label:'Delete Slide',icon:ico.trash,disabled:state.doc.slides.length===1,action:()=>deleteSlide(state,idx)}
             ]);
         }));
     }
