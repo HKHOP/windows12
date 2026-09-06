@@ -153,11 +153,12 @@ const WindowsUpdate = (() => {
 
     function init() {
         return new Promise((resolve) => {
-            fetch('version.json?t=' + Date.now())
-                .then(r => r.json())
-                .then(data => {
-                    currentVersion = data.version;
-                    latestVersion = data.version;
+            fetch('CHANGELOG.md?t=' + Date.now())
+                .then(r => r.text())
+                .then(text => {
+                    const match = text.match(/## \[(\d+\.\d+\.\d+)\]/);
+                    currentVersion = match ? match[1] : '12.0.0';
+                    latestVersion = currentVersion;
                     checkForUpdates(true);
                     checkInterval = setInterval(() => checkForUpdates(true), 30 * 60 * 1000);
                     resolve();
