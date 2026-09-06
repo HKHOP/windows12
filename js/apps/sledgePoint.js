@@ -230,10 +230,21 @@ const SledgePoint = (() => {
             const target = state.canvas.querySelector(`[data-id="${state.selected}"]`);
             if (target) addSelectionUI(state,target);
         }
+        if (state.editingId) {
+            const editingEl = state.canvas.querySelector(`[data-id="${state.editingId}"]`);
+            if (editingEl && editingEl.classList.contains('sp-text')) {
+                editingEl.contentEditable = 'true';
+                editingEl.focus();
+            }
+        }
         state.canvas.querySelectorAll('.sp-text').forEach(el => {
-            el.addEventListener('dblclick', () => el.contentEditable = 'true');
+            el.addEventListener('dblclick', () => {
+                state.editingId = el.dataset.id;
+                el.contentEditable = 'true';
+                el.focus();
+            });
             el.addEventListener('input', () => { const e=state.slide.elements.find(x=>x.id===el.dataset.id); e.text=el.innerText; state.dirty=true; });
-            el.addEventListener('blur', () => { el.contentEditable='false'; });
+            el.addEventListener('blur', () => { el.contentEditable='false'; state.editingId=null; });
         });
         state.canvas.querySelectorAll('.sp-table td').forEach(td => td.addEventListener('input', () => {
             const holder = td.closest('[data-id]'); const e=state.slide.elements.find(x=>x.id===holder.dataset.id); e.cells[Number(td.dataset.cell)] = td.innerText; state.dirty=true;
@@ -242,7 +253,10 @@ const SledgePoint = (() => {
             el.addEventListener('pointerdown', ev => {
                 if (state.tool === 'draw') return;
                 if (ev.target.closest('td[contenteditable="true"]')) return;
-                state.selected = el.dataset.id; renderCanvas(state); beginDrag(state, ev, el.dataset.id);
+                const isEditing = el.classList.contains('sp-text') && el.contentEditable === 'true';
+                state.selected = el.dataset.id;
+                if (!isEditing) renderCanvas(state);
+                beginDrag(state, ev, el.dataset.id);
             });
         });
     }
@@ -344,8 +358,26 @@ const SledgePoint = (() => {
     function applyScale(state){state.canvas.style.transform=`scale(${state.scale})`;state.zoomEl.textContent=`${Math.round(state.scale*100)}%`;}
 
     async function insertImage(state) {
-        const input=document.createElement('input');input.type='file';input.accept='image/*';
-        input.onchange=()=>{const f=input.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>addElement(state,'image',{src:r.result,w:360,h:240});r.readAsDataURL(f);};input.click();
+        const IMG_DIRS = [['/', 'users', 'default', 'Pictures'], ['/', 'users', 'default', 'Documents']];
+        const candidates = [];
+        for (const dir of IMG_DIRS) {
+            if (!FileSystem.itemExists(dir)) continue;
+            FileSystem.getChildren(dir).forEach(f => {
+                if (f.type !== 'folder' && /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(f.name)) {
+                    candidates.push({ name: f.name, path: [...dir, f.name] });
+                }
+            });
+        }
+        if (!candidates.length) {
+            await Popup.info('Insert Image', 'No images found in your filesystem. Use Ex/port to import images from your device first.');
+            return;
+        }
+        const pick = await Popup.pick('Insert Image', 'Select an image:', candidates.map(c => c.name));
+        if (!pick) return;
+        const chosen = candidates.find(c => c.name === pick);
+        const raw = FileSystem.readFile(chosen.path);
+        if (!raw) { await Popup.error('Error', 'Could not read the selected image.'); return; }
+        addElement(state, 'image', { src: raw, w: 360, h: 240 });
     }
 
     function bindDrawing(state) {
@@ -376,10 +408,6 @@ const SledgePoint = (() => {
         try{state.doc=JSON.parse(raw);state.doc.activeSlide=0;state.filePath=path;state.selected=null;state.dirty=false;renderAll(state);}catch{await Popup.error('Open failed','This is not a valid Sledge Point project.');}
     }
 
-    function download(name,type,content) {
-        const blob=content instanceof Blob?content:new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),500);
-    }
-
     function htmlExport(state) {
         const slideMarkup=state.doc.slides.map((s,i)=>`<section class="slide" style="display:${i?'none':'block'};background:${s.background||'#fff'}">${s.elements.map(exportElement).join('')}</section>`).join('');
         return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(state.doc.name)}</title><style>html,body{margin:0;height:100%;background:#000;font-family:Segoe UI,Arial}.slide{width:100vw;height:100vh;max-width:177.777vh;max-height:56.25vw;position:absolute;inset:0;margin:auto;overflow:hidden}.e{position:absolute;box-sizing:border-box}.text{white-space:pre-wrap}.shape.ellipse{border-radius:50%}table{border-collapse:collapse;width:100%;height:100%}td{border:1px solid #777;padding:4px}img{width:100%;height:100%;object-fit:fill}</style></head><body>${slideMarkup}<script>let i=0,s=[...document.querySelectorAll('.slide')];function go(n){s[i].style.display='none';i=(n+s.length)%s.length;s[i].style.display='block'}addEventListener('keydown',e=>{if(['ArrowRight','PageDown',' '].includes(e.key))go(i+1);if(['ArrowLeft','PageUp'].includes(e.key))go(i-1);if(e.key==='Escape')document.exitFullscreen?.()});document.body.onclick=()=>go(i+1)</script></body></html>`;
@@ -397,15 +425,19 @@ const SledgePoint = (() => {
 
     async function exportProject(state) {
         const fmt=await Popup.pick('Export Presentation','Choose an export format',[
-            'HTML – interactive web presentation','PDF – print/export through browser','SVG – current slide','PNG – current slide image','JSON – portable project data','PPTX – requires an OOXML/ZIP export module','ODP – requires an OpenDocument ZIP export module','PPT – legacy binary format is not generated in-browser'
+            'HTML – interactive web presentation','SVG – current slide as vector','JSON – portable project data'
         ]);
         if(!fmt)return;
-        if(fmt.startsWith('HTML')){download(`${state.doc.name}.html`,'text/html',htmlExport(state));return;}
-        if(fmt.startsWith('JSON')){download(`${state.doc.name}.json`,'application/json',JSON.stringify(state.doc,null,2));return;}
-        if(fmt.startsWith('PDF')){const w=window.open('','_blank');w.document.write(htmlExport(state));w.document.close();setTimeout(()=>w.print(),500);return;}
-        if(fmt.startsWith('SVG')){const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${state.doc.size.width}" height="${state.doc.size.height}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:${state.doc.size.width}px;height:${state.doc.size.height}px;background:${state.slide.background||'#fff'}">${state.slide.elements.map(exportElement).join('')}</div></foreignObject></svg>`;download(`${state.doc.name}-slide-${state.doc.activeSlide+1}.svg`,'image/svg+xml',svg);return;}
-        if(fmt.startsWith('PNG')){await Popup.warn('PNG export','PNG rendering needs a canvas rasterizer dependency. SVG export is available now and can be converted by compatible apps.');return;}
-        await Popup.info('Export module needed',`${fmt.split(' – ')[0]} is intentionally not faked. Add a ZIP/package exporter (for example a project-approved JS module) to generate standards-compliant ${fmt.startsWith('PPTX')?'PPTX':'ODP'} files; legacy PPT requires a separate Compound File Binary implementation.`);
+        let content='', ext='', mime='';
+        if(fmt.startsWith('HTML')){content=htmlExport(state);ext='html';mime='text/html';}
+        else if(fmt.startsWith('JSON')){content=JSON.stringify(state.doc,null,2);ext='json';mime='application/json';}
+        else if(fmt.startsWith('SVG')){content=`<svg xmlns="http://www.w3.org/2000/svg" width="${state.doc.size.width}" height="${state.doc.size.height}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:${state.doc.size.width}px;height:${state.doc.size.height}px;background:${state.slide.background||'#fff'}">${state.slide.elements.map(exportElement).join('')}</div></foreignObject></svg>`;ext='svg';mime='image/svg+xml';}
+        if(!content)return;
+        const baseName=(state.doc.name||'Untitled Presentation').replace(/[\\/:*?"<>|]/g,'').trim()||'Untitled Presentation';
+        const result=await SavePrompt.show({defaultName:`${baseName}.${ext}`,defaultPath:DEFAULT_DOC_PATH,extensions:[{value:ext,label:fmt.split(' – ')[0]}],parentApp:APP_ID});
+        if(!result)return;
+        FileSystem.createFile(result.path,result.fullName,content,result.ext);
+        await Popup.info('Export complete',`Saved to ${result.fullName} in your filesystem.`);
     }
 
     function cloneSlideDOM(state, index) {
@@ -424,10 +456,17 @@ const SledgePoint = (() => {
     function launch() {
         const win=WindowManager.createWindow(APP_ID,'Sledge Point',icon,getContent(),{width:1280,height:820,minWidth:820,minHeight:560});
         const root=win.element.querySelector('.sp-app');
-        const state={doc:defaultDoc(),slide:null,selected:null,tab:'Home',dirty:false,scale:1,tool:'select',inkColor:'#222',canvas:root.querySelector('[data-role="canvas"]'),slidesEl:root.querySelector('[data-role="slides"]'),ribbonEl:root.querySelector('[data-role="ribbon"]'),statusEl:root.querySelector('[data-role="status"]'),zoomEl:root.querySelector('[data-role="zoom"]')};
+        const state={doc:defaultDoc(),slide:null,selected:null,editingId:null,tab:'Home',dirty:false,scale:1,tool:'select',inkColor:'#222',canvas:root.querySelector('[data-role="canvas"]'),slidesEl:root.querySelector('[data-role="slides"]'),ribbonEl:root.querySelector('[data-role="ribbon"]'),statusEl:root.querySelector('[data-role="status"]'),zoomEl:root.querySelector('[data-role="zoom"]')};
         root.style.setProperty('--sp-accent',SystemConfig.get('accentColor')||'#0f6cbd');
         root.querySelectorAll('.sp-tab').forEach(tab=>tab.addEventListener('click',()=>{root.querySelectorAll('.sp-tab').forEach(x=>x.classList.remove('active'));tab.classList.add('active');state.tab=tab.dataset.tab;renderAll(state);}));
         root.querySelectorAll('[data-action]').forEach(btn=>btn.addEventListener('click',()=>action(state,btn.dataset.action)));
+        state.canvas.addEventListener('pointerdown', e => {
+            if (e.target === state.canvas) {
+                state.selected = null;
+                state.editingId = null;
+                renderCanvas(state);
+            }
+        });
         bindDrawing(state);
         renderAll(state);
         const observer=setInterval(()=>{if(!win.element.isConnected){clearInterval(observer);return;}const t=getTheme();if(root.dataset.theme!==t){root.dataset.theme=t;root.style.setProperty('--sp-accent',SystemConfig.get('accentColor')||'#0f6cbd');}},700);

@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4640] - 2026-09-06
+
+### Fixed
+- Image insertion now uses the virtual filesystem file picker instead of native browser picker
+- Export now saves to the virtual filesystem via SavePrompt instead of triggering native download
+- Text editing works properly — double-click enters edit mode without DOM rebuild interference
+- Clicking the canvas background deselects the current element
+
 ## [12.0.4630] - 2026-09-06
 
 ### Changed
