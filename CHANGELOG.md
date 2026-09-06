@@ -4,6 +4,13 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4670] - 2026-09-06
+
+### Fixed
+- HTML export now scales elements to fit viewport, matching the presentation fix
+- SVG export uses correct canvas dimensions instead of doc size
+- Fixed SVG export content variable shadowing bug
+
 ## [12.0.4660] - 2026-09-06
 
 ### Fixed
