@@ -4,13 +4,15 @@ import VSCode from '../apps/vscode.js';
 import AppStore from '../apps/appStore.js';
 import ExportImport from '../apps/export.js';
 import Words from '../apps/words.js';
+import SledgePoint from '../apps/sledgePoint.js';
 
 const AppSystem = (() => {
     const appModules = {
         sampleApp: SampleApp,
         vscode: VSCode,
         export: ExportImport,
-        words: Words
+        words: Words,
+        sledgePoint: SledgePoint
     };
 
     function init() {

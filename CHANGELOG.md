@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4610] - 2026-09-06
+
+### Added
+- Added Sledge Point — presentation app with ribbon UI, slide transitions, drawing tools, and export (installable from Microsoft Store)
+- Added proper store detail pages for Words and Sledge Point
+
 ## [12.0.4600] - 2026-09-05
 
 ### Added

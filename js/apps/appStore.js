@@ -67,6 +67,49 @@ const AppStore = (() => {
             ],
             size: '1 MB',
             ageRating: '3+'
+        },
+        words: {
+            name: 'Words',
+            developer: 'Windows 12',
+            category: 'Productivity',
+            rating: '4.7',
+            reviews: '1,567',
+            description: 'A rich text word processor with formatting toolbar, tables, links, and print support. Create and edit documents with ease.',
+            features: [
+                'Rich text formatting',
+                'Table creation and editing',
+                'Hyperlink support',
+                'Print and export',
+                'Formatting toolbar'
+            ],
+            screenshots: [
+                { bg: 'linear-gradient(135deg, #3b82f6, #60a5fa)', text: 'Document Editor' },
+                { bg: 'linear-gradient(135deg, #60a5fa, #3b82f6)', text: 'Formatting Tools' }
+            ],
+            size: '2 MB',
+            ageRating: '3+'
+        },
+        sledgePoint: {
+            name: 'Sledge Point',
+            developer: 'Windows 12',
+            category: 'Productivity',
+            rating: '4.6',
+            reviews: '2,180',
+            description: 'Create stunning presentations with Sledge Point. Features a ribbon UI, slide transitions, drawing tools, and export to HTML, PDF, and more.',
+            features: [
+                'Ribbon-style toolbar',
+                'Slide transitions (fade, slide, zoom)',
+                'Text, shapes, images, and tables',
+                'Freehand drawing tools',
+                'Presentation mode with slideshow',
+                'Export to HTML, PDF, SVG, and JSON'
+            ],
+            screenshots: [
+                { bg: 'linear-gradient(135deg, #D83B01, #ff6b35)', text: 'Slide Editor' },
+                { bg: 'linear-gradient(135deg, #ff6b35, #D83B01)', text: 'Presentation Mode' }
+            ],
+            size: '3 MB',
+            ageRating: '3+'
         }
     };
 
@@ -197,6 +240,19 @@ const AppStore = (() => {
                                     </div>
                                     <p style="font-size:12px;color:#aaa;line-height:1.4;">Rich text word processor with formatting toolbar, tables, links, and print support.</p>
                                     <button class="store-install-btn" data-app="words" style="background:#0078D4;border:none;color:white;padding:6px;border-radius:4px;font-weight:600;cursor:pointer;font-size:12px;width:100%;transition:background 0.2s;">Install</button>
+                                </div>
+                                <div class="store-app-card" data-app="sledgePoint" style="background:#2a2a2a;border-radius:8px;padding:16px;width:220px;display:flex;flex-direction:column;gap:12px;border:1px solid #333;cursor:pointer;transition:background 0.2s;">
+                                    <div style="display:flex;align-items:center;gap:12px;">
+                                        <div style="width:48px;height:48px;background:#D83B01;border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M7 8h4v8H7V8zm6 3h4v5h-4v-5z" fill="white"/></svg>
+                                        </div>
+                                        <div>
+                                            <div style="font-weight:600;font-size:13px;margin-bottom:2px;">Sledge Point</div>
+                                            <div style="font-size:11px;color:#888;">Productivity</div>
+                                        </div>
+                                    </div>
+                                    <p style="font-size:12px;color:#aaa;line-height:1.4;">Create presentations with a ribbon UI, slide transitions, drawing tools, and export options.</p>
+                                    <button class="store-install-btn" data-app="sledgePoint" style="background:#0078D4;border:none;color:white;padding:6px;border-radius:4px;font-weight:600;cursor:pointer;font-size:12px;width:100%;transition:background 0.2s;">Install</button>
                                 </div>
                             </div>
                         </div>

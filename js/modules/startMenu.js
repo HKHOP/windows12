@@ -34,7 +34,8 @@ const StartMenu = (() => {
         { id: 'taskManager', name: 'Task Manager' },
         { id: 'terminal', name: 'Terminal' },
         { id: 'vscode', name: 'Visual Studio Code' },
-        { id: 'words', name: 'Words' }
+        { id: 'words', name: 'Words' },
+        { id: 'sledgePoint', name: 'Sledge Point' }
     ];
 
     let currentView = 'main';
@@ -335,7 +336,7 @@ const StartMenu = (() => {
         drawer.appendChild(header);
 
         const installed = AppSystem.getInstalledApps();
-        const userApps = ['sampleApp', 'vscode', 'export', 'words'];
+        const userApps = ['sampleApp', 'vscode', 'export', 'words', 'sledgePoint'];
         const filteredApps = allApps.filter(app => {
             if (userApps.includes(app.id)) return installed.includes(app.id);
             return true;
@@ -426,7 +427,7 @@ const StartMenu = (() => {
         if (!container) return;
         container.innerHTML = '';
         const installed = AppSystem.getInstalledApps();
-        const userApps = ['sampleApp', 'vscode', 'export', 'words'];
+        const userApps = ['sampleApp', 'vscode', 'export', 'words', 'sledgePoint'];
 
         const activePinned = pinnedApps.filter(appId => {
             if (userApps.includes(appId)) return installed.includes(appId);
