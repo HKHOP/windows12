@@ -4,6 +4,19 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4680] - 2026-09-06
+
+### Added
+- File Explorer selection system: click to select, Ctrl+click to toggle, Shift+click for range select, Ctrl+A to select all
+- Multi-select clipboard: copy, cut, and paste multiple files/folders at once
+- Visual feedback for cut items (opacity + dashed border)
+- Status bar shows selection count ("3 of 12 selected")
+- Click empty space to deselect all
+
+### Fixed
+- Ctrl+C/X/V keyboard shortcuts now work properly in File Explorer
+- Delete key removes all selected items
+
 ## [12.0.4670] - 2026-09-06
 
 ### Fixed

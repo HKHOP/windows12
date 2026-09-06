@@ -127,10 +127,13 @@ const FileExplorer = (() => {
     function navigate(win, path, addToHistory = true, state) {
         if (!FileSystem.isFolder(path)) return;
 
-        if (state && addToHistory) {
-            state.pathHistory = state.pathHistory.slice(0, state.historyIndex + 1);
-            state.pathHistory.push(path);
-            state.historyIndex = state.pathHistory.length - 1;
+        if (state) {
+            deselectAll(state);
+            if (addToHistory) {
+                state.pathHistory = state.pathHistory.slice(0, state.historyIndex + 1);
+                state.pathHistory.push(path);
+                state.historyIndex = state.pathHistory.length - 1;
+            }
         }
 
         const pathEl = win.element.querySelector('.fe-path');
@@ -166,6 +169,8 @@ const FileExplorer = (() => {
             return;
         }
 
+        const allNames = entries.map(e => e.name);
+
         entries.forEach(entry => {
             const isDir = entry.type === 'folder';
             const item = document.createElement('div');
@@ -174,14 +179,46 @@ const FileExplorer = (() => {
             item.dataset.name = entry.name;
             item.dataset.type = entry.type;
             item.dataset.ext = entry.ext || '';
-            item.style.cssText = 'width:90px;padding:8px;border-radius:6px;cursor:pointer;text-align:center;transition:background 0.12s;position:relative;';
+            item.style.cssText = 'width:90px;padding:8px;border-radius:6px;cursor:pointer;text-align:center;transition:background 0.12s;position:relative;border:2px solid transparent;';
             item.innerHTML = `
                 <div style="font-size:32px;margin-bottom:4px;">${isDir ? getFolderIcon(entry.name) : getFileIcon(entry.ext, entry.name)}</div>
                 <div style="font-size:12px;word-break:break-all;line-height:1.3;">${entry.name}</div>
             `;
 
-            item.addEventListener('mouseenter', () => item.style.background = 'rgba(255,255,255,0.06)');
-            item.addEventListener('mouseleave', () => item.style.background = 'transparent');
+            function updateItemVisual() {
+                if (state && state.selected.has(entry.name)) {
+                    item.style.background = 'rgba(0,120,212,0.25)';
+                    item.style.borderColor = 'var(--accent-color)';
+                } else {
+                    item.style.background = 'transparent';
+                    item.style.borderColor = 'transparent';
+                }
+            }
+            updateItemVisual();
+
+            item.addEventListener('mouseenter', () => {
+                if (!state || !state.selected.has(entry.name)) item.style.background = 'rgba(255,255,255,0.06)';
+            });
+            item.addEventListener('mouseleave', () => {
+                if (!state || !state.selected.has(entry.name)) item.style.background = 'transparent';
+            });
+
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!state) return;
+                selectItem(state, entry.name, e.ctrlKey || e.metaKey, e.shiftKey, allNames);
+                contentEl.querySelectorAll('.fe-item').forEach(el => {
+                    const n = el.dataset.name;
+                    if (state.selected.has(n)) {
+                        el.style.background = 'rgba(0,120,212,0.25)';
+                        el.style.borderColor = 'var(--accent-color)';
+                    } else {
+                        el.style.background = 'transparent';
+                        el.style.borderColor = 'transparent';
+                    }
+                });
+                updateItemCount();
+            });
 
             item.addEventListener('dblclick', () => {
                 if (isDir) {
@@ -194,26 +231,43 @@ const FileExplorer = (() => {
             item.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (state && !state.selected.has(entry.name)) {
+                    state.selected.clear();
+                    state.selected.add(entry.name);
+                    state.lastClicked = entry.name;
+                    contentEl.querySelectorAll('.fe-item').forEach(el => {
+                        const n = el.dataset.name;
+                        if (state.selected.has(n)) {
+                            el.style.background = 'rgba(0,120,212,0.25)';
+                            el.style.borderColor = 'var(--accent-color)';
+                        } else {
+                            el.style.background = 'transparent';
+                            el.style.borderColor = 'transparent';
+                        }
+                    });
+                }
+                const selCount = state ? state.selected.size : 1;
                 const itemPath = [...path, entry.name];
+                const multiLabel = selCount > 1 ? ` (${selCount} items)` : '';
                 const menuItems = isDir ? [
                     { label: 'Open', icon: '📂', action: () => navigate(win, itemPath, true, state) },
                     'separator',
-                    { label: 'Cut (Ctrl+X)', icon: '✂', action: () => { if (state) { state.clipboard = { path: itemPath, name: entry.name, type: entry.type }; state.clipboardAction = 'cut'; } } },
-                    { label: 'Copy (Ctrl+C)', icon: '📋', action: () => { if (state) { state.clipboard = { path: itemPath, name: entry.name, type: entry.type }; state.clipboardAction = 'copy'; } } },
+                    { label: `Cut${multiLabel}`, icon: '✂', action: () => cutSelected(win, state) },
+                    { label: `Copy${multiLabel}`, icon: '📋', action: () => copySelected(win, state) },
                     'separator',
-                    { label: 'Rename', icon: '✏', action: () => renameItem(win, itemPath) },
-                    { label: 'Delete', icon: '🗑', action: () => deleteItem(win, itemPath) },
+                    { label: 'Rename', icon: '✏', action: () => { if (selCount === 1) renameItem(win, itemPath); } },
+                    { label: `Delete${multiLabel}`, icon: '🗑', action: () => deleteSelected(win, state) },
                     'separator',
                     { label: 'Properties', icon: 'ℹ', action: () => showProperties(entry, itemPath) }
                 ] : [
                     { label: 'Open', icon: '📝', action: () => openFileWithDefaultApp(itemPath, entry) },
                     { label: 'Open With...', icon: '📂', action: () => showOpenWithMenu(itemPath, entry) },
                     'separator',
-                    { label: 'Cut (Ctrl+X)', icon: '✂', action: () => { if (state) { state.clipboard = { path: itemPath, name: entry.name, type: entry.type }; state.clipboardAction = 'cut'; } } },
-                    { label: 'Copy (Ctrl+C)', icon: '📋', action: () => { if (state) { state.clipboard = { path: itemPath, name: entry.name, type: entry.type }; state.clipboardAction = 'copy'; } } },
+                    { label: `Cut${multiLabel}`, icon: '✂', action: () => cutSelected(win, state) },
+                    { label: `Copy${multiLabel}`, icon: '📋', action: () => copySelected(win, state) },
                     'separator',
-                    { label: 'Rename', icon: '✏', action: () => renameItem(win, itemPath) },
-                    { label: 'Delete', icon: '🗑', action: () => deleteItem(win, itemPath) },
+                    { label: 'Rename', icon: '✏', action: () => { if (selCount === 1) renameItem(win, itemPath); } },
+                    { label: `Delete${multiLabel}`, icon: '🗑', action: () => deleteSelected(win, state) },
                     'separator',
                     { label: 'Properties', icon: 'ℹ', action: () => showProperties(entry, itemPath) }
                 ];
@@ -267,6 +321,14 @@ const FileExplorer = (() => {
         });
 
         countEl.textContent = `${entries.length} item${entries.length !== 1 ? 's' : ''}`;
+
+        function updateItemCount() {
+            const selSize = state ? state.selected.size : 0;
+            countEl.textContent = selSize > 0
+                ? `${selSize} of ${entries.length} selected`
+                : `${entries.length} item${entries.length !== 1 ? 's' : ''}`;
+        }
+        contentEl._updateItemCount = updateItemCount;
     }
 
     function showProgressBar(win) {
@@ -456,35 +518,91 @@ const FileExplorer = (() => {
         });
     }
 
-    function deleteItem(win, itemPath) {
-        const name = itemPath[itemPath.length - 1];
-        Popup.confirm('Delete', `Delete "${name}"?`).then(ok => {
-            if (ok) {
-                showProgressBar(win);
-                setTimeout(() => {
-                    FileSystem.deleteItem(itemPath);
-                    navigate(win, itemPath.slice(0, -1), false);
-                    refreshIfDesktop(itemPath);
-                    hideProgressBar(win);
-                }, 300);
+    function copySelected(win, state) {
+        if (!state || state.selected.size === 0) return;
+        const currentPath = state.pathHistory[state.historyIndex];
+        state.clipboard = [...state.selected].map(name => {
+            const entry = FileSystem.getChildren(currentPath).find(e => e.name === name);
+            return { path: [...currentPath, name], name, type: entry?.type || 'file', ext: entry?.ext || '' };
+        });
+        state.clipboardAction = 'copy';
+        showCutFeedback(win, state, false);
+    }
+
+    function cutSelected(win, state) {
+        if (!state || state.selected.size === 0) return;
+        const currentPath = state.pathHistory[state.historyIndex];
+        state.clipboard = [...state.selected].map(name => {
+            const entry = FileSystem.getChildren(currentPath).find(e => e.name === name);
+            return { path: [...currentPath, name], name, type: entry?.type || 'file', ext: entry?.ext || '' };
+        });
+        state.clipboardAction = 'cut';
+        showCutFeedback(win, state, true);
+    }
+
+    function showCutFeedback(win, state, show) {
+        const contentEl = win.element.querySelector('.fe-content');
+        contentEl.querySelectorAll('.fe-item').forEach(el => {
+            if (show && state.clipboard.some(c => c.name === el.dataset.name)) {
+                el.style.opacity = '0.4';
+                el.style.borderStyle = 'dashed';
+            } else if (!state.selected.has(el.dataset.name)) {
+                el.style.opacity = '1';
+                el.style.borderStyle = 'solid';
             }
         });
     }
 
     function pasteItems(win, destPath, state) {
-        if (!state || !state.clipboard) return;
+        if (!state || !state.clipboard || state.clipboard.length === 0) return;
         showProgressBar(win);
         setTimeout(() => {
-            if (state.clipboardAction === 'cut') {
-                FileSystem.renameItem(state.clipboard.path, state.clipboard.name);
-            } else {
-                const content = FileSystem.readFile(state.clipboard.path) || '';
-                FileSystem.createFile(destPath, state.clipboard.name, content, state.clipboard.ext || '');
-            }
+            state.clipboard.forEach(item => {
+                const destExists = FileSystem.itemExists([...destPath, item.name]);
+                if (state.clipboardAction === 'cut') {
+                    if (destExists) {
+                        FileSystem.renameItem(item.path, item.name + ' - Copy');
+                    } else {
+                        FileSystem.renameItem(item.path, item.name);
+                    }
+                } else {
+                    if (item.type === 'folder') {
+                        if (!destExists) FileSystem.createFolder(destPath, item.name);
+                    } else {
+                        const content = FileSystem.readFile(item.path) || '';
+                        if (destExists) {
+                            FileSystem.writeFile([...destPath, item.name], content);
+                        } else {
+                            FileSystem.createFile(destPath, item.name, content, item.ext);
+                        }
+                    }
+                }
+            });
             navigate(win, destPath, false, state);
             hideProgressBar(win);
-            state.clipboard = null;
+            if (state.clipboardAction === 'cut') state.clipboard = [];
         }, 300);
+    }
+
+    function deleteSelected(win, state) {
+        if (!state || state.selected.size === 0) return;
+        const names = [...state.selected];
+        const label = names.length === 1 ? `"${names[0]}"` : `${names.length} items`;
+        Popup.confirm('Delete', `Delete ${label}?`).then(ok => {
+            if (ok) {
+                showProgressBar(win);
+                const currentPath = state.pathHistory[state.historyIndex];
+                setTimeout(() => {
+                    names.forEach(name => {
+                        FileSystem.deleteItem([...currentPath, name]);
+                        refreshIfDesktop([...currentPath, name]);
+                    });
+                    deselectAll(state);
+                    navigate(win, currentPath, false, state);
+                    hideProgressBar(win);
+                }, 300);
+            }
+        });
     }
 
     function showProperties(entry, itemPath) {
@@ -693,12 +811,43 @@ const FileExplorer = (() => {
         return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    function getSelectedItems(state) {
+        return [...state.selected];
+    }
+
+    function selectItem(state, name, ctrl, shift, allNames) {
+        if (shift && state.lastClicked && allNames) {
+            const startIdx = allNames.indexOf(state.lastClicked);
+            const endIdx = allNames.indexOf(name);
+            if (startIdx !== -1 && endIdx !== -1) {
+                const from = Math.min(startIdx, endIdx);
+                const to = Math.max(startIdx, endIdx);
+                if (!ctrl) state.selected.clear();
+                for (let i = from; i <= to; i++) state.selected.add(allNames[i]);
+            }
+        } else if (ctrl) {
+            if (state.selected.has(name)) state.selected.delete(name);
+            else state.selected.add(name);
+        } else {
+            state.selected.clear();
+            state.selected.add(name);
+        }
+        state.lastClicked = name;
+    }
+
+    function deselectAll(state) {
+        state.selected.clear();
+        state.lastClicked = null;
+    }
+
     function launch() {
         const state = {
             pathHistory: [['/']],
             historyIndex: 0,
-            clipboard: null,
-            clipboardAction: 'copy'
+            clipboard: [],
+            clipboardAction: null,
+            selected: new Set(),
+            lastClicked: null
         };
 
         const win = WindowManager.createWindow('fileExplorer', 'File Explorer', icon, getContent(), { width: 800, height: 500 });
@@ -713,14 +862,26 @@ const FileExplorer = (() => {
                 { label: 'New text file', icon: '📄', action: () => createNewFile(win, currentPath, state) },
                 'separator'
             ];
-            if (state.clipboard) {
-                menuItems.push({ label: `Paste (${state.clipboardAction === 'copy' ? 'Ctrl+V' : 'Ctrl+X'})`, icon: '📋', action: () => pasteItems(win, currentPath, state) });
+            if (state.clipboard && state.clipboard.length > 0) {
+                const count = state.clipboard.length;
+                const label = count > 1 ? ` (${count} items)` : '';
+                menuItems.push({ label: `Paste${label}`, icon: '📋', action: () => pasteItems(win, currentPath, state) });
             }
             ContextMenu.show(e.clientX, e.clientY, menuItems);
         });
         contentEl.addEventListener('dragover', (e) => {
             if (e.target === contentEl) {
                 e.preventDefault();
+            }
+        });
+        contentEl.addEventListener('click', (e) => {
+            if (e.target === contentEl) {
+                deselectAll(state);
+                contentEl.querySelectorAll('.fe-item').forEach(el => {
+                    el.style.background = 'transparent';
+                    el.style.borderColor = 'transparent';
+                });
+                if (contentEl._updateItemCount) contentEl._updateItemCount();
             }
         });
 
@@ -783,18 +944,31 @@ const FileExplorer = (() => {
 
         function handleKeydown(e) {
             if (!win.element.contains(document.activeElement) && document.activeElement !== document.body) return;
-            if (e.ctrlKey && e.key === 'c' && state.clipboard === null) {
-                const selected = win.element.querySelector('.fe-item[style*="rgba(0,120,212"]');
-                if (selected) {
-                    const name = selected.dataset.name;
-                    const currentPath = state.pathHistory[state.historyIndex];
-                    state.clipboard = { path: [...currentPath, name], name, type: selected.dataset.type, ext: selected.dataset.ext };
-                    state.clipboardAction = 'copy';
+            const currentPath = state.pathHistory[state.historyIndex];
+            if (e.ctrlKey && e.key === 'c') {
+                e.preventDefault();
+                copySelected(win, state);
+            } else if (e.ctrlKey && e.key === 'x') {
+                e.preventDefault();
+                cutSelected(win, state);
+            } else if (e.ctrlKey && e.key === 'v') {
+                e.preventDefault();
+                if (state.clipboard && state.clipboard.length > 0) pasteItems(win, currentPath, state);
+            } else if (e.ctrlKey && e.key === 'a') {
+                e.preventDefault();
+                const contentEl = win.element.querySelector('.fe-content');
+                contentEl.querySelectorAll('.fe-item').forEach(el => state.selected.add(el.dataset.name));
+                state.lastClicked = null;
+                contentEl.querySelectorAll('.fe-item').forEach(el => {
+                    el.style.background = 'rgba(0,120,212,0.25)';
+                    el.style.borderColor = 'var(--accent-color)';
+                });
+                if (contentEl._updateItemCount) contentEl._updateItemCount();
+            } else if (e.key === 'Delete') {
+                if (state.selected.size > 0) {
+                    e.preventDefault();
+                    deleteSelected(win, state);
                 }
-            }
-            if (e.ctrlKey && e.key === 'v' && state.clipboard) {
-                const currentPath = state.pathHistory[state.historyIndex];
-                pasteItems(win, currentPath, state);
             }
         }
         document.addEventListener('keydown', handleKeydown);
