@@ -36,13 +36,18 @@ const WindowsUpdate = (() => {
 
     async function checkForUpdates(silent = false) {
         try {
-            const response = await fetch('version.json?t=' + Date.now());
+            const response = await fetch('https://raw.githubusercontent.com/HKHOP/windows12/main/CHANGELOG.md?t=' + Date.now());
             if (!response.ok) {
                 if (!silent) Popup.warn('Windows Update', 'Unable to check for updates. Please try again later.');
                 return false;
             }
-            const data = await response.json();
-            latestVersion = data.version;
+            const text = await response.text();
+            const match = text.match(/## \[(\d+\.\d+\.\d+)\]/);
+            if (!match) {
+                if (!silent) Popup.warn('Windows Update', 'Unable to check for updates. Please try again later.');
+                return false;
+            }
+            latestVersion = match[1];
 
             if (currentVersion && compareVersions(latestVersion, currentVersion) > 0) {
                 updateAvailable = true;
