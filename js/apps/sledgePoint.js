@@ -461,10 +461,10 @@ const SledgePoint = (() => {
         root.addEventListener('click',click);window.addEventListener('keydown',key);document.body.append(root);show();root.requestFullscreen?.().catch(()=>{});
     }
 
-    function launch() {
+    function launch(preloadedDoc) {
         const win=WindowManager.createWindow(APP_ID,'Sledge Point',icon,getContent(),{width:1280,height:820,minWidth:820,minHeight:560});
         const root=win.element.querySelector('.sp-app');
-        const state={doc:defaultDoc(),slide:null,selected:null,editingId:null,tab:'Home',dirty:false,scale:1,tool:'select',inkColor:'#222',canvas:root.querySelector('[data-role="canvas"]'),slidesEl:root.querySelector('[data-role="slides"]'),ribbonEl:root.querySelector('[data-role="ribbon"]'),statusEl:root.querySelector('[data-role="status"]'),zoomEl:root.querySelector('[data-role="zoom"]')};
+        const state={doc:preloadedDoc||defaultDoc(),slide:null,selected:null,editingId:null,tab:'Home',dirty:false,scale:1,tool:'select',inkColor:'#222',canvas:root.querySelector('[data-role="canvas"]'),slidesEl:root.querySelector('[data-role="slides"]'),ribbonEl:root.querySelector('[data-role="ribbon"]'),statusEl:root.querySelector('[data-role="status"]'),zoomEl:root.querySelector('[data-role="zoom"]')};
         root.style.setProperty('--sp-accent',SystemConfig.get('accentColor')||'#0f6cbd');
         root.querySelectorAll('.sp-tab').forEach(tab=>tab.addEventListener('click',()=>{root.querySelectorAll('.sp-tab').forEach(x=>x.classList.remove('active'));tab.classList.add('active');state.tab=tab.dataset.tab;renderAll(state);}));
         root.querySelectorAll('[data-action]').forEach(btn=>btn.addEventListener('click',()=>action(state,btn.dataset.action)));
@@ -478,13 +478,15 @@ const SledgePoint = (() => {
         bindDrawing(state);
         renderAll(state);
         const observer=setInterval(()=>{if(!win.element.isConnected){clearInterval(observer);return;}const t=getTheme();if(root.dataset.theme!==t){root.dataset.theme=t;root.style.setProperty('--sp-accent',SystemConfig.get('accentColor')||'#0f6cbd');}},700);
+        return state;
     }
 
     function open(path,content) {
-        const win=WindowManager.createWindow(APP_ID,'Sledge Point',icon,getContent(),{width:1280,height:820,minWidth:820,minHeight:560});
-        // Re-launching through the normal path is safer for state wiring; this branch is reserved for associations.
-        win.element.remove();
-        launch();
+        let doc;
+        try{doc=JSON.parse(content)}catch{doc=null}
+        if(!doc?.slides){launch();return;}
+        doc.activeSlide=0;
+        launch(doc);
     }
 
     FileAssociations.register(APP_ID,['sledge','sledgepoint'],open);
