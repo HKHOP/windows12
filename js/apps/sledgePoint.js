@@ -221,7 +221,7 @@ const SledgePoint = (() => {
     function beginDrag(state, ev, id) {
         if (ev.button !== 0) return;
         const e = state.slide.elements.find(x=>x.id===id); const sx=ev.clientX,sy=ev.clientY, ox=e.x,oy=e.y;
-        ev.currentTarget.setPointerCapture?.(ev.pointerId);
+        try{ev.currentTarget.setPointerCapture(ev.pointerId);}catch(e){}
         const move = m => { e.x=ox+(m.clientX-sx)/state.scale; e.y=oy+(m.clientY-sy)/state.scale; renderCanvas(state); state.dirty=true; };
         const up = () => { window.removeEventListener('pointermove',move); window.removeEventListener('pointerup',up); renderSlides(state); };
         window.addEventListener('pointermove',move); window.addEventListener('pointerup',up);
@@ -377,7 +377,7 @@ const SledgePoint = (() => {
         const show=()=>{root.querySelectorAll('.sp-present-slide').forEach(x=>x.remove());const slide=cloneSlideDOM(state,i);root.insertBefore(slide,hint);const t=state.doc.slides[i].transition?.type;if(t==='fade'){slide.animate([{opacity:0},{opacity:1}],{duration:state.doc.slides[i].transition.duration||450});}if(t==='zoom'){slide.animate([{transform:'scale(.94)',opacity:0},{transform:'scale(1)',opacity:1}],{duration:state.doc.slides[i].transition.duration||450});}};
         const key=e=>{if(e.key==='Escape'){cleanup();return;}if(['ArrowRight','PageDown',' '].includes(e.key)){i=Math.min(state.doc.slides.length-1,i+1);show();}if(['ArrowLeft','PageUp'].includes(e.key)){i=Math.max(0,i-1);show();}};
         const click=()=>{if(i<state.doc.slides.length-1){i++;show();}else cleanup();};
-        const cleanup=()=>{window.removeEventListener('keydown',key);root.remove();document.exitFullscreen?.();};
+        const cleanup=()=>{window.removeEventListener('keydown',key);root.remove();try{if(document.fullscreenElement)document.exitFullscreen();}catch(e){}};
         root.addEventListener('click',click);window.addEventListener('keydown',key);document.body.append(root);show();root.requestFullscreen?.().catch(()=>{});
     }
 
