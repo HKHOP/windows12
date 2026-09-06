@@ -38,7 +38,7 @@ const Settings = (() => {
             <div style="display:flex;height:100%;">
                 <div class="settings-sidebar" style="width:220px;background:rgba(0,0,0,0.2);padding:12px 8px;border-right:1px solid rgba(255,255,255,0.06);overflow-y:auto;">
                     <div style="padding:12px;display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-                        <div style="width:48px;height:48px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;">U</div>
+                        <div style="width:48px;height:48px;background:var(--accent-color,#0078D4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;">${(SystemConfig.get('userName')||'U').charAt(0).toUpperCase()}</div>
                         <div>
                             <div class="settings-username" style="font-size:14px;font-weight:500;">${SystemConfig.get('userName')}</div>
                             <div style="font-size:12px;color:#888;">Local Account</div>
@@ -701,7 +701,7 @@ const Settings = (() => {
         el.innerHTML = `
             <h2 style="font-size:28px;font-weight:600;margin-bottom:24px;">Accounts</h2>
             <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:20px;display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-                <div style="width:64px;height:64px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;">U</div>
+                <div style="width:64px;height:64px;background:var(--accent-color,#0078D4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;">${(SystemConfig.get('userName')||'U').charAt(0).toUpperCase()}</div>
                 <div>
                     <div style="font-size:18px;font-weight:500;">${SystemConfig.get('userName')}</div>
                     <div style="font-size:13px;color:#888;">Local Account</div>

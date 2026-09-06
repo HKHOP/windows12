@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4650] - 2026-09-06
+
+### Fixed
+- Search panel avatar now shows the user's initial instead of hardcoded "U"
+- Login screen avatar now shows the user's initial instead of hardcoded "U"
+- Login screen avatar uses accent color instead of hardcoded blue gradient
+- Settings sidebar and accounts page avatars use accent color and show user's initial
+
 ## [12.0.4640] - 2026-09-06
 
 ### Fixed

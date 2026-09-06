@@ -120,10 +120,13 @@ const StartMenu = (() => {
     function updateUserInfo() {
         const config = SystemConfig.getAll();
         const username = config.userName || 'User';
+        const initial = username.charAt(0).toUpperCase();
         const avatar = document.querySelector('.user-avatar');
         const nameEl = document.querySelector('.user-info span');
-        if (avatar) avatar.textContent = username.charAt(0).toUpperCase();
+        const searchAvatar = document.querySelector('.search-avatar');
+        if (avatar) avatar.textContent = initial;
         if (nameEl) nameEl.textContent = username;
+        if (searchAvatar) searchAvatar.textContent = initial;
     }
 
     function setupPowerButton() {
@@ -250,6 +253,8 @@ const StartMenu = (() => {
         const config = SystemConfig.getAll();
         const username = config.userName || 'User';
         document.getElementById('login-username').textContent = username;
+        const loginAvatar = loginScreen.querySelector('.login-avatar');
+        if (loginAvatar) loginAvatar.textContent = username.charAt(0).toUpperCase();
 
         desktop.style.transition = 'opacity 0.4s ease-out';
         taskbar.style.transition = 'opacity 0.4s ease-out';

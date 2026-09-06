@@ -116,6 +116,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const config = SystemConfig.getAll();
                     const username = config.userName || 'User';
                     document.getElementById('login-username').textContent = username;
+                    const loginAvatar = loginScreen.querySelector('.login-avatar');
+                    if (loginAvatar) loginAvatar.textContent = username.charAt(0).toUpperCase();
 
                     setTimeout(() => {
                         loginScreen.classList.add('fade-out');
