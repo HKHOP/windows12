@@ -26,6 +26,7 @@ const StartMenu = (() => {
         { id: 'clock', name: 'Clock' },
         { id: 'export', name: 'Ex/port' },
         { id: 'fileExplorer', name: 'File Explorer' },
+        { id: 'musicSpark', name: 'Music Spark' },
         { id: 'notepad', name: 'Notepad' },
         { id: 'paint', name: 'Paint' },
         { id: 'photos', name: 'Photos' },
@@ -342,7 +343,7 @@ const StartMenu = (() => {
         drawer.appendChild(header);
 
         const installed = AppSystem.getInstalledApps();
-        const userApps = ['sampleApp', 'vscode', 'export', 'words', 'sledgePoint', 'cellESheet'];
+        const userApps = ['sampleApp', 'vscode', 'export', 'words', 'sledgePoint', 'cellESheet', 'musicSpark'];
         const filteredApps = allApps.filter(app => {
             if (userApps.includes(app.id)) return installed.includes(app.id);
             return true;
@@ -385,7 +386,7 @@ const StartMenu = (() => {
                     e.stopPropagation();
                     const pinned = isPinned(app.id);
                     const taskbarPinned = Taskbar.isPinned(app.id);
-                    const userAppList = ['sampleApp', 'vscode', 'export'];
+                    const userAppList = ['sampleApp', 'vscode', 'export', 'words', 'sledgePoint', 'cellESheet', 'musicSpark'];
                     const isUserApp = userAppList.includes(app.id);
                     const items = [
                         { label: app.name, icon: '', disabled: true },
@@ -433,7 +434,7 @@ const StartMenu = (() => {
         if (!container) return;
         container.innerHTML = '';
         const installed = AppSystem.getInstalledApps();
-        const userApps = ['sampleApp', 'vscode', 'export', 'words', 'sledgePoint', 'cellESheet'];
+        const userApps = ['sampleApp', 'vscode', 'export', 'words', 'sledgePoint', 'cellESheet', 'musicSpark'];
 
         const activePinned = pinnedApps.filter(appId => {
             if (userApps.includes(appId)) return installed.includes(appId);

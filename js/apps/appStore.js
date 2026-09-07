@@ -90,10 +90,24 @@ const AppStore = (() => {
                 { bg: 'linear-gradient(135deg, #33a867, #217346)', text: 'Formula Bar' }
             ],
             size: '4 MB', ageRating: '3+'
+        },
+        musicSpark: {
+            name: 'Music Spark',
+            developer: 'Windows 12',
+            category: 'Music & Audio',
+            rating: '4.9',
+            reviews: '3,412',
+            description: 'A full beat-making studio in the style of FL Studio. Step sequencer with 8 drum kits, piano roll synth, mixer with mute/solo, 4 loopable patterns, presets, and WAV export.',
+            features: ['8-track step sequencer (kick, snare, hats, more)', 'Piano roll lead synth (C4-C6, 4 waveforms)', 'Mixer with per-track volume, mute, and solo', '4 patterns that loop and switch live', 'BPM, swing, and metronome controls', 'Genre presets, randomizer, .mspark projects', 'Export loops to WAV in your Music folder'],
+            screenshots: [
+                { bg: 'linear-gradient(135deg, #1DB954, #0b2e16)', text: 'Step Sequencer' },
+                { bg: 'linear-gradient(135deg, #0b2e16, #1DB954)', text: 'Piano Roll + Mixer' }
+            ],
+            size: '3 MB', ageRating: '3+'
         }
     };
 
-    const storeApps = ['vscode', 'sampleApp', 'export', 'words', 'sledgePoint', 'cellESheet'];
+    const storeApps = ['vscode', 'sampleApp', 'export', 'words', 'sledgePoint', 'cellESheet', 'musicSpark'];
     const builtIn = ['fileExplorer', 'settings', 'notepad', 'taskManager', 'calculator', 'calendar', 'clock', 'photos', 'paint', 'browser', 'terminal', 'appStore'];
 
     function getInstalled() {

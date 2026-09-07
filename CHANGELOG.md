@@ -4,6 +4,18 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4710] - 2026-09-07
+
+### Added
+- Music Spark beat-making app (FL Studio-style DAW) — installable from Microsoft Store
+- 8-track step sequencer with synthesized drums (kick, snare, clap, hats, tom, perc, shaker)
+- Piano roll lead synth (C4–C6, 4 waveforms) with click-to-add notes and scale preview
+- Mixer with per-track volume, mute, and solo plus master volume
+- 4 loopable patterns with live switching, BPM (50–220), swing, and metronome
+- Genre presets (Hip-Hop, Trap, House, Techno, Boom Bap + Keys), randomizer, and clear
+- .mspark project files (save/open via Documents, autosave, File Explorer association)
+- WAV loop export (4 loops) to the Music folder via offline rendering
+
 ## [12.0.4700] - 2026-09-06
 
 ### Added

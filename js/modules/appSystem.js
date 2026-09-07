@@ -6,6 +6,7 @@ import ExportImport from '../apps/export.js';
 import Words from '../apps/words.js';
 import SledgePoint from '../apps/sledgePoint.js';
 import CellESheet from '../apps/cellESheet.js';
+import MusicSpark from '../apps/musicSpark.js';
 
 const AppSystem = (() => {
     const appModules = {
@@ -14,7 +15,8 @@ const AppSystem = (() => {
         export: ExportImport,
         words: Words,
         sledgePoint: SledgePoint,
-        cellESheet: CellESheet
+        cellESheet: CellESheet,
+        musicSpark: MusicSpark
     };
 
     function init() {
