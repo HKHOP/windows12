@@ -374,6 +374,19 @@ const FileExplorer = (() => {
     function openFileWithDefaultApp(itemPath, entry) {
         const ext = entry.ext || '';
         if (ext && FileAssociations.getHandler(ext)) {
+            // Blob-backed files (audio/video/large media) resolve to an
+            // object URL; small files pass their stored content through.
+            if (FileSystem.isBlobFile(itemPath)) {
+                FileSystem.readFileBlob(itemPath).then(blob => {
+                    if (!blob) {
+                        Popup.error('Open failed', `Could not read "${entry.name}". The file data may be missing.`);
+                        return;
+                    }
+                    FileAssociations.getHandler(ext).openFn(itemPath, URL.createObjectURL(blob));
+                    UserActivity.trackFileOpen(itemPath, entry.name);
+                });
+                return;
+            }
             const content = FileSystem.readFile(itemPath);
             if (content !== null) {
                 FileAssociations.getHandler(ext).openFn(itemPath, content);
@@ -395,21 +408,35 @@ const FileExplorer = (() => {
     }
 
     function openFileWithPhotos(itemPath, entry) {
-        const content = FileSystem.readFile(itemPath);
-        if (content === null) return;
         const name = entry.name;
         const ext = entry.ext || '';
+        if (FileSystem.isBlobFile(itemPath)) {
+            FileSystem.readFileBlob(itemPath).then(blob => {
+                if (!blob) {
+                    Popup.error('Open failed', `Could not read "${name}". The file data may be missing.`);
+                    return;
+                }
+                UserActivity.trackFileOpen(itemPath, name);
+                showPhotoViewer(name, ext, URL.createObjectURL(blob), (blob.size / 1024).toFixed(1));
+            });
+            return;
+        }
+        const content = FileSystem.readFile(itemPath);
+        if (content === null) return;
         UserActivity.trackFileOpen(itemPath, name);
+        showPhotoViewer(name, ext, content, (new Blob([content]).size / 1024).toFixed(1));
+    }
 
+    function showPhotoViewer(name, ext, src, sizeKb) {
         const viewerContent = `
             <div style="display:flex;flex-direction:column;height:100%;background:rgba(0,0,0,0.92);">
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
                     <span style="color:#ddd;font-size:13px;">${name}</span>
                 </div>
                 <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:20px;overflow:hidden;">
-                    <img src="${content}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:4px;" alt="${name}">
+                    <img src="${src}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:4px;" alt="${name}">
                 </div>
-                <div style="text-align:center;padding:8px;color:#666;font-size:11px;">${ext.toUpperCase()} &middot; ${(new Blob([content]).size / 1024).toFixed(1)} KB</div>
+                <div style="text-align:center;padding:8px;color:#666;font-size:11px;">${ext.toUpperCase()} &middot; ${sizeKb} KB</div>
             </div>
         `;
 

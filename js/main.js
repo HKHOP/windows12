@@ -202,13 +202,27 @@ function setupScreenshotCapture() {
 
             const dataUrl = canvas.toDataURL('image/png');
             const picturesPath = ['/', 'users', 'default', 'Pictures'];
-            FileSystem.createFile(picturesPath, fileName, dataUrl, 'png');
-
-            const toast = document.createElement('div');
-            toast.style.cssText = 'position:fixed;bottom:60px;right:20px;background:var(--window-bg);border:1px solid var(--window-border);border-radius:8px;padding:12px 20px;font-size:13px;color:var(--text-primary);box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:99999;display:flex;align-items:center;gap:10px;animation:windowOpen 0.2s ease-out;';
-            toast.innerHTML = `<span style="font-size:18px;">📸</span><div><div style="font-weight:500;">Screenshot saved</div><div style="font-size:11px;color:var(--text-secondary);">Pictures/${fileName}</div></div>`;
-            document.body.appendChild(toast);
-            setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 2500);
+            // Screenshots can exceed the localStorage budget — store raw
+            // bytes in the blob store, falling back to inline on failure.
+            canvas.toBlob(async (blob) => {
+                let saved = false;
+                if (blob) {
+                    try { saved = await FileSystem.writeFileBlob(picturesPath, fileName, blob, 'png'); } catch (e) { saved = false; }
+                }
+                if (!saved) {
+                    saved = FileSystem.createFile(picturesPath, fileName, dataUrl, 'png');
+                    FileSystem.flush();
+                }
+                showScreenshotToast(fileName, saved);
+            }, 'image/png');
         }
     });
+}
+
+function showScreenshotToast(fileName, saved) {
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;bottom:60px;right:20px;background:var(--window-bg);border:1px solid var(--window-border);border-radius:8px;padding:12px 20px;font-size:13px;color:var(--text-primary);box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:99999;display:flex;align-items:center;gap:10px;animation:windowOpen 0.2s ease-out;';
+    toast.innerHTML = `<span style="font-size:18px;">📸</span><div><div style="font-weight:500;">${saved ? 'Screenshot saved' : 'Screenshot failed (disk full)'}</div><div style="font-size:11px;color:var(--text-secondary);">Pictures/${fileName}</div></div>`;
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 2500);
 }

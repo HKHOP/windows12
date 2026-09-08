@@ -4,6 +4,19 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4770] - 2026-09-08
+
+### Added
+- IndexedDB blob store (`js/modules/blobStore.js`) for large files — raw bytes under the real origin quota instead of the ~5MB localStorage cap, no chunking needed
+- FileSystem blob API — `writeFileBlob` / `readFileBlob` / `isBlobFile` with tiny pointer records; recycle, restore, and permanent delete handle blob bytes without duplication
+
+### Changed
+- Music Spark WAV exports, Media Player sample tracks, and screenshots now store raw bytes in the blob store
+- File Explorer opens blob-backed audio/video/images (double-click and Photos viewer included)
+
+### Fixed
+- Recycle Bin restore, which never worked — it stored the file's own path instead of the parent folder, so every restore silently discarded the file
+
 ## [12.0.4760] - 2026-09-08
 
 ### Added

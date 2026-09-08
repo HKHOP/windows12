@@ -1370,28 +1370,23 @@ const MusicSpark = (() => {
         await Popup.info('Rendering', 'Rendering audio to WAV (mixer + FX included). This takes a few seconds...');
         try {
             const buf = await renderAudio(st, mode);
-            const url = wavToDataUrl(buf);
             const safe = name.replace(/[\\/:*?"<>|]/g, '').slice(0, 40) || 'beat';
             const fileName = safe.endsWith('.wav') ? safe : safe + '.wav';
-            // Base64 inflates ~4/3 on top of the raw bytes (plus JSON overhead).
-            const approxBytes = Math.ceil(buf.byteLength * 4 / 3) + 256;
+            const mb = (buf.byteLength / 1048576).toFixed(1);
+            // Stored as raw bytes in the IndexedDB blob store — no base64
+            // inflation, no localStorage quota involved.
+            const blob = new Blob([buf], { type: 'audio/wav' });
             const target = [...MUSIC_DIR, fileName];
-            if (!FileSystem.wouldFit(approxBytes)) {
-                const dl = await Popup.confirm('Too large for Music folder',
-                    `"${fileName}" is about ${(approxBytes / 1048576).toFixed(1)} MB — larger than the virtual disk budget. Download it straight to your device instead?`);
+            if (FileSystem.itemExists(target)) FileSystem.permanentDelete(target);
+            const ok = await FileSystem.writeFileBlob(MUSIC_DIR, fileName, blob, 'wav');
+            if (!ok) {
+                const dl = await Popup.confirm('Music folder full',
+                    `"${fileName}" is about ${mb} MB and could not be stored on the virtual disk. Download it straight to your device instead?`);
                 if (dl) downloadWav(buf, fileName);
                 return;
             }
-            if (FileSystem.itemExists(target)) FileSystem.writeFile(target, url);
-            else FileSystem.createFile(MUSIC_DIR, fileName, url, 'wav');
-            if (!FileSystem.flush()) {
-                // Roll back the in-memory entry (permanent: never park a
-                // multi-MB file in the Recycle Bin) and report honestly.
-                FileSystem.permanentDelete(target);
-                await Popup.error('Export failed', 'The virtual disk is full — nothing was saved. Try the download option or delete files to free space.');
-                return;
-            }
-            await Popup.info('Exported', `Saved to Music/${fileName}. Open it from File Explorer.`);
+            FileSystem.flush();
+            await Popup.info('Exported', `Saved to Music/${fileName} (${mb} MB). Open it from File Explorer.`);
         } catch (e) {
             await Popup.error('Export failed', 'Rendering failed: ' + (e && e.message ? e.message : e));
         }

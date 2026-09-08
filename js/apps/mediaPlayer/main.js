@@ -111,9 +111,15 @@ const MediaPlayer = (() => {
             const ext = extOf(k.name);
             const kind = kindOf(ext);
             if (!kind) return;
+            const key = p.join('/');
+            if (FileSystem.isBlobFile(p)) {
+                // Large file: src resolves lazily to an object URL at play time.
+                out.push({ key, name: k.name.replace(/\.[^.]+$/, ''), src: null, kind, blob: true });
+                return;
+            }
             const content = FileSystem.readFile(p);
             if (content == null) return;
-            out.push({ key: p.join('/'), name: k.name.replace(/\.[^.]+$/, ''), src: content, kind });
+            out.push({ key, name: k.name.replace(/\.[^.]+$/, ''), src: content, kind });
         });
     }
     function scanLibrary() {
@@ -122,6 +128,33 @@ const MediaPlayer = (() => {
         walkPlayable(VIDEO_DIR, out);
         out.sort((a, b) => a.name.localeCompare(b.name));
         return out;
+    }
+    // Resolve a playable src for an item (object URL for blob files, cached
+    // per item and revoked on window teardown). Returns Promise<string|null>.
+    async function itemSrc(item) {
+        if (!item) return null;
+        if (item.src) return item.src;
+        if (item._objUrl) return item._objUrl;
+        if (item.blob && item.key && !item.key.startsWith('url:')) {
+            try {
+                const blob = await FileSystem.readFileBlob(item.key.split('/'));
+                if (!blob) return null;
+                item._objUrl = URL.createObjectURL(blob);
+                return item._objUrl;
+            } catch (e) { return null; }
+        }
+        return null;
+    }
+    async function resolveSrc(s, it) {
+        return itemSrc(it);
+    }
+    function revokeItemUrls(items) {
+        (items || []).forEach(it => {
+            if (it._objUrl) {
+                try { URL.revokeObjectURL(it._objUrl); } catch (e) { /* noop */ }
+                it._objUrl = null;
+            }
+        });
     }
     function resolveItems(st, slimList) {
         // Re-attach src to persisted items (library files may have changed).
@@ -142,20 +175,23 @@ const MediaPlayer = (() => {
     function probeDuration(item, st, onDone) {
         if (!item || item.url) { onDone(null); return; }
         if (st.durations[item.key]) { onDone(st.durations[item.key]); return; }
-        try {
-            const el = document.createElement(item.kind === 'video' ? 'video' : 'audio');
-            el.preload = 'metadata';
-            const to = setTimeout(() => { el.src = ''; onDone(null); }, 8000);
-            el.onloadedmetadata = () => {
-                clearTimeout(to);
-                const d = Number.isFinite(el.duration) ? Math.round(el.duration) : null;
-                if (d) { st.durations[item.key] = d; saveState(st); }
-                el.src = '';
-                onDone(d);
-            };
-            el.onerror = () => { clearTimeout(to); onDone(null); };
-            el.src = item.src;
-        } catch (e) { onDone(null); }
+        itemSrc(item).then(src => {
+            if (!src) { onDone(null); return; }
+            try {
+                const el = document.createElement(item.kind === 'video' ? 'video' : 'audio');
+                el.preload = 'metadata';
+                const to = setTimeout(() => { el.removeAttribute('src'); onDone(null); }, 8000);
+                el.onloadedmetadata = () => {
+                    clearTimeout(to);
+                    const d = Number.isFinite(el.duration) ? Math.round(el.duration) : null;
+                    if (d) { st.durations[item.key] = d; saveState(st); }
+                    el.removeAttribute('src');
+                    onDone(d);
+                };
+                el.onerror = () => { clearTimeout(to); onDone(null); };
+                el.src = src;
+            } catch (e) { onDone(null); }
+        });
     }
 
     // ---------------- sample music (generative demo tracks) ----------------
@@ -262,16 +298,11 @@ const MediaPlayer = (() => {
             try {
                 if (FileSystem.itemExists([...MUSIC_DIR, d.file])) continue;
                 const url = await renderDemoTrack(d.opts);
-                if (!FileSystem.wouldFit(url.length + 256)) continue;
-                if (!FileSystem.createFile(MUSIC_DIR, d.file, url, 'wav')) continue;
-                if (!FileSystem.flush()) {
-                    // Never leave an unpersistable giant in memory.
-                    FileSystem.permanentDelete([...MUSIC_DIR, d.file]);
-                    continue;
-                }
-                created++;
+                const blob = await (await fetch(url)).blob();
+                if (await FileSystem.writeFileBlob(MUSIC_DIR, d.file, blob, 'wav')) created++;
             } catch (e) { /* quota or render failure — skip silently */ }
         }
+        FileSystem.flush();
         onDone(created > 0);
     }
 
@@ -425,7 +456,7 @@ const MediaPlayer = (() => {
         if (el) el.textContent = msg;
     }
 
-    function playIndex(s, i, opts) {
+    async function playIndex(s, i, opts) {
         if (s.dead) return;
         opts = opts || {};
         const st = s.st;
@@ -435,7 +466,19 @@ const MediaPlayer = (() => {
         ensureAudioGraph(s);
         try { s.media.pause(); } catch (e) { /* noop */ }
         s.media.playbackRate = st.speed;
-        s.media.src = it.src;
+        const src = await resolveSrc(s, it);
+        if (s.dead) return;
+        if (!src) {
+            s.media.removeAttribute('src');
+            try { s.media.load(); } catch (e) { /* noop */ }
+            s.errStreak = (s.errStreak || 0) + 1;
+            if (s.errStreak === 1) {
+                Popup.error('Playback failed', `Could not load "${it.name}". The file may have been moved or deleted.`);
+            }
+            playNext(s, 1);
+            return;
+        }
+        s.media.src = src;
         const resumeAt = (!opts.fresh && it.key && st.resume[it.key]) ? st.resume[it.key] : 0;
         const go = () => {
             if (resumeAt > 5) {
@@ -1071,6 +1114,8 @@ const MediaPlayer = (() => {
             s.media.removeAttribute('src');
             s.media.load();
         } catch (e) { /* noop */ }
+        revokeItemUrls(s.st.queue);
+        revokeItemUrls(s.lib);
         if (s.actx) {
             try { s.actx.close().catch(() => { /* noop */ }); } catch (e) { /* noop */ }
             s.actx = null;
@@ -1094,7 +1139,15 @@ const MediaPlayer = (() => {
             return;
         }
         const st = loadState();
-        const item = { key: path.join('/'), name: name.replace(/\.[^.]+$/, ''), src: content, kind };
+        const key = path.join('/');
+        // content is null for blob-backed files (readFile skips them);
+        // the blob flag lets playback resolve an object URL lazily.
+        const isBlob = content == null && FileSystem.isBlobFile(path);
+        if (content == null && !isBlob) {
+            Popup.error('Media Player', `Could not read "${name}".`);
+            return;
+        }
+        const item = { key, name: name.replace(/\.[^.]+$/, ''), src: content || null, kind, blob: isBlob || undefined };
         const win = openWindow(st);
         const s = win._mp;
         s.lib = scanLibrary();

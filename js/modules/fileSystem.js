@@ -1,3 +1,5 @@
+import BlobStore from './blobStore.js';
+
 const FileSystem = (() => {
     let root = {};
     let saveTimeout = null;
@@ -164,7 +166,8 @@ const FileSystem = (() => {
             type: item.type,
             ext: item.ext || '',
             modified: item.modified || 0,
-            size: item.content ? item.content.length : 0
+            size: item.size ?? (item.content ? item.content.length : 0),
+            blob: !!item.blobRef
         }));
     }
 
@@ -189,7 +192,55 @@ const FileSystem = (() => {
     function readFile(path) {
         const node = getNode(path);
         if (!node || node.type !== 'file') return null;
-        return node.content;
+        // Blob-backed files have no inline content — use readFileBlob().
+        if (node.blobRef) return null;
+        return node.content ?? null;
+    }
+
+    function isBlobFile(path) {
+        const node = getNode(path);
+        return !!node && node.type === 'file' && !!node.blobRef;
+    }
+
+    function dropBlob(ref) {
+        if (!ref) return;
+        BlobStore.del(ref).catch(() => { /* best effort cleanup */ });
+    }
+
+    function newBlobRef() {
+        return 'blob_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e9).toString(36);
+    }
+
+    // Store a large file (audio, video, images) as raw bytes in IndexedDB.
+    // The tree keeps a tiny pointer, so localStorage never sees the bulk.
+    // Returns Promise<boolean> — false means missing IDB support or quota.
+    async function writeFileBlob(path, name, blob, ext = '') {
+        const parent = getNode(path);
+        if (!parent || parent.type !== 'folder') return false;
+        if (!(blob instanceof Blob)) return false;
+        const ref = newBlobRef();
+        try {
+            await BlobStore.put(ref, blob);
+        } catch (e) {
+            return false;
+        }
+        const existing = parent.children[name];
+        if (existing && existing.type === 'file' && existing.blobRef && existing.blobRef !== ref) {
+            dropBlob(existing.blobRef);
+        }
+        parent.children[name] = { type: 'file', name, ext, modified: Date.now(), blobRef: ref, size: blob.size };
+        save();
+        return true;
+    }
+
+    async function readFileBlob(path) {
+        const node = getNode(path);
+        if (!node || node.type !== 'file' || !node.blobRef) return null;
+        try {
+            return await BlobStore.get(node.blobRef);
+        } catch (e) {
+            return null;
+        }
     }
 
     function writeFile(path, content) {
@@ -218,7 +269,7 @@ const FileSystem = (() => {
             recycleBin.children[recycleName] = JSON.parse(JSON.stringify(item));
             recycleBin.children[recycleName].name = recycleName;
             recycleBin.children[recycleName].originalName = name;
-            recycleBin.children[recycleName].originalPath = path.join('/');
+            recycleBin.children[recycleName].originalPath = parentPath.join('/');
             recycleBin.children[recycleName].deletedAt = timestamp;
         }
 
@@ -234,6 +285,8 @@ const FileSystem = (() => {
         const parent = getNode(parentPath);
         if (!parent || parent.type !== 'folder') return false;
         if (!parent.children[name]) return false;
+        const item = parent.children[name];
+        if (item.blobRef) dropBlob(item.blobRef);
         delete parent.children[name];
         save();
         return true;
@@ -267,6 +320,9 @@ const FileSystem = (() => {
     function emptyRecycleBin() {
         const recycleBin = getNode(RECYCLE_BIN_PATH);
         if (!recycleBin) return false;
+        Object.values(recycleBin.children).forEach(item => {
+            if (item && item.blobRef) dropBlob(item.blobRef);
+        });
         recycleBin.children = {};
         save();
         return true;
@@ -280,7 +336,7 @@ const FileSystem = (() => {
             type: item.type,
             ext: item.ext || '',
             modified: item.deletedAt || item.modified || 0,
-            size: item.content ? item.content.length : 0,
+            size: item.size ?? (item.content ? item.content.length : 0),
             recycleKey: key,
             originalPath: item.originalPath || ''
         }));
@@ -329,7 +385,7 @@ const FileSystem = (() => {
         return node !== null && node.type === 'folder';
     }
 
-    return { init, save, flush, serializedSize, wouldFit, getNode, getChildren, createFolder, createFile, readFile, writeFile, deleteItem, permanentDelete, restoreFromRecycleBin, emptyRecycleBin, getRecycleBinContent, renameItem, moveItem, itemExists, isFolder };
+    return { init, save, flush, serializedSize, wouldFit, getNode, getChildren, createFolder, createFile, readFile, writeFile, writeFileBlob, readFileBlob, isBlobFile, deleteItem, permanentDelete, restoreFromRecycleBin, emptyRecycleBin, getRecycleBinContent, renameItem, moveItem, itemExists, isFolder };
 })();
 
 window._FileSystem = FileSystem;
