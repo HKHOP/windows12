@@ -22,27 +22,13 @@ const AppRegistry = (() => {
 })();
 
 const AppMetadata = (() => {
-    const names = {
-        fileExplorer: 'File Explorer',
-        settings: 'Settings',
-        notepad: 'Notepad',
-        calendar: 'Calendar',
-        taskManager: 'Task Manager',
-        photos: 'Photos',
-        calculator: 'Calculator',
-        clock: 'Clock',
-        paint: 'Paint',
-        browser: 'Browser',
-        appStore: 'Microsoft Store',
-        terminal: 'Terminal',
-        sampleApp: 'Sample App',
-        vscode: 'Visual Studio Code',
-        export: 'Ex/port',
-        words: 'Words',
-        sledgePoint: 'Sledge Point',
-        cellESheet: 'Cell ESheet',
-        musicSpark: 'Music Spark'
-    };
+    // Populated from app manifests at boot via setNames() (see appLoader.js).
+    // Falls back to the raw id for anything not yet registered.
+    let names = {};
+
+    function setNames(map) {
+        names = { ...map };
+    }
 
     const fallbackIcon = `<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="2" fill="#666"/></svg>`;
 
@@ -61,7 +47,7 @@ const AppMetadata = (() => {
         return result;
     }
 
-    return { get, getAll };
+    return { get, getAll, setNames };
 })();
 
 const Taskbar = (() => {

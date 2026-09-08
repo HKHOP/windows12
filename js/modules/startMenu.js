@@ -4,6 +4,7 @@ import UserActivity from './userActivity.js';
 import FileSystem from './fileSystem.js';
 import SystemConfig from '../modules/systemConfig.js';
 import AppSystem from './appSystem.js';
+import AppLoader from './appLoader.js';
 
 const StartMenu = (() => {
     let pinnedApps = [];
@@ -18,27 +19,16 @@ const StartMenu = (() => {
         { id: 'photos', name: 'Photos' }
     ];
 
-    const allApps = [
-        { id: 'appStore', name: 'Microsoft Store' },
-        { id: 'browser', name: 'Browser' },
-        { id: 'calculator', name: 'Calculator' },
-        { id: 'calendar', name: 'Calendar' },
-        { id: 'clock', name: 'Clock' },
-        { id: 'export', name: 'Ex/port' },
-        { id: 'fileExplorer', name: 'File Explorer' },
-        { id: 'musicSpark', name: 'Music Spark' },
-        { id: 'notepad', name: 'Notepad' },
-        { id: 'paint', name: 'Paint' },
-        { id: 'photos', name: 'Photos' },
-        { id: 'sampleApp', name: 'Sample App' },
-        { id: 'settings', name: 'Settings' },
-        { id: 'taskManager', name: 'Task Manager' },
-        { id: 'terminal', name: 'Terminal' },
-        { id: 'vscode', name: 'Visual Studio Code' },
-        { id: 'words', name: 'Words' },
-        { id: 'sledgePoint', name: 'Sledge Point' },
-        { id: 'cellESheet', name: 'Cell ESheet' }
-    ];
+    // Built from app manifests (see js/apps/*/manifest.json). Store apps are
+    // hidden until installed; builtin apps always show.
+    const allApps = AppLoader.getAll()
+        .map(m => ({ id: m.id, name: m.name }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+    function isStoreApp(appId) {
+        const man = AppLoader.getManifest(appId);
+        return !!man && man.distribution === 'store';
+    }
 
     let currentView = 'main';
     let sections = [];
@@ -343,9 +333,8 @@ const StartMenu = (() => {
         drawer.appendChild(header);
 
         const installed = AppSystem.getInstalledApps();
-        const userApps = ['sampleApp', 'vscode', 'export', 'words', 'sledgePoint', 'cellESheet', 'musicSpark'];
         const filteredApps = allApps.filter(app => {
-            if (userApps.includes(app.id)) return installed.includes(app.id);
+            if (isStoreApp(app.id)) return installed.includes(app.id);
             return true;
         });
 
@@ -386,8 +375,7 @@ const StartMenu = (() => {
                     e.stopPropagation();
                     const pinned = isPinned(app.id);
                     const taskbarPinned = Taskbar.isPinned(app.id);
-                    const userAppList = ['sampleApp', 'vscode', 'export', 'words', 'sledgePoint', 'cellESheet', 'musicSpark'];
-                    const isUserApp = userAppList.includes(app.id);
+                    const isUserApp = isStoreApp(app.id);
                     const items = [
                         { label: app.name, icon: '', disabled: true },
                         'separator',
@@ -434,10 +422,9 @@ const StartMenu = (() => {
         if (!container) return;
         container.innerHTML = '';
         const installed = AppSystem.getInstalledApps();
-        const userApps = ['sampleApp', 'vscode', 'export', 'words', 'sledgePoint', 'cellESheet', 'musicSpark'];
 
         const activePinned = pinnedApps.filter(appId => {
-            if (userApps.includes(appId)) return installed.includes(appId);
+            if (isStoreApp(appId)) return installed.includes(appId);
             return true;
         });
 
@@ -459,7 +446,7 @@ const StartMenu = (() => {
             el.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const isUserApp = userApps.includes(appId);
+                const isUserApp = isStoreApp(appId);
                 const taskbarPinned = Taskbar.isPinned(appId);
                 const items = [
                     { label: meta.name, icon: '', disabled: true },

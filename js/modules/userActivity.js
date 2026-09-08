@@ -1,4 +1,5 @@
 import AppIcons from './appIcons.js';
+import { AppMetadata } from './taskbar.js';
 
 const UserActivity = (() => {
     const MAX_RECENT = 6;
@@ -94,19 +95,7 @@ const UserActivity = (() => {
     }
 
     function getAppName(id) {
-        const names = {
-            settings: 'Settings',
-            notepad: 'Notepad',
-            fileExplorer: 'File Explorer',
-            photos: 'Photos',
-            calendar: 'Calendar',
-            calculator: 'Calculator',
-            clock: 'Clock',
-            paint: 'Paint',
-            taskManager: 'Task Manager',
-            browser: 'Browser'
-        };
-        return names[id] || id;
+        return AppMetadata.get(id).name;
     }
 
     function getAppIcon(id) {

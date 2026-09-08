@@ -1,5 +1,5 @@
 import WindowManager from './modules/windowManager.js';
-import { Taskbar, AppRegistry, AppMetadata } from './modules/taskbar.js';
+import { Taskbar } from './modules/taskbar.js';
 import StartMenu from './modules/startMenu.js';
 import ContextMenu from './modules/contextMenu.js';
 import FileSystem from './modules/fileSystem.js';
@@ -8,34 +8,9 @@ import SystemConfig from './modules/systemConfig.js';
 import Scaling from './modules/scaling.js';
 import Touch from './modules/touch.js';
 import DesktopIcons from './modules/desktopIcons.js';
-import Settings from './apps/settings.js';
-import Notepad from './apps/notepad.js';
-import FileExplorer from './apps/fileExplorer.js';
-import TaskManager from './apps/taskManager.js';
-import Photos from './apps/photos.js';
-import Calendar from './apps/calendar.js';
-import Calculator from './apps/calculator.js';
-import Clock from './apps/clock.js';
-import Paint from './apps/paint.js';
-import Browser from './apps/browser.js';
-import Terminal from './apps/terminal.js';
-import AppStore from './apps/appStore.js';
 import AppSystem from './modules/appSystem.js';
 import WindowsUpdate from './modules/windowsUpdate.js';
 import Search from './modules/search.js';
-
-AppRegistry.register('settings', Settings);
-AppRegistry.register('notepad', Notepad);
-AppRegistry.register('fileExplorer', FileExplorer);
-AppRegistry.register('taskManager', TaskManager);
-AppRegistry.register('photos', Photos);
-AppRegistry.register('calendar', Calendar);
-AppRegistry.register('calculator', Calculator);
-AppRegistry.register('clock', Clock);
-AppRegistry.register('paint', Paint);
-AppRegistry.register('browser', Browser);
-AppRegistry.register('terminal', Terminal);
-AppRegistry.register('appStore', AppStore);
 
 AppSystem.init();
 

@@ -2,7 +2,7 @@ import FileSystem from './fileSystem.js';
 import ContextMenu from './contextMenu.js';
 import WindowManager from './windowManager.js';
 import UserActivity from './userActivity.js';
-import FileExplorer from '../apps/fileExplorer.js';
+import { AppRegistry } from './taskbar.js';
 import Popup from './popup.js';
 import Scaling from './scaling.js';
 import Sounds from './sounds.js';
@@ -346,7 +346,8 @@ const DesktopIcons = (() => {
             }
             WindowManager.focusWindow(win.id);
         } else {
-            FileExplorer.launch();
+            const explorer = AppRegistry.get('fileExplorer');
+            if (explorer) explorer.launch();
         }
     }
 
