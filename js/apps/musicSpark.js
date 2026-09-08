@@ -21,11 +21,59 @@ const MusicSpark = (() => {
         { id: 'perc', name: 'Perc', color: '#f48fb1' },
         { id: 'shaker', name: 'Shaker', color: '#a1887f' }
     ];
+    const ALL_TRACKS = [...DRUMS.map(t => t.id), 'lead', 'bass'];
+    const TRACK_META = {};
+    DRUMS.forEach(t => { TRACK_META[t.id] = { name: t.name, color: t.color }; });
+    TRACK_META.lead = { name: 'Lead', color: '#7bff9e' };
+    TRACK_META.bass = { name: '808 Bass', color: '#ff9100' };
 
-    // Piano roll range: C4 (60) .. C6 (84), displayed high -> low
+    // Piano roll range: C4 (60) .. C6 (84), displayed high -> low.
+    // Bass layer is entered here but sounds 2 octaves lower.
     const LOW_MIDI = 60;
     const HIGH_MIDI = 84;
+    const BASS_OCTAVES_DOWN = 2;
     const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const VEL_STEPS = [0.8, 1.0, 0.45];
+
+    // ---------------- drum kits ----------------
+    const KIT_DEFAULT = {
+        kick: { f0: 160, f1: 42, dur: 0.45, vol: 1 },
+        snare: { tone: 190, noise: 1800, vol: 1 },
+        clap: { freq: 1300, vol: 1 },
+        chat: { freq: 7500, dur: 0.06, vol: 0.7 },
+        ohat: { freq: 6800, dur: 0.35, vol: 0.7 },
+        tom: { f0: 220, f1: 85, dur: 0.3, vol: 1 },
+        perc: { f0: 840, f1: 420, dur: 0.09, vol: 0.8 },
+        shaker: { freq: 6000, dur: 0.12, vol: 0.6 }
+    };
+    const KITS = {
+        studio: { name: 'Studio', p: {} },
+        tr808: {
+            name: 'TR-808', p: {
+                kick: { f0: 110, f1: 38, dur: 0.6 }, snare: { tone: 170, noise: 1500 },
+                chat: { freq: 8000, dur: 0.05 }, ohat: { freq: 7500, dur: 0.5 },
+                tom: { f0: 160, f1: 60, dur: 0.4 }
+            }
+        },
+        lofi: {
+            name: 'Lo-Fi', p: {
+                kick: { f0: 130, f1: 45, dur: 0.35, vol: 0.9 }, snare: { tone: 180, noise: 1200, vol: 0.85 },
+                chat: { freq: 5500, dur: 0.07, vol: 0.55 }, ohat: { freq: 5000, dur: 0.3, vol: 0.55 },
+                perc: { f0: 700, f1: 380, vol: 0.7 }, shaker: { freq: 4800, vol: 0.5 }
+            }
+        },
+        acoustic: {
+            name: 'Acoustic', p: {
+                kick: { f0: 150, f1: 50, dur: 0.3 }, snare: { tone: 220, noise: 2200 },
+                clap: { freq: 1600 }, chat: { freq: 9000, dur: 0.045, vol: 0.6 },
+                ohat: { freq: 8500, dur: 0.25, vol: 0.6 }, tom: { f0: 260, f1: 110, dur: 0.25 },
+                perc: { f0: 900, f1: 500 }
+            }
+        }
+    };
+    function kitParams(id, kit) {
+        return Object.assign({}, KIT_DEFAULT[id], ((KITS[kit] && KITS[kit].p[id]) || {}));
+    }
 
     function noteName(midi) {
         return NOTE_NAMES[midi % 12] + (Math.floor(midi / 12) - 1);
@@ -46,20 +94,33 @@ const MusicSpark = (() => {
         DRUMS.forEach(t => { d[t.id] = new Array(16).fill(false); });
         return d;
     }
-    function emptyPiano() {
+    function emptyVel() {
+        const v = {};
+        DRUMS.forEach(t => { v[t.id] = new Array(16).fill(0.8); });
+        return v;
+    }
+    function emptyLayer() {
         const p = {};
         for (let m = LOW_MIDI; m <= HIGH_MIDI; m++) p[m] = new Array(16).fill(false);
         return p;
     }
     function emptyPattern() {
-        return { drums: emptyDrums(), piano: emptyPiano() };
+        return { drums: emptyDrums(), vel: emptyVel(), lead: emptyLayer(), bass: emptyLayer(), len: { lead: {}, bass: {} } };
     }
     function defaultTrackVol() {
         const v = {};
         DRUMS.forEach(t => { v[t.id] = 0.8; });
-        v.piano = 0.8;
+        v.lead = 0.8;
+        v.bass = 0.85;
         v.master = 0.9;
         return v;
+    }
+    function defaultFx() {
+        const f = {};
+        ALL_TRACKS.forEach(id => {
+            f[id] = { delay: 0, reverb: (id === 'snare' || id === 'clap' || id === 'lead') ? 0.25 : 0.1, cutoff: 18000 };
+        });
+        return f;
     }
     function blankState() {
         return {
@@ -68,21 +129,28 @@ const MusicSpark = (() => {
             bpm: 128,
             swing: 0,
             metronome: false,
+            kit: 'studio',
             pianoWave: 'sawtooth',
+            bassWave: 'sine',
             currentPattern: 0,
             patterns: [emptyPattern(), emptyPattern(), emptyPattern(), emptyPattern()],
+            arrangement: [0],
+            songMode: false,
+            songLoop: true,
             trackVol: defaultTrackVol(),
             trackMute: {},
             trackSolo: {},
+            fx: defaultFx(),
             playing: false,
             step: 0,
             view: 'step',
+            pianoLayer: 'lead',
             dirty: false
         };
     }
 
     const PRESETS = {
-        'Empty': () => [emptyPattern(), emptyPattern(), emptyPattern(), emptyPattern()],
+        'Empty': () => ({ patterns: [emptyPattern(), emptyPattern(), emptyPattern(), emptyPattern()], bpm: 128, kit: 'studio' }),
         'Hip-Hop 90': () => {
             const p = emptyPattern();
             [0, 7, 8].forEach(s => { p.drums.kick[s] = true; });
@@ -90,7 +158,9 @@ const MusicSpark = (() => {
             for (let s = 0; s < 16; s += 2) p.drums.chat[s] = true;
             p.drums.ohat[14] = true;
             p.drums.perc[3] = true; p.drums.perc[11] = true;
-            return [p, emptyPattern(), emptyPattern(), emptyPattern()];
+            p.bass[69][0] = true; p.bass[69][7] = true; p.bass[65][8] = true;
+            p.len.bass['69:0'] = 3; p.len.bass['65:8'] = 3;
+            return { patterns: [p, emptyPattern(), emptyPattern(), emptyPattern()], bpm: 90, kit: 'studio' };
         },
         'Trap': () => {
             const p = emptyPattern();
@@ -100,7 +170,9 @@ const MusicSpark = (() => {
             p.drums.ohat[7] = true;
             p.drums.tom[15] = true;
             p.drums.shaker[2] = true; p.drums.shaker[6] = true; p.drums.shaker[10] = true; p.drums.shaker[14] = true;
-            return [p, emptyPattern(), emptyPattern(), emptyPattern()];
+            p.bass[65][0] = true; p.bass[65][6] = true; p.bass[63][8] = true; p.bass[63][10] = true;
+            p.len.bass['65:0'] = 2; p.len.bass['63:8'] = 2;
+            return { patterns: [p, emptyPattern(), emptyPattern(), emptyPattern()], bpm: 140, kit: 'tr808' };
         },
         'House': () => {
             const p = emptyPattern();
@@ -109,7 +181,8 @@ const MusicSpark = (() => {
             for (let s = 2; s < 16; s += 4) p.drums.ohat[s] = true;
             for (let s = 0; s < 16; s++) p.drums.chat[s] = s % 4 !== 2;
             p.drums.shaker[1] = true; p.drums.shaker[5] = true; p.drums.shaker[9] = true; p.drums.shaker[13] = true;
-            return [p, emptyPattern(), emptyPattern(), emptyPattern()];
+            [2, 6, 10, 14].forEach((s, i) => { const n = [69, 69, 67, 65][i]; p.bass[n][s] = true; });
+            return { patterns: [p, emptyPattern(), emptyPattern(), emptyPattern()], bpm: 124, kit: 'studio' };
         },
         'Techno': () => {
             const p = emptyPattern();
@@ -118,7 +191,9 @@ const MusicSpark = (() => {
             [4, 12].forEach(s => { p.drums.snare[s] = true; });
             p.drums.perc[3] = true; p.drums.perc[7] = true; p.drums.perc[11] = true; p.drums.perc[15] = true;
             p.drums.tom[0] = true; p.drums.tom[8] = true;
-            return [p, emptyPattern(), emptyPattern(), emptyPattern()];
+            for (let s = 0; s < 16; s += 2) p.bass[62][s] = true;
+            p.drums.kick.forEach((v, s) => { if (v) p.vel.kick[s] = 1.0; });
+            return { patterns: [p, emptyPattern(), emptyPattern(), emptyPattern()], bpm: 132, kit: 'tr808' };
         },
         'Boom Bap + Keys': () => {
             const p = emptyPattern();
@@ -126,12 +201,44 @@ const MusicSpark = (() => {
             [4, 12].forEach(s => { p.drums.snare[s] = true; });
             for (let s = 0; s < 16; s += 2) p.drums.chat[s] = true;
             p.drums.shaker[4] = true; p.drums.shaker[12] = true;
-            // Am - F - C - G-ish stab (A3=57? roll starts at C4=60; use A4=69, F4=65, C5=72.. keep in range)
-            p.piano[69][0] = true; p.piano[72][0] = true; p.piano[76][0] = true;
-            p.piano[65][4] = true; p.piano[69][4] = true; p.piano[72][4] = true;
-            p.piano[72][8] = true; p.piano[76][8] = true; p.piano[79][8] = true;
-            p.piano[67][12] = true; p.piano[71][12] = true; p.piano[74][12] = true;
-            return [p, emptyPattern(), emptyPattern(), emptyPattern()];
+            p.lead[69][0] = true; p.lead[72][0] = true; p.lead[76][0] = true;
+            p.lead[65][4] = true; p.lead[69][4] = true; p.lead[72][4] = true;
+            p.lead[72][8] = true; p.lead[76][8] = true; p.lead[79][8] = true;
+            p.lead[67][12] = true; p.lead[71][12] = true; p.lead[74][12] = true;
+            p.len.lead['69:0'] = 4; p.len.lead['72:0'] = 4; p.len.lead['76:0'] = 4;
+            p.len.lead['65:4'] = 4; p.len.lead['69:4'] = 4; p.len.lead['72:4'] = 4;
+            p.len.lead['72:8'] = 4; p.len.lead['76:8'] = 4; p.len.lead['79:8'] = 4;
+            p.len.lead['67:12'] = 4; p.len.lead['71:12'] = 4; p.len.lead['74:12'] = 4;
+            p.bass[69][0] = true; p.bass[65][4] = true; p.bass[72][8] = true; p.bass[67][12] = true;
+            p.len.bass['69:0'] = 4; p.len.bass['65:4'] = 4; p.len.bass['72:8'] = 4; p.len.bass['67:12'] = 4;
+            const q = emptyPattern();
+            [0, 8].forEach(s => { q.drums.kick[s] = true; });
+            [4, 12].forEach(s => { q.drums.snare[s] = true; });
+            for (let s = 0; s < 16; s += 2) q.drums.chat[s] = true;
+            return { patterns: [p, q, emptyPattern(), emptyPattern()], bpm: 96, kit: 'studio' };
+        },
+        'Drill': () => {
+            const p = emptyPattern();
+            [0, 8, 11].forEach(s => { p.drums.kick[s] = true; });
+            [4, 12].forEach(s => { p.drums.snare[s] = true; });
+            for (let s = 0; s < 16; s += 2) p.drums.chat[s] = true;
+            p.drums.chat[13] = true; p.drums.chat[15] = true;
+            p.drums.ohat[7] = true;
+            p.bass[67][0] = true; p.bass[66][3] = true; p.bass[65][6] = true; p.bass[63][10] = true;
+            p.len.bass['67:0'] = 3; p.len.bass['66:3'] = 2; p.len.bass['65:6'] = 3; p.len.bass['63:10'] = 4;
+            return { patterns: [p, emptyPattern(), emptyPattern(), emptyPattern()], bpm: 140, kit: 'tr808' };
+        },
+        'Lo-Fi': () => {
+            const p = emptyPattern();
+            [0, 7, 8].forEach(s => { p.drums.kick[s] = true; });
+            [4, 12].forEach(s => { p.drums.snare[s] = true; });
+            for (let s = 0; s < 16; s += 2) { if (s % 4 !== 0) p.drums.chat[s] = true; }
+            p.drums.shaker[6] = true; p.drums.shaker[14] = true;
+            [62, 65, 69, 72].forEach(n => { p.lead[n][0] = true; p.len.lead[n + ':0'] = 6; });
+            [67, 71, 74, 77].forEach(n => { if (n <= HIGH_MIDI) { p.lead[n][8] = true; p.len.lead[n + ':8'] = 6; } });
+            p.bass[62][0] = true; p.bass[67][8] = true;
+            p.len.bass['62:0'] = 6; p.len.bass['67:8'] = 6;
+            return { patterns: [p, emptyPattern(), emptyPattern(), emptyPattern()], bpm: 80, kit: 'lofi' };
         }
     };
 
@@ -139,6 +246,8 @@ const MusicSpark = (() => {
     let actx = null;
     let masterGain = null;
     const noiseCache = new WeakMap();
+    const impulseCache = new WeakMap();
+    let clipboard = null;
 
     function ensureCtx() {
         if (!actx) {
@@ -157,6 +266,19 @@ const MusicSpark = (() => {
             const d = buf.getChannelData(0);
             for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
             noiseCache.set(ctx, buf);
+        }
+        return buf;
+    }
+    function getImpulse(ctx) {
+        let buf = impulseCache.get(ctx);
+        if (!buf) {
+            const dur = 1.8, rate = ctx.sampleRate, len = Math.floor(rate * dur);
+            buf = ctx.createBuffer(2, len, rate);
+            for (let c = 0; c < 2; c++) {
+                const d = buf.getChannelData(c);
+                for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.4);
+            }
+            impulseCache.set(ctx, buf);
         }
         return buf;
     }
@@ -183,34 +305,35 @@ const MusicSpark = (() => {
         o.connect(g); g.connect(dest);
         o.start(t); o.stop(t + dur + 0.05);
     }
-    function playDrumOn(ctx, dest, id, t, vol) {
+    function playDrumOn(ctx, dest, id, t, vol, kit) {
         if (vol <= 0.001) return;
+        const kp = kitParams(id, kit || 'studio');
         switch (id) {
             case 'kick':
-                tone(ctx, dest, t, vol, 'sine', 160, 42, 0.45);
+                tone(ctx, dest, t, vol * kp.vol, 'sine', kp.f0, kp.f1, kp.dur);
                 break;
             case 'snare':
-                noiseHit(ctx, dest, t, vol * 0.9, 'bandpass', 1800, 0.2, 0.9);
-                tone(ctx, dest, t, vol * 0.7, 'triangle', 190, 120, 0.12);
+                noiseHit(ctx, dest, t, vol * 0.9 * kp.vol, 'bandpass', kp.noise, 0.2, 0.9);
+                tone(ctx, dest, t, vol * 0.7 * kp.vol, 'triangle', kp.tone, 120, 0.12);
                 break;
             case 'clap':
-                for (let i = 0; i < 3; i++) noiseHit(ctx, dest, t + i * 0.012, vol * (0.6 + i * 0.2), 'bandpass', 1300, 0.12, 1.2);
+                for (let i = 0; i < 3; i++) noiseHit(ctx, dest, t + i * 0.012, vol * (0.6 + i * 0.2) * kp.vol, 'bandpass', kp.freq, 0.12, 1.2);
                 break;
             case 'chat':
-                noiseHit(ctx, dest, t, vol * 0.7, 'highpass', 7500, 0.06, 0.7);
+                noiseHit(ctx, dest, t, vol * kp.vol, 'highpass', kp.freq, kp.dur, 0.7);
                 break;
             case 'ohat':
-                noiseHit(ctx, dest, t, vol * 0.7, 'highpass', 6800, 0.35, 0.7);
+                noiseHit(ctx, dest, t, vol * kp.vol, 'highpass', kp.freq, kp.dur, 0.7);
                 break;
             case 'tom':
-                tone(ctx, dest, t, vol, 'sine', 220, 85, 0.3);
+                tone(ctx, dest, t, vol * kp.vol, 'sine', kp.f0, kp.f1, kp.dur);
                 break;
             case 'perc':
-                tone(ctx, dest, t, vol * 0.8, 'square', 840, 420, 0.09);
-                noiseHit(ctx, dest, t, vol * 0.35, 'highpass', 5000, 0.05, 0.7);
+                tone(ctx, dest, t, vol * kp.vol, 'square', kp.f0, kp.f1, kp.dur);
+                noiseHit(ctx, dest, t, vol * 0.35 * kp.vol, 'highpass', 5000, 0.05, 0.7);
                 break;
             case 'shaker':
-                noiseHit(ctx, dest, t, vol * 0.6, 'highpass', 6000, 0.12, 0.7);
+                noiseHit(ctx, dest, t, vol * kp.vol, 'highpass', kp.freq, kp.dur, 0.7);
                 break;
         }
     }
@@ -229,12 +352,89 @@ const MusicSpark = (() => {
         o.connect(f); f.connect(g); g.connect(dest);
         o.start(t); o.stop(t + dur + 0.05);
     }
+    function playBassOn(ctx, dest, midi, t, dur, vol, wave, fromFreq) {
+        if (vol <= 0.001) return;
+        const f = midiToFreq(midi - BASS_OCTAVES_DOWN * 12);
+        const o = ctx.createOscillator();
+        o.type = wave || 'sine';
+        o.frequency.setValueAtTime(fromFreq || f * 1.6, t);
+        o.frequency.exponentialRampToValueAtTime(Math.max(f, 1), t + 0.06);
+        const sh = ctx.createWaveShaper();
+        const curve = new Float32Array(256);
+        for (let i = 0; i < 256; i++) { const x = i / 255 * 2 - 1; curve[i] = Math.tanh(1.6 * x); }
+        sh.curve = curve;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(Math.max(vol, 0.0011), t + 0.02);
+        g.gain.setValueAtTime(Math.max(vol, 0.0011), t + Math.max(dur - 0.06, 0.02));
+        g.gain.exponentialRampToValueAtTime(0.001, t + dur + 0.08);
+        o.connect(sh); sh.connect(g); g.connect(dest);
+        o.start(t); o.stop(t + dur + 0.15);
+    }
     function clickOn(ctx, dest, t, vol, high) {
         tone(ctx, dest, t, vol, 'square', high ? 2000 : 1400, high ? 2000 : 1400, 0.05);
     }
 
+    // Per-window FX graph: track gain -> filter -> master, plus delay + reverb sends.
+    function buildGraph(ctx, dest, st) {
+        const win = ctx.createGain();
+        win.gain.value = st.trackVol.master ?? 0.9;
+        win.connect(dest);
+        const delay = ctx.createDelay(2.0);
+        delay.delayTime.value = (60 / st.bpm / 4) * 3;
+        const fb = ctx.createGain(); fb.gain.value = 0.35;
+        const delayWet = ctx.createGain(); delayWet.gain.value = 0.9;
+        delay.connect(fb); fb.connect(delay); delay.connect(delayWet); delayWet.connect(win);
+        const verb = ctx.createConvolver(); verb.buffer = getImpulse(ctx);
+        const verbWet = ctx.createGain(); verbWet.gain.value = 1.0;
+        verb.connect(verbWet); verbWet.connect(win);
+        const inputs = {}, filters = {}, dSends = {}, rSends = {};
+        ALL_TRACKS.forEach(id => {
+            const fx = (st.fx && st.fx[id]) || { delay: 0, reverb: 0, cutoff: 18000 };
+            const g = ctx.createGain();
+            const f = ctx.createBiquadFilter();
+            f.type = 'lowpass'; f.frequency.value = fx.cutoff || 18000;
+            const ds = ctx.createGain(); ds.gain.value = fx.delay || 0;
+            const rs = ctx.createGain(); rs.gain.value = fx.reverb || 0;
+            g.connect(f); f.connect(win);
+            g.connect(ds); ds.connect(delay);
+            g.connect(rs); rs.connect(verb);
+            inputs[id] = g; filters[id] = f; dSends[id] = ds; rSends[id] = rs;
+        });
+        return { win, inputs, filters, dSends, rSends, delay };
+    }
+    function ensureLiveGraph(win, st) {
+        if (!st._graph) {
+            ensureCtx();
+            st._graph = buildGraph(actx, masterGain, st);
+        }
+        return st._graph;
+    }
+    function destroyGraph(st) {
+        if (st._graph) {
+            try { st._graph.win.disconnect(); } catch (e) { /* already gone */ }
+            st._graph = null;
+        }
+    }
+    function applyFxToGraph(st) {
+        const g = st._graph;
+        if (!g) return;
+        ALL_TRACKS.forEach(id => {
+            const fx = (st.fx && st.fx[id]) || { delay: 0, reverb: 0, cutoff: 18000 };
+            try {
+                g.filters[id].frequency.value = fx.cutoff || 18000;
+                g.dSends[id].gain.value = fx.delay || 0;
+                g.rSends[id].gain.value = fx.reverb || 0;
+            } catch (e) { /* ctx may be closed */ }
+        });
+        try {
+            g.win.gain.value = st.trackVol.master ?? 0.9;
+            g.delay.delayTime.value = (60 / st.bpm / 4) * 3;
+        } catch (e) { /* ignore */ }
+    }
+
     function trackAudible(st, id) {
-        const anySolo = DRUMS.some(t => st.trackSolo[t.id]) || st.trackSolo.piano;
+        const anySolo = ALL_TRACKS.some(t => st.trackSolo[t]);
         if (st.trackMute[id]) return false;
         if (anySolo) return !!st.trackSolo[id];
         return true;
@@ -248,11 +448,41 @@ const MusicSpark = (() => {
     }
     function serialize(st) {
         return JSON.stringify({
-            app: 'musicSpark', version: 1, name: st.name, bpm: st.bpm, swing: st.swing,
-            metronome: st.metronome, pianoWave: st.pianoWave,
+            app: 'musicSpark', version: 2, name: st.name, bpm: st.bpm, swing: st.swing,
+            metronome: st.metronome, kit: st.kit, pianoWave: st.pianoWave, bassWave: st.bassWave,
+            arrangement: st.arrangement, songMode: st.songMode, songLoop: st.songLoop,
             trackVol: st.trackVol, trackMute: st.trackMute, trackSolo: st.trackSolo,
-            patterns: st.patterns
+            fx: st.fx, patterns: st.patterns
         });
+    }
+    function normalizePattern(src) {
+        const p = emptyPattern();
+        if (!src) return p;
+        DRUMS.forEach(t => {
+            const arr = src.drums?.[t.id];
+            if (Array.isArray(arr) && arr.length === 16) p.drums[t.id] = arr.map(Boolean);
+            const vel = src.vel?.[t.id];
+            if (Array.isArray(vel) && vel.length === 16) {
+                p.vel[t.id] = vel.map(v => (Number.isFinite(v) ? Math.min(1, Math.max(0.1, v)) : 0.8));
+            }
+        });
+        // v1 files stored the melody in `piano`; v2 splits lead/bass
+        const leadSrc = src.lead || src.piano || {};
+        const bassSrc = src.bass || {};
+        for (let m = LOW_MIDI; m <= HIGH_MIDI; m++) {
+            const la = leadSrc[m];
+            if (Array.isArray(la) && la.length === 16) p.lead[m] = la.map(Boolean);
+            const ba = bassSrc[m];
+            if (Array.isArray(ba) && ba.length === 16) p.bass[m] = ba.map(Boolean);
+        }
+        ['lead', 'bass'].forEach(layer => {
+            const l = (src.len && src.len[layer]) || {};
+            Object.keys(l).forEach(k => {
+                const n = parseInt(l[k], 10);
+                if (Number.isFinite(n) && n > 1) p.len[layer][k] = Math.min(16, n);
+            });
+        });
+        return p;
     }
     function deserialize(json) {
         const data = JSON.parse(json);
@@ -261,25 +491,36 @@ const MusicSpark = (() => {
         if (Number.isFinite(data.bpm)) st.bpm = Math.min(220, Math.max(50, data.bpm));
         if (Number.isFinite(data.swing)) st.swing = Math.min(0.5, Math.max(0, data.swing));
         st.metronome = !!data.metronome;
+        if (data.kit && KITS[data.kit]) st.kit = data.kit;
         if (typeof data.pianoWave === 'string') st.pianoWave = data.pianoWave;
-        if (data.trackVol) st.trackVol = Object.assign(defaultTrackVol(), data.trackVol);
+        if (typeof data.bassWave === 'string') st.bassWave = data.bassWave;
+        if (data.trackVol) {
+            const tv = Object.assign(defaultTrackVol(), data.trackVol);
+            if (tv.piano != null && tv.lead == null) tv.lead = tv.piano;
+            delete tv.piano;
+            st.trackVol = tv;
+        }
         if (data.trackMute) st.trackMute = data.trackMute;
         if (data.trackSolo) st.trackSolo = data.trackSolo;
+        if (data.fx) {
+            Object.keys(st.fx).forEach(id => {
+                if (data.fx[id]) st.fx[id] = Object.assign(st.fx[id], data.fx[id]);
+            });
+        }
         if (Array.isArray(data.patterns)) {
             for (let i = 0; i < 4; i++) {
-                const src = data.patterns[i];
-                if (!src) continue;
-                DRUMS.forEach(t => {
-                    if (Array.isArray(src.drums?.[t.id]) && src.drums[t.id].length === 16) {
-                        st.patterns[i].drums[t.id] = src.drums[t.id].map(Boolean);
-                    }
-                });
-                for (let m = LOW_MIDI; m <= HIGH_MIDI; m++) {
-                    const arr = src.piano?.[m];
-                    if (Array.isArray(arr) && arr.length === 16) st.patterns[i].piano[m] = arr.map(Boolean);
-                }
+                if (data.patterns[i]) st.patterns[i] = normalizePattern(data.patterns[i]);
             }
         }
+        if (Array.isArray(data.arrangement) && data.arrangement.length > 0) {
+            st.arrangement = data.arrangement
+                .map(n => parseInt(n, 10))
+                .filter(n => n >= 0 && n <= 3)
+                .slice(0, 64);
+            if (st.arrangement.length === 0) st.arrangement = [0];
+        }
+        st.songMode = !!data.songMode;
+        if (data.songLoop != null) st.songLoop = !!data.songLoop;
         return st;
     }
     let autosaveTimer = null;
@@ -302,7 +543,7 @@ const MusicSpark = (() => {
         return null;
     }
 
-    // ---------------- WAV export ----------------
+    // ---------------- offline render / WAV export ----------------
     function encodeWav(buffers, sampleRate) {
         const ch0 = buffers[0], ch1 = buffers[1] || buffers[0];
         const n = ch0.length;
@@ -332,36 +573,64 @@ const MusicSpark = (() => {
         }
         return 'data:audio/wav;base64,' + btoa(bin);
     }
-    async function renderWav(st, loops) {
-        const sr = 44100;
-        const stepDur = 60 / st.bpm / 4;
-        const totalSteps = 16 * loops;
-        const totalDur = totalSteps * stepDur + 1.2;
-        const off = new OfflineAudioContext(2, Math.ceil(sr * totalDur), sr);
-        const out = off.createGain();
-        out.gain.value = st.trackVol.master ?? 0.9;
-        out.connect(off.destination);
-        const pat = st.patterns[st.currentPattern];
-        for (let s = 0; s < totalSteps; s++) {
-            const step = s % 16;
-            const t = s * stepDur + (step % 2 === 1 ? st.swing * stepDur : 0) + 0.05;
-            DRUMS.forEach(tr => {
-                if (pat.drums[tr.id][step] && trackAudible(st, tr.id)) {
-                    playDrumOn(off, out, tr.id, t, st.trackVol[tr.id] ?? 0.8);
-                }
+    function buildEventList(st, mode) {
+        const events = [];
+        if (mode === 'song') {
+            st.arrangement.forEach((p, bar) => {
+                for (let s = 0; s < 16; s++) events.push({ pat: p, step: s, bar });
             });
-            for (let m = LOW_MIDI; m <= HIGH_MIDI; m++) {
-                if (pat.piano[m][step] && trackAudible(st, 'piano')) {
-                    playPianoOn(off, out, m, t, stepDur * 0.9, st.trackVol.piano ?? 0.8, st.pianoWave);
-                }
+        } else {
+            for (let l = 0; l < 4; l++) {
+                for (let s = 0; s < 16; s++) events.push({ pat: st.currentPattern, step: s, bar: l });
             }
         }
+        return events;
+    }
+    async function renderAudio(st, mode) {
+        const sr = 44100;
+        const stepDur = 60 / st.bpm / 4;
+        let events = buildEventList(st, mode);
+        const MAX_SEC = 150;
+        if (events.length * stepDur > MAX_SEC) {
+            events = events.slice(0, Math.floor(MAX_SEC / stepDur));
+        }
+        const totalDur = events.length * stepDur + 2.5;
+        const off = new OfflineAudioContext(2, Math.ceil(sr * totalDur), sr);
+        const g = buildGraph(off, off.destination, st);
+        g.win.gain.value = st.trackVol.master ?? 0.9;
+        let lastBass = null;
+        events.forEach((ev, i) => {
+            const t = i * stepDur + 0.05 + (ev.step % 2 === 1 ? st.swing * stepDur : 0);
+            const pat = st.patterns[ev.pat];
+            DRUMS.forEach(tr => {
+                if (pat.drums[tr.id][ev.step] && trackAudible(st, tr.id)) {
+                    const vel = (pat.vel[tr.id] && pat.vel[tr.id][ev.step]) || 0.8;
+                    playDrumOn(off, g.inputs[tr.id], tr.id, t, (st.trackVol[tr.id] ?? 0.8) * vel, st.kit);
+                }
+            });
+            ['lead', 'bass'].forEach(layer => {
+                for (let m = LOW_MIDI; m <= HIGH_MIDI; m++) {
+                    if (pat[layer][m][ev.step] && trackAudible(st, layer)) {
+                        const len = (pat.len[layer][m + ':' + ev.step]) || 1;
+                        const dur = len * stepDur * 0.9;
+                        if (layer === 'lead') {
+                            playPianoOn(off, g.inputs.lead, m, t, dur, st.trackVol.lead ?? 0.8, st.pianoWave);
+                        } else {
+                            const from = (lastBass && t - lastBass.t < 0.3) ? midiToFreq(lastBass.midi - BASS_OCTAVES_DOWN * 12) : null;
+                            playBassOn(off, g.inputs.bass, m, t, dur, st.trackVol.bass ?? 0.85, st.bassWave, from);
+                            lastBass = { midi: m, t };
+                        }
+                    }
+                }
+            });
+        });
         const rendered = await off.startRendering();
         return encodeWav([rendered.getChannelData(0), rendered.getChannelData(1)], sr);
     }
 
     // ---------------- UI ----------------
     function shellHtml() {
+        const kitOpts = Object.keys(KITS).map(k => `<option value="${k}">${KITS[k].name}</option>`).join('');
         return `
         <div class="ms" style="display:flex;flex-direction:column;height:100%;background:#141414;color:#eee;font-family:'Segoe UI',sans-serif;overflow:hidden;">
             <style>
@@ -371,6 +640,7 @@ const MusicSpark = (() => {
                 .ms-tbtn{background:#2b2b2b;border:1px solid #444;color:#fff;border-radius:6px;min-width:36px;height:30px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;padding:0 10px}
                 .ms-tbtn:hover{background:#3a3a3a}
                 .ms-tbtn.playing{background:#2e7d32;border-color:#4caf50}
+                .ms-tbtn.song-on{background:#6a1b9a;border-color:#ab47bc}
                 .ms-ctl{display:flex;align-items:center;gap:6px;font-size:12px;color:#bbb}
                 .ms-ctl input[type=range]{width:90px;accent-color:#7bff9e}
                 .ms-ctl input[type=number]{width:56px;background:#111;border:1px solid #444;color:#fff;border-radius:4px;padding:3px 6px}
@@ -395,6 +665,8 @@ const MusicSpark = (() => {
                 .ms-pad{aspect-ratio:1.4;border:none;border-radius:5px;background:#262626;cursor:pointer;border:1px solid #383838;min-height:28px}
                 .ms-pad.beat{background:#2f2f2f}
                 .ms-pad.on{background:var(--c,#7bff9e);box-shadow:0 0 8px var(--c,#7bff9e);border-color:transparent}
+                .ms-pad.on.acc{box-shadow:0 0 12px var(--c,#7bff9e),inset 0 0 0 2px #fff}
+                .ms-pad.on.ghost{filter:brightness(0.55);box-shadow:none}
                 .ms-pad.now{outline:2px solid #fff;outline-offset:1px}
                 .ms-prow{display:flex;gap:8px;align-items:center}
                 .ms-key{width:118px;flex-shrink:0;font-size:11px;padding:4px 8px;border-radius:4px;text-align:right;cursor:default;border:1px solid #333}
@@ -403,20 +675,35 @@ const MusicSpark = (() => {
                 .ms-key.c{background:#1d3a26;color:#7bff9e;border-color:#2e7d32;font-weight:700}
                 .ms-pcell{border:none;border-radius:4px;background:#222;cursor:pointer;border:1px solid #353535;min-height:22px}
                 .ms-pcell.on{background:#7bff9e;box-shadow:0 0 6px #7bff9e}
+                .ms-pcell.sus{background:#2e7d32;border-color:#2e7d32}
                 .ms-pcell.now{outline:2px solid #fff;outline-offset:0}
                 .ms-mixer{display:flex;gap:14px;align-items:stretch;flex-wrap:wrap}
                 .ms-strip{background:#1e1e1e;border:1px solid #333;border-radius:8px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:8px;min-width:86px}
                 .ms-strip input[type=range]{writing-mode:vertical-lr;direction:rtl;height:120px;accent-color:#7bff9e}
                 .ms-status{display:flex;align-items:center;gap:14px;padding:5px 12px;background:#1e1e1e;border-top:1px solid #333;font-size:11px;color:#999}
                 .ms-hint{color:#666}
+                .ms-bar{background:#2b2b2b;border:1px solid #444;border-radius:8px;min-width:64px;height:56px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#bbb;font-size:12px;font-weight:700;position:relative}
+                .ms-bar:hover{background:#3a3a3a}
+                .ms-bar.now{outline:2px solid #fff;outline-offset:1px}
+                .ms-bar .ms-del{position:absolute;top:2px;right:4px;background:none;border:none;color:#777;cursor:pointer;font-size:11px;padding:0 2px}
+                .ms-bar .ms-del:hover{color:#ff5252}
+                .ms-seg{display:flex;background:#111;border:1px solid #444;border-radius:6px;overflow:hidden}
+                .ms-seg button{background:transparent;border:none;color:#999;font-size:12px;font-weight:600;padding:5px 12px;cursor:pointer}
+                .ms-seg button.active{background:#7bff9e;color:#0b2e16}
+                .ms-fxrow{display:flex;align-items:center;gap:10px;background:#1e1e1e;border:1px solid #333;border-radius:8px;padding:8px 12px;margin-bottom:8px;flex-wrap:wrap}
+                .ms-fxrow input[type=range]{width:120px;accent-color:#7bff9e}
+                .ms-fxval{font-size:11px;color:#999;min-width:44px}
             </style>
             <div class="ms-transport">
                 <div class="ms-logo"><span style="font-size:18px;">&#9835;</span> Music Spark</div>
-                <button class="ms-tbtn ms-play" title="Play / Stop (Space)">&#9654;</button>
+                <button class="ms-tbtn ms-play" title="Play / Pause (Space)">&#9654;</button>
                 <button class="ms-tbtn ms-stop" title="Stop">&#9632;</button>
+                <button class="ms-tbtn ms-mode" title="Pattern / Song mode" style="font-size:11px;">PAT</button>
+                <button class="ms-tbtn ms-loop" title="Loop song" style="font-size:11px;">LOOP</button>
                 <div class="ms-ctl">BPM <input type="number" class="ms-bpm" min="50" max="220" value="128"><input type="range" class="ms-bpm-s" min="50" max="220" value="128"></div>
                 <div class="ms-ctl">Swing <input type="range" class="ms-swing" min="0" max="50" value="0" title="Swing amount"></div>
                 <div class="ms-ctl">Vol <input type="range" class="ms-master" min="0" max="100" value="90"></div>
+                <div class="ms-ctl">Kit <select class="ms-kit">${kitOpts}</select></div>
                 <button class="ms-tbtn ms-metro" title="Metronome" style="font-size:11px;">CLICK</button>
                 <div class="ms-pats">
                     <button class="ms-pat" data-pat="0">1</button>
@@ -429,7 +716,9 @@ const MusicSpark = (() => {
             <div class="ms-tabs">
                 <button class="ms-tab active" data-view="step">Step Sequencer</button>
                 <button class="ms-tab" data-view="piano">Piano Roll</button>
+                <button class="ms-tab" data-view="song">Song</button>
                 <button class="ms-tab" data-view="mixer">Mixer</button>
+                <button class="ms-tab" data-view="fx">FX</button>
             </div>
             <div class="ms-toolbar">
                 <button class="ms-tool" data-act="new">New</button>
@@ -445,14 +734,20 @@ const MusicSpark = (() => {
                     <option>House</option>
                     <option>Techno</option>
                     <option>Boom Bap + Keys</option>
+                    <option>Drill</option>
+                    <option>Lo-Fi</option>
                     <option>Empty</option>
                 </select>
                 <button class="ms-tool" data-act="random">Randomize</button>
                 <button class="ms-tool" data-act="clear">Clear</button>
+                <span style="width:1px;height:18px;background:#333;"></span>
+                <button class="ms-tool" data-act="copy">Copy Pat</button>
+                <button class="ms-tool" data-act="paste">Paste</button>
+                <button class="ms-tool" data-act="clone">Clone &gt;</button>
                 <button class="ms-tool" data-act="help" style="margin-left:auto;">?</button>
             </div>
             <div class="ms-main"></div>
-            <div class="ms-status"><span class="ms-proj">Untitled Beat</span><span class="ms-dirty"></span><span class="ms-hint">Click pads to toggle &bull; Space = play/stop &bull; Patterns loop live</span></div>
+            <div class="ms-status"><span class="ms-proj">Untitled Beat</span><span class="ms-dirty"></span><span class="ms-hint">Pads: click = toggle, right-click = velocity &bull; Piano: click = note, drag right = length &bull; Space = play</span></div>
         </div>`;
     }
 
@@ -469,7 +764,7 @@ const MusicSpark = (() => {
     }
     function setProjLabel(win, st) {
         const el = win.element.querySelector('.ms-proj');
-        if (el) el.textContent = st.name + (st.path ? '' : '');
+        if (el) el.textContent = st.name;
     }
 
     function renderAll(win, st) {
@@ -484,33 +779,58 @@ const MusicSpark = (() => {
         q('.ms-bpm-s').value = st.bpm;
         q('.ms-swing').value = Math.round(st.swing * 100);
         q('.ms-master').value = Math.round((st.trackVol.master ?? 0.9) * 100);
+        q('.ms-kit').value = st.kit;
         q('.ms-metro').classList.toggle('playing', st.metronome);
         q('.ms-play').classList.toggle('playing', st.playing);
         q('.ms-play').innerHTML = st.playing ? '&#10074;&#10074;' : '&#9654;';
+        const mode = q('.ms-mode');
+        mode.textContent = st.songMode ? 'SONG' : 'PAT';
+        mode.classList.toggle('song-on', st.songMode);
+        q('.ms-loop').classList.toggle('playing', st.songLoop);
         win.element.querySelectorAll('.ms-pat').forEach(b => {
             b.classList.toggle('active', parseInt(b.dataset.pat, 10) === st.currentPattern);
         });
         win.element.querySelectorAll('.ms-tab').forEach(t => {
             t.classList.toggle('active', t.dataset.view === st.view);
         });
-        const pos = q('.ms-pos');
-        if (pos) pos.textContent = `${Math.floor(st.step / 4) + 1}:${(st.step % 4) + 1} | Pat ${st.currentPattern + 1}`;
+        updatePos(win, st, st.step, 0);
+    }
+
+    function updatePos(win, st, step, bar) {
+        const pos = win.element.querySelector('.ms-pos');
+        if (!pos) return;
+        if (st.songMode) {
+            pos.textContent = `Bar ${bar + 1}/${st.arrangement.length} | ${Math.floor(step / 4) + 1}:${(step % 4) + 1} | Pat ${(st.arrangement[bar] ?? 0) + 1}`;
+        } else {
+            pos.textContent = `${Math.floor(step / 4) + 1}:${(step % 4) + 1} | Pat ${st.currentPattern + 1}`;
+        }
     }
 
     function renderView(win, st) {
         const main = win.element.querySelector('.ms-main');
         if (st.view === 'step') renderStep(main, win, st);
         else if (st.view === 'piano') renderPiano(main, win, st);
+        else if (st.view === 'song') renderSong(main, win, st);
+        else if (st.view === 'fx') renderFx(main, win, st);
         else renderMixer(main, win, st);
+    }
+
+    function velClass(v) {
+        if (v >= 1) return ' acc';
+        if (v < 0.6) return ' ghost';
+        return '';
     }
 
     function renderStep(main, win, st) {
         const pat = st.patterns[st.currentPattern];
-        let html = '<div style="min-width:640px;">';
+        let html = `<div style="min-width:640px;">
+            <div style="font-size:12px;color:#999;margin-bottom:8px;">Pattern ${st.currentPattern + 1} &bull; right-click a pad to cycle velocity (dim = soft, ring = accent)</div>`;
         DRUMS.forEach(tr => {
             const cells = pat.drums[tr.id].map((v, s) => {
                 const beat = s % 4 === 0 ? ' beat' : '';
-                return `<button class="ms-pad${beat}${v ? ' on' : ''}${st.step === s && st.playing ? ' now' : ''}" data-track="${tr.id}" data-step="${s}" style="--c:${tr.color}" title="${esc(tr.name)} step ${s + 1}"></button>`;
+                const vc = v ? velClass((pat.vel[tr.id] && pat.vel[tr.id][s]) || 0.8) : '';
+                const now = (v && st.step === s && st.playing && !st.songMode) ? ' now' : '';
+                return `<button class="ms-pad${beat}${v ? ' on' : ''}${vc}${now}" data-track="${tr.id}" data-step="${s}" style="--c:${tr.color}" title="${esc(tr.name)} step ${s + 1}"></button>`;
             }).join('');
             const m = st.trackMute[tr.id] ? ' on' : '';
             const so = st.trackSolo[tr.id] ? ' solo-on' : '';
@@ -524,22 +844,34 @@ const MusicSpark = (() => {
                 <div class="ms-grid16">${cells}</div>
             </div>`;
         });
-        html += '<div class="ms-hint" style="font-size:11px;margin-top:8px;">Tip: build drums here, then add melody in the Piano Roll tab. Each of the 4 patterns loops — switch patterns while playing.</div></div>';
+        html += '<div class="ms-hint" style="font-size:11px;margin-top:8px;">Tip: drums here, melody in Piano Roll, arrangement in the Song tab. Patterns 1–4 loop live — switch them while playing.</div></div>';
         main.innerHTML = html;
 
         main.querySelectorAll('.ms-pad').forEach(p => {
             p.addEventListener('click', () => {
                 const t = p.dataset.track, s = parseInt(p.dataset.step, 10);
                 pat.drums[t][s] = !pat.drums[t][s];
-                p.classList.toggle('on', pat.drums[t][s]);
+                if (pat.drums[t][s] && !(pat.vel[t] && pat.vel[t][s])) pat.vel[t][s] = 0.8;
+                renderView(win, st);
+                markDirty(win, st);
+            });
+            p.addEventListener('contextmenu', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                const t = p.dataset.track, s = parseInt(p.dataset.step, 10);
+                const cur = (pat.vel[t] && pat.vel[t][s]) || 0.8;
+                const next = VEL_STEPS[(VEL_STEPS.indexOf(cur) + 1 + VEL_STEPS.length) % VEL_STEPS.length] ?? 0.8;
+                pat.vel[t][s] = next;
+                pat.drums[t][s] = true;
+                renderView(win, st);
                 markDirty(win, st);
             });
         });
         main.querySelectorAll('.ms-preview').forEach(b => {
             b.addEventListener('click', () => {
                 ensureCtx();
-                const t = 0.03;
-                playDrumOn(actx, masterGain, b.dataset.track, actx.currentTime + t, st.trackVol[b.dataset.track] ?? 0.8);
+                const g = ensureLiveGraph(win, st);
+                playDrumOn(actx, g.inputs[b.dataset.track], b.dataset.track, actx.currentTime + 0.03, st.trackVol[b.dataset.track] ?? 0.8, st.kit);
             });
         });
         main.querySelectorAll('.ms-mute').forEach(b => {
@@ -560,77 +892,261 @@ const MusicSpark = (() => {
         });
     }
 
+    function susCells(pat, layer, midi) {
+        const out = new Set();
+        for (let s = 0; s < 16; s++) {
+            if (pat[layer][midi][s]) {
+                const len = (pat.len[layer][midi + ':' + s]) || 1;
+                for (let i = 1; i < len && s + i < 16; i++) out.add(s + i);
+            }
+        }
+        return out;
+    }
+
     function renderPiano(main, win, st) {
         const pat = st.patterns[st.currentPattern];
-        const waves = ['sawtooth', 'square', 'triangle', 'sine'];
+        const layer = st.pianoLayer;
+        const waves = layer === 'bass' ? ['sine', 'triangle', 'sawtooth', 'square'] : ['sawtooth', 'square', 'triangle', 'sine'];
+        const curWave = layer === 'bass' ? st.bassWave : st.pianoWave;
+        const curVol = layer === 'bass' ? (st.trackVol.bass ?? 0.85) : (st.trackVol.lead ?? 0.8);
         let html = `<div style="min-width:640px;">
-            <div class="ms-prow" style="margin-bottom:10px;">
-                <span style="font-size:12px;color:#999;">Lead synth:</span>
+            <div class="ms-prow" style="margin-bottom:10px;flex-wrap:wrap;">
+                <div class="ms-seg">
+                    <button data-layer="lead" class="${layer === 'lead' ? 'active' : ''}">Lead</button>
+                    <button data-layer="bass" class="${layer === 'bass' ? 'active' : ''}">808 Bass</button>
+                </div>
+                <span style="font-size:12px;color:#999;">Wave:</span>
                 <select class="ms-wave" style="background:#111;border:1px solid #444;color:#fff;border-radius:4px;padding:3px 8px;font-size:12px;">
-                    ${waves.map(w => `<option value="${w}"${st.pianoWave === w ? ' selected' : ''}>${w}</option>`).join('')}
+                    ${waves.map(w => `<option value="${w}"${curWave === w ? ' selected' : ''}>${w}</option>`).join('')}
                 </select>
-                <span style="font-size:12px;color:#999;">Synth vol</span>
-                <input type="range" class="ms-pvol" min="0" max="100" value="${Math.round((st.trackVol.piano ?? 0.8) * 100)}" style="width:100px;accent-color:#7bff9e;">
-                <button class="ms-mini ms-pclear" style="padding:4px 10px;">Clear melody</button>
-                <button class="ms-mini ms-ppreview" style="padding:4px 10px;" title="Preview scale">&#9654; scale</button>
-            </div>`;
+                <span style="font-size:12px;color:#999;">Vol</span>
+                <input type="range" class="ms-pvol" min="0" max="100" value="${Math.round(curVol * 100)}" style="width:100px;accent-color:#7bff9e;">
+                <button class="ms-mini ms-pclear" style="padding:4px 10px;">Clear ${layer === 'bass' ? 'bass' : 'melody'}</button>
+                <button class="ms-mini ms-ppreview" style="padding:4px 10px;" title="Preview">&#9654; preview</button>
+            </div>
+            <div style="font-size:11px;color:#666;margin-bottom:8px;">${layer === 'bass' ? 'Bass sounds 2 octaves lower with glide. Click = note, drag right = longer note.' : 'Click = note, drag right = longer note (sustained cells are dark green).'}</div>`;
         for (let m = HIGH_MIDI; m >= LOW_MIDI; m--) {
             const black = isBlack(m);
             const isC = NOTE_NAMES[m % 12] === 'C';
             const cls = isC ? 'c' : (black ? 'black' : 'white');
-            const cells = pat.piano[m].map((v, s) =>
-                `<button class="ms-pcell${v ? ' on' : ''}${st.step === s && st.playing ? ' now' : ''}" data-midi="${m}" data-step="${s}" title="${noteName(m)} step ${s + 1}"></button>`
+            const sus = susCells(pat, layer, m);
+            const cells = pat[layer][m].map((v, s) =>
+                `<button class="ms-pcell${v ? ' on' : ''}${!v && sus.has(s) ? ' sus' : ''}" data-midi="${m}" data-step="${s}" title="${noteName(m)}${layer === 'bass' ? ' (sounds ' + noteName(m - 24) + ')' : ''} step ${s + 1}"></button>`
             ).join('');
             html += `<div class="ms-prow" style="margin-bottom:3px;"><div class="ms-key ${cls}">${noteName(m)}</div><div class="ms-grid16">${cells}</div></div>`;
         }
         html += '</div>';
         main.innerHTML = html;
 
+        main.querySelectorAll('.ms-seg button').forEach(b => {
+            b.addEventListener('click', () => {
+                st.pianoLayer = b.dataset.layer;
+                renderView(win, st);
+            });
+        });
         main.querySelector('.ms-wave').addEventListener('change', e => {
-            st.pianoWave = e.target.value;
+            if (st.pianoLayer === 'bass') st.bassWave = e.target.value;
+            else st.pianoWave = e.target.value;
             markDirty(win, st);
         });
         main.querySelector('.ms-pvol').addEventListener('input', e => {
-            st.trackVol.piano = parseInt(e.target.value, 10) / 100;
+            if (st.pianoLayer === 'bass') st.trackVol.bass = parseInt(e.target.value, 10) / 100;
+            else st.trackVol.lead = parseInt(e.target.value, 10) / 100;
             markDirty(win, st);
         });
         main.querySelector('.ms-pclear').addEventListener('click', () => {
-            for (let m = LOW_MIDI; m <= HIGH_MIDI; m++) pat.piano[m] = new Array(16).fill(false);
+            for (let m = LOW_MIDI; m <= HIGH_MIDI; m++) pat[layer][m] = new Array(16).fill(false);
+            pat.len[layer] = {};
             renderView(win, st);
             markDirty(win, st);
         });
         main.querySelector('.ms-ppreview').addEventListener('click', () => {
             ensureCtx();
-            const scale = [72, 74, 76, 77, 79, 81, 83, 84];
-            scale.forEach((m, i) => {
-                playPianoOn(actx, masterGain, m, actx.currentTime + 0.05 + i * 0.12, 0.11, st.trackVol.piano ?? 0.8, st.pianoWave);
+            const g = ensureLiveGraph(win, st);
+            if (layer === 'bass') {
+                [64, 64, 62, 60].forEach((m, i) => {
+                    playBassOn(actx, g.inputs.bass, m, actx.currentTime + 0.05 + i * 0.22, 0.2, st.trackVol.bass ?? 0.85, st.bassWave, i ? midiToFreq([64, 64, 62, 60][i - 1] - 24) : null);
+                });
+            } else {
+                [72, 74, 76, 77, 79, 81, 83, 84].forEach((m, i) => {
+                    playPianoOn(actx, g.inputs.lead, m, actx.currentTime + 0.05 + i * 0.12, 0.11, st.trackVol.lead ?? 0.8, st.pianoWave);
+                });
+            }
+        });
+
+        // Note entry: click toggles, drag-right sets length
+        let drag = null;
+        const paintRow = (midi) => {
+            main.querySelectorAll(`.ms-pcell[data-midi="${midi}"]`).forEach(c => {
+                const s = parseInt(c.dataset.step, 10);
+                const on = pat[layer][midi][s];
+                const sus = susCells(pat, layer, midi);
+                c.classList.toggle('on', !!on);
+                c.classList.toggle('sus', !on && sus.has(s));
+            });
+        };
+        main.querySelectorAll('.ms-pcell').forEach(c => {
+            c.addEventListener('mousedown', e => {
+                if (e.button !== 0) return;
+                e.preventDefault();
+                const m = parseInt(c.dataset.midi, 10), s = parseInt(c.dataset.step, 10);
+                if (!pat[layer][m][s]) {
+                    pat[layer][m][s] = true;
+                    delete pat.len[layer][m + ':' + s];
+                    paintRow(m);
+                    previewNote(win, st, layer, m);
+                    drag = { midi: m, step0: s, moved: false, fresh: true };
+                } else {
+                    drag = { midi: m, step0: s, moved: false, fresh: false };
+                }
+            });
+            c.addEventListener('mouseover', e => {
+                if (!drag || !(e.buttons & 1)) return;
+                const m = parseInt(c.dataset.midi, 10), s = parseInt(c.dataset.step, 10);
+                if (m !== drag.midi || s < drag.step0) return;
+                const len = Math.min(16 - drag.step0, s - drag.step0 + 1);
+                if (len >= 1) {
+                    pat[layer][drag.midi][drag.step0] = true;
+                    if (len <= 1) delete pat.len[layer][drag.midi + ':' + drag.step0];
+                    else pat.len[layer][drag.midi + ':' + drag.step0] = len;
+                    drag.moved = true;
+                    paintRow(drag.midi);
+                }
             });
         });
-        main.querySelectorAll('.ms-pcell').forEach(c => {
-            c.addEventListener('click', () => {
-                const m = parseInt(c.dataset.midi, 10), s = parseInt(c.dataset.step, 10);
-                pat.piano[m][s] = !pat.piano[m][s];
-                c.classList.toggle('on', pat.piano[m][s]);
-                if (pat.piano[m][s]) {
-                    ensureCtx();
-                    playPianoOn(actx, masterGain, m, actx.currentTime + 0.02, 0.25, st.trackVol.piano ?? 0.8, st.pianoWave);
-                }
+        const finishDrag = () => {
+            if (!drag) return;
+            const d = drag;
+            drag = null;
+            if (!d.moved && !d.fresh) {
+                pat[layer][d.midi][d.step0] = false;
+                delete pat.len[layer][d.midi + ':' + d.step0];
+            }
+            renderView(win, st);
+            markDirty(win, st);
+        };
+        win.element.onmouseup = finishDrag;
+        win.element.onmouseleave = () => { if (drag && drag.moved) finishDrag(); };
+    }
+
+    function previewNote(win, st, layer, midi) {
+        ensureCtx();
+        const g = ensureLiveGraph(win, st);
+        if (layer === 'bass') playBassOn(actx, g.inputs.bass, midi, actx.currentTime + 0.02, 0.3, st.trackVol.bass ?? 0.85, st.bassWave, null);
+        else playPianoOn(actx, g.inputs.lead, midi, actx.currentTime + 0.02, 0.25, st.trackVol.lead ?? 0.8, st.pianoWave);
+    }
+
+    function renderSong(main, win, st) {
+        const bars = st.arrangement.map((p, i) => {
+            const now = st.playing && st.songMode && st._bar === i ? ' now' : '';
+            return `<div class="ms-bar${now}" data-bar="${i}" title="Click to change pattern, x to remove">
+                <button class="ms-del" data-bar="${i}" title="Remove bar">x</button>
+                <span>P${p + 1}</span><span style="font-size:10px;font-weight:400;color:#888;">bar ${i + 1}</span>
+            </div>`;
+        }).join('');
+        main.innerHTML = `<div style="min-width:640px;">
+            <div style="font-size:12px;color:#999;margin-bottom:10px;">Song arrangement &bull; click a bar to cycle its pattern &bull; press SONG in transport and play to hear the full arrangement.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">${bars}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="ms-tool ms-addbar">+ Add bar (P${st.currentPattern + 1})</button>
+                <button class="ms-tool ms-songclear">Clear song</button>
+            </div>
+            <div class="ms-hint" style="font-size:11px;margin-top:10px;">Export WAV offers the full song. Loop toggle in transport repeats it.</div>
+        </div>`;
+        main.querySelectorAll('.ms-bar').forEach(b => {
+            b.addEventListener('click', e => {
+                if (e.target.closest('.ms-del')) return;
+                const i = parseInt(b.dataset.bar, 10);
+                st.arrangement[i] = (st.arrangement[i] + 1) % 4;
+                renderView(win, st);
+                markDirty(win, st);
+            });
+        });
+        main.querySelectorAll('.ms-del').forEach(x => {
+            x.addEventListener('click', e => {
+                e.stopPropagation();
+                if (st.arrangement.length <= 1) return;
+                st.arrangement.splice(parseInt(x.dataset.bar, 10), 1);
+                renderView(win, st);
+                markDirty(win, st);
+            });
+        });
+        main.querySelector('.ms-addbar').addEventListener('click', () => {
+            if (st.arrangement.length >= 64) return;
+            st.arrangement.push(st.currentPattern);
+            renderView(win, st);
+            markDirty(win, st);
+        });
+        main.querySelector('.ms-songclear').addEventListener('click', async () => {
+            const ok = await Popup.confirm('Clear song', 'Reset the arrangement to a single bar?');
+            if (ok) {
+                st.arrangement = [st.currentPattern];
+                renderView(win, st);
+                markDirty(win, st);
+            }
+        });
+    }
+
+    function sliderToHz(v) {
+        return Math.round(200 * Math.pow(90, v / 100));
+    }
+    function hzToSlider(hz) {
+        return Math.round(100 * Math.log(Math.max(hz, 200) / 200) / Math.log(90));
+    }
+    function fmtHz(hz) {
+        return hz >= 1000 ? (hz / 1000).toFixed(1) + 'k' : Math.round(hz) + '';
+    }
+
+    function renderFx(main, win, st) {
+        const rows = ALL_TRACKS.map(id => {
+            const meta = TRACK_META[id];
+            const fx = st.fx[id] || { delay: 0, reverb: 0, cutoff: 18000 };
+            return `<div class="ms-fxrow">
+                <span class="ms-dot" style="background:${meta.color}"></span>
+                <span style="font-size:12px;width:90px;">${esc(meta.name)}</span>
+                <span style="font-size:11px;color:#888;">Echo</span>
+                <input type="range" class="ms-fx" data-track="${id}" data-param="delay" min="0" max="100" value="${Math.round((fx.delay || 0) * 100)}">
+                <span class="ms-fxval" data-track="${id}" data-param="delay">${Math.round((fx.delay || 0) * 100)}%</span>
+                <span style="font-size:11px;color:#888;">Reverb</span>
+                <input type="range" class="ms-fx" data-track="${id}" data-param="reverb" min="0" max="100" value="${Math.round((fx.reverb || 0) * 100)}">
+                <span class="ms-fxval" data-track="${id}" data-param="reverb">${Math.round((fx.reverb || 0) * 100)}%</span>
+                <span style="font-size:11px;color:#888;">Filter</span>
+                <input type="range" class="ms-fx" data-track="${id}" data-param="cutoff" min="0" max="100" value="${hzToSlider(fx.cutoff || 18000)}">
+                <span class="ms-fxval" data-track="${id}" data-param="cutoff">${fmtHz(fx.cutoff || 18000)}</span>
+            </div>`;
+        }).join('');
+        main.innerHTML = `<div style="min-width:640px;">
+            <div style="font-size:12px;color:#999;margin-bottom:10px;">Echo is tempo-synced (dotted 8th). Reverb is generated convolution. Filter is a per-track low-pass. All FX are baked into WAV export.</div>
+            ${rows}
+        </div>`;
+        main.querySelectorAll('.ms-fx').forEach(f => {
+            f.addEventListener('input', () => {
+                const id = f.dataset.track, param = f.dataset.param;
+                const raw = parseInt(f.value, 10);
+                if (!st.fx[id]) st.fx[id] = { delay: 0, reverb: 0, cutoff: 18000 };
+                if (param === 'cutoff') st.fx[id].cutoff = sliderToHz(raw);
+                else st.fx[id][param] = raw / 100;
+                const lab = main.querySelector(`.ms-fxval[data-track="${id}"][data-param="${param}"]`);
+                if (lab) lab.textContent = param === 'cutoff' ? fmtHz(st.fx[id].cutoff) : raw + '%';
+                applyFxToGraph(st);
                 markDirty(win, st);
             });
         });
     }
 
     function renderMixer(main, win, st) {
-        const strips = DRUMS.map(tr => mixerStrip(win, st, tr.id, tr.name, tr.color)).join('')
-            + mixerStrip(win, st, 'piano', 'Lead', '#7bff9e')
-            + mixerStrip(win, st, 'master', 'Master', '#ffffff', true);
+        const strips = [...DRUMS.map(t => t.id), 'lead', 'bass'].map(id => {
+            const meta = TRACK_META[id];
+            return mixerStrip(st, id, meta.name, meta.color, false);
+        }).join('') + mixerStrip(st, 'master', 'Master', '#ffffff', true);
         main.innerHTML = `<div class="ms-mixer">${strips}</div>
-            <div class="ms-hint" style="font-size:11px;margin-top:10px;">M = mute, S = solo. Mixer levels are saved with your project and used in WAV export.</div>`;
+            <div class="ms-hint" style="font-size:11px;margin-top:10px;">M = mute, S = solo. Mixer + FX levels are saved with your project and used in WAV export.</div>`;
         main.querySelectorAll('.ms-fader').forEach(f => {
             f.addEventListener('input', () => {
                 st.trackVol[f.dataset.strip] = parseInt(f.value, 10) / 100;
                 const lab = main.querySelector(`.ms-fval[data-strip="${f.dataset.strip}"]`);
                 if (lab) lab.textContent = f.value;
+                applyFxToGraph(st);
                 if (f.dataset.strip === 'master') renderTransport(win, st);
                 markDirty(win, st);
             });
@@ -654,7 +1170,7 @@ const MusicSpark = (() => {
             });
         });
     }
-    function mixerStrip(win, st, id, name, color, isMaster) {
+    function mixerStrip(st, id, name, color, isMaster) {
         const v = Math.round((st.trackVol[id] ?? 0.8) * 100);
         const m = st.trackMute[id] ? ' on' : '';
         const so = st.trackSolo[id] ? ' solo-on' : '';
@@ -668,47 +1184,90 @@ const MusicSpark = (() => {
     }
 
     // ---------------- transport / scheduler ----------------
-    function highlight(win, st, step) {
-        st.step = step;
-        win.element.querySelectorAll('.ms-pad.now, .ms-pcell.now').forEach(el => el.classList.remove('now'));
-        win.element.querySelectorAll(`.ms-pad[data-step="${step}"], .ms-pcell[data-step="${step}"]`).forEach(el => el.classList.add('now'));
-        const pos = win.element.querySelector('.ms-pos');
-        if (pos) pos.textContent = `${Math.floor(step / 4) + 1}:${(step % 4) + 1} | Pat ${st.currentPattern + 1}`;
+    function posToLoc(st, pos) {
+        if (!st.songMode) {
+            return { pat: st.currentPattern, step: ((pos % 16) + 16) % 16, bar: 0 };
+        }
+        const bars = Math.max(st.arrangement.length, 1);
+        const total = bars * 16;
+        const p = ((pos % total) + total) % total;
+        const bar = Math.floor(p / 16);
+        return { pat: st.arrangement[bar] ?? 0, step: p % 16, bar };
     }
-    function scheduleStep(win, st, step, t) {
-        const pat = st.patterns[st.currentPattern];
+    function highlight(win, st, loc) {
+        st.step = loc.step;
+        st._bar = loc.bar;
+        win.element.querySelectorAll('.ms-pad.now, .ms-pcell.now, .ms-bar.now').forEach(el => el.classList.remove('now'));
+        if (st.songMode) {
+            const bar = win.element.querySelector(`.ms-bar[data-bar="${loc.bar}"]`);
+            if (bar) bar.classList.add('now');
+            win.element.querySelectorAll('.ms-pat').forEach(b => {
+                b.classList.toggle('active', parseInt(b.dataset.pat, 10) === loc.pat);
+            });
+        } else {
+            win.element.querySelectorAll(`.ms-pad[data-step="${loc.step}"], .ms-pcell[data-step="${loc.step}"]`).forEach(el => el.classList.add('now'));
+        }
+        updatePos(win, st, loc.step, loc.bar);
+    }
+    function scheduleStep(win, st, loc, t) {
+        const g = st._graph;
+        const out = id => (g ? g.inputs[id] : masterGain);
+        const pat = st.patterns[loc.pat];
         const stepDur = 60 / st.bpm / 4;
         DRUMS.forEach(tr => {
-            if (pat.drums[tr.id][step] && trackAudible(st, tr.id)) {
-                playDrumOn(actx, masterGain, tr.id, t, st.trackVol[tr.id] ?? 0.8);
+            if (pat.drums[tr.id][loc.step] && trackAudible(st, tr.id)) {
+                const vel = (pat.vel[tr.id] && pat.vel[tr.id][loc.step]) || 0.8;
+                playDrumOn(actx, out(tr.id), tr.id, t, (st.trackVol[tr.id] ?? 0.8) * vel, st.kit);
             }
         });
-        for (let m = LOW_MIDI; m <= HIGH_MIDI; m++) {
-            if (pat.piano[m][step] && trackAudible(st, 'piano')) {
-                playPianoOn(actx, masterGain, m, t, stepDur * 0.9, st.trackVol.piano ?? 0.8, st.pianoWave);
+        ['lead', 'bass'].forEach(layer => {
+            for (let m = LOW_MIDI; m <= HIGH_MIDI; m++) {
+                if (pat[layer][m][loc.step] && trackAudible(st, layer)) {
+                    const len = (pat.len[layer][m + ':' + loc.step]) || 1;
+                    const dur = len * stepDur * 0.9;
+                    if (layer === 'lead') {
+                        playPianoOn(actx, out('lead'), m, t, dur, st.trackVol.lead ?? 0.8, st.pianoWave);
+                    } else {
+                        const lb = st._lastBass;
+                        const from = (lb && t - lb.t < 0.3) ? midiToFreq(lb.midi - BASS_OCTAVES_DOWN * 12) : null;
+                        playBassOn(actx, out('bass'), m, t, dur, st.trackVol.bass ?? 0.85, st.bassWave, from);
+                        st._lastBass = { midi: m, t };
+                    }
+                }
             }
-        }
-        if (st.metronome && step % 4 === 0) clickOn(actx, masterGain, t, 0.25, step === 0);
+        });
+        if (st.metronome && loc.step % 4 === 0) clickOn(actx, g ? g.win : masterGain, t, 0.25, loc.step === 0);
         const delay = Math.max((t - actx.currentTime) * 1000, 0);
-        setTimeout(() => { if (win.element.isConnected && st.playing) highlight(win, st, step); }, delay);
+        const at = st._posCounter;
+        setTimeout(() => {
+            if (win.element.isConnected && st.playing && st._posCounter === at) highlight(win, st, loc);
+        }, delay);
     }
     function startPlayback(win, st) {
         ensureCtx();
-        if (masterGain) masterGain.gain.value = st.trackVol.master ?? 0.9;
+        ensureLiveGraph(win, st);
+        applyFxToGraph(st);
         st.playing = true;
-        st._step = st._step ?? 0;
+        st._pos = 0;
+        st._lastBass = null;
+        st._posCounter = (st._posCounter || 0) + 1;
         st._next = actx.currentTime + 0.06;
         renderTransport(win, st);
+        if (st.view === 'song' || st.view === 'step') renderView(win, st);
         clearInterval(st._timer);
         st._timer = setInterval(() => {
             if (!win.element.isConnected) { stopPlayback(win, st); return; }
-            if (masterGain) masterGain.gain.value = st.trackVol.master ?? 0.9;
+            applyFxToGraph(st);
             const stepDur = 60 / st.bpm / 4;
+            if (st.songMode && !st.songLoop && st._pos >= st.arrangement.length * 16) {
+                stopPlayback(win, st, true);
+                return;
+            }
             while (st._next < actx.currentTime + 0.14) {
-                const s = st._step % 16;
-                const t = st._next + (s % 2 === 1 ? st.swing * stepDur : 0);
-                scheduleStep(win, st, s, t);
-                st._step++;
+                const loc = posToLoc(st, st._pos);
+                const t = st._next + (loc.step % 2 === 1 ? st.swing * stepDur : 0);
+                scheduleStep(win, st, loc, t);
+                st._pos++;
                 st._next += stepDur;
             }
         }, 25);
@@ -717,10 +1276,11 @@ const MusicSpark = (() => {
         st.playing = false;
         clearInterval(st._timer);
         if (reset) {
-            st._step = 0;
-            highlight(win, st, 0);
+            st._pos = 0;
+            highlight(win, st, posToLoc(st, 0));
         }
         renderTransport(win, st);
+        if (st.view === 'song' || st.view === 'step') renderView(win, st);
     }
 
     // ---------------- file ops ----------------
@@ -762,23 +1322,17 @@ const MusicSpark = (() => {
     }
     async function doOpen(win, st) {
         const projects = [];
-        const scan = (dir) => {
+        const scan = (dir, prefix) => {
             let kids = [];
             try { kids = FileSystem.getChildren(dir) || []; } catch (e) { kids = []; }
             kids.forEach(k => {
-                if (k.type === 'file' && k.name.endsWith('.mspark')) projects.push({ label: k.name, path: [...dir, k.name] });
+                if (k.type === 'file' && k.name.endsWith('.mspark')) projects.push({ label: prefix + k.name, path: [...dir, k.name] });
             });
         };
-        scan(DOCS_DIR);
-        try {
-            const mus = FileSystem.getChildren(MUSIC_DIR) || [];
-            mus.forEach(k => { if (k.type === 'file' && k.name.endsWith('.mspark')) projects.push({ label: 'Music/' + k.name, path: [...MUSIC_DIR, k.name] }); });
-        } catch (e) { /* ignore */ }
+        scan(DOCS_DIR, '');
+        scan(MUSIC_DIR, 'Music/');
         ensureDataDir();
-        try {
-            const own = FileSystem.getChildren(DATA_DIR) || [];
-            own.forEach(k => { if (k.type === 'file' && k.name.endsWith('.mspark')) projects.push({ label: k.name, path: [...DATA_DIR, k.name] }); });
-        } catch (e) { /* ignore */ }
+        scan(DATA_DIR, '(autosave dir) ');
         if (projects.length === 0) {
             await Popup.info('Open project', 'No saved .mspark projects found yet. Save one first!');
             return;
@@ -795,9 +1349,11 @@ const MusicSpark = (() => {
         try {
             const next = deserialize(raw);
             stopPlayback(win, st);
+            destroyGraph(st);
+            const view = st.view, layer = st.pianoLayer;
             Object.keys(st).forEach(k => delete st[k]);
-            Object.assign(st, next, { path: found.path, playing: false, step: 0, view: st.view || 'step', dirty: false });
-            st._step = 0;
+            Object.assign(st, next, { path: found.path, playing: false, step: 0, view, pianoLayer: layer, dirty: false });
+            st._pos = 0;
             setProjLabel(win, st);
             markClean(win, st);
             renderAll(win, st);
@@ -806,11 +1362,15 @@ const MusicSpark = (() => {
         }
     }
     async function doExportWav(win, st) {
-        const name = await Popup.textbox('Export WAV', 'File name:', { value: (st.name || 'beat') + ' - loop x4', placeholder: 'my-beat' });
+        const which = await Popup.pick('Export WAV', 'What to export?', ['Current pattern (x4 loop)', `Full song (${st.arrangement.length} bar${st.arrangement.length > 1 ? 's' : ''})`]);
+        if (!which) return;
+        const label = which.label || which;
+        const mode = label.startsWith('Full') ? 'song' : 'pattern';
+        const name = await Popup.textbox('Export WAV', 'File name:', { value: (st.name || 'beat') + (mode === 'song' ? ' - song' : ' - loop x4'), placeholder: 'my-beat' });
         if (!name) return;
-        await Popup.info('Rendering', 'Rendering 4 loops to WAV. This takes a few seconds...');
+        await Popup.info('Rendering', 'Rendering audio to WAV (mixer + FX included). This takes a few seconds...');
         try {
-            const buf = await renderWav(st, 4);
+            const buf = await renderAudio(st, mode);
             const url = wavToDataUrl(buf);
             const safe = name.replace(/[\\/:*?"<>|]/g, '').slice(0, 40) || 'beat';
             const fileName = safe.endsWith('.wav') ? safe : safe + '.wav';
@@ -834,17 +1394,25 @@ const MusicSpark = (() => {
         });
         pat.drums.kick[0] = true;
         pat.drums.snare[4] = true; pat.drums.snare[12] = true;
-        // random minor-pentatonic sprinkles
         const penta = [60, 63, 65, 67, 70, 72, 75, 76, 79, 84];
         for (let s = 0; s < 16; s++) {
             if (Math.random() < 0.25) {
                 const m = penta[Math.floor(Math.random() * penta.length)];
-                pat.piano[m][s] = true;
+                pat.lead[m][s] = true;
             }
         }
+        [0, 4, 8, 12].forEach(s => {
+            const roots = [69, 65, 72, 67];
+            const m = roots[Math.floor(Math.random() * roots.length)];
+            pat.bass[m][s] = true;
+            pat.len.bass[m + ':' + s] = 3;
+        });
     }
     function clearPattern(st) {
         st.patterns[st.currentPattern] = emptyPattern();
+    }
+    function clonePattern(src) {
+        return JSON.parse(JSON.stringify(src));
     }
 
     // ---------------- window wiring ----------------
@@ -858,11 +1426,29 @@ const MusicSpark = (() => {
             else startPlayback(win, st);
         });
         q('.ms-stop').addEventListener('click', () => stopPlayback(win, st, true));
+        q('.ms-mode').addEventListener('click', () => {
+            const was = st.playing;
+            if (was) stopPlayback(win, st, true);
+            st.songMode = !st.songMode;
+            renderTransport(win, st);
+            if (st.songMode) {
+                st.view = 'song';
+                renderView(win, st);
+            }
+            markDirty(win, st);
+            if (was) startPlayback(win, st);
+        });
+        q('.ms-loop').addEventListener('click', () => {
+            st.songLoop = !st.songLoop;
+            renderTransport(win, st);
+            markDirty(win, st);
+        });
 
         const bpmNum = q('.ms-bpm'), bpmRange = q('.ms-bpm-s');
         const setBpm = v => {
             v = Math.min(220, Math.max(50, Math.round(v) || 128));
             st.bpm = v; bpmNum.value = v; bpmRange.value = v;
+            applyFxToGraph(st);
             markDirty(win, st);
         };
         bpmNum.addEventListener('change', () => setBpm(parseInt(bpmNum.value, 10)));
@@ -873,7 +1459,14 @@ const MusicSpark = (() => {
         });
         q('.ms-master').addEventListener('input', e => {
             st.trackVol.master = parseInt(e.target.value, 10) / 100;
+            applyFxToGraph(st);
             markDirty(win, st);
+        });
+        q('.ms-kit').addEventListener('change', e => {
+            if (KITS[e.target.value]) {
+                st.kit = e.target.value;
+                markDirty(win, st);
+            }
         });
         q('.ms-metro').addEventListener('click', () => {
             st.metronome = !st.metronome;
@@ -882,10 +1475,21 @@ const MusicSpark = (() => {
         });
         win.element.querySelectorAll('.ms-pat').forEach(b => {
             b.addEventListener('click', () => {
-                st.currentPattern = parseInt(b.dataset.pat, 10);
-                st._step = st._step != null ? st._step : 0;
-                renderAll(win, st);
-                markDirty(win, st);
+                const idx = parseInt(b.dataset.pat, 10);
+                if (st.songMode) {
+                    // Take over: drop to pattern mode on the chosen pattern
+                    const was = st.playing;
+                    if (was) stopPlayback(win, st, true);
+                    st.songMode = false;
+                    st.currentPattern = idx;
+                    renderTransport(win, st);
+                    markDirty(win, st);
+                    if (was) startPlayback(win, st);
+                } else {
+                    st.currentPattern = idx;
+                    renderAll(win, st);
+                    markDirty(win, st);
+                }
             });
         });
         win.element.querySelectorAll('.ms-tab').forEach(t => {
@@ -899,12 +1503,14 @@ const MusicSpark = (() => {
             e.target.value = '';
             if (!name || !PRESETS[name]) return;
             if (st.dirty) {
-                const ok = await Popup.confirm('Load preset', `Replace pattern ${st.currentPattern + 1} with "${name}"? Unsaved changes will be lost.`);
+                const ok = await Popup.confirm('Load preset', `Replace all patterns with "${name}"? Unsaved changes will be lost.`);
                 if (!ok) return;
             }
             const fresh = PRESETS[name]();
-            st.patterns = fresh;
-            if (name !== 'Empty') st.bpm = name === 'Hip-Hop 90' ? 90 : name === 'Trap' ? 140 : name === 'House' ? 124 : name === 'Techno' ? 132 : 96;
+            st.patterns = fresh.patterns;
+            st.bpm = fresh.bpm;
+            st.kit = fresh.kit;
+            st.arrangement = name === 'Boom Bap + Keys' ? [0, 0, 1, 0] : [0];
             stopPlayback(win, st, true);
             renderAll(win, st);
             markDirty(win, st);
@@ -919,9 +1525,11 @@ const MusicSpark = (() => {
                     if (!ok) return;
                 }
                 stopPlayback(win, st, true);
+                destroyGraph(st);
                 const next = blankState();
+                const view = st.view, layer = st.pianoLayer;
                 Object.keys(st).forEach(k => delete st[k]);
-                Object.assign(st, next);
+                Object.assign(st, next, { view, pianoLayer: layer });
                 renderAll(win, st);
             } else if (act === 'open') {
                 await doOpen(win, st);
@@ -942,12 +1550,31 @@ const MusicSpark = (() => {
                     renderView(win, st);
                     markDirty(win, st);
                 }
+            } else if (act === 'copy') {
+                clipboard = clonePattern(st.patterns[st.currentPattern]);
+                await Popup.info('Copied', `Pattern ${st.currentPattern + 1} copied. Use Paste on another pattern.`);
+            } else if (act === 'paste') {
+                if (!clipboard) {
+                    await Popup.info('Paste', 'Clipboard is empty — Copy a pattern first.');
+                    return;
+                }
+                st.patterns[st.currentPattern] = clonePattern(clipboard);
+                renderView(win, st);
+                markDirty(win, st);
+            } else if (act === 'clone') {
+                const target = (st.currentPattern + 1) % 4;
+                st.patterns[target] = clonePattern(st.patterns[st.currentPattern]);
+                st.currentPattern = target;
+                renderAll(win, st);
+                markDirty(win, st);
             } else if (act === 'help') {
                 await Popup.info('Music Spark',
-                    'Step Sequencer: click pads to toggle drums. M = mute, S = solo, play icon previews.\n\n' +
-                    'Piano Roll: click cells to add synth notes. Choose waveform, preview the scale.\n\n' +
-                    'Patterns 1-4 loop — switch them live while playing. Space toggles play.\n\n' +
-                    'Save projects as .mspark files, export loops to WAV in your Music folder.');
+                    'TRANSPORT: PAT = loop one pattern, SONG = play the arrangement from the Song tab. LOOP repeats the song. Kit changes the drum sound.\n\n' +
+                    'STEP SEQUENCER: click pads to toggle, right-click to cycle velocity (dim = soft, ring = accent).\n\n' +
+                    'PIANO ROLL: Lead and 808 Bass layers (bass sounds 2 octaves lower with glide). Click = note, drag right = longer note.\n\n' +
+                    'SONG: build the arrangement bar by bar — click a bar to change its pattern.\n\n' +
+                    'MIXER + FX: volume/mute/solo plus tempo-synced echo, convolution reverb, and per-track filters. Everything is baked into WAV export.\n\n' +
+                    'Space = play/pause. Projects save as .mspark files.');
             }
         });
 
@@ -963,7 +1590,7 @@ const MusicSpark = (() => {
             if (!win.element.isConnected) {
                 clearInterval(iv);
                 clearInterval(st._timer);
-                if (actx && !document.querySelector('.ms-play.playing')) { /* keep shared ctx alive */ }
+                destroyGraph(st);
             }
         }, 2000);
     }
@@ -992,9 +1619,12 @@ const MusicSpark = (() => {
         const saved = loadAutosave();
         const st = saved || blankState();
         if (!saved) {
-            st.patterns = PRESETS['Boom Bap + Keys']();
+            const fresh = PRESETS['Boom Bap + Keys']();
+            st.patterns = fresh.patterns;
+            st.arrangement = [0, 0, 1, 0];
             st.name = 'My First Beat';
-            st.bpm = 96;
+            st.bpm = fresh.bpm;
+            st.kit = fresh.kit;
         }
         const win = openWithState(st);
         markClean(win, st);

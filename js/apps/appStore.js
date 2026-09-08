@@ -97,8 +97,8 @@ const AppStore = (() => {
             category: 'Music & Audio',
             rating: '4.9',
             reviews: '3,412',
-            description: 'A full beat-making studio in the style of FL Studio. Step sequencer with 8 drum kits, piano roll synth, mixer with mute/solo, 4 loopable patterns, presets, and WAV export.',
-            features: ['8-track step sequencer (kick, snare, hats, more)', 'Piano roll lead synth (C4-C6, 4 waveforms)', 'Mixer with per-track volume, mute, and solo', '4 patterns that loop and switch live', 'BPM, swing, and metronome controls', 'Genre presets, randomizer, .mspark projects', 'Export loops to WAV in your Music folder'],
+            description: 'A full beat-making studio in the style of FL Studio. Step sequencer, piano roll with 808 bass, song arranger, mixer, FX rack, 4 drum kits, and WAV export.',
+            features: ['8-track step sequencer with per-step velocity', 'Piano roll: lead synth + glide 808 bass with note lengths', 'Song arranger with pattern chaining + full-song export', '4 drum kits (Studio, TR-808, Lo-Fi, Acoustic)', 'FX rack: tempo echo, convolution reverb, filters', 'Mixer with mute/solo, BPM, swing, metronome', 'Presets, randomizer, pattern copy/paste/clone, .mspark projects'],
             screenshots: [
                 { bg: 'linear-gradient(135deg, #1DB954, #0b2e16)', text: 'Step Sequencer' },
                 { bg: 'linear-gradient(135deg, #0b2e16, #1DB954)', text: 'Piano Roll + Mixer' }

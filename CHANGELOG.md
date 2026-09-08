@@ -4,6 +4,16 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4720] - 2026-09-08
+
+### Added
+- Music Spark v2: Song arranger view with bar timeline, pattern/song transport modes, loop toggle, and full-song WAV export
+- Music Spark v2: 4 drum kits (Studio, TR-808, Lo-Fi, Acoustic) with per-kit synth tuning
+- Music Spark v2: 808 Bass piano-roll layer with glide and saturation (sounds 2 octaves down)
+- Music Spark v2: FX rack — tempo-synced echo, convolution reverb, and per-track low-pass filters, baked into export
+- Music Spark v2: per-step velocity (right-click pads: soft/normal/accent), piano note lengths via drag, pattern copy/paste/clone
+- Music Spark v2: Drill and Lo-Fi presets, basslines in all presets, v1 project migration
+
 ## [12.0.4710] - 2026-09-07
 
 ### Added
