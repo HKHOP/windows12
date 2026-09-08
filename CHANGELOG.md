@@ -4,6 +4,16 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4780] - 2026-09-08
+
+### Added
+- Storage info readout in Media Player's Organize menu (localStorage footprint plus real IndexedDB usage/quota)
+
+### Fixed
+- Blob-backed files failing to play from the library or queue with "corrupt file" errors — path keys split from strings no longer miss in lookups
+- Unplayable queues advancing forever and hanging the tab — failure handling now stops after one full pass with bounded popups
+- Blob writes are read back and verified, so a success message guarantees bytes on disk
+
 ## [12.0.4770] - 2026-09-08
 
 ### Added

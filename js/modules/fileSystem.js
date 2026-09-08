@@ -145,11 +145,35 @@ const FileSystem = (() => {
         return serializedSize() + (extraBytes || 0) < STORAGE_BUDGET;
     }
 
+    // Diagnostics for the storage UI: localStorage footprint plus the real
+    // origin usage/quota (covers IndexedDB blobs).
+    async function storageInfo() {
+        let localBytes = 0;
+        try {
+            localBytes = (localStorage.getItem(STORAGE_KEY) || '').length;
+        } catch (e) { /* noop */ }
+        let usage = null, quota = null;
+        try {
+            if (navigator.storage && navigator.storage.estimate) {
+                const est = await navigator.storage.estimate();
+                if (est) {
+                    usage = typeof est.usage === 'number' ? est.usage : null;
+                    quota = typeof est.quota === 'number' ? est.quota : null;
+                }
+            }
+        } catch (e) { /* noop */ }
+        return { localBytes, usage, quota };
+    }
+
     function getNode(path) {
         if (!path || path.length === 0) return root;
+        // Accept both array paths (['/', 'users', ...]) and split key
+        // strings ('/users/...' -> ['', 'users', ...]): skip separators
+        // and empty segments so both forms resolve identically.
+        const segments = typeof path === 'string' ? path.split('/') : path;
         let current = root;
-        for (const segment of path) {
-            if (segment === '/') continue;
+        for (const segment of segments) {
+            if (segment === '/' || segment === '') continue;
             if (current.type !== 'folder' || !current.children[segment]) {
                 return null;
             }
@@ -213,6 +237,8 @@ const FileSystem = (() => {
 
     // Store a large file (audio, video, images) as raw bytes in IndexedDB.
     // The tree keeps a tiny pointer, so localStorage never sees the bulk.
+    // The write is read back and verified — a success return means the bytes
+    // were confirmed on disk, never just "sent and hoped".
     // Returns Promise<boolean> — false means missing IDB support or quota.
     async function writeFileBlob(path, name, blob, ext = '') {
         const parent = getNode(path);
@@ -221,6 +247,11 @@ const FileSystem = (() => {
         const ref = newBlobRef();
         try {
             await BlobStore.put(ref, blob);
+            const check = await BlobStore.get(ref);
+            if (!check || check.size !== blob.size) {
+                try { await BlobStore.del(ref); } catch (e2) { /* noop */ }
+                return false;
+            }
         } catch (e) {
             return false;
         }
@@ -385,7 +416,7 @@ const FileSystem = (() => {
         return node !== null && node.type === 'folder';
     }
 
-    return { init, save, flush, serializedSize, wouldFit, getNode, getChildren, createFolder, createFile, readFile, writeFile, writeFileBlob, readFileBlob, isBlobFile, deleteItem, permanentDelete, restoreFromRecycleBin, emptyRecycleBin, getRecycleBinContent, renameItem, moveItem, itemExists, isFolder };
+    return { init, save, flush, serializedSize, wouldFit, storageInfo, getNode, getChildren, createFolder, createFile, readFile, writeFile, writeFileBlob, readFileBlob, isBlobFile, deleteItem, permanentDelete, restoreFromRecycleBin, emptyRecycleBin, getRecycleBinContent, renameItem, moveItem, itemExists, isFolder };
 })();
 
 window._FileSystem = FileSystem;

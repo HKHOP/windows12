@@ -456,6 +456,28 @@ const MediaPlayer = (() => {
         if (el) el.textContent = msg;
     }
 
+    // Shared failure accounting for EVERY auto-advance path (decode errors,
+    // missing blobs, unresolvable sources). Returns true if the caller may
+    // advance, false if playback must park. Guarantees termination: at most
+    // one pass over the queue, then stop. Without the cap, a repeat-all
+    // queue of unplayable items advances forever — settling via microtasks
+    // alone, which starves the event loop and hangs the whole tab.
+    function noteLoadFailure(s, it) {
+        s.errStreak = (s.errStreak || 0) + 1;
+        if (s.errStreak === 1 && !s.errorShown) {
+            s.errorShown = true;
+            Popup.error('Playback failed', `Could not play "${it && it.name ? it.name : 'this file'}". It may be corrupt, missing, or unsupported. Skipping.`);
+        }
+        if (s.errStreak > Math.max(s.st.queue.length, 1)) {
+            s.errStreak = 0;
+            try { s.media.pause(); } catch (e) { /* noop */ }
+            Popup.error('Playback failed', 'None of the queued files could be played.');
+            renderTransport(s);
+            return false;
+        }
+        return true;
+    }
+
     async function playIndex(s, i, opts) {
         if (s.dead) return;
         opts = opts || {};
@@ -471,11 +493,7 @@ const MediaPlayer = (() => {
         if (!src) {
             s.media.removeAttribute('src');
             try { s.media.load(); } catch (e) { /* noop */ }
-            s.errStreak = (s.errStreak || 0) + 1;
-            if (s.errStreak === 1) {
-                Popup.error('Playback failed', `Could not load "${it.name}". The file may have been moved or deleted.`);
-            }
-            playNext(s, 1);
+            if (noteLoadFailure(s, it)) playNext(s, 1);
             return;
         }
         s.media.src = src;
@@ -928,22 +946,7 @@ const MediaPlayer = (() => {
             // during teardown fires error asynchronously, which used to
             // resurrect playback after the window was closed.
             if (s.dead || !s.win.element.isConnected || !s.media.src) return;
-            s.errStreak++;
-            const c = cur(s);
-            // A full pass over the queue with nothing playable: stop instead
-            // of looping errors forever (Stop previously couldn't win).
-            if (s.errStreak > s.st.queue.length) {
-                s.errStreak = 0;
-                try { s.media.pause(); } catch (e) { /* noop */ }
-                Popup.error('Playback failed', 'None of the queued files could be played. They may be corrupt or unsupported.');
-                renderTransport(s);
-                return;
-            }
-            if (!s.errorShown) {
-                s.errorShown = true;
-                Popup.error('Playback failed', `Could not play "${c ? c.name : 'this file'}". It may be corrupt or an unsupported format. Skipping.`);
-            }
-            playNext(s, 1);
+            if (noteLoadFailure(s, cur(s))) playNext(s, 1);
         };
 
         // transport
@@ -1033,7 +1036,7 @@ const MediaPlayer = (() => {
                     renderAll(s); saveState(s);
                 }
             } else if (m === 'organize') {
-                const pick = await Popup.pick('Organize', 'Library options:', ['Rescan library', 'Create sample music', 'Clear resume data']);
+                const pick = await Popup.pick('Organize', 'Library options:', ['Rescan library', 'Create sample music', 'Storage info', 'Clear resume data']);
                 const label = pick && (pick.label || pick);
                 if (label === 'Rescan library') {
                     s.lib = scanLibrary();
@@ -1045,6 +1048,13 @@ const MediaPlayer = (() => {
                         s.lib = scanLibrary(); renderAll(s);
                         setStatus(s, made ? 'Sample music added' : 'Sample music is already there');
                     });
+                } else if (label === 'Storage info') {
+                    const info = await FileSystem.storageInfo();
+                    const mb = n => n == null ? 'unknown' : (n / 1048576).toFixed(1) + ' MB';
+                    await Popup.info('Storage info',
+                        `File index (localStorage): ${mb(info.localBytes)}\n` +
+                        `Media + files on disk (IndexedDB): ${mb(info.usage)} of ${mb(info.quota)}\n\n` +
+                        `Songs and videos live in IndexedDB; if usage reads 0 MB after saving, the browser is discarding stored bytes.`);
                 } else if (label === 'Clear resume data') {
                     st.resume = {}; saveState(st);
                     setStatus(s, 'Resume data cleared');
