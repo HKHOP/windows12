@@ -602,6 +602,7 @@ import AppSystem from '../../modules/appSystem.js';
 import AppIcons from '../../modules/appIcons.js';
 import SavePrompt from '../../modules/saveprompt.js';
 import FileAssociations from '../../modules/fileAssociations.js';
+import Notifications from '../../modules/notifications.js';
 ```
 
 ---
@@ -732,3 +733,56 @@ export default MyReddit;
 8. **Clean up intervals/listeners when your window closes** — listen for close button or check `win.element.isConnected`
 9. **All CSS is scoped to the dark theme** — use light text on dark backgrounds
 10. **Window body fills available space** — use `height:100%` and flexbox for layouts
+
+---
+
+## 19. Notifications API
+
+**Import:** `import Notifications from '../../modules/notifications.js';`
+
+Non-modal Windows 11-style toasts + Action Center panel. All methods return the notification id immediately; results arrive via callbacks (unlike Popup, nothing blocks).
+
+### `Notifications.info(title, message, opts?)` → `string` (id)
+Plain notification.
+
+### `Notifications.action(title, message, opts?)` → `string` (id)
+Notification with buttons. `opts.actions` is `[{ label, value?, primary? }]` (defaults to a single OK). `opts.onAction(value, id)` fires on press.
+
+### `Notifications.forum(title, message, opts?)` → `string` (id)
+Notification with input fields plus Submit/Cancel. `opts.fields` uses the Popup.forum schema (`{ key, label, type?, value?, placeholder?, options? }`, types: text/number/password/textarea/select/checkbox). `opts.onSubmit(data, id)` fires with `{ key: value }`.
+
+### Common `opts` (all three types)
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `appId` | `string` | `'system'` | Sender id (name/icon resolved automatically) |
+| `sticky` | `boolean` | `false` | Keep on screen until manually dismissed |
+| `critical` | `boolean` | `false` | Pinned to panel top, bypasses Focus assist |
+| `silent` | `boolean` | `false` | Panel only — no toast, no sound |
+| `tag` | `string` | — | Replaces your previous notification with the same tag |
+| `timeout` | `number` | `6000` | Auto-dismiss ms (`0` with `sticky`, `15000` for critical) |
+| `onDismiss` | `(reason, id?) => void` | — | Reasons: `'action'`, `'submit'`, `'dismiss'` (X), `'timeout'` (ignored), `'clear'`, `'replace'` |
+
+### Management
+`Notifications.dismiss(id)`, `Notifications.clearAll()`, `Notifications.getAll()`, `Notifications.open()/close()/toggle()`, `Notifications.setDoNotDisturb(bool)` (Focus assist — toasts suppressed except critical).
+
+**Example:**
+```js
+// Progress-style update via tag (one notification, keeps updating)
+const id = Notifications.info('Copying', 'Starting…', { tag: 'copy', appId: 'fileExplorer' });
+// ...later:
+Notifications.dismiss(id);
+Notifications.info('Copying', 'Done!', { tag: 'copy', appId: 'fileExplorer' });
+
+// Action with per-outcome handling
+Notifications.action('Restart needed', 'Apply the update now?', {
+    appId: 'settings',
+    actions: [
+        { label: 'Restart', value: 'yes', primary: true },
+        { label: 'Later', value: 'no' }
+    ],
+    onAction: (v) => { if (v === 'yes') location.reload(); },
+    onDismiss: (reason) => { if (reason === 'timeout') console.log('ignored'); }
+});
+```
+
+Respects Settings > Notifications (master toggle + per-app toggles) automatically.

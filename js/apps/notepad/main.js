@@ -10,23 +10,23 @@ const Notepad = (() => {
     function getContent() {
         return `
             <div style="display:flex;flex-direction:column;height:100%;">
-                <div style="display:flex;gap:2px;padding:4px 8px;background:rgba(0,0,0,0.2);border-bottom:1px solid rgba(255,255,255,0.06);">
-                    <button class="notepad-menu-btn" data-menu="file" style="background:none;border:none;color:#ccc;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:13px;">File</button>
-                    <button class="notepad-menu-btn" data-menu="edit" style="background:none;border:none;color:#ccc;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:13px;">Edit</button>
-                    <button class="notepad-menu-btn" data-menu="view" style="background:none;border:none;color:#ccc;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:13px;">View</button>
+                <div style="display:flex;gap:2px;padding:4px 8px;background:rgba(128,128,128,0.12);border-bottom:1px solid var(--window-border);">
+                    <button class="notepad-menu-btn" data-menu="file" style="background:none;border:none;color:var(--text-primary);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:13px;">File</button>
+                    <button class="notepad-menu-btn" data-menu="edit" style="background:none;border:none;color:var(--text-primary);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:13px;">Edit</button>
+                    <button class="notepad-menu-btn" data-menu="view" style="background:none;border:none;color:var(--text-primary);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:13px;">View</button>
                 </div>
-                <div class="notepad-find-bar" style="display:none;padding:6px 12px;background:rgba(0,0,0,0.15);border-bottom:1px solid rgba(255,255,255,0.06);align-items:center;gap:8px;">
-                    <input type="text" class="notepad-find-input" placeholder="Find..." style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:4px 8px;font-size:13px;color:#ccc;outline:none;width:200px;">
-                    <label style="font-size:12px;color:#888;display:flex;align-items:center;gap:4px;cursor:pointer;">
+                <div class="notepad-find-bar" style="display:none;padding:6px 12px;background:rgba(128,128,128,0.08);border-bottom:1px solid var(--window-border);align-items:center;gap:8px;">
+                    <input type="text" class="notepad-find-input" placeholder="Find..." style="background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:4px;padding:4px 8px;font-size:13px;color:var(--text-primary);outline:none;width:200px;">
+                    <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;cursor:pointer;">
                         <input type="checkbox" class="notepad-find-case" style="accent-color:var(--accent-color);"> Match case
                     </label>
-                    <button class="notepad-find-prev" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:3px 8px;color:#ccc;cursor:pointer;font-size:12px;">Prev</button>
-                    <button class="notepad-find-next" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:3px 8px;color:#ccc;cursor:pointer;font-size:12px;">Next</button>
-                    <span class="notepad-find-count" style="font-size:12px;color:#888;min-width:60px;"></span>
-                    <button class="notepad-find-close" style="background:none;border:none;color:#888;cursor:pointer;font-size:16px;padding:2px 6px;">&times;</button>
+                    <button class="notepad-find-prev" style="background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:4px;padding:3px 8px;color:var(--text-primary);cursor:pointer;font-size:12px;">Prev</button>
+                    <button class="notepad-find-next" style="background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:4px;padding:3px 8px;color:var(--text-primary);cursor:pointer;font-size:12px;">Next</button>
+                    <span class="notepad-find-count" style="font-size:12px;color:var(--text-secondary);min-width:60px;"></span>
+                    <button class="notepad-find-close" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:16px;padding:2px 6px;">&times;</button>
                 </div>
-                <textarea class="notepad-textarea" style="flex:1;background:transparent;border:none;color:#ddd;padding:12px 16px;resize:none;outline:none;font-family:'Consolas','Courier New',monospace;font-size:14px;line-height:1.6;white-space:pre;overflow-x:auto;word-break:normal;" placeholder="Start typing..." spellcheck="false"></textarea>
-                <div style="padding:4px 12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;font-size:12px;color:#666;">
+                <textarea class="notepad-textarea" style="flex:1;background:transparent;border:none;color:var(--text-primary);padding:12px 16px;resize:none;outline:none;font-family:'Consolas','Courier New',monospace;font-size:14px;line-height:1.6;white-space:pre;overflow-x:auto;word-break:normal;" placeholder="Start typing..." spellcheck="false"></textarea>
+                <div style="padding:4px 12px;border-top:1px solid var(--window-border);display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);">
                     <span class="notepad-status">Ln 1, Col 1</span>
                     <div style="display:flex;gap:12px;">
                         <span class="notepad-zoom-label">100%</span>

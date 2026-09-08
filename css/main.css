@@ -17,6 +17,8 @@
     --hover-bg: rgba(255, 255, 255, 0.08);
     --active-bg: rgba(255, 255, 255, 0.12);
     --start-menu-bg: rgba(44, 44, 44, 0.95);
+    --taskbar-bg: rgba(32, 32, 32, 0.85);
+    --button-bg: #2d2d2d;
     --radius: 8px;
     --taskbar-height: 48px;
 }
@@ -30,6 +32,8 @@
     --hover-bg: rgba(0, 0, 0, 0.05);
     --active-bg: rgba(0, 0, 0, 0.08);
     --start-menu-bg: rgba(243, 243, 243, 0.95);
+    --taskbar-bg: rgba(243, 243, 243, 0.85);
+    --button-bg: #e6e6e6;
 }
 
 html, body {

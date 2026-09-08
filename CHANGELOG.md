@@ -4,6 +4,16 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4790] - 2026-09-08
+
+### Added
+- Notification API (`js/modules/notifications.js`) — `info`, `action` (buttons + `onAction`), and `forum` (fields + `onSubmit`) toasts with `sticky`, `critical`, `silent`, and `tag` flags
+- Windows 11-style Action Center — bell + unread badge in the tray, clock opens a panel with pinned critical notifications and quick settings (dark mode, focus assist, notifications toggle, brightness/volume sliders)
+- Per-outcome dismissal reasons (`action`, `submit`, `dismiss`, `timeout`, `clear`, `replace`) with Focus-assist suppression and Settings toggle integration
+
+### Fixed
+- Light mode readability — theme-aware taskbar background, chrome icon recoloring (start, search, tray, power), notification panel light theme, and themed text in Notepad, File Explorer, Clock, and Ex/port
+
 ## [12.0.4780] - 2026-09-08
 
 ### Added

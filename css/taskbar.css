@@ -12,7 +12,21 @@
     justify-content: space-between;
     padding: 0 12px;
     z-index: 9999;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid var(--window-border);
+}
+
+/* Monochrome chrome icons follow the theme (overrides hardcoded white fills) */
+#start-btn svg rect {
+    fill: var(--text-primary);
+}
+
+.taskbar-btn[data-app="search"] svg {
+    stroke: var(--text-primary);
+}
+
+#tray-icons svg,
+#tray-icons svg path {
+    fill: var(--text-primary);
 }
 
 #taskbar-center {

@@ -34,6 +34,7 @@ A web-based OS simulation built with vanilla HTML, CSS, and JavaScript modules. 
 - **App modules must not call `AppLoader`/`AppRegistry`/`AppMetadata` at module scope** (top-level). The registry <-> app import cycle leaves those bindings uninitialized during evaluation — only call them inside functions like `launch()`.
 - **After changing any `manifest.json`** (or adding/removing an app folder), run `node build-registry.js` to regenerate `js/apps/registry.js` and refresh the `sw.js` precache.
 - **Never use native `alert()`, `confirm()`, or `prompt()`**. Always use the Popup API (`js/modules/popup.js`). All methods return Promises — use `.then()` or `await`. Available methods: `Popup.info()`, `Popup.warn()`, `Popup.error()`, `Popup.confirm()`, `Popup.pick()`, `Popup.textbox()`, `Popup.forum()`. Import it with `import Popup from '../modules/popup.js';`
+- **For non-modal toasts use the Notifications API** (`js/modules/notifications.js`): `Notifications.info()`, `Notifications.action()` (buttons + `onAction`), `Notifications.forum()` (fields + `onSubmit`). Flags: `sticky`, `critical`, `silent`, `tag`. Methods return the id immediately; outcomes arrive via `onAction`/`onSubmit`/`onDismiss(reason)`. Import it with `import Notifications from '../modules/notifications.js';`
 
 ## Workflow
 - Always commit and push changes after completing a task.

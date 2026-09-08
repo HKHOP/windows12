@@ -11,6 +11,7 @@ import DesktopIcons from './modules/desktopIcons.js';
 import AppSystem from './modules/appSystem.js';
 import WindowsUpdate from './modules/windowsUpdate.js';
 import Search from './modules/search.js';
+import Notifications from './modules/notifications.js';
 
 AppSystem.init();
 
@@ -40,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     Touch.init();
     WindowsUpdate.init();
     Search.init();
+    Notifications.init();
 
     window._modules = { ContextMenu };
 

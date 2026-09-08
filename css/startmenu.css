@@ -218,6 +218,10 @@
     transition: background 0.15s;
 }
 
+#power-btn svg {
+    stroke: var(--text-primary);
+}
+
 #power-btn:hover {
     background: rgba(255, 80, 80, 0.2);
 }

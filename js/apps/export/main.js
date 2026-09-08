@@ -8,12 +8,12 @@ const ExportImport = (() => {
     function getContent() {
         return `
             <div style="display:flex;flex-direction:column;height:100%;">
-                <div style="display:flex;background:#2d2d2d;border-bottom:1px solid #3d3d3d;">
-                    <button class="exp-tab active" data-tab="import" style="flex:1;padding:10px;background:none;border:none;border-bottom:2px solid #0078D4;color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                <div style="display:flex;background:rgba(128,128,128,0.12);border-bottom:1px solid var(--window-border);">
+                    <button class="exp-tab active" data-tab="import" style="flex:1;padding:10px;background:none;border:none;border-bottom:2px solid #0078D4;color:var(--text-primary);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3m0 12l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
                         Import
                     </button>
-                    <button class="exp-tab" data-tab="export" style="flex:1;padding:10px;background:none;border:none;border-bottom:2px solid transparent;color:#888;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <button class="exp-tab" data-tab="export" style="flex:1;padding:10px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-secondary);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
                         Export
                     </button>
@@ -25,35 +25,35 @@ const ExportImport = (() => {
                                 <path d="M12 15V3m0 12l-4-4m4 4l4-4"/>
                                 <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
                             </svg>
-                            <div style="color:#888;font-size:14px;margin-bottom:8px;">Drop files here or click to browse</div>
-                            <div style="color:#666;font-size:12px;">Supports images, documents, audio, video, and any file type</div>
+                            <div style="color:var(--text-secondary);font-size:14px;margin-bottom:8px;">Drop files here or click to browse</div>
+                            <div style="color:var(--text-secondary);font-size:12px;">Supports images, documents, audio, video, and any file type</div>
                             <input type="file" class="exp-file-input" multiple style="display:none;">
                         </div>
                         <div class="exp-import-options" style="background:#252526;border:1px solid #3d3d3d;border-radius:8px;padding:16px;margin-bottom:20px;">
-                            <div style="font-size:13px;font-weight:500;color:#ccc;margin-bottom:12px;">Import to:</div>
+                            <div style="font-size:13px;font-weight:500;color:var(--text-primary);margin-bottom:12px;">Import to:</div>
                             <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                                <button class="exp-path-btn active" data-path="/users/default/Desktop" style="padding:6px 12px;background:rgba(0,120,212,0.2);border:1px solid #0078D4;border-radius:6px;color:#ccc;font-size:12px;cursor:pointer;">Desktop</button>
-                                <button class="exp-path-btn" data-path="/users/default/Documents" style="padding:6px 12px;background:#3c3c3c;border:1px solid #555;border-radius:6px;color:#ccc;font-size:12px;cursor:pointer;">Documents</button>
-                                <button class="exp-path-btn" data-path="/users/default/Downloads" style="padding:6px 12px;background:#3c3c3c;border:1px solid #555;border-radius:6px;color:#ccc;font-size:12px;cursor:pointer;">Downloads</button>
-                                <button class="exp-path-btn" data-path="/users/default/Pictures" style="padding:6px 12px;background:#3c3c3c;border:1px solid #555;border-radius:6px;color:#ccc;font-size:12px;cursor:pointer;">Pictures</button>
-                                <button class="exp-path-btn" data-path="/users/default/Music" style="padding:6px 12px;background:#3c3c3c;border:1px solid #555;border-radius:6px;color:#ccc;font-size:12px;cursor:pointer;">Music</button>
-                                <button class="exp-path-btn" data-path="/users/default/Videos" style="padding:6px 12px;background:#3c3c3c;border:1px solid #555;border-radius:6px;color:#ccc;font-size:12px;cursor:pointer;">Videos</button>
+                                <button class="exp-path-btn active" data-path="/users/default/Desktop" style="padding:6px 12px;background:rgba(0,120,212,0.2);border:1px solid #0078D4;border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Desktop</button>
+                                <button class="exp-path-btn" data-path="/users/default/Documents" style="padding:6px 12px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Documents</button>
+                                <button class="exp-path-btn" data-path="/users/default/Downloads" style="padding:6px 12px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Downloads</button>
+                                <button class="exp-path-btn" data-path="/users/default/Pictures" style="padding:6px 12px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Pictures</button>
+                                <button class="exp-path-btn" data-path="/users/default/Music" style="padding:6px 12px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Music</button>
+                                <button class="exp-path-btn" data-path="/users/default/Videos" style="padding:6px 12px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Videos</button>
                             </div>
                             <div style="margin-top:12px;display:flex;align-items:center;gap:8px;">
-                                <span style="color:#888;font-size:12px;">Custom path:</span>
-                                <input type="text" class="exp-custom-path" placeholder="/users/default/..." style="flex:1;padding:6px 10px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;font-size:12px;outline:none;">
+                                <span style="color:var(--text-secondary);font-size:12px;">Custom path:</span>
+                                <input type="text" class="exp-custom-path" placeholder="/users/default/..." style="flex:1;padding:6px 10px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:4px;color:var(--text-primary);font-size:12px;outline:none;">
                             </div>
                         </div>
                         <button class="exp-import-btn" disabled style="width:100%;padding:12px;background:#0078D4;border:none;border-radius:6px;color:white;font-size:13px;font-weight:500;cursor:not-allowed;opacity:0.5;">Import Files</button>
-                        <div class="exp-import-status" style="margin-top:12px;font-size:12px;color:#888;"></div>
+                        <div class="exp-import-status" style="margin-top:12px;font-size:12px;color:var(--text-secondary);"></div>
                     </div>
                     <div class="exp-export-panel" style="display:none;">
                         <div style="background:#252526;border:1px solid #3d3d3d;border-radius:8px;padding:16px;margin-bottom:20px;">
-                            <div style="font-size:13px;font-weight:500;color:#ccc;margin-bottom:12px;">Select files to export:</div>
+                            <div style="font-size:13px;font-weight:500;color:var(--text-primary);margin-bottom:12px;">Select files to export:</div>
                             <div class="exp-file-tree" style="max-height:300px;overflow-y:auto;background:#1e1e1e;border-radius:6px;padding:8px;"></div>
                         </div>
                         <button class="exp-export-btn" disabled style="width:100%;padding:12px;background:#0078D4;border:none;border-radius:6px;color:white;font-size:13px;font-weight:500;cursor:not-allowed;opacity:0.5;">Download Selected</button>
-                        <div class="exp-export-status" style="margin-top:12px;font-size:12px;color:#888;"></div>
+                        <div class="exp-export-status" style="margin-top:12px;font-size:12px;color:var(--text-secondary);"></div>
                     </div>
                 </div>
             </div>
@@ -120,7 +120,7 @@ const ExportImport = (() => {
                         <polyline points="22 4 12 14.01 9 11.01"/>
                     </svg>
                     <div style="color:#4CAF50;font-size:14px;margin-bottom:4px;">${selectedFiles.length} file(s) selected</div>
-                    <div style="color:#888;font-size:12px;">${selectedFiles.map(f => f.name).join(', ')}</div>
+                    <div style="color:var(--text-secondary);font-size:12px;">${selectedFiles.map(f => f.name).join(', ')}</div>
                 `;
                 importBtn.disabled = false;
                 importBtn.style.cursor = 'pointer';
@@ -131,8 +131,8 @@ const ExportImport = (() => {
         el.querySelectorAll('.exp-path-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 el.querySelectorAll('.exp-path-btn').forEach(b => {
-                    b.style.background = '#3c3c3c';
-                    b.style.borderColor = '#555';
+                    b.style.background = 'rgba(128,128,128,0.12)';
+                    b.style.borderColor = 'rgba(128,128,128,0.3)';
                     b.classList.remove('active');
                 });
                 btn.style.background = 'rgba(0,120,212,0.2)';
@@ -146,8 +146,8 @@ const ExportImport = (() => {
         el.querySelector('.exp-custom-path').addEventListener('input', (e) => {
             if (e.target.value) {
                 el.querySelectorAll('.exp-path-btn').forEach(b => {
-                    b.style.background = '#3c3c3c';
-                    b.style.borderColor = '#555';
+                    b.style.background = 'rgba(128,128,128,0.12)';
+                    b.style.borderColor = 'rgba(128,128,128,0.3)';
                     b.classList.remove('active');
                 });
                 importPath = e.target.value;
@@ -196,8 +196,8 @@ const ExportImport = (() => {
                     <path d="M12 15V3m0 12l-4-4m4 4l4-4"/>
                     <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
                 </svg>
-                <div style="color:#888;font-size:14px;margin-bottom:8px;">Drop files here or click to browse</div>
-                <div style="color:#666;font-size:12px;">Supports images, documents, audio, video, and any file type</div>
+                            <div style="color:var(--text-secondary);font-size:14px;margin-bottom:8px;">Drop files here or click to browse</div>
+                <div style="color:var(--text-secondary);font-size:12px;">Supports images, documents, audio, video, and any file type</div>
             `;
             importBtn.disabled = true;
             importBtn.style.cursor = 'not-allowed';
@@ -256,8 +256,8 @@ const ExportImport = (() => {
                 
                 if (isFolder) {
                     html += `
-                        <div class="exp-folder" style="padding:4px 8px;padding-left:${indent + 8}px;cursor:pointer;display:flex;align-items:center;gap:6px;color:#ccc;font-size:12px;" data-path="${itemPath}">
-                            <span style="color:#888;">▶</span>
+                        <div class="exp-folder" style="padding:4px 8px;padding-left:${indent + 8}px;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--text-primary);font-size:12px;" data-path="${itemPath}">
+                            <span style="color:var(--text-secondary);">▶</span>
                             <span>📁</span>
                             <span>${name}</span>
                         </div>
@@ -268,11 +268,11 @@ const ExportImport = (() => {
                 } else {
                     const isSelected = exportSelection.has(itemPath);
                     html += `
-                        <div class="exp-file-item" data-path="${itemPath}" data-type="file" style="padding:4px 8px;padding-left:${indent + 8}px;cursor:pointer;display:flex;align-items:center;gap:6px;color:#ccc;font-size:12px;border-radius:4px;${isSelected ? 'background:rgba(0,120,212,0.2);' : ''}">
+                        <div class="exp-file-item" data-path="${itemPath}" data-type="file" style="padding:4px 8px;padding-left:${indent + 8}px;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--text-primary);font-size:12px;border-radius:4px;${isSelected ? 'background:rgba(0,120,212,0.2);' : ''}">
                             <span class="exp-check" style="width:16px;">${isSelected ? '☑' : '☐'}</span>
                             <span>${getFileIcon(name)}</span>
                             <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>
-                            <span style="color:#666;font-size:10px;">${formatSize(item.content ? item.content.length : 0)}</span>
+                            <span style="color:var(--text-secondary);font-size:10px;">${formatSize(item.content ? item.content.length : 0)}</span>
                         </div>
                     `;
                 }

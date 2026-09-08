@@ -17,10 +17,10 @@ const Clock = (() => {
     function getContent() {
         return `
             <div style="display:flex;flex-direction:column;height:100%;">
-                <div style="display:flex;gap:2px;padding:4px 8px;background:rgba(0,0,0,0.2);border-bottom:1px solid rgba(255,255,255,0.06);">
-                    <button class="clock-tab-btn" data-tab="clock" style="background:${activeTab==='clock'?'rgba(255,255,255,0.1)':'none'};border:none;color:${activeTab==='clock'?'#fff':'#aaa'};padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">Clock</button>
-                    <button class="clock-tab-btn" data-tab="timer" style="background:${activeTab==='timer'?'rgba(255,255,255,0.1)':'none'};border:none;color:${activeTab==='timer'?'#fff':'#aaa'};padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">Timer</button>
-                    <button class="clock-tab-btn" data-tab="stopwatch" style="background:${activeTab==='stopwatch'?'rgba(255,255,255,0.1)':'none'};border:none;color:${activeTab==='stopwatch'?'#fff':'#aaa'};padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">Stopwatch</button>
+                <div style="display:flex;gap:2px;padding:4px 8px;background:rgba(128,128,128,0.12);border-bottom:1px solid var(--window-border);">
+                    <button class="clock-tab-btn" data-tab="clock" style="background:${activeTab==='clock'?'rgba(128,128,128,0.2)':'none'};border:none;color:${activeTab==='clock'?'var(--text-primary)':'var(--text-secondary)'};padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">Clock</button>
+                    <button class="clock-tab-btn" data-tab="timer" style="background:${activeTab==='timer'?'rgba(128,128,128,0.2)':'none'};border:none;color:${activeTab==='timer'?'var(--text-primary)':'var(--text-secondary)'};padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">Timer</button>
+                    <button class="clock-tab-btn" data-tab="stopwatch" style="background:${activeTab==='stopwatch'?'rgba(128,128,128,0.2)':'none'};border:none;color:${activeTab==='stopwatch'?'var(--text-primary)':'var(--text-secondary)'};padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">Stopwatch</button>
                 </div>
                 <div class="clock-content" style="flex:1;display:flex;align-items:center;justify-content:center;overflow-y:auto;padding:20px;"></div>
             </div>
@@ -31,8 +31,8 @@ const Clock = (() => {
         const contentEl = win.element.querySelector('.clock-content');
         const tabs = win.element.querySelectorAll('.clock-tab-btn');
         tabs.forEach(t => {
-            t.style.background = t.dataset.tab === activeTab ? 'rgba(255,255,255,0.1)' : 'none';
-            t.style.color = t.dataset.tab === activeTab ? '#fff' : '#aaa';
+            t.style.background = t.dataset.tab === activeTab ? 'rgba(128,128,128,0.2)' : 'none';
+            t.style.color = t.dataset.tab === activeTab ? 'var(--text-primary)' : 'var(--text-secondary)';
         });
 
         if (activeTab === 'clock') renderClock(contentEl);
@@ -148,11 +148,11 @@ const Clock = (() => {
         const pad = v => String(v).padStart(2, '0');
         return `
             <div style="display:flex;align-items:center;gap:6px;">
-                <input type="number" class="timer-input timer-h" min="0" max="23" value="${timerState.input.h}" style="width:60px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;padding:8px;border-radius:6px;text-align:center;font-size:28px;font-weight:200;outline:none;">
-                <span style="font-size:24px;color:#666;">:</span>
-                <input type="number" class="timer-input timer-m" min="0" max="59" value="${timerState.input.m}" style="width:60px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;padding:8px;border-radius:6px;text-align:center;font-size:28px;font-weight:200;outline:none;">
-                <span style="font-size:24px;color:#666;">:</span>
-                <input type="number" class="timer-input timer-s" min="0" max="59" value="${timerState.input.s}" style="width:60px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;padding:8px;border-radius:6px;text-align:center;font-size:28px;font-weight:200;outline:none;">
+                <input type="number" class="timer-input timer-h" min="0" max="23" value="${timerState.input.h}" style="width:60px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);color:var(--text-primary);padding:8px;border-radius:6px;text-align:center;font-size:28px;font-weight:200;outline:none;">
+                <span style="font-size:24px;color:var(--text-secondary);">:</span>
+                <input type="number" class="timer-input timer-m" min="0" max="59" value="${timerState.input.m}" style="width:60px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);color:var(--text-primary);padding:8px;border-radius:6px;text-align:center;font-size:28px;font-weight:200;outline:none;">
+                <span style="font-size:24px;color:var(--text-secondary);">:</span>
+                <input type="number" class="timer-input timer-s" min="0" max="59" value="${timerState.input.s}" style="width:60px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);color:var(--text-primary);padding:8px;border-radius:6px;text-align:center;font-size:28px;font-weight:200;outline:none;">
             </div>
         `;
     }
@@ -232,7 +232,7 @@ const Clock = (() => {
                     ${swState.laps.map((lap, i) => `
                         <div style="display:flex;justify-content:space-between;padding:6px 12px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:#aaa;">
                             <span>Lap ${swState.laps.length - i}</span>
-                            <span style="color:#ddd;font-variant-numeric:tabular-nums;">${formatStopwatch(lap)}</span>
+                            <span style="color:var(--text-secondary);font-variant-numeric:tabular-nums;">${formatStopwatch(lap)}</span>
                         </div>
                     `).join('')}
                 </div>

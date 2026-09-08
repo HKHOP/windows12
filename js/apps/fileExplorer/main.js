@@ -16,24 +16,24 @@ const FileExplorer = (() => {
     function getContent() {
         return `
             <div style="display:flex;flex-direction:column;height:100%;">
-                <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(0,0,0,0.15);border-bottom:1px solid rgba(255,255,255,0.06);">
-                    <button class="fe-back" style="background:none;border:none;color:#888;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:16px;" disabled>&#9664;</button>
-                    <button class="fe-forward" style="background:none;border:none;color:#888;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:16px;" disabled>&#9654;</button>
-                    <button class="fe-up" style="background:none;border:none;color:#ccc;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:16px;">&#9650;</button>
-                    <input type="text" class="fe-path" style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:6px 10px;font-size:13px;color:#ccc;outline:none;" value="This PC" spellcheck="false">
-                    <input type="text" class="fe-search" placeholder="Search" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:6px 10px;font-size:13px;color:#ccc;width:160px;outline:none;">
+                <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(128,128,128,0.12);border-bottom:1px solid var(--window-border);">
+                    <button class="fe-back" style="background:none;border:none;color:var(--text-secondary);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:16px;" disabled>&#9664;</button>
+                    <button class="fe-forward" style="background:none;border:none;color:var(--text-secondary);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:16px;" disabled>&#9654;</button>
+                    <button class="fe-up" style="background:none;border:none;color:var(--text-primary);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:16px;">&#9650;</button>
+                    <input type="text" class="fe-path" style="flex:1;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:4px;padding:6px 10px;font-size:13px;color:var(--text-primary);outline:none;" value="This PC" spellcheck="false">
+                    <input type="text" class="fe-search" placeholder="Search" style="background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:4px;padding:6px 10px;font-size:13px;color:var(--text-primary);width:160px;outline:none;">
                 </div>
                 <div style="display:flex;flex:1;overflow:hidden;">
-                    <div class="fe-sidebar" style="width:200px;background:rgba(0,0,0,0.15);border-right:1px solid rgba(255,255,255,0.06);padding:8px;overflow-y:auto;">
+                    <div class="fe-sidebar" style="width:200px;background:rgba(128,128,128,0.08);border-right:1px solid var(--window-border);padding:8px;overflow-y:auto;">
                         ${buildSidebar()}
                     </div>
                     <div class="fe-content" style="flex:1;padding:8px;overflow-y:auto;display:flex;flex-wrap:wrap;align-content:flex-start;gap:4px;position:relative;"></div>
                 </div>
-                <div class="fe-statusbar" style="padding:4px 12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;font-size:12px;color:#666;">
+                <div class="fe-statusbar" style="padding:4px 12px;border-top:1px solid var(--window-border);display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);">
                     <span class="fe-count">0 items</span>
                     <span class="fe-path-text"></span>
                 </div>
-                <div class="fe-progress-bar" style="display:none;height:3px;background:rgba(255,255,255,0.06);">
+                <div class="fe-progress-bar" style="display:none;height:3px;background:rgba(128,128,128,0.2);">
                     <div class="fe-progress-fill" style="height:100%;background:var(--accent-color);width:0%;transition:width 0.3s;"></div>
                 </div>
             </div>
@@ -54,7 +54,7 @@ const FileExplorer = (() => {
             { name: 'This PC', icon: '💻', path: ['__thispc__'] }
         ];
         return items.map(i => {
-            if (i === 'separator') return '<div style="height:1px;background:rgba(255,255,255,0.06);margin:6px 0;"></div>';
+            if (i === 'separator') return '<div style="height:1px;background:var(--window-border);margin:6px 0;"></div>';
             return `
                 <div class="fe-sidebar-item" style="padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background 0.12s;" data-path='${JSON.stringify(i.path)}'>
                     <span style="font-size:14px;">${i.icon}</span>${i.name}
@@ -164,7 +164,7 @@ const FileExplorer = (() => {
         contentEl.innerHTML = '';
 
         if (entries.length === 0) {
-            contentEl.innerHTML = '<div style="width:100%;text-align:center;padding:60px 20px;color:#666;font-size:14px;">This folder is empty</div>';
+            contentEl.innerHTML = '<div style="width:100%;text-align:center;padding:60px 20px;color:var(--text-secondary);font-size:14px;">This folder is empty</div>';
             countEl.textContent = '0 items';
             return;
         }
@@ -656,14 +656,14 @@ const FileExplorer = (() => {
                     <div style="font-size:48px;">${isDir ? '📁' : getFileIcon(entry.ext, entry.name)}</div>
                     <div>
                         <div style="font-size:16px;font-weight:600;">${entry.name}</div>
-                        <div style="font-size:13px;color:#888;">${isDir ? 'File folder' : `File (${entry.ext || 'unknown'})`}</div>
+                        <div style="font-size:13px;color:var(--text-secondary);">${isDir ? 'File folder' : `File (${entry.ext || 'unknown'})`}</div>
                     </div>
                 </div>
                 <div style="display:grid;grid-template-columns:100px 1fr;gap:8px;font-size:13px;">
-                    <span style="color:#888;">Type:</span><span>${isDir ? 'Folder' : 'File'}</span>
-                    <span style="color:#888;">Location:</span><span style="word-break:break-all;">${itemPath.join(' > ')}</span>
-                    ${!isDir ? `<span style="color:#888;">Size:</span><span>${formatBytes(entry.size)}</span>` : ''}
-                    ${entry.modified ? `<span style="color:#888;">Modified:</span><span>${new Date(entry.modified).toLocaleString()}</span>` : ''}
+                    <span style="color:var(--text-secondary);">Type:</span><span>${isDir ? 'Folder' : 'File'}</span>
+                    <span style="color:var(--text-secondary);">Location:</span><span style="word-break:break-all;">${itemPath.join(' > ')}</span>
+                    ${!isDir ? `<span style="color:var(--text-secondary);">Size:</span><span>${formatBytes(entry.size)}</span>` : ''}
+                    ${entry.modified ? `<span style="color:var(--text-secondary);">Modified:</span><span>${new Date(entry.modified).toLocaleString()}</span>` : ''}
                 </div>
             </div>
         `;
@@ -681,13 +681,13 @@ const FileExplorer = (() => {
         const notepadContent = `
             <div style="display:flex;flex-direction:column;height:100%;">
                 <div style="display:flex;gap:2px;padding:4px 8px;background:rgba(0,0,0,0.2);border-bottom:1px solid rgba(255,255,255,0.06);">
-                    <button style="background:none;border:none;color:#ccc;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:13px;" onmouseenter="this.style.background='rgba(255,255,255,0.08)'" onmouseleave="this.style.background='none'">File</button>
-                    <button style="background:none;border:none;color:#ccc;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:13px;" onmouseenter="this.style.background='rgba(255,255,255,0.08)'" onmouseleave="this.style.background='none'">Edit</button>
-                    <button style="background:none;border:none;color:#ccc;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:13px;" onmouseenter="this.style.background='rgba(255,255,255,0.08)'" onmouseleave="this.style.background='none'">View</button>
+                    <button style="background:none;border:none;color:var(--text-primary);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:13px;" onmouseenter="this.style.background='var(--hover-bg)'" onmouseleave="this.style.background='none'">File</button>
+                    <button style="background:none;border:none;color:var(--text-primary);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:13px;" onmouseenter="this.style.background='var(--hover-bg)'" onmouseleave="this.style.background='none'">Edit</button>
+                    <button style="background:none;border:none;color:var(--text-primary);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:13px;" onmouseenter="this.style.background='var(--hover-bg)'" onmouseleave="this.style.background='none'">View</button>
                 </div>
                 ${isConfigFile ? '<div style="padding:4px 12px;background:rgba(0,120,212,0.15);border-bottom:1px solid rgba(0,120,212,0.2);font-size:12px;color:#4fc3f7;">System config - Ctrl+S to apply changes</div>' : ''}
-                <textarea class="notepad-textarea" style="flex:1;background:transparent;border:none;color:#ddd;padding:12px 16px;resize:none;outline:none;font-family:'Consolas','Courier New',monospace;font-size:14px;line-height:1.6;" spellcheck="false">${escapeHtml(content)}</textarea>
-                <div style="padding:4px 12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;font-size:12px;color:#666;">
+                <textarea class="notepad-textarea" style="flex:1;background:transparent;border:none;color:var(--text-primary);padding:12px 16px;resize:none;outline:none;font-family:'Consolas','Courier New',monospace;font-size:14px;line-height:1.6;" spellcheck="false">${escapeHtml(content)}</textarea>
+                <div style="padding:4px 12px;border-top:1px solid var(--window-border);display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);">
                     <span class="notepad-status">Ln 1, Col 1</span>
                     <span>UTF-8</span>
                 </div>
@@ -762,11 +762,11 @@ const FileExplorer = (() => {
 
         const content2 = `
             <div style="display:flex;flex-direction:column;height:100%;">
-                <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(0,0,0,0.3);border-bottom:1px solid rgba(255,255,255,0.06);">
-                    <span style="color:#aaa;font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${displayPath}">${displayPath}</span>
+                <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(128,128,128,0.12);border-bottom:1px solid var(--window-border);">
+                    <span style="color:var(--text-secondary);font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${displayPath}">${displayPath}</span>
                 </div>
                 <iframe sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" style="width:100%;flex:1;border:none;background:white;" srcdoc="${escapeAttr(secureContent)}"></iframe>
-                <div style="padding:3px 12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;font-size:11px;color:#666;">
+                <div style="padding:3px 12px;border-top:1px solid var(--window-border);display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary);">
                     <span>Local file</span>
                     <span>Restricted mode</span>
                 </div>
