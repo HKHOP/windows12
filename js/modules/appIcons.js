@@ -36,7 +36,8 @@ const AppIcons = (() => {
 
         sledgePoint: `<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#D83B01"/><path d="M7 8h4v8H7V8zm6 3h4v5h-4v-5z" fill="white"/></svg>`,
         cellESheet: `<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="2" width="18" height="20" rx="3" fill="#217346"/><path d="M7 7h10M7 11h10M7 15h10M11 5v14M15 5v14" stroke="white" stroke-width="1.4"/></svg>`,
-        musicSpark: `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="5" fill="#1DB954"/><path d="M9 17.5V7l9-2v11" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.8" cy="17.5" r="2.4" fill="white"/><circle cx="15.8" cy="16" r="2.4" fill="white"/><path d="M18 4l2-1" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>`
+        musicSpark: `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="5" fill="#1DB954"/><path d="M9 17.5V7l9-2v11" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.8" cy="17.5" r="2.4" fill="white"/><circle cx="15.8" cy="16" r="2.4" fill="white"/><path d="M18 4l2-1" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+        mediaPlayer: `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#0b3a75"/><path d="M12 2a10 10 0 0 1 8.7 5" stroke="#ff9d45" stroke-width="2.6" stroke-linecap="round"/><path d="M12 22A10 10 0 0 1 3.3 17" stroke="#4db2ff" stroke-width="2.6" stroke-linecap="round"/><circle cx="12" cy="12" r="6.2" fill="#123c73"/><path d="M10 8.8v6.4l5.2-3.2z" fill="white"/></svg>`
     };
 
     const fallback = `<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="2" fill="#666"/></svg>`;

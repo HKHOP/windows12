@@ -34,6 +34,7 @@ const urlsToCache = [
     './js/apps/clock/main.js',
     './js/apps/export/main.js',
     './js/apps/fileExplorer/main.js',
+    './js/apps/mediaPlayer/main.js',
     './js/apps/musicSpark/main.js',
     './js/apps/notepad/main.js',
     './js/apps/paint/main.js',

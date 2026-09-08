@@ -1,0 +1,18 @@
+{
+    "manifestVersion": 1,
+    "id": "mediaPlayer",
+    "uuid": "23917c1e-2117-4404-b620-82cedd12a70e",
+    "name": "Media Player",
+    "version": "1.0.0",
+    "distribution": "builtin",
+    "entry": "main.js",
+    "associations": [
+        "mp3",
+        "wav",
+        "ogg",
+        "oga",
+        "m4a",
+        "mp4",
+        "webm"
+    ]
+}

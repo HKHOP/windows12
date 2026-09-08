@@ -4,6 +4,15 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4740] - 2026-09-08
+
+### Added
+- Media Player builtin app in the style of Windows 7 Windows Media Player — library and Now Playing modes, glossy control bar
+- Audio/video playback from Music and Videos folders, streams via Play URL, and File Explorer double-click (mp3, wav, ogg, m4a, mp4, webm)
+- Queue with shuffle and repeat (off/all/one), playlists with create/rename/delete, library search, resume positions
+- Live visualizations (bars, wave, orbs) via Web Audio analyser, playback speed, mini-player mode, full keyboard shortcuts
+- Generative sample tracks seeded into the Music folder on first run when the library is empty
+
 ## [12.0.4730] - 2026-09-08
 
 ### Added
