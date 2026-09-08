@@ -1,0 +1,10 @@
+{
+    "manifestVersion": 1,
+    "id": "browser",
+    "uuid": "29c57f74-d460-4297-a9ce-652fee2c792f",
+    "name": "Browser",
+    "version": "1.0.0",
+    "distribution": "builtin",
+    "entry": "main.js",
+    "associations": []
+}

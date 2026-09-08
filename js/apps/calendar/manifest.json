@@ -1,0 +1,10 @@
+{
+    "manifestVersion": 1,
+    "id": "calendar",
+    "uuid": "41735587-3354-46e3-b3c0-eb9b9557ecdc",
+    "name": "Calendar",
+    "version": "1.0.0",
+    "distribution": "builtin",
+    "entry": "main.js",
+    "associations": []
+}

@@ -1,0 +1,10 @@
+{
+    "manifestVersion": 1,
+    "id": "settings",
+    "uuid": "260fcb62-19fe-45ad-9ba3-cfe3dbf91ebd",
+    "name": "Settings",
+    "version": "1.0.0",
+    "distribution": "builtin",
+    "entry": "main.js",
+    "associations": []
+}

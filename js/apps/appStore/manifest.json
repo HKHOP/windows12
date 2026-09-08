@@ -1,0 +1,10 @@
+{
+    "manifestVersion": 1,
+    "id": "appStore",
+    "uuid": "958d006c-cd70-485d-9f09-b070dc378451",
+    "name": "Microsoft Store",
+    "version": "1.0.0",
+    "distribution": "builtin",
+    "entry": "main.js",
+    "associations": []
+}

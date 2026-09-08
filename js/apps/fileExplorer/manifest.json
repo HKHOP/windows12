@@ -1,0 +1,10 @@
+{
+    "manifestVersion": 1,
+    "id": "fileExplorer",
+    "uuid": "7547fd06-5d94-48c3-84bf-061f09a5a717",
+    "name": "File Explorer",
+    "version": "1.0.0",
+    "distribution": "builtin",
+    "entry": "main.js",
+    "associations": []
+}

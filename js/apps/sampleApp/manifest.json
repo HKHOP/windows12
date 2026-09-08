@@ -1,0 +1,35 @@
+{
+    "manifestVersion": 1,
+    "id": "sampleApp",
+    "uuid": "6912d871-6e9f-4b34-a236-bc72d9abac5d",
+    "name": "Sample App",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Productivity",
+        "rating": "4.5",
+        "reviews": "1,234",
+        "description": "Interactive sample app that demonstrates full system installation, uninstallation, and launching. Perfect for testing the app ecosystem.",
+        "features": [
+            "Easy installation",
+            "Full system integration",
+            "Interactive UI",
+            "Settings persistence"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #6a11cb, #2575fc)",
+                "text": "Sample Interface"
+            },
+            {
+                "bg": "linear-gradient(135deg, #2575fc, #6a11cb)",
+                "text": "Features"
+            }
+        ],
+        "size": "2 MB",
+        "ageRating": "3+"
+    }
+}

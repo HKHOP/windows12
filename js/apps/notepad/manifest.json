@@ -1,0 +1,10 @@
+{
+    "manifestVersion": 1,
+    "id": "notepad",
+    "uuid": "7d1fd060-41db-47b6-ab6a-d307b0e3a130",
+    "name": "Notepad",
+    "version": "1.0.0",
+    "distribution": "builtin",
+    "entry": "main.js",
+    "associations": []
+}

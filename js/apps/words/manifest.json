@@ -1,0 +1,36 @@
+{
+    "manifestVersion": 1,
+    "id": "words",
+    "uuid": "4b2c391f-9c8b-4560-b461-cd7369c24763",
+    "name": "Words",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Productivity",
+        "rating": "4.7",
+        "reviews": "1,567",
+        "description": "A rich text word processor with formatting toolbar, tables, links, and print support. Create and edit documents with ease.",
+        "features": [
+            "Rich text formatting",
+            "Table creation and editing",
+            "Hyperlink support",
+            "Print and export",
+            "Formatting toolbar"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #3b82f6, #60a5fa)",
+                "text": "Document Editor"
+            },
+            {
+                "bg": "linear-gradient(135deg, #60a5fa, #3b82f6)",
+                "text": "Formatting Tools"
+            }
+        ],
+        "size": "2 MB",
+        "ageRating": "3+"
+    }
+}

@@ -1,0 +1,40 @@
+{
+    "manifestVersion": 1,
+    "id": "cellESheet",
+    "uuid": "018c838d-7ccf-410f-979d-806142a0c2bb",
+    "name": "Cell ESheet",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [
+        "cesheet",
+        "celsheet",
+        "csv"
+    ],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Productivity",
+        "rating": "4.5",
+        "reviews": "987",
+        "description": "A spreadsheet application with formulas, multi-sheet support, and a familiar ribbon UI. Create and manage your data with ease.",
+        "features": [
+            "Formula support (SUM, AVERAGE, MIN, MAX)",
+            "Multi-sheet workbooks",
+            "Ribbon-style toolbar",
+            "Cell references and range selection",
+            "Save/load from virtual filesystem"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #217346, #33a867)",
+                "text": "Spreadsheet Editor"
+            },
+            {
+                "bg": "linear-gradient(135deg, #33a867, #217346)",
+                "text": "Formula Bar"
+            }
+        ],
+        "size": "4 MB",
+        "ageRating": "3+"
+    }
+}

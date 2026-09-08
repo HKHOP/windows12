@@ -1,0 +1,10 @@
+{
+    "manifestVersion": 1,
+    "id": "paint",
+    "uuid": "5e32e6ab-113e-4041-9739-6b08ea85533e",
+    "name": "Paint",
+    "version": "1.0.0",
+    "distribution": "builtin",
+    "entry": "main.js",
+    "associations": []
+}

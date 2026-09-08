@@ -1,0 +1,10 @@
+{
+    "manifestVersion": 1,
+    "id": "terminal",
+    "uuid": "36af75b0-71fa-4447-ab76-ddfc61d35c21",
+    "name": "Terminal",
+    "version": "1.0.0",
+    "distribution": "builtin",
+    "entry": "main.js",
+    "associations": []
+}

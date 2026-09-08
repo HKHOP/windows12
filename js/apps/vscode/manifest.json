@@ -1,0 +1,36 @@
+{
+    "manifestVersion": 1,
+    "id": "vscode",
+    "uuid": "0c03acaf-f006-4c90-8590-763a7cca643a",
+    "name": "Visual Studio Code",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "store": {
+        "developer": "Microsoft Corporation",
+        "category": "Developer Tools",
+        "rating": "4.8",
+        "reviews": "12,543",
+        "description": "Code editing. Redefined. Visual Studio Code is a lightweight but powerful source code editor which runs on your desktop and is available for Windows, macOS and Linux.",
+        "features": [
+            "Integrated terminal",
+            "Syntax highlighting",
+            "File explorer",
+            "Extensions marketplace",
+            "Git integration"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #1e1e1e, #2d2d2d)",
+                "text": "Code Editor"
+            },
+            {
+                "bg": "linear-gradient(135deg, #007ACC, #1e90ff)",
+                "text": "Integrated Terminal"
+            }
+        ],
+        "size": "95 MB",
+        "ageRating": "3+"
+    }
+}

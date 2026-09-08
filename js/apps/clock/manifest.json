@@ -1,0 +1,10 @@
+{
+    "manifestVersion": 1,
+    "id": "clock",
+    "uuid": "b0920f32-1bb7-4a1e-a8bf-6482b5abfd71",
+    "name": "Clock",
+    "version": "1.0.0",
+    "distribution": "builtin",
+    "entry": "main.js",
+    "associations": []
+}

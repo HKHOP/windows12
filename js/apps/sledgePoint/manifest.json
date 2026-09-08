@@ -1,0 +1,40 @@
+{
+    "manifestVersion": 1,
+    "id": "sledgePoint",
+    "uuid": "b5b3c1dd-be43-4c3f-a136-74a9978078b6",
+    "name": "Sledge Point",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [
+        "sledge",
+        "sledgepoint"
+    ],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Productivity",
+        "rating": "4.6",
+        "reviews": "2,180",
+        "description": "Create stunning presentations with Sledge Point. Features a ribbon UI, slide transitions, drawing tools, and export to HTML, PDF, and more.",
+        "features": [
+            "Ribbon-style toolbar",
+            "Slide transitions (fade, slide, zoom)",
+            "Text, shapes, images, and tables",
+            "Freehand drawing tools",
+            "Presentation mode with slideshow",
+            "Export to HTML, PDF, SVG, and JSON"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #D83B01, #ff6b35)",
+                "text": "Slide Editor"
+            },
+            {
+                "bg": "linear-gradient(135deg, #ff6b35, #D83B01)",
+                "text": "Presentation Mode"
+            }
+        ],
+        "size": "3 MB",
+        "ageRating": "3+"
+    }
+}

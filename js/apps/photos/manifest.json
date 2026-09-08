@@ -1,0 +1,10 @@
+{
+    "manifestVersion": 1,
+    "id": "photos",
+    "uuid": "d747123a-6cae-4b35-a0da-123d300d9e20",
+    "name": "Photos",
+    "version": "1.0.0",
+    "distribution": "builtin",
+    "entry": "main.js",
+    "associations": []
+}

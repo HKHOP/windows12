@@ -1,0 +1,10 @@
+{
+    "manifestVersion": 1,
+    "id": "taskManager",
+    "uuid": "788ae49a-c9b9-40aa-b135-910a7753f41f",
+    "name": "Task Manager",
+    "version": "1.0.0",
+    "distribution": "builtin",
+    "entry": "main.js",
+    "associations": []
+}

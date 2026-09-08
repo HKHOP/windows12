@@ -1,0 +1,36 @@
+{
+    "manifestVersion": 1,
+    "id": "export",
+    "uuid": "0e5fc68f-7379-4027-bb52-67ff7a23b4f2",
+    "name": "Ex/port",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Utilities",
+        "rating": "4.7",
+        "reviews": "892",
+        "description": "Import files from your device to the filesystem, or export files to download. Supports all file types with drag-and-drop functionality.",
+        "features": [
+            "Drag-and-drop import",
+            "File browser export",
+            "Multiple destination folders",
+            "File type detection",
+            "Batch operations"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #0078D4, #00BCF2)",
+                "text": "Import Files"
+            },
+            {
+                "bg": "linear-gradient(135deg, #00BCF2, #0078D4)",
+                "text": "Export Files"
+            }
+        ],
+        "size": "1 MB",
+        "ageRating": "3+"
+    }
+}
