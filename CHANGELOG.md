@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4750] - 2026-09-08
+
+### Fixed
+- Media Player audio resurrecting after the window was closed (teardown now detaches media handlers first and runs instantly on close)
+- Media Player looping forever on unplayable files — auto-advance stops after one full failed pass instead of overriding Stop
+
 ## [12.0.4740] - 2026-09-08
 
 ### Added

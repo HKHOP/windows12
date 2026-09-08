@@ -363,7 +363,8 @@ const MediaPlayer = (() => {
             win, st, media,
             actx: null, analyser: null, freqData: null,
             lib: [], currentKey: null, errorShown: false,
-            raf: 0, lastSave: 0, navHist: ['library'], navPos: 0
+            raf: 0, lastSave: 0, dead: false, errStreak: 0,
+            navHist: ['library'], navPos: 0
         };
     }
     function ensureAudioGraph(s) {
@@ -418,6 +419,7 @@ const MediaPlayer = (() => {
     }
 
     function playIndex(s, i, opts) {
+        if (s.dead) return;
         opts = opts || {};
         const st = s.st;
         if (i < 0 || i >= st.queue.length) return;
@@ -427,7 +429,6 @@ const MediaPlayer = (() => {
         try { s.media.pause(); } catch (e) { /* noop */ }
         s.media.playbackRate = st.speed;
         s.media.src = it.src;
-        s.errorShown = false;
         const resumeAt = (!opts.fresh && it.key && st.resume[it.key]) ? st.resume[it.key] : 0;
         const go = () => {
             if (resumeAt > 5) {
@@ -451,6 +452,7 @@ const MediaPlayer = (() => {
         renderAll(s);
     }
     function togglePlay(s) {
+        if (s.dead) return;
         const c = cur(s);
         if (!c) {
             if (s.st.queue.length) playIndex(s, 0);
@@ -465,6 +467,7 @@ const MediaPlayer = (() => {
         }
     }
     function playNext(s, dir) {
+        if (s.dead) return;
         dir = dir || 1;
         const i = stepIndex(s, dir);
         if (i < 0) {
@@ -849,7 +852,7 @@ const MediaPlayer = (() => {
                 saveState(st);
             }
         };
-        s.media.onplay = () => renderTransport(s);
+        s.media.onplay = () => { s.errStreak = 0; s.errorShown = false; renderTransport(s); };
         s.media.onpause = () => {
             renderTransport(s);
             const c = cur(s);
@@ -859,6 +862,7 @@ const MediaPlayer = (() => {
             }
         };
         s.media.onended = () => {
+            if (s.dead || !s.win.element.isConnected) return;
             const c = cur(s);
             if (c && c.key) delete st.resume[c.key];
             if (st.repeat === 'one' && cur(s)) {
@@ -870,10 +874,25 @@ const MediaPlayer = (() => {
             playNext(s, 1);
         };
         s.media.onerror = () => {
-            if (s.errorShown || !s.media.src) return;
-            s.errorShown = true;
+            // Dead/detached sessions must never auto-advance: clearing src
+            // during teardown fires error asynchronously, which used to
+            // resurrect playback after the window was closed.
+            if (s.dead || !s.win.element.isConnected || !s.media.src) return;
+            s.errStreak++;
             const c = cur(s);
-            Popup.error('Playback failed', `Could not play "${c ? c.name : 'this file'}". It may be corrupt or an unsupported format.`);
+            // A full pass over the queue with nothing playable: stop instead
+            // of looping errors forever (Stop previously couldn't win).
+            if (s.errStreak > s.st.queue.length) {
+                s.errStreak = 0;
+                try { s.media.pause(); } catch (e) { /* noop */ }
+                Popup.error('Playback failed', 'None of the queued files could be played. They may be corrupt or unsupported.');
+                renderTransport(s);
+                return;
+            }
+            if (!s.errorShown) {
+                s.errorShown = true;
+                Popup.error('Playback failed', `Could not play "${c ? c.name : 'this file'}". It may be corrupt or an unsupported format. Skipping.`);
+            }
             playNext(s, 1);
         };
 
@@ -1006,16 +1025,49 @@ const MediaPlayer = (() => {
             }
         });
 
+        // Instant teardown when the window closes (MutationObserver) with the
+        // interval as a fallback. teardown() is idempotent via s.dead.
+        const mo = new MutationObserver(() => {
+            if (!s.win.element.isConnected) {
+                mo.disconnect();
+                clearInterval(iv);
+                teardown(s);
+            }
+        });
+        const wc = document.getElementById('windows-container');
+        if (wc) mo.observe(wc, { childList: true });
         const iv = setInterval(() => {
             if (!s.win.element.isConnected) {
+                mo.disconnect();
                 clearInterval(iv);
-                cancelAnimationFrame(s.raf);
-                try { s.media.pause(); s.media.src = ''; } catch (e) { /* noop */ }
-                if (s.actx) { s.actx.close().catch(() => { /* noop */ }); s.actx = null; }
+                teardown(s);
             }
         }, 2000);
 
         renderAll(s);
+    }
+    // teardown() MUST null the media handlers before pausing/clearing:
+    // assigning src='' fires an async error event, which previously slipped
+    // through onerror -> playNext -> play() and resurrected audio after close.
+    function teardown(s) {
+        if (s.dead) return;
+        s.dead = true;
+        cancelAnimationFrame(s.raf);
+        try {
+            s.media.onerror = null;
+            s.media.onended = null;
+            s.media.onplay = null;
+            s.media.onpause = null;
+            s.media.ontimeupdate = null;
+            s.media.onloadedmetadata = null;
+            s.media.pause();
+            s.media.removeAttribute('src');
+            s.media.load();
+        } catch (e) { /* noop */ }
+        if (s.actx) {
+            try { s.actx.close().catch(() => { /* noop */ }); } catch (e) { /* noop */ }
+            s.actx = null;
+        }
     }
     function setVol(s, v) {
         const st = s.st;
