@@ -1373,16 +1373,40 @@ const MusicSpark = (() => {
             const url = wavToDataUrl(buf);
             const safe = name.replace(/[\\/:*?"<>|]/g, '').slice(0, 40) || 'beat';
             const fileName = safe.endsWith('.wav') ? safe : safe + '.wav';
-            let ok;
-            if (FileSystem.itemExists([...MUSIC_DIR, fileName])) ok = FileSystem.writeFile([...MUSIC_DIR, fileName], url);
-            else ok = FileSystem.createFile(MUSIC_DIR, fileName, url, 'wav');
-            if (ok === false) {
-                await Popup.error('Export failed', 'Could not write the WAV file (storage may be full).');
+            // Base64 inflates ~4/3 on top of the raw bytes (plus JSON overhead).
+            const approxBytes = Math.ceil(buf.byteLength * 4 / 3) + 256;
+            const target = [...MUSIC_DIR, fileName];
+            if (!FileSystem.wouldFit(approxBytes)) {
+                const dl = await Popup.confirm('Too large for Music folder',
+                    `"${fileName}" is about ${(approxBytes / 1048576).toFixed(1)} MB — larger than the virtual disk budget. Download it straight to your device instead?`);
+                if (dl) downloadWav(buf, fileName);
+                return;
+            }
+            if (FileSystem.itemExists(target)) FileSystem.writeFile(target, url);
+            else FileSystem.createFile(MUSIC_DIR, fileName, url, 'wav');
+            if (!FileSystem.flush()) {
+                // Roll back the in-memory entry (permanent: never park a
+                // multi-MB file in the Recycle Bin) and report honestly.
+                FileSystem.permanentDelete(target);
+                await Popup.error('Export failed', 'The virtual disk is full — nothing was saved. Try the download option or delete files to free space.');
                 return;
             }
             await Popup.info('Exported', `Saved to Music/${fileName}. Open it from File Explorer.`);
         } catch (e) {
             await Popup.error('Export failed', 'Rendering failed: ' + (e && e.message ? e.message : e));
+        }
+    }
+    function downloadWav(buf, fileName) {
+        try {
+            const blob = new Blob([buf], { type: 'audio/wav' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+        } catch (e) {
+            Popup.error('Download failed', 'Could not start the download: ' + (e && e.message ? e.message : e));
         }
     }
     function randomize(st) {

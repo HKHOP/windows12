@@ -3,6 +3,9 @@ const FileSystem = (() => {
     let saveTimeout = null;
     const RECYCLE_BIN_PATH = ['/', 'system', '$Recycle.Bin'];
     const STORAGE_KEY = 'windows12-filesystem';
+    // Stay under the typical ~5MB localStorage quota so one big file can
+    // never silently fail to persist (and take the whole save down with it).
+    const STORAGE_BUDGET = Math.floor(4.5 * 1024 * 1024);
 
     function getDefaultFS() {
         return {
@@ -87,26 +90,57 @@ const FileSystem = (() => {
             root = getDefaultFS();
             save();
         }
+        // Flush pending saves when the page unloads so a quick refresh
+        // right after a big write can't lose it to the 500ms debounce.
+        window.addEventListener('beforeunload', () => {
+            try { flush(); } catch (e) { /* noop */ }
+        });
+    }
+
+    function tryPersist() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(root));
+            return true;
+        } catch (e) {
+            console.error('FileSystem: Failed to save to localStorage:', e.name);
+            return false;
+        }
     }
 
     function save(immediate = false) {
         if (immediate) {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(root));
-            } catch (e) {
-                console.error('FileSystem: Failed to save to localStorage:', e.name);
-            }
-            return;
+            return tryPersist();
         }
         if (saveTimeout) clearTimeout(saveTimeout);
         saveTimeout = setTimeout(() => {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(root));
-            } catch (e) {
-                console.error('FileSystem: Failed to save to localStorage:', e.name);
-            }
+            tryPersist();
             saveTimeout = null;
         }, 500);
+        return true;
+    }
+
+    // Write through immediately and report whether it actually persisted.
+    // Always use this after writing files larger than a few KB.
+    function flush() {
+        if (saveTimeout) {
+            clearTimeout(saveTimeout);
+            saveTimeout = null;
+        }
+        return tryPersist();
+    }
+
+    function serializedSize() {
+        try {
+            return JSON.stringify(root).length;
+        } catch (e) {
+            return Infinity;
+        }
+    }
+
+    // Pre-flight check before writing a large file: estimates whether the
+    // whole filesystem (plus extraBytes) still fits in the storage budget.
+    function wouldFit(extraBytes) {
+        return serializedSize() + (extraBytes || 0) < STORAGE_BUDGET;
     }
 
     function getNode(path) {
@@ -295,7 +329,7 @@ const FileSystem = (() => {
         return node !== null && node.type === 'folder';
     }
 
-    return { init, getNode, getChildren, createFolder, createFile, readFile, writeFile, deleteItem, permanentDelete, restoreFromRecycleBin, emptyRecycleBin, getRecycleBinContent, renameItem, moveItem, itemExists, isFolder };
+    return { init, save, flush, serializedSize, wouldFit, getNode, getChildren, createFolder, createFile, readFile, writeFile, deleteItem, permanentDelete, restoreFromRecycleBin, emptyRecycleBin, getRecycleBinContent, renameItem, moveItem, itemExists, isFolder };
 })();
 
 window._FileSystem = FileSystem;

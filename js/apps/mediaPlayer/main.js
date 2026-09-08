@@ -262,7 +262,14 @@ const MediaPlayer = (() => {
             try {
                 if (FileSystem.itemExists([...MUSIC_DIR, d.file])) continue;
                 const url = await renderDemoTrack(d.opts);
-                if (FileSystem.createFile(MUSIC_DIR, d.file, url, 'wav')) created++;
+                if (!FileSystem.wouldFit(url.length + 256)) continue;
+                if (!FileSystem.createFile(MUSIC_DIR, d.file, url, 'wav')) continue;
+                if (!FileSystem.flush()) {
+                    // Never leave an unpersistable giant in memory.
+                    FileSystem.permanentDelete([...MUSIC_DIR, d.file]);
+                    continue;
+                }
+                created++;
             } catch (e) { /* quota or render failure — skip silently */ }
         }
         onDone(created > 0);

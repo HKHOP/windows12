@@ -4,6 +4,16 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4760] - 2026-09-08
+
+### Added
+- FileSystem quota guards — `flush()`, `wouldFit()`, `serializedSize()` so large writes can be verified instead of silently lost
+- Music Spark offers a direct device download when a WAV export exceeds the virtual disk budget
+
+### Fixed
+- Large WAV exports (e.g. full songs) reporting success but vanishing on refresh — writes are now pre-checked, flush-verified, and rolled back on failure
+- Pending filesystem saves lost when refreshing within the debounce window — state now flushes on page unload
+
 ## [12.0.4750] - 2026-09-08
 
 ### Fixed
