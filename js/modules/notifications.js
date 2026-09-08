@@ -471,6 +471,7 @@ const Notifications = (() => {
         panelOpen = true;
         unread = 0;
         updateBadge();
+        if (bellBtn) bellBtn.classList.add('open');
         renderPanelList();
         renderQuick();
         renderDndBtn();
@@ -478,6 +479,7 @@ const Notifications = (() => {
     function close() {
         if (panelEl) panelEl.classList.add('hidden');
         panelOpen = false;
+        if (bellBtn) bellBtn.classList.remove('open');
     }
     function toggle(force) {
         const want = force !== undefined ? !!force : !panelOpen;

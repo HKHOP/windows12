@@ -1,10 +1,10 @@
 #context-menu {
     position: fixed;
     min-width: 200px;
-    background: rgba(44, 44, 44, 0.95);
+    background: var(--start-menu-bg);
     backdrop-filter: blur(30px);
     -webkit-backdrop-filter: blur(30px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--window-border);
     border-radius: 8px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     z-index: 99999;
@@ -30,7 +30,7 @@
 }
 
 .ctx-item:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--hover-bg);
 }
 
 .ctx-item.disabled {
@@ -66,6 +66,6 @@
 
 .ctx-separator {
     height: 1px;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--window-border);
     margin: 4px 8px;
 }

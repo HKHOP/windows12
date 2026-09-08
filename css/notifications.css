@@ -373,6 +373,19 @@
 /* ---- tray bell ---- */
 #notif-bell {
     position: relative;
+    color: var(--text-primary);
+}
+
+#notif-bell:hover {
+    background: var(--hover-bg);
+}
+
+#notif-bell.open {
+    background: var(--active-bg);
+}
+
+#notif-bell svg {
+    display: block;
 }
 
 .notif-badge {

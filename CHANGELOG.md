@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4800] - 2026-09-08
+
+### Fixed
+- Context menus now follow the light theme instead of staying dark
+- Taskbar notification bell now adapts its icon color to the active theme, with an active state while the panel is open
+
 ## [12.0.4790] - 2026-09-08
 
 ### Added
