@@ -4,6 +4,24 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4730] - 2026-09-08
+
+### Added
+- Folder-based app system — each app lives in `js/apps/<id>/` with `manifest.json`, `main.js`, `scripts/`, and `assets/`
+- `build-registry.js` generator — validates manifests and emits `js/apps/registry.js`, refreshes `sw.js` precache
+- `js/modules/appLoader.js` — manifest-driven boot registration, uuid-keyed installs with legacy id migration
+- Per-app `manifest.json` files with frozen uuids, distribution flags, file associations, and store listings
+
+### Changed
+- Migrated all 19 apps to the folder layout (history-preserving moves, no behavior changes)
+- Taskbar metadata, Start Menu, Microsoft Store, and Settings Apps page now read from manifests instead of hardcoded lists
+- File associations wire from manifests at boot; Music Spark exposes `open()` for `.mspark` files
+- App modules must not call `AppLoader`/`AppRegistry` at module scope (documented in AGENTS.md and dev guide)
+
+### Fixed
+- Service worker precache now includes all apps (words, sledgePoint, cellESheet, musicSpark were missing)
+- Recent-apps names now resolve for every app instead of showing raw ids
+
 ## [12.0.4720] - 2026-09-08
 
 ### Added

@@ -1,29 +1,59 @@
 # Windows 12 — App Development Guide
 
-This document contains everything you need to build a new app for the Windows 12 web OS simulation. Your app will be a single JS file using the IIFE module pattern, importing OS APIs for windows, filesystem, dialogs, and integration with the taskbar/start menu.
+This document contains everything you need to build a new app for the Windows 12 web OS simulation. Each app is a folder using the IIFE module pattern, described by a manifest, and wired into the OS by a generated registry — no manual registration in system files.
 
 ---
 
 ## Quick Start
 
-1. Create `js/apps/yourApp.js`
-2. Add metadata + icon to the OS
-3. Register in `main.js`
-4. Add to the start menu
+1. Create `js/apps/<id>/` with `manifest.json` + `main.js` (copy `js/apps/sampleApp/`)
+2. Run `node build-registry.js` to regenerate `js/apps/registry.js` (+ `sw.js` precache)
+3. If `distribution` is `"store"`, it appears in the Microsoft Store automatically
 
 That's it. The OS handles windows, taskbar, dragging, resizing, snapping, and persistence for you.
 
 ---
 
+## 0. App Folder Layout
+
+```
+js/apps/myReddit/
+  manifest.json   # id, uuid (v4, frozen), name, version, distribution, associations, store info
+  main.js         # wired entry: `export default` an object with at least { launch }
+  scripts/        # extra modules (optional, import via ./scripts/x.js)
+  assets/         # static files (optional)
+```
+
+Minimal `manifest.json` for a builtin app:
+
+```json
+{
+    "manifestVersion": 1,
+    "id": "myReddit",
+    "uuid": "3f6d8c2a-1b4e-4f7a-9c1d-2e5f6a7b8c9d",
+    "name": "MyReddit",
+    "version": "1.0.0",
+    "distribution": "builtin",
+    "entry": "main.js",
+    "associations": []
+}
+```
+
+For a store app use `"distribution": "store"` and add `associations` (file extensions it opens, requires an exported `open(path, content)` function) plus a `store` block (`developer`, `category`, `rating`, `reviews`, `description`, `features[]`, `screenshots[]`, `size`, `ageRating`).
+
+Generate the uuid once with `node -e "console.log(crypto.randomUUID())"` and never change it — installs are tracked by uuid.
+
+---
+
 ## 1. App File Template
 
-Every app is a self-contained IIFE that exports `{ launch }`. Create a file at `js/apps/<appId>.js`:
+Every app is a self-contained IIFE that exports `{ launch }` (plus `open(path, content)` if the manifest declares `associations`). Create `js/apps/<appId>/main.js`:
 
 ```js
-import WindowManager from '../modules/windowManager.js';
-import AppIcons from '../modules/appIcons.js';
-import Popup from '../modules/popup.js';
-import FileSystem from '../modules/fileSystem.js';
+import WindowManager from '../../modules/windowManager.js';
+import AppIcons from '../../modules/appIcons.js';
+import Popup from '../../modules/popup.js';
+import FileSystem from '../../modules/fileSystem.js';
 
 const MyReddit = (() => {
     const icon = AppIcons.get('myReddit');
@@ -63,7 +93,7 @@ export default MyReddit;
 
 ## 2. Registration Checklist
 
-After creating your app file, you need to wire it into the OS. There are 4-5 steps:
+After creating your app folder, there are only 2 steps:
 
 ### Step 1: Add icon to `js/modules/appIcons.js`
 
@@ -74,52 +104,23 @@ const icons = {
 };
 ```
 
-### Step 2: Add name to AppMetadata in `js/modules/taskbar.js`
+### Step 2: Regenerate the registry
 
-```js
-const names = {
-    // ...existing entries...
-    myReddit: 'MyReddit',
-};
+```sh
+node build-registry.js
 ```
 
-### Step 3: Register in `js/main.js`
+This validates all manifests, rewrites `js/apps/registry.js` (module + metadata tables the loader reads at boot), and refreshes the `sw.js` precache. Commit the regenerated files.
 
-```js
-import MyReddit from './apps/myReddit.js';
+Everything else is automatic: display name (manifest `name`), taskbar/start menu/search listings, store listing (from the manifest `store` block), install/uninstall by uuid, and file associations (manifest `associations` wired to your exported `open`).
 
-// In the registration block:
-AppRegistry.register('myReddit', MyReddit);
-```
-
-### Step 4: Add to start menu in `js/modules/startMenu.js`
-
-Add to the `allApps` array (keep alphabetically sorted by name):
-```js
-const allApps = [
-    // ...existing entries...
-    { id: 'myReddit', name: 'MyReddit' },
-];
-```
-
-### Step 5 (optional): Make it installable
-
-If your app should appear in the App Store as installable, add it to `js/modules/appSystem.js`:
-```js
-import MyReddit from '../apps/myReddit.js';
-const appModules = {
-    // ...existing entries...
-    myReddit: MyReddit,
-};
-```
-
-And add a listing in `js/apps/appStore.js`'s `getDiscoverApps()`.
+> **Rule:** app modules must not call `AppLoader` / `AppRegistry` / `AppMetadata` at module scope (top-level). The registry ↔ app import cycle leaves those bindings uninitialized during evaluation — only call them inside functions like `launch()`.
 
 ---
 
 ## 3. Window Manager API
 
-**Import:** `import WindowManager from '../modules/windowManager.js';`
+**Import:** `import WindowManager from '../../modules/windowManager.js';`
 
 ### `createWindow(appId, title, icon, content, options?)` → `WindowData`
 
@@ -213,7 +214,7 @@ Retrieves window data by ID.
 
 ## 4. File System API
 
-**Import:** `import FileSystem from '../modules/fileSystem.js';`
+**Import:** `import FileSystem from '../../modules/fileSystem.js';`
 
 All data is a virtual JSON tree stored in `localStorage`. Paths are **arrays of strings** starting with `/`.
 
@@ -278,7 +279,7 @@ function loadData(key) {
 
 ## 5. Popup API
 
-**Import:** `import Popup from '../modules/popup.js';`
+**Import:** `import Popup from '../../modules/popup.js';`
 
 **CRITICAL:** Never use native `alert()`, `confirm()`, or `prompt()`. Always use the Popup API. All methods return Promises.
 
@@ -338,7 +339,7 @@ Popup.forum('Settings', [
 
 ## 6. Context Menu API
 
-**Import:** `import ContextMenu from '../modules/contextMenu.js';`
+**Import:** `import ContextMenu from '../../modules/contextMenu.js';`
 
 ### `ContextMenu.show(x, y, items)`
 
@@ -376,7 +377,7 @@ el.addEventListener('contextmenu', (e) => {
 
 ## 7. Taskbar Integration
 
-**Import:** `import { Taskbar, AppRegistry, AppMetadata } from '../modules/taskbar.js';`
+**Import:** `import { Taskbar, AppRegistry, AppMetadata } from '../../modules/taskbar.js';`
 
 ### AppRegistry
 | Method | Description |
@@ -403,7 +404,7 @@ el.addEventListener('contextmenu', (e) => {
 
 ## 8. Start Menu Integration
 
-**Import:** `import StartMenu from '../modules/startMenu.js';`
+**Import:** `import StartMenu from '../../modules/startMenu.js';`
 
 | Method | Description |
 |--------|-------------|
@@ -416,7 +417,7 @@ el.addEventListener('contextmenu', (e) => {
 
 ## 9. System Config
 
-**Import:** `import SystemConfig from '../modules/systemConfig.js';`
+**Import:** `import SystemConfig from '../../modules/systemConfig.js';`
 
 | Method | Description |
 |--------|-------------|
@@ -430,7 +431,7 @@ el.addEventListener('contextmenu', (e) => {
 
 ## 10. User Activity
 
-**Import:** `import UserActivity from '../modules/userActivity.js';`
+**Import:** `import UserActivity from '../../modules/userActivity.js';`
 
 | Method | Description |
 |--------|-------------|
@@ -443,7 +444,7 @@ el.addEventListener('contextmenu', (e) => {
 
 ## 11. Sounds
 
-**Import:** `import Sounds from '../modules/sounds.js';`
+**Import:** `import Sounds from '../../modules/sounds.js';`
 
 | Method | Sound |
 |--------|-------|
@@ -458,7 +459,7 @@ el.addEventListener('contextmenu', (e) => {
 
 ## 12. Save Prompt
 
-**Import:** `import SavePrompt from '../modules/saveprompt.js';`
+**Import:** `import SavePrompt from '../../modules/saveprompt.js';`
 
 ### `SavePrompt.show(opts?)` → `Promise<{ path, name, fullName, ext } | null>`
 
@@ -486,7 +487,7 @@ SavePrompt.show({
 
 ## 13. File Associations API
 
-**Import:** `import FileAssociations from '../modules/fileAssociations.js';`
+**Import:** `import FileAssociations from '../../modules/fileAssociations.js';`
 
 Register your app to handle specific file extensions. When a user double-clicks a file in File Explorer, it checks registered handlers first.
 
@@ -513,7 +514,7 @@ Returns all registered extensions.
 
 **Example:**
 ```js
-import FileAssociations from '../modules/fileAssociations.js';
+import FileAssociations from '../../modules/fileAssociations.js';
 
 const MyMarkdown = (() => {
     function open(path, content) {
@@ -534,7 +535,7 @@ const MyMarkdown = (() => {
 
 ## 14. App Icons
 
-**Import:** `import AppIcons from '../modules/appIcons.js';`
+**Import:** `import AppIcons from '../../modules/appIcons.js';`
 
 | Method | Description |
 |--------|-------------|
@@ -588,19 +589,19 @@ Known IDs: `fileExplorer`, `settings`, `notepad`, `calendar`, `taskManager`, `ph
 ## 16. All Available Imports
 
 ```js
-import WindowManager from '../modules/windowManager.js';
-import FileSystem from '../modules/fileSystem.js';
-import Popup from '../modules/popup.js';
-import ContextMenu from '../modules/contextMenu.js';
-import { Taskbar, AppRegistry, AppMetadata } from '../modules/taskbar.js';
-import StartMenu from '../modules/startMenu.js';
-import SystemConfig from '../modules/systemConfig.js';
-import UserActivity from '../modules/userActivity.js';
-import Sounds from '../modules/sounds.js';
-import AppSystem from '../modules/appSystem.js';
-import AppIcons from '../modules/appIcons.js';
-import SavePrompt from '../modules/saveprompt.js';
-import FileAssociations from '../modules/fileAssociations.js';
+import WindowManager from '../../modules/windowManager.js';
+import FileSystem from '../../modules/fileSystem.js';
+import Popup from '../../modules/popup.js';
+import ContextMenu from '../../modules/contextMenu.js';
+import { Taskbar, AppRegistry, AppMetadata } from '../../modules/taskbar.js';
+import StartMenu from '../../modules/startMenu.js';
+import SystemConfig from '../../modules/systemConfig.js';
+import UserActivity from '../../modules/userActivity.js';
+import Sounds from '../../modules/sounds.js';
+import AppSystem from '../../modules/appSystem.js';
+import AppIcons from '../../modules/appIcons.js';
+import SavePrompt from '../../modules/saveprompt.js';
+import FileAssociations from '../../modules/fileAssociations.js';
 ```
 
 ---
@@ -608,11 +609,11 @@ import FileAssociations from '../modules/fileAssociations.js';
 ## 17. Complete Example: Reddit-Style App
 
 ```js
-import WindowManager from '../modules/windowManager.js';
-import AppIcons from '../modules/appIcons.js';
-import Popup from '../modules/popup.js';
-import FileSystem from '../modules/fileSystem.js';
-import ContextMenu from '../modules/contextMenu.js';
+import WindowManager from '../../modules/windowManager.js';
+import AppIcons from '../../modules/appIcons.js';
+import Popup from '../../modules/popup.js';
+import FileSystem from '../../modules/fileSystem.js';
+import ContextMenu from '../../modules/contextMenu.js';
 
 const MyReddit = (() => {
     const icon = AppIcons.get('myReddit');
