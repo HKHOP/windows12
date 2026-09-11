@@ -167,11 +167,12 @@ const CopilotButBetter = (() => {
     function css() {
         return `
         <style>
-        .cbb-root{--acc:#10a37f;--glass:0.65;display:flex;height:100%;background:#212121;color:#ececec;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;}
+        .cbb-root{--acc:#10a37f;--glass:0.65;--mx:70%;--my:12%;display:flex;height:100%;background:#212121;color:#ececec;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;}
         .cbb-side{width:264px;flex-shrink:0;display:flex;flex-direction:column;background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.02) 40%,rgba(0,0,0,.25)),rgba(23,23,23,.78);backdrop-filter:blur(22px) saturate(170%);-webkit-backdrop-filter:blur(22px) saturate(170%);border-right:1px solid rgba(255,255,255,.12);position:relative;z-index:2;}
         .cbb-side::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,.14),transparent 22%);}
         .cbb-brand{display:flex;align-items:center;gap:10px;padding:14px 14px 8px;}
-        .cbb-logo{width:32px;height:32px;border-radius:10px;background:conic-gradient(from 200deg,var(--acc),#0ea5e9,var(--acc));display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px color-mix(in srgb,var(--acc) 55%,transparent),inset 0 1px 1px rgba(255,255,255,.5);font-size:17px;color:#fff;}
+        .cbb-logo{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,rgba(255,255,255,.3),rgba(255,255,255,.06));border:1px solid rgba(255,255,255,.28);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.45),inset 0 1px 1px rgba(255,255,255,.45);font-size:17px;color:#fff;animation:cbb-breathe 4s ease-in-out infinite;}
+        @keyframes cbb-breathe{0%,100%{box-shadow:0 4px 16px rgba(0,0,0,.45),inset 0 1px 1px rgba(255,255,255,.45);}50%{box-shadow:0 4px 26px rgba(255,255,255,.22),inset 0 1px 1px rgba(255,255,255,.55);}}
         .cbb-brand b{font-size:13.5px;letter-spacing:.2px;}
         .cbb-brand small{display:block;color:#b4b4b4;font-size:11px;font-weight:400;}
         .cbb-new{margin:6px 12px 4px;padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,.2);cursor:pointer;color:#fff;font-weight:600;font-size:13px;background:linear-gradient(135deg,rgba(255,255,255,.22),rgba(255,255,255,.06));backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 6px 18px rgba(0,0,0,.35);transition:.15s;}
@@ -181,16 +182,18 @@ const CopilotButBetter = (() => {
         .cbb-search input::placeholder{color:#8e8e8e;}
         .cbb-list{flex:1;overflow:auto;padding:6px 8px 12px;display:flex;flex-direction:column;gap:2px;}
         .cbb-date{font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:#8e8e8e;padding:10px 8px 4px;}
-        .cbb-item{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;cursor:pointer;font-size:13px;color:#d7d7d7;border:1px solid transparent;white-space:nowrap;}
+        .cbb-item{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;cursor:pointer;font-size:13px;color:#d7d7d7;border:1px solid transparent;white-space:nowrap;position:relative;overflow:hidden;transition:background .15s,transform .15s,border-color .15s;}
         .cbb-item span{flex:1;overflow:hidden;text-overflow:ellipsis;}
-        .cbb-item:hover{background:rgba(255,255,255,.08);}
+        .cbb-item:hover{background:rgba(255,255,255,.08);transform:translateX(2px);}
         .cbb-item.active{background:linear-gradient(135deg,rgba(255,255,255,.16),rgba(255,255,255,.05));border-color:rgba(255,255,255,.16);backdrop-filter:blur(10px);box-shadow:inset 0 1px 0 rgba(255,255,255,.2);}
         .cbb-item .x{opacity:0;border:none;background:transparent;color:#999;cursor:pointer;font-size:14px;padding:0 2px;border-radius:6px;}
         .cbb-item:hover .x{opacity:1;} .cbb-item .x:hover{color:#ff7b7b;background:rgba(255,255,255,.1);}
         .cbb-foot{padding:10px 12px;border-top:1px solid rgba(255,255,255,.1);display:flex;gap:6px;}
         .cbb-foot button{flex:1;padding:8px 4px;font-size:12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.07);color:#ddd;cursor:pointer;backdrop-filter:blur(10px);}
         .cbb-foot button:hover{border-color:var(--acc);color:#fff;}
-        .cbb-main{flex:1;display:flex;flex-direction:column;min-width:0;background:radial-gradient(1000px 500px at 70% -10%,color-mix(in srgb,var(--acc) 16%,transparent),transparent 60%),radial-gradient(800px 500px at 10% 110%,rgba(14,165,233,.12),transparent 60%),#212121;}
+        .cbb-main{flex:1;display:flex;flex-direction:column;min-width:0;background:radial-gradient(900px 480px at 70% -10%,rgba(255,255,255,.06),transparent 60%),#212121;position:relative;overflow:hidden;}
+        .cbb-aurora{position:absolute;inset:-15%;pointer-events:none;z-index:0;background:radial-gradient(460px 460px at var(--mx) var(--my),rgba(255,255,255,.08),transparent 62%),radial-gradient(700px 500px at 15% 110%,rgba(255,255,255,.045),transparent 60%);filter:blur(6px);transition:background .12s linear;}
+        .cbb-main>*:not(.cbb-aurora){position:relative;z-index:1;}
         .cbb-top{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.09);background:rgba(33,33,33,calc(var(--glass) * .55));backdrop-filter:blur(20px) saturate(160%);-webkit-backdrop-filter:blur(20px) saturate(160%);position:relative;z-index:2;}
         .cbb-top::after{content:'';position:absolute;left:0;right:0;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);}
         .cbb-modelpill{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;padding:7px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,.05));backdrop-filter:blur(12px);box-shadow:inset 0 1px 0 rgba(255,255,255,.3);}
@@ -200,18 +203,25 @@ const CopilotButBetter = (() => {
         .cbb-iconbtn:hover{border-color:var(--acc);}
         .cbb-msgs{flex:1;overflow:auto;padding:26px 18px 10px;}
         .cbb-col{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:18px;padding-bottom:10px;}
-        .cbb-hero{text-align:center;padding:38px 10px 6px;}
-        .cbb-hero .big{width:64px;height:64px;margin:0 auto 14px;border-radius:20px;background:conic-gradient(from 200deg,var(--acc),#0ea5e9,#a78bfa,var(--acc));display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:0 12px 40px color-mix(in srgb,var(--acc) 45%,transparent),inset 0 2px 2px rgba(255,255,255,.55);}
-        .cbb-hero h1{font-size:30px;font-weight:600;margin:0 0 18px;letter-spacing:-.5px;}
-        .cbb-sugg{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:640px;margin:0 auto;text-align:left;}
-        .cbb-sugg button{padding:13px 15px;border-radius:16px;border:1px solid rgba(255,255,255,.16);background:linear-gradient(135deg,rgba(255,255,255,.13),rgba(255,255,255,.03));backdrop-filter:blur(14px);color:#ececec;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.25);transition:.15s;text-align:left;}
-        .cbb-sugg button:hover{border-color:var(--acc);transform:translateY(-1px);}
+        .cbb-hero{text-align:center;padding:38px 10px 6px;animation:cbb-fade .5s ease both;}
+        @keyframes cbb-fade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+        .cbb-hero .big{width:64px;height:64px;margin:0 auto 14px;border-radius:20px;background:linear-gradient(135deg,rgba(255,255,255,.28),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.3);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;font-size:30px;color:#fff;box-shadow:0 12px 40px rgba(0,0,0,.5),inset 0 2px 2px rgba(255,255,255,.5);animation:cbb-breathe 4s ease-in-out infinite;transition:transform .15s ease-out;will-change:transform;}
+        .cbb-hero h1{font-size:30px;font-weight:600;margin:0 0 18px;letter-spacing:-.5px;background:linear-gradient(180deg,#ffffff,#a9a9a9);-webkit-background-clip:text;background-clip:text;color:transparent;}
+        .cbb-sugg{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:640px;margin:0 auto;text-align:left;perspective:600px;}
+        .cbb-sugg button{padding:13px 15px;border-radius:16px;border:1px solid rgba(255,255,255,.16);background:linear-gradient(135deg,rgba(255,255,255,.13),rgba(255,255,255,.03));backdrop-filter:blur(14px);color:#ececec;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.25);transition:border-color .15s,transform .15s ease-out,box-shadow .15s;text-align:left;position:relative;overflow:hidden;will-change:transform;}
+        .cbb-sugg button:hover{border-color:rgba(255,255,255,.4);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 10px 28px rgba(0,0,0,.45);}
         .cbb-sugg b{display:block;font-size:13.5px;} .cbb-sugg span{font-size:12.5px;color:#a8a8a8;}
-        .cbb-row{display:flex;gap:12px;align-items:flex-start;}
+        .cbb-row{display:flex;gap:12px;align-items:flex-start;animation:cbb-in .38s cubic-bezier(.2,.7,.3,1) both;}
+        @keyframes cbb-in{from{opacity:0;transform:translateY(10px) scale(.99);}to{opacity:1;transform:none;}}
+        .cbb-col>.cbb-row:nth-child(2){animation-delay:.04s;} .cbb-col>.cbb-row:nth-child(3){animation-delay:.08s;}
+        .cbb-col>.cbb-row:nth-child(4){animation-delay:.12s;} .cbb-col>.cbb-row:nth-child(n+5){animation-delay:.16s;}
         .cbb-row.user{justify-content:flex-end;}
-        .cbb-avatar{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;background:conic-gradient(from 200deg,var(--acc),#0ea5e9,var(--acc));box-shadow:inset 0 1px 1px rgba(255,255,255,.5),0 4px 14px rgba(0,0,0,.4);}
-        .cbb-ubub{max-width:75%;padding:11px 16px;border-radius:20px 20px 6px 20px;font-size:14.5px;line-height:1.55;background:linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.07));border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 24px rgba(0,0,0,.3);word-wrap:break-word;}
-        .cbb-abub{flex:1;min-width:0;padding:14px 18px;border-radius:6px 20px 20px 20px;font-size:14.5px;line-height:1.65;background:linear-gradient(135deg,rgba(255,255,255,.1),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(calc(10px + var(--glass) * 10px));-webkit-backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 8px 24px rgba(0,0,0,.25);word-wrap:break-word;position:relative;overflow:hidden;}
+        .cbb-avatar{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;background:linear-gradient(135deg,rgba(255,255,255,.3),rgba(255,255,255,.07));border:1px solid rgba(255,255,255,.3);box-shadow:inset 0 1px 1px rgba(255,255,255,.45),0 4px 14px rgba(0,0,0,.4);}
+        .cbb-ubub{max-width:75%;padding:11px 16px;border-radius:20px 20px 6px 20px;font-size:14.5px;line-height:1.55;background:linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.07));border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 24px rgba(0,0,0,.3);word-wrap:break-word;position:relative;overflow:hidden;transition:border-color .15s,transform .15s;}
+        .cbb-abub{flex:1;min-width:0;padding:14px 18px;border-radius:6px 20px 20px 20px;font-size:14.5px;line-height:1.65;background:linear-gradient(135deg,rgba(255,255,255,.1),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(calc(10px + var(--glass) * 10px));-webkit-backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 8px 24px rgba(0,0,0,.25);word-wrap:break-word;position:relative;overflow:hidden;transition:border-color .15s;}
+        .cbb-abub::after,.cbb-ubub::after,.cbb-sugg button::after,.cbb-box::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .25s;background:radial-gradient(240px 240px at var(--bx,50%) var(--by,50%),rgba(255,255,255,.16),transparent 65%);}
+        .cbb-abub:hover::after,.cbb-ubub:hover::after,.cbb-sugg button:hover::after,.cbb-box:hover::after,.cbb-box:focus-within::after{opacity:1;}
+        .cbb-abub:hover{border-color:rgba(255,255,255,.26);} .cbb-ubub:hover{border-color:rgba(255,255,255,.34);}
         .cbb-abub::before{content:'';position:absolute;top:0;left:12px;right:12px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);pointer-events:none;}
         .cbb-abub.error{border-color:rgba(255,90,90,.5);}
         .cbb-h1{font-size:19px;font-weight:700;margin:8px 0 4px;} .cbb-h2{font-size:17px;font-weight:700;margin:8px 0 4px;} .cbb-h3{font-size:15px;font-weight:700;margin:8px 0 4px;}
@@ -230,11 +240,15 @@ const CopilotButBetter = (() => {
         .cbb-typing i:nth-child(2){animation-delay:.15s;} .cbb-typing i:nth-child(3){animation-delay:.3s;}
         @keyframes cbb-b{0%,60%,100%{transform:none;opacity:.4;}30%{transform:translateY(-5px);opacity:1;}}
         .cbb-compwrap{padding:10px 18px 6px;} .cbb-comp{max-width:780px;margin:0 auto;}
-        .cbb-box{display:flex;align-items:flex-end;gap:10px;padding:10px 10px 10px 18px;border-radius:28px;border:1px solid rgba(255,255,255,.22);background:linear-gradient(135deg,rgba(255,255,255,.16),rgba(255,255,255,.05));backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -1px 0 rgba(0,0,0,.2),0 12px 34px rgba(0,0,0,.4);position:relative;transition:.15s;}
+        .cbb-box{display:flex;align-items:flex-end;gap:10px;padding:10px 10px 10px 18px;border-radius:28px;border:1px solid rgba(255,255,255,.22);background:linear-gradient(135deg,rgba(255,255,255,.16),rgba(255,255,255,.05));backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -1px 0 rgba(0,0,0,.2),0 12px 34px rgba(0,0,0,.4);position:relative;overflow:hidden;transition:border-color .15s,box-shadow .15s,transform .15s;}
         .cbb-box:focus-within{border-color:var(--acc);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 0 0 1px var(--acc),0 12px 34px rgba(0,0,0,.45);}
         .cbb-box textarea{flex:1;background:transparent;border:none;outline:none;resize:none;color:#ececec;font-size:14.5px;font-family:inherit;max-height:160px;padding:6px 0;line-height:1.5;}
         .cbb-box textarea::placeholder{color:#8e8e8e;}
-        .cbb-send{width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;font-size:16px;color:#fff;background:linear-gradient(135deg,var(--acc),#0ea5e9);box-shadow:0 4px 14px color-mix(in srgb,var(--acc) 55%,transparent),inset 0 1px 1px rgba(255,255,255,.5);flex-shrink:0;}
+        .cbb-send{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.35);cursor:pointer;font-size:16px;color:#fff;background:linear-gradient(135deg,rgba(255,255,255,.3),rgba(255,255,255,.08));box-shadow:0 4px 14px rgba(0,0,0,.4),inset 0 1px 1px rgba(255,255,255,.45);flex-shrink:0;transition:transform .12s,box-shadow .15s,border-color .15s;}
+        .cbb-send:hover:not(:disabled){border-color:var(--acc);box-shadow:0 4px 18px rgba(0,0,0,.45),0 0 14px color-mix(in srgb,var(--acc) 60%,transparent),inset 0 1px 1px rgba(255,255,255,.5);transform:translateY(-1px);}
+        .cbb-send:active:not(:disabled){transform:scale(.9);}
+        .cbb-new:active,.cbb-mini:active,.cbb-iconbtn:active{transform:scale(.94);}
+        .cbb-new,.cbb-mini,.cbb-iconbtn{transition:transform .12s,border-color .15s,box-shadow .15s;}
         .cbb-send:disabled{opacity:.4;cursor:default;}
         .cbb-stop{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;cursor:pointer;font-size:13px;flex-shrink:0;}
         .cbb-hint{text-align:center;font-size:11.5px;color:#8e8e8e;padding:6px 0 10px;}
@@ -283,6 +297,7 @@ const CopilotButBetter = (() => {
                 </div>
             </div>
             <div class="cbb-main">
+                <div class="cbb-aurora"></div>
                 <div class="cbb-top">
                     <button class="cbb-iconbtn cbb-menu" title="Chats">☰</button>
                     <div class="cbb-modelpill"><i></i><span class="cbb-modelname">${model}</span></div>
@@ -647,6 +662,44 @@ const CopilotButBetter = (() => {
         });
         sendBtn.addEventListener('click', send);
         stopBtn.addEventListener('click', () => { stopFlag = true; });
+
+        // Mouse-reactive layer: ambient glow follows the cursor, spotlights light up
+        // the hovered bubble/card/composer, hero logo + suggestion cards tilt in 3D.
+        let mouseRaf = null;
+        root.addEventListener('mousemove', (e) => {
+            if (mouseRaf) return;
+            mouseRaf = requestAnimationFrame(() => {
+                mouseRaf = null;
+                const rr = root.getBoundingClientRect();
+                root.style.setProperty('--mx', ((e.clientX - rr.left) / rr.width * 100).toFixed(2) + '%');
+                root.style.setProperty('--my', ((e.clientY - rr.top) / rr.height * 100).toFixed(2) + '%');
+                const t = e.target.closest('.cbb-abub,.cbb-ubub,.cbb-sugg button,.cbb-box');
+                if (t) {
+                    const b = t.getBoundingClientRect();
+                    t.style.setProperty('--bx', (e.clientX - b.left).toFixed(1) + 'px');
+                    t.style.setProperty('--by', (e.clientY - b.top).toFixed(1) + 'px');
+                    if (t.closest('.cbb-sugg')) {
+                        const px = (e.clientX - b.left) / b.width - 0.5;
+                        const py = (e.clientY - b.top) / b.height - 0.5;
+                        t.style.transform = `perspective(600px) rotateY(${(px * 7).toFixed(2)}deg) rotateX(${(-py * 7).toFixed(2)}deg) translateY(-2px)`;
+                    }
+                }
+                root.querySelectorAll('.cbb-sugg button').forEach(b => { if (b !== t) b.style.transform = ''; });
+                const big = root.querySelector('.cbb-hero .big');
+                if (big) {
+                    const b = big.getBoundingClientRect();
+                    const px = (e.clientX - (b.left + b.width / 2)) / Math.max(b.width, 1);
+                    const py = (e.clientY - (b.top + b.height / 2)) / Math.max(b.height, 1);
+                    const cl = Math.max(-1, Math.min(1, px)), ct = Math.max(-1, Math.min(1, py));
+                    big.style.transform = `perspective(500px) rotateY(${(cl * 14).toFixed(2)}deg) rotateX(${(-ct * 14).toFixed(2)}deg)`;
+                }
+            });
+        });
+        root.addEventListener('mouseleave', () => {
+            const big = root.querySelector('.cbb-hero .big');
+            if (big) big.style.transform = '';
+            root.querySelectorAll('.cbb-sugg button').forEach(b => { b.style.transform = ''; });
+        });
 
         renderAll();
         autosize();

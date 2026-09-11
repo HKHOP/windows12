@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4830] - 2026-09-11
+
+### Changed
+- CopilotButBetter theme goes monochrome glass — removed the green/blue/purple gradients from logo, avatar, hero, and send button; accent color now only highlights small states (focus rings, model dot, toggles)
+
+### Added
+- CopilotButBetter mouse-reactive UI — ambient glow follows the cursor, message bubbles/cards/composer light up with a cursor-tracked spotlight, hero logo and suggestion cards tilt in 3D, plus message entrance animations and press effects
+
 ## [12.0.4820] - 2026-09-11
 
 ### Added
