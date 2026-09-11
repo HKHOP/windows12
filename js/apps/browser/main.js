@@ -19,7 +19,11 @@ const Browser = (() => {
 
     const HISTORY_PATH = ['/', 'system', 'programs data', 'browser', 'history.json'];
     const DOWNLOADS_PATH = ['/', 'system', 'programs data', 'browser', 'downloads.json'];
+    const EXT_NOTICE_PATH = ['/', 'system', 'programs data', 'browser', 'extNotice.json'];
     const MAX_CLOSED = 20;
+
+    const EXT_CHROME_URL = 'https://chromewebstore.google.com/detail/ignore-x-frame-headers/gleekbfjekiniecknbkamfmkohkpodhe';
+    const EXT_FIREFOX_URL = 'https://addons.mozilla.org/en-CA/firefox/addon/ignore-x-frame-options-header/';
 
     function createTab(url, state) {
         const id = `tab-${Date.now()}-${++state.tabCounter}`;
@@ -160,6 +164,101 @@ const Browser = (() => {
         downloads.unshift({ name, size, path, time: Date.now() });
         if (downloads.length > 100) downloads.length = 100;
         writeJson(DOWNLOADS_PATH, downloads);
+    }
+
+    function isExtNoticeDismissed() {
+        try {
+            const v = readJson(EXT_NOTICE_PATH, null);
+            return !!(v && v.dismissed);
+        } catch { return false; }
+    }
+
+    function setExtNoticeDismissed(v) {
+        writeJson(EXT_NOTICE_PATH, { dismissed: !!v });
+    }
+
+    function copyExtUrl(text, btn) {
+        const done = () => {
+            if (btn) {
+                const orig = btn.textContent;
+                btn.textContent = 'Copied ✓';
+                setTimeout(() => { btn.textContent = orig; }, 1200);
+            }
+        };
+        if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+        } else {
+            fallbackCopy(text, done);
+        }
+    }
+
+    function fallbackCopy(text, done) {
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+        } catch {}
+        if (done) done();
+    }
+
+    function showExtNotice() {
+        const card = (browserName, extName, url, color, letter) => `
+            <div style="border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:rgba(255,255,255,0.03);">
+                <div style="display:flex;gap:10px;align-items:center;margin-bottom:6px;">
+                    <div style="width:32px;height:32px;border-radius:8px;background:${color};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0;">${letter}</div>
+                    <div>
+                        <div style="font-size:13px;font-weight:600;">For ${browserName}</div>
+                        <div style="font-size:12px;color:#4fc3f7;">${extName}</div>
+                    </div>
+                </div>
+                <div class="browser-ext-url" data-url="${url}" style="font-size:11px;color:#888;word-break:break-all;margin-bottom:8px;user-select:text;-webkit-user-select:text;">${url}</div>
+                <div style="display:flex;gap:8px;">
+                    <button class="browser-ext-open" data-url="${url}" style="flex:1;background:#0078D4;border:none;color:white;padding:7px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;">Open store page</button>
+                    <button class="browser-ext-copy" data-url="${url}" style="background:none;border:1px solid rgba(255,255,255,0.2);color:#ccc;padding:7px 12px;border-radius:6px;cursor:pointer;font-size:12px;">Copy link</button>
+                </div>
+            </div>`;
+
+        const html = `<div style="padding:16px;height:100%;overflow-y:auto;box-sizing:border-box;user-select:text;-webkit-user-select:text;">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
+                <div style="font-size:26px;">🧩</div>
+                <div>
+                    <div style="font-size:15px;font-weight:700;">Recommended extension</div>
+                    <div style="font-size:12px;color:#888;">Make this Browser behave like a real browser</div>
+                </div>
+            </div>
+            <div style="font-size:12.5px;line-height:1.55;color:#ccc;margin-bottom:12px;">
+                Many sites (Google, GitHub, banks…) send <b>X-Frame-Options</b> headers that block
+                pages from loading inside an iframe — so they appear blank here. Install this
+                helper extension in your <b>real</b> browser and those sites will load, making
+                this in-OS Browser far more powerful.
+            </div>
+            ${card('Chrome / Edge', 'Ignore X-Frame Headers', EXT_CHROME_URL, '#4285F4', 'C')}
+            ${card('Firefox', 'Ignore X-Frame-Options Header', EXT_FIREFOX_URL, '#FF7139', 'F')}
+            <label style="display:flex;gap:8px;align-items:center;font-size:12px;color:#aaa;margin:10px 0;cursor:pointer;">
+                <input type="checkbox" class="browser-ext-hide" style="accent-color:#0078D4;"> Don't show this again
+            </label>
+            <div style="font-size:11px;color:#666;margin-bottom:10px;">You can reopen this page anytime from the ⋮ menu → Recommended Extension…</div>
+            <button class="browser-ext-ok" style="width:100%;background:#0078D4;border:none;color:white;padding:9px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">Got it</button>
+        </div>`;
+
+        const nWin = WindowManager.createWindow('browser-extnotice', 'Recommended Extension', '🧩', html, { width: 470, height: 600 });
+        const nEl = nWin.element;
+
+        nEl.querySelectorAll('.browser-ext-open').forEach(btn => {
+            btn.addEventListener('click', () => window.open(btn.dataset.url, '_blank', 'noopener'));
+        });
+        nEl.querySelectorAll('.browser-ext-copy').forEach(btn => {
+            btn.addEventListener('click', () => copyExtUrl(btn.dataset.url, btn));
+        });
+        nEl.querySelector('.browser-ext-ok').addEventListener('click', () => {
+            if (nEl.querySelector('.browser-ext-hide').checked) setExtNoticeDismissed(true);
+            WindowManager.closeWindow(nWin.id);
+        });
     }
 
     function launch() {
@@ -716,6 +815,7 @@ const Browser = (() => {
                 { label: 'Find in Page', icon: '🔍', action: () => openFindBar() },
                 { label: 'History', icon: '🕐', action: () => showHistoryPanel() },
                 { label: 'Downloads', icon: '⬇', action: () => showDownloadsPanel() },
+                { label: 'Recommended Extension…', icon: '🧩', action: () => showExtNotice() },
                 'separator',
                 { label: 'Zoom In', icon: '+', action: () => { const tab = tabState.tabs.get(tabState.activeTabId); if (tab) { tab.zoom = Math.min(tab.zoom + 0.1, 3); applyZoom(tab); } } },
                 { label: 'Zoom Out', icon: '−', action: () => { const tab = tabState.tabs.get(tabState.activeTabId); if (tab) { tab.zoom = Math.max(tab.zoom - 0.1, 0.3); applyZoom(tab); } } },
@@ -772,6 +872,10 @@ const Browser = (() => {
 
         renderTabs();
         showNewTab();
+
+        if (!isExtNoticeDismissed()) {
+            setTimeout(() => showExtNotice(), 600);
+        }
 
         window.addEventListener('message', (e) => {
             if (e.data?.type === 'browser-nav') {

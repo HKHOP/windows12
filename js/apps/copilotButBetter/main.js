@@ -327,7 +327,6 @@ const CopilotButBetter = (() => {
             css() + shellHTML(settings), { width: 1020, height: 700, minWidth: 640, minHeight: 460 });
         const el = win.element;
         const root = el.querySelector('.cbb-root');
-        applyTheme();
 
         const listEl = el.querySelector('.cbb-list');
         const colEl = el.querySelector('.cbb-col');
@@ -340,6 +339,7 @@ const CopilotButBetter = (() => {
         const setWrap = el.querySelector('.cbb-set');
         const panel = el.querySelector('.cbb-panel');
         const side = el.querySelector('.cbb-side');
+        applyTheme();
 
         function applyTheme() {
             root.style.setProperty('--acc', settings.accent || '#10a37f');

@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4820] - 2026-09-11
+
+### Added
+- Browser recommended-extension notice — first-run window explaining iframe X-Frame-Options blocks, with Chrome ("Ignore X-Frame Headers") and Firefox ("Ignore X-Frame-Options Header") store links, open/copy buttons, "Don't show again" option, and a ⋮ menu entry to reopen it anytime
+
+### Fixed
+- CopilotButBetter crashing on launch (`modelNameEl` used before initialization) — theme is now applied after all window elements are queried
+
 ## [12.0.4810] - 2026-09-11
 
 ### Added
