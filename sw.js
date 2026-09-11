@@ -34,6 +34,7 @@ const urlsToCache = [
     './js/apps/calendar/main.js',
     './js/apps/cellESheet/main.js',
     './js/apps/clock/main.js',
+    './js/apps/copilotButBetter/main.js',
     './js/apps/export/main.js',
     './js/apps/fileExplorer/main.js',
     './js/apps/mediaPlayer/main.js',

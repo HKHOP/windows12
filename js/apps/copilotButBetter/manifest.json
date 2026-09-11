@@ -1,0 +1,36 @@
+{
+    "manifestVersion": 1,
+    "id": "copilotButBetter",
+    "uuid": "cb643366-b2ad-4f78-bd37-dc012bbc0167",
+    "name": "CopilotButBetter",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Productivity",
+        "rating": "4.9",
+        "reviews": "2,048",
+        "description": "A ChatGPT-style AI chat app powered by your own Gemini API key. Save conversations, build long-term memory, and customize the assistant — all wrapped in a liquid-glass interface.",
+        "features": [
+            "ChatGPT-like chat UI with liquid glass effects",
+            "Bring your own Gemini API key (multiple models)",
+            "Conversation saving with rename, search, export and delete",
+            "Long-term memory facts injected into every reply",
+            "Settings page: system prompt, temperature, tokens, accent, glass"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #10a37f, #0ea5e9)",
+                "text": "Glass Chat"
+            },
+            {
+                "bg": "linear-gradient(135deg, #212121, #10a37f)",
+                "text": "Memory + Settings"
+            }
+        ],
+        "size": "1 MB",
+        "ageRating": "3+"
+    }
+}

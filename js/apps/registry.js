@@ -7,6 +7,7 @@ import * as app_calculator from './calculator/main.js';
 import * as app_calendar from './calendar/main.js';
 import * as app_cellESheet from './cellESheet/main.js';
 import * as app_clock from './clock/main.js';
+import * as app_copilotButBetter from './copilotButBetter/main.js';
 import * as app_export from './export/main.js';
 import * as app_fileExplorer from './fileExplorer/main.js';
 import * as app_mediaPlayer from './mediaPlayer/main.js';
@@ -29,6 +30,7 @@ const APP_MODULES = {
     "calendar": app_calendar.default || app_calendar,
     "cellESheet": app_cellESheet.default || app_cellESheet,
     "clock": app_clock.default || app_clock,
+    "copilotButBetter": app_copilotButBetter.default || app_copilotButBetter,
     "export": app_export.default || app_export,
     "fileExplorer": app_fileExplorer.default || app_fileExplorer,
     "mediaPlayer": app_mediaPlayer.default || app_mediaPlayer,
@@ -52,6 +54,7 @@ const APP_MANIFESTS = [
     {"id":"calendar","uuid":"41735587-3354-46e3-b3c0-eb9b9557ecdc","name":"Calendar","version":"1.0.0","distribution":"builtin","associations":[]},
     {"id":"cellESheet","uuid":"018c838d-7ccf-410f-979d-806142a0c2bb","name":"Cell ESheet","version":"1.0.0","distribution":"store","associations":["cesheet","celsheet","csv"],"store":{"developer":"Windows 12","category":"Productivity","rating":"4.5","reviews":"987","description":"A spreadsheet application with formulas, multi-sheet support, and a familiar ribbon UI. Create and manage your data with ease.","features":["Formula support (SUM, AVERAGE, MIN, MAX)","Multi-sheet workbooks","Ribbon-style toolbar","Cell references and range selection","Save/load from virtual filesystem"],"screenshots":[{"bg":"linear-gradient(135deg, #217346, #33a867)","text":"Spreadsheet Editor"},{"bg":"linear-gradient(135deg, #33a867, #217346)","text":"Formula Bar"}],"size":"4 MB","ageRating":"3+"}},
     {"id":"clock","uuid":"b0920f32-1bb7-4a1e-a8bf-6482b5abfd71","name":"Clock","version":"1.0.0","distribution":"builtin","associations":[]},
+    {"id":"copilotButBetter","uuid":"cb643366-b2ad-4f78-bd37-dc012bbc0167","name":"CopilotButBetter","version":"1.0.0","distribution":"store","associations":[],"store":{"developer":"Windows 12","category":"Productivity","rating":"4.9","reviews":"2,048","description":"A ChatGPT-style AI chat app powered by your own Gemini API key. Save conversations, build long-term memory, and customize the assistant — all wrapped in a liquid-glass interface.","features":["ChatGPT-like chat UI with liquid glass effects","Bring your own Gemini API key (multiple models)","Conversation saving with rename, search, export and delete","Long-term memory facts injected into every reply","Settings page: system prompt, temperature, tokens, accent, glass"],"screenshots":[{"bg":"linear-gradient(135deg, #10a37f, #0ea5e9)","text":"Glass Chat"},{"bg":"linear-gradient(135deg, #212121, #10a37f)","text":"Memory + Settings"}],"size":"1 MB","ageRating":"3+"}},
     {"id":"export","uuid":"0e5fc68f-7379-4027-bb52-67ff7a23b4f2","name":"Ex/port","version":"1.0.0","distribution":"store","associations":[],"store":{"developer":"Windows 12","category":"Utilities","rating":"4.7","reviews":"892","description":"Import files from your device to the filesystem, or export files to download. Supports all file types with drag-and-drop functionality.","features":["Drag-and-drop import","File browser export","Multiple destination folders","File type detection","Batch operations"],"screenshots":[{"bg":"linear-gradient(135deg, #0078D4, #00BCF2)","text":"Import Files"},{"bg":"linear-gradient(135deg, #00BCF2, #0078D4)","text":"Export Files"}],"size":"1 MB","ageRating":"3+"}},
     {"id":"fileExplorer","uuid":"7547fd06-5d94-48c3-84bf-061f09a5a717","name":"File Explorer","version":"1.0.0","distribution":"builtin","associations":[]},
     {"id":"mediaPlayer","uuid":"23917c1e-2117-4404-b620-82cedd12a70e","name":"Media Player","version":"1.0.0","distribution":"builtin","associations":["mp3","wav","ogg","oga","m4a","mp4","webm"]},

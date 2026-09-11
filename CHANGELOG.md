@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4810] - 2026-09-11
+
+### Added
+- CopilotButBetter app (installable from Microsoft Store) — ChatGPT-style AI chat with liquid glass effects, powered by your own Gemini API key
+- Conversation saving with search, rename, delete, auto-titles, and JSON export
+- Long-term memory facts injected into every Gemini request, manageable from Settings or via "Remember" under any reply
+- Settings page: API key, model picker + custom model id, system prompt, temperature, max tokens, accent color, glass intensity
+
 ## [12.0.4800] - 2026-09-08
 
 ### Fixed
