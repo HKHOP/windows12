@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4850] - 2026-09-13
+
+### Changed
+- CopilotButBetter settings panel redesigned with liquid glass styling, glassmorphism cards, glowing focus states, interactive range sliders, and polished micro-interactions matching the main app interface
+
+### Fixed
+- CopilotButBetter sidebar toggle button (`☰`) now works on desktop (collapsing/expanding smoothly) as well as mobile
+
 ## [12.0.4840] - 2026-09-13
 
 ### Fixed
