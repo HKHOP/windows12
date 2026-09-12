@@ -143,7 +143,7 @@ const CopilotButBetter = (() => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                system_instruction: { parts: [{ text: sysText }] },
+                systemInstruction: { parts: [{ text: sysText }] },
                 contents,
                 generationConfig: {
                     temperature: Number(settings.temperature) || 0.7,
@@ -521,7 +521,7 @@ const CopilotButBetter = (() => {
             sendBtn.style.display = 'none'; stopBtn.style.display = '';
             persist(); renderAll();
             try {
-                const history = c.messages.slice(0, -0);
+                const history = c.messages;
                 const reply = await callGemini(settings, history);
                 if (stopFlag) return;
                 c.messages.push({ role: 'assistant', content: reply, time: Date.now() });

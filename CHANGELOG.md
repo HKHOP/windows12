@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4840] - 2026-09-13
+
+### Fixed
+- CopilotButBetter chat requests failing with `GenerateContentRequest.contents: contents is not specified` error caused by message history slicing with `-0` and incorrect `systemInstruction` field property name
+
 ## [12.0.4830] - 2026-09-11
 
 ### Changed
