@@ -295,7 +295,7 @@ const CopilotButBetter = (() => {
         return `
         <div class="cbb-root">
             <div class="cbb-side">
-                <div class="cbb-brand"><div class="cbb-logo">✦</div><div><b>CopilotButBetter</b><small>Gemini · glass edition</small></div></div>
+                <div class="cbb-brand"><div class="cbb-logo">✦</div><div><b>CopilotBB</b></div></div>
                 <button class="cbb-new">＋ New chat</button>
                 <div class="cbb-search"><span style="color:#8e8e8e;font-size:13px;">⌕</span><input class="cbb-q" type="text" placeholder="Search chats"></div>
                 <div class="cbb-list"></div>
