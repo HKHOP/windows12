@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4882] - 2026-09-14
+
+### Added
+- Solar Spacer Sandbox: interactive drag-to-launch velocity vectors, custom planet mass/color picker, interactive "Swing / Gravity Well" attractor tool, planet merging/collision physics, and sound effects using Web Audio API
+
 ## [12.0.4881] - 2026-09-14
 
 ### Added
