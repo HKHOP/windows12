@@ -291,27 +291,27 @@ const AppStore = (() => {
         }
 
         function showAppDetail(appId) {
-            const content = el.querySelector('.store-main');
-            content.innerHTML = getDetailContent(appId).split('<!-- Main Content Area -->')[1] || getDetailContent(appId);
-            const backBtn = content.querySelector('.store-back-btn');
+            const body = el.querySelector('.window-body');
+            body.innerHTML = getDetailContent(appId);
+            const backBtn = body.querySelector('.store-back-btn');
             if (backBtn) {
                 backBtn.addEventListener('click', () => showMainView());
                 backBtn.addEventListener('mouseenter', () => backBtn.style.background = 'rgba(255,255,255,0.1)');
                 backBtn.addEventListener('mouseleave', () => backBtn.style.background = 'none');
             }
-            checkInstalledStatus(content);
-            setupNav(content);
-            setupInstallButtons(content);
-            setupDiscoverCards(content);
+            checkInstalledStatus(body);
+            setupNav(body);
+            setupInstallButtons(body);
+            setupDiscoverCards(body);
         }
 
         function showMainView() {
-            const content = el.querySelector('.store-main');
-            content.innerHTML = getMainContent().split('<!-- Main Content Area -->')[1] || getMainContent();
-            checkInstalledStatus(content);
-            setupNav(content);
-            setupAppCards(content);
-            setupInstallButtons(content);
+            const body = el.querySelector('.window-body');
+            body.innerHTML = getMainContent();
+            checkInstalledStatus(body);
+            setupNav(body);
+            setupAppCards(body);
+            setupInstallButtons(body);
         }
 
         setupNav(el);

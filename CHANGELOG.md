@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4880] - 2026-09-14
+
+### Fixed
+- Microsoft Store app detail view no longer doubles the sidebar when clicking an app page
+
 ## [12.0.4879] - 2026-09-13
 
 ### Changed
