@@ -36,9 +36,10 @@ const CopilotButBetter = (() => {
 
 RULES:
 - Put any explanation BEFORE the toolcall block. The toolcall block MUST be the very last thing in your message.
-- You MUST include ALL required args in the JSON. Do NOT send empty args {}.
+- NEVER send empty args {}. Every tool except datetime requires arguments. A call with missing args FAILS and you must retry with correct args.
 - Exactly one tool call per message. After the tool runs you get another turn: its result arrives as "[TOOL RESULT status=success|failed tool=<name>] ..." — then answer the user or call another tool.
 - Never invent tool output. If a tool fails, fix the args and retry.
+- NEVER put your explanation / chat text into a "script" or "content" arg. "script" must contain ONLY real shell commands, "content" must contain ONLY real file text.
 - Keep file work inside the per-conversation workspace (relative paths like "notes.txt"). The workspace persists until the conversation is deleted.
 - Stop calling tools once you can answer. Do not call tools for plain chit-chat.
 
@@ -406,9 +407,12 @@ Available tools:
         });
     }
 
-    async function executeTool(convId, tool, args, assistantText) {
+    async function executeTool(convId, tool, args) {
         const ws = ensureWorkspace(convId);
         const a = args || {};
+        // Strict arg validation: NEVER silently substitute chat text for missing
+        // args. An empty {} must fail loudly so the model retries with real args
+        // instead of executing its own explanation as a shell command.
         try {
             switch (tool) {
                 case 'datetime': {
@@ -416,22 +420,20 @@ Available tools:
                     return { ok: true, output: `ISO: ${d.toISOString()}\nLocal: ${d.toString()}\nTimezone offset (min): ${d.getTimezoneOffset()}`, images: [] };
                 }
                 case 'powershell': {
-                    let script = a.script != null ? a.script : a.command;
-                    if (!script || !String(script).trim()) script = assistantText || '';
-                    if (!script || !String(script).trim()) return { ok: false, output: 'powershell: missing "script" argument.', images: [] };
+                    const script = a.script != null ? a.script : a.command;
+                    if (!script || !String(script).trim()) return { ok: false, output: 'powershell: missing required "script" argument. Retry with {"tool":"powershell","args":{"script":"<real PowerShell commands>"}}. Example: {"tool":"powershell","args":{"script":"Get-ChildItem"}}. Never send {} and never put chat text in "script".', images: [] };
                     return { ok: true, output: runPowerShellCapture(String(script), ws), images: [] };
                 }
                 case 'cmd': {
-                    let script = a.script != null ? a.script : a.command;
-                    if (!script || !String(script).trim()) script = assistantText || '';
-                    if (!script || !String(script).trim()) return { ok: false, output: 'cmd: missing "script" argument.', images: [] };
+                    const script = a.script != null ? a.script : a.command;
+                    if (!script || !String(script).trim()) return { ok: false, output: 'cmd: missing required "script" argument. Retry with {"tool":"cmd","args":{"script":"<real CMD commands>"}}. Never send {} and never put chat text in "script".', images: [] };
                     return { ok: true, output: runBatchCapture(String(script), ws), images: [] };
                 }
                 case 'write': {
-                    if (!a.path) a.path = 'output.txt';
+                    if (!a.path || !String(a.path).trim()) return { ok: false, output: 'write: missing required "path". Retry with {"tool":"write","args":{"path":"notes.txt","content":"<full file text>"}}. Never send {}.', images: [] };
+                    if (a.content == null || !String(a.content)) return { ok: false, output: `write: missing required "content" for '${a.path}'. Retry with the FULL file text in "content". Never send {} and never substitute chat text.`, images: [] };
                     const rel = String(a.path).replace(/^\/+/, '');
-                    let content = a.content != null ? String(a.content) : '';
-                    if (!content && assistantText) content = assistantText;
+                    const content = String(a.content);
                     ensureWorkspaceParents(ws, rel);
                     const full = resolveWorkspacePath(ws, rel);
                     const name = full[full.length - 1];
@@ -446,7 +448,7 @@ Available tools:
                     return { ok: true, output: `Wrote ${content.length} chars to ${rel}`, images: [] };
                 }
                 case 'read': {
-                    if (!a.path) a.path = '.';
+                    if (!a.path || !String(a.path).trim()) return { ok: false, output: 'read: missing required "path". Retry with {"tool":"read","args":{"path":"notes.txt"}}. Never send {}.', images: [] };
                     const rel = String(a.path).replace(/^\/+/, '');
                     const full = resolveWorkspacePath(ws, rel);
                     const node = FileSystem.getNode(full);
@@ -465,8 +467,8 @@ Available tools:
                     return { ok: true, output: `File ${rel} (${lines.length} lines, showing ${offset}-${offset + slice.length - 1}):\n` + slice.join('\n'), images: [] };
                 }
                 case 'edit': {
-                    if (!a.path) a.path = 'output.txt';
-                    if (a.oldText == null || a.newText == null) return { ok: false, output: 'edit: need "oldText" and "newText".', images: [] };
+                    if (!a.path || !String(a.path).trim()) return { ok: false, output: 'edit: missing required "path". Retry with {"tool":"edit","args":{"path":"notes.txt","oldText":"...","newText":"..."}}. Never send {}.', images: [] };
+                    if (a.oldText == null || a.newText == null || !String(a.oldText)) return { ok: false, output: 'edit: need non-empty "oldText" and "newText". Retry with all three args. Never send {}.', images: [] };
                     const rel = String(a.path).replace(/^\/+/, '');
                     const full = resolveWorkspacePath(ws, rel);
                     const raw = FileSystem.readFile(full);
@@ -480,7 +482,7 @@ Available tools:
                     return { ok: true, output: `Edited ${rel} at char ${idx}.\n- before: ...${before}...\n+ after:  ...${after}...`, images: [] };
                 }
                 case 'grep': {
-                    if (!a.pattern) return { ok: false, output: 'grep: missing "pattern".', images: [] };
+                    if (!a.pattern || !String(a.pattern).trim()) return { ok: false, output: 'grep: missing required "pattern". Retry with {"tool":"grep","args":{"pattern":"TODO"}}. Never send {}.', images: [] };
                     let re;
                     try { re = new RegExp(String(a.pattern), 'i'); } catch (e) { return { ok: false, output: `grep: invalid regex: ${e.message}`, images: [] }; }
                     const scope = a.path ? String(a.path).replace(/^\/+/, '') : '';
@@ -500,7 +502,7 @@ Available tools:
                     return { ok: true, output: hits.length ? `Matches (${hits.length}):\n` + hits.join('\n') : `No matches for /${a.pattern}/ in ${scope || 'workspace'} (${files.length} files searched).`, images: [] };
                 }
                 case 'websearch': {
-                    if (!a.query) return { ok: false, output: 'websearch: missing "query".', images: [] };
+                    if (!a.query || !String(a.query).trim()) return { ok: false, output: 'websearch: missing required "query". Retry with {"tool":"websearch","args":{"query":"..."}}. Never send {}.', images: [] };
                     const count = Math.min(10, Math.max(1, parseInt(a.count, 10) || 5));
                     const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(String(a.query))}&format=json&no_html=1&skip_disambig=1`;
                     let data = null;
@@ -526,7 +528,7 @@ Available tools:
                     return { ok: true, output: `DuckDuckGo results for "${a.query}":\n` + truncateOut(lines.join('\n'), 5000), images: [] };
                 }
                 case 'webfetch': {
-                    if (!a.url) return { ok: false, output: 'webfetch: missing "url".', images: [] };
+                    if (!a.url || !String(a.url).trim()) return { ok: false, output: 'webfetch: missing required "url". Retry with {"tool":"webfetch","args":{"url":"https://..."}}. Never send {}.', images: [] };
                     let urlStr = String(a.url).trim();
                     if (!/^https?:\/\//i.test(urlStr)) urlStr = 'https://' + urlStr;
                     let html = '';
@@ -562,7 +564,7 @@ Available tools:
                     return { ok: true, output: `Fetched ${urlStr}:\n${text}${linkSection}`, images: [] };
                 }
                 case 'analyze': {
-                    if (!a.path) return { ok: false, output: 'analyze: missing "path". Workspace files: ' + (walkWorkspaceFiles(ws).slice(0, 30).join(', ') || '(empty)'), images: [] };
+                    if (!a.path || !String(a.path).trim()) return { ok: false, output: 'analyze: missing required "path". Retry with {"tool":"analyze","args":{"path":"file.png"}}. Workspace files: ' + (walkWorkspaceFiles(ws).slice(0, 30).join(', ') || '(empty)') + '. Never send {}.', images: [] };
                     const rel = String(a.path).replace(/^\/+/, '');
                     const full = resolveWorkspacePath(ws, rel);
                     const node = FileSystem.getNode(full);
@@ -1111,7 +1113,7 @@ Available tools:
                     }
                     let result;
                     try {
-                        result = await executeTool(c.id, tc.tool, tc.args, stripToolCall(reply));
+                        result = await executeTool(c.id, tc.tool, tc.args);
                     } catch (e) {
                         result = { ok: false, output: `Tool ${tc.tool} crashed: ${e && e.message || e}`, images: [] };
                     }

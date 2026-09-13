@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4875] - 2026-09-13
+
+### Fixed
+- CopilotBB no longer executes chat text as a shell command on empty `{}` tool calls — powershell/cmd/write/read/edit/grep/websearch/webfetch/analyze now fail loudly with retry instructions instead of substituting the assistant's explanation, and the agent prompt explicitly bans empty args and chat-text-in-script
+
 ## [12.0.4874] - 2026-09-13
 
 ### Fixed
