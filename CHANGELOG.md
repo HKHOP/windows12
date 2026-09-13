@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4874] - 2026-09-13
+
+### Fixed
+- CopilotBB agent loop fix — tool results are now pushed as user-role messages so the Gemini API always sees a conversation ending with a user turn (fixes "Requests ending with a model turn are not supported")
+
 ## [12.0.4873] - 2026-09-13
 
 ### Changed

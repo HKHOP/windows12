@@ -968,7 +968,7 @@ Available tools:
                 }));
                 return;
             }
-            colEl.innerHTML = c.messages.map((m, i) => {
+            colEl.innerHTML = c.messages.filter(m => !(m.role === 'user' && String(m.content || '').startsWith('[TOOL RESULT status='))).map((m, i) => {
                 if (m.role === 'user') {
                     const chips = Array.isArray(m.attachments) && m.attachments.length
                         ? `<div style="margin-top:6px;">${m.attachments.map(a => `<span class="cbb-filechip">📎 ${esc(a)}</span>`).join('')}</div>` : '';
@@ -1085,7 +1085,7 @@ Available tools:
                     const tc = agentOn ? parseToolCall(reply) : null;
                     if (tc && tc.parseError) {
                         c.messages.push({ role: 'assistant', content: reply, time: Date.now() });
-                        c.messages.push({ role: 'tool', tool: 'parse', status: 'failed', content: `Tool call JSON parse failed: ${tc.parseError}\nRaw:\n${truncateOut(tc.raw, 1000)}`, time: Date.now() });
+                        c.messages.push({ role: 'user', content: `[Tool parse error] ${tc.parseError}. Raw:\n${truncateOut(tc.raw, 800)}`, time: Date.now() });
                         c.updatedAt = Date.now();
                         persist(); renderAll();
                         continue;
@@ -1104,6 +1104,8 @@ Available tools:
                         if (last && last.role === 'assistant') {
                             last.toolResult = { status: 'failed', output: `Stopped: max ${MAX_AGENT_TURNS} tool turns reached. Answer with what you have.` };
                         }
+                        // Must end with a user turn for Gemini API
+                        c.messages.push({ role: 'user', content: `[Tool result: max ${MAX_AGENT_TURNS} turns reached. Please answer with what you have.]`, time: Date.now() });
                         persist(); renderAll();
                         continue;
                     }
@@ -1116,12 +1118,18 @@ Available tools:
                     if (stopFlag) return;
                     const status = result.ok ? 'success' : 'failed';
                     const out = truncateOut(result.output || '', TOOL_OUTPUT_LIMIT);
-                    // Attach result to the assistant message instead of a separate bubble
+                    // Attach result to the assistant message for display
                     const lastMsg = c.messages[c.messages.length - 1];
                     if (lastMsg && lastMsg.role === 'assistant') {
                         lastMsg.toolResult = { status, output: out };
                         if (result.images && result.images.length) lastMsg.images = result.images;
                     }
+                    // Push a user-role message so Gemini API sees conversation ending with user turn
+                    const toolImgPayload = (result.images && result.images.length) ? result.images : undefined;
+                    c.messages.push({
+                        role: 'user', content: `[TOOL RESULT status=${status} tool=${tc.tool}]\n${out}`,
+                        images: toolImgPayload, time: Date.now()
+                    });
                     c.updatedAt = Date.now();
                     persist(); renderAll();
                 }
