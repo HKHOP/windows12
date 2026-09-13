@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4871] - 2026-09-13
+
+### Changed
+- CopilotBB composer slimmed down — smaller send/stop/attach buttons, tighter padding, smaller input text, short placeholder
+
 ## [12.0.4870] - 2026-09-13
 
 ### Added

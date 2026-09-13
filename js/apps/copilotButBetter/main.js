@@ -707,17 +707,17 @@ Available tools:
         .cbb-typing i:nth-child(2){animation-delay:.15s;} .cbb-typing i:nth-child(3){animation-delay:.3s;}
         @keyframes cbb-b{0%,60%,100%{transform:none;opacity:.4;}30%{transform:translateY(-5px);opacity:1;}}
         .cbb-compwrap{padding:10px 18px 6px;} .cbb-comp{max-width:780px;margin:0 auto;}
-        .cbb-box{display:flex;align-items:flex-end;gap:10px;padding:10px 10px 10px 18px;border-radius:28px;border:1px solid rgba(255,255,255,.22);background:linear-gradient(135deg,rgba(255,255,255,.16),rgba(255,255,255,.05));backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -1px 0 rgba(0,0,0,.2),0 12px 34px rgba(0,0,0,.4);position:relative;overflow:hidden;transition:border-color .15s,box-shadow .15s,transform .15s;}
+        .cbb-box{display:flex;align-items:flex-end;gap:8px;padding:7px 7px 7px 14px;border-radius:24px;border:1px solid rgba(255,255,255,.22);background:linear-gradient(135deg,rgba(255,255,255,.16),rgba(255,255,255,.05));backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -1px 0 rgba(0,0,0,.2),0 12px 34px rgba(0,0,0,.4);position:relative;overflow:hidden;transition:border-color .15s,box-shadow .15s,transform .15s;}
         .cbb-box:focus-within{border-color:var(--acc);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 0 0 1px var(--acc),0 12px 34px rgba(0,0,0,.45);}
-        .cbb-box textarea{flex:1;background:transparent;border:none;outline:none;resize:none;color:#ececec;font-size:14.5px;font-family:inherit;max-height:160px;padding:6px 0;line-height:1.5;}
-        .cbb-box textarea::placeholder{color:#8e8e8e;}
-        .cbb-send{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.35);cursor:pointer;font-size:16px;color:#fff;background:linear-gradient(135deg,rgba(255,255,255,.3),rgba(255,255,255,.08));box-shadow:0 4px 14px rgba(0,0,0,.4),inset 0 1px 1px rgba(255,255,255,.45);flex-shrink:0;transition:transform .12s,box-shadow .15s,border-color .15s;}
+        .cbb-box textarea{flex:1;background:transparent;border:none;outline:none;resize:none;color:#ececec;font-size:13px;font-family:inherit;max-height:160px;padding:4px 0;line-height:1.45;}
+        .cbb-box textarea::placeholder{color:#8e8e8e;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .cbb-send{width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.35);cursor:pointer;font-size:14px;color:#fff;background:linear-gradient(135deg,rgba(255,255,255,.3),rgba(255,255,255,.08));box-shadow:0 4px 14px rgba(0,0,0,.4),inset 0 1px 1px rgba(255,255,255,.45);flex-shrink:0;transition:transform .12s,box-shadow .15s,border-color .15s;display:flex;align-items:center;justify-content:center;}
         .cbb-send:hover:not(:disabled){border-color:var(--acc);box-shadow:0 4px 18px rgba(0,0,0,.45),0 0 14px color-mix(in srgb,var(--acc) 60%,transparent),inset 0 1px 1px rgba(255,255,255,.5);transform:translateY(-1px);}
         .cbb-send:active:not(:disabled){transform:scale(.9);}
         .cbb-new:active,.cbb-mini:active,.cbb-iconbtn:active{transform:scale(.94);}
         .cbb-new,.cbb-mini,.cbb-iconbtn{transition:transform .12s,border-color .15s,box-shadow .15s;}
         .cbb-send:disabled{opacity:.4;cursor:default;}
-        .cbb-stop{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;cursor:pointer;font-size:13px;flex-shrink:0;}
+        .cbb-stop{width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;cursor:pointer;font-size:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
         .cbb-hint{text-align:center;font-size:11.5px;color:#8e8e8e;padding:6px 0 10px;}
         .cbb-set{position:absolute;inset:0;z-index:5;display:flex;background:rgba(15,15,15,.65);backdrop-filter:blur(10px);animation:cbb-fadein .15s ease;}
         @keyframes cbb-fadein{from{opacity:0;}to{opacity:1;}}
@@ -761,7 +761,7 @@ Available tools:
         .cbb-tool pre{margin:0;padding:10px 12px;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word;color:#cfcfcf;font-family:Consolas,monospace;font-size:12px;line-height:1.5;}
         .cbb-toolres{margin-top:10px;border-radius:12px;border:1px dashed rgba(255,255,255,.2);background:rgba(255,255,255,.03);padding:8px 12px;font-size:12px;color:#bdbdbd;}
         .cbb-toolres b{color:#eee;} .cbb-toolres pre{margin:6px 0 2px;max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-family:Consolas,monospace;font-size:11.5px;color:#cfcfcf;}
-        .cbb-attach{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;cursor:pointer;font-size:15px;flex-shrink:0;}
+        .cbb-attach{width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;cursor:pointer;font-size:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
         .cbb-attach:hover{border-color:var(--acc);}
         .cbb-filechip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:3px 8px;font-size:11.5px;color:#ddd;margin:2px 4px 2px 0;}
         @media (max-width:720px){.cbb-side{position:absolute;left:0;top:0;bottom:0;transform:translateX(-100%);transition:.2s;box-shadow:20px 0 60px rgba(0,0,0,.5);} .cbb-side.open{transform:none;} .cbb-sugg{grid-template-columns:1fr;}}
@@ -795,7 +795,7 @@ Available tools:
                     <div class="cbb-box">
                         <button class="cbb-attach" title="Attach file to workspace">📎</button>
                         <input type="file" class="cbb-fileinput" style="display:none;" multiple>
-                        <textarea rows="1" placeholder="Message CopilotBB… (agent tools: datetime, powershell, cmd, write, read, edit, grep, websearch, webfetch, analyze)"></textarea>
+                        <textarea rows="1" placeholder="Message CopilotBB…"></textarea>
                         <button class="cbb-stop" title="Stop" style="display:none;">■</button>
                         <button class="cbb-send" title="Send">↑</button>
                     </div>
