@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4878] - 2026-09-13
+
+### Added
+- CopilotBB model dropdown with live per-provider lists — Zen catalog fetched from opencode.ai/zen/v1/models (grouped by family), Gemini models fetched with your key (generate-capable only), with refresh button, loading/error status, and a Custom id fallback when a saved id isn't listed or fetching fails
+
+### Changed
+- CopilotBB manual model textbox replaced by the live dropdown (Default option = per-provider default, Custom id preserved)
+
 ## [12.0.4877] - 2026-09-13
 
 ### Added

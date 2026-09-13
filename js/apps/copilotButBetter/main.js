@@ -195,6 +195,113 @@ Available tools:
         return effectiveModel(s).replace(/^opencode\//i, '').trim() || DEFAULT_MODEL_ZEN;
     }
 
+    // Live model lists per provider (never a fixed list). Zen's catalog is
+    // public; Gemini's needs the user's key. Cached per session, ↻ refetches.
+    const ZEN_MODELS_URL = 'https://opencode.ai/zen/v1/models';
+    let modelCache = { gemini: null, zen: null };
+
+    async function fetchZenModels(force) {
+        if (modelCache.zen && !force) return modelCache.zen;
+        const res = await fetch(ZEN_MODELS_URL);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const arr = Array.isArray(data) ? data : (data && (data.data || data.models)) || [];
+        const list = arr
+            .filter(m => m && (m.id || m.model))
+            .map(m => ({ id: String(m.id || m.model) }));
+        if (!list.length) throw new Error('No models returned');
+        modelCache.zen = list;
+        return list;
+    }
+
+    async function fetchGeminiModels(key, force) {
+        if (modelCache.gemini && !force) return modelCache.gemini;
+        if (!key) throw new Error('Enter your Gemini API key above first.');
+        const out = [];
+        let pageToken = '';
+        for (let page = 0; page < 4; page++) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models?pageSize=200` +
+                `${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}&key=${encodeURIComponent(key)}`;
+            const res = await fetch(url);
+            if (!res.ok) {
+                let msg = `HTTP ${res.status}`;
+                try { const d = await res.json(); if (d && d.error && d.error.message) msg = d.error.message; } catch (e) { /* noop */ }
+                throw new Error(msg);
+            }
+            const data = await res.json();
+            for (const m of (data && data.models) || []) {
+                if (!((m.supportedGenerationMethods) || []).includes('generateContent')) continue;
+                const id = String(m.name || '').replace(/^models\//, '');
+                if (!id) continue;
+                out.push({ id, label: m.displayName ? `${m.displayName} (${id})` : id });
+            }
+            pageToken = data && data.nextPageToken;
+            if (!pageToken) break;
+        }
+        out.sort((a, b) => a.id.localeCompare(b.id));
+        if (!out.length) throw new Error('No generate-capable models found');
+        modelCache.gemini = out;
+        return out;
+    }
+
+    function fillModelSelect(sel, custom, list, saved, defLabel, provider) {
+        const ids = new Set();
+        let opts = `<option value="">Default (${esc(defLabel)})</option>`;
+        if (provider === 'zen') {
+            const groups = {};
+            for (const m of list) {
+                if (!m.id || ids.has(m.id)) continue;
+                ids.add(m.id);
+                const g = m.id.split(/[-.]/)[0] || 'other';
+                (groups[g] = groups[g] || []).push(m.id);
+            }
+            for (const g of Object.keys(groups).sort()) {
+                opts += `<optgroup label="${esc(g)}">` + groups[g].sort().map(id =>
+                    `<option value="${esc(id)}"${id === saved ? ' selected' : ''}>${esc(id)}</option>`).join('') + `</optgroup>`;
+            }
+        } else {
+            for (const m of list) {
+                if (!m.id || ids.has(m.id)) continue;
+                ids.add(m.id);
+                opts += `<option value="${esc(m.id)}"${m.id === saved ? ' selected' : ''}>${esc(m.label || m.id)}</option>`;
+            }
+        }
+        let customMode = false;
+        if (saved && !ids.has(saved)) {
+            customMode = true;
+            opts += `<option value="__custom" selected>Custom id… (current: ${esc(saved)})</option>`;
+        } else {
+            opts += `<option value="__custom">Custom id…</option>`;
+        }
+        sel.innerHTML = opts;
+        custom.style.display = customMode ? '' : 'none';
+        if (customMode) custom.value = saved;
+    }
+
+    async function loadModelOptions(panelEl, provider, saved, force) {
+        const sel = panelEl.querySelector('.s-model');
+        const custom = panelEl.querySelector('.s-custommodel');
+        const status = panelEl.querySelector('.s-modelstatus');
+        if (!sel || !custom || !status) return;
+        const token = panelEl.dataset.mtok = String((parseInt(panelEl.dataset.mtok || '0', 10) + 1));
+        const defLabel = provider === 'zen' ? DEFAULT_MODEL_ZEN : DEFAULT_MODEL_GEMINI;
+        status.style.color = '#8e8e8e';
+        status.textContent = 'Loading models…';
+        try {
+            const list = provider === 'zen'
+                ? await fetchZenModels(force)
+                : await fetchGeminiModels(panelEl.querySelector('.s-key').value.trim(), force);
+            if (panelEl.dataset.mtok !== token) return;
+            fillModelSelect(sel, custom, list, saved, defLabel, provider);
+            status.textContent = `${list.length} models available.`;
+        } catch (e) {
+            if (panelEl.dataset.mtok !== token) return;
+            fillModelSelect(sel, custom, [], saved, defLabel, provider);
+            status.style.color = '#ff9b9b';
+            status.textContent = `Could not fetch models: ${e.message} — pick Default or Custom id.`;
+        }
+    }
+
     // ---------- agent workspaces (per-conversation temp dirs) ----------
     function workspacePath(convId) {
         return [...DATA_PATH, 'workspaces', String(convId)];
@@ -1258,9 +1365,10 @@ Available tools:
                         <label>Zen key — copy it from <a class="cbb-link" href="https://opencode.ai/zen" target="_blank" rel="noopener">opencode.ai/zen</a></label>
                         <div class="cbb-keyrow"><input type="password" class="s-zenkey" value="${esc(s.zenApiKey || '')}" placeholder="zen_…"><button class="cbb-mini s-showzen">Show</button></div>
                     </div>
-                    <label>Model id — empty uses the default (<span class="s-defmodel">${s.provider === 'zen' ? esc(DEFAULT_MODEL_ZEN) : esc(DEFAULT_MODEL_GEMINI)}</span>)</label>
-                    <input type="text" class="s-model" value="${esc(s.model || '')}" placeholder="e.g. gemini-3.5-flash-lite, gpt-5.5, claude-sonnet-5">
-                    <div style="font-size:12px;color:#8e8e8e;margin-top:6px;">On Zen, <span style="font-family:Consolas,monospace;">gemini-*</span> ids use the Gemini endpoint, everything else uses OpenAI-compatible chat. Full list: <a class="cbb-link" href="https://opencode.ai/zen/v1/models" target="_blank" rel="noopener">opencode.ai/zen/v1/models</a></div>
+                    <label>Model — live list for the selected provider</label>
+                    <div class="cbb-keyrow"><select class="s-model"><option value="">Loading…</option></select><button class="cbb-mini s-refresh" title="Refresh model list">↻</button></div>
+                    <input type="text" class="s-custommodel" style="display:none;margin-top:6px;" placeholder="Type custom model id…">
+                    <div class="s-modelstatus" style="font-size:12px;color:#8e8e8e;margin-top:6px;"></div>
                 </div>
                 <div class="cbb-sec"><h3>Behavior</h3>
                     <label>System prompt (personality)</label>
@@ -1313,8 +1421,16 @@ Available tools:
                 const zen = e.target.value === 'zen';
                 panel.querySelector('.s-gemini-key').style.display = zen ? 'none' : '';
                 panel.querySelector('.s-zen-key').style.display = zen ? '' : 'none';
-                panel.querySelector('.s-defmodel').textContent = zen ? DEFAULT_MODEL_ZEN : DEFAULT_MODEL_GEMINI;
+                loadModelOptions(panel, zen ? 'zen' : 'gemini', (settings.model || '').trim(), false);
             });
+            panel.querySelector('.s-model').addEventListener('change', () => {
+                panel.querySelector('.s-custommodel').style.display =
+                    panel.querySelector('.s-model').value === '__custom' ? '' : 'none';
+            });
+            panel.querySelector('.s-refresh').addEventListener('click', () => {
+                loadModelOptions(panel, panel.querySelector('.s-provider').value, (settings.model || '').trim(), true);
+            });
+            loadModelOptions(panel, s.provider === 'zen' ? 'zen' : 'gemini', (s.model || '').trim(), false);
             panel.querySelector('.s-temp').addEventListener('input', (e) => {
                 panel.querySelector('.s-tval').textContent = e.target.value;
             });
@@ -1352,12 +1468,16 @@ Available tools:
             panel.querySelector('.s-close').addEventListener('click', () => setWrap.classList.add('hidden'));
             panel.querySelector('.s-save').addEventListener('click', () => {
                 const selAcc = panel.querySelector('[data-acc].sel');
+                const modelSel = panel.querySelector('.s-model');
+                const modelVal = modelSel.value === '__custom'
+                    ? panel.querySelector('.s-custommodel').value.trim()
+                    : modelSel.value;
                 settings = {
                     ...settings,
                     provider: panel.querySelector('.s-provider').value === 'zen' ? 'zen' : 'gemini',
                     apiKey: panel.querySelector('.s-key').value.trim(),
                     zenApiKey: panel.querySelector('.s-zenkey').value.trim(),
-                    model: panel.querySelector('.s-model').value.trim(),
+                    model: modelVal,
                     systemPrompt: panel.querySelector('.s-sys').value,
                     temperature: parseFloat(panel.querySelector('.s-temp').value) || 0.7,
                     maxTokens: parseInt(panel.querySelector('.s-max').value, 10) || 2048,
