@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4885] - 2026-09-14
+
+### Added
+- Solar Spacer: Grab & Throw tool now flings bodies with calculated release velocity vectors, and spawning preview features a real-time future trajectory bending ray that visualizes orbit curves around gravitational fields
+
 ## [12.0.4884] - 2026-09-14
 
 ### Fixed

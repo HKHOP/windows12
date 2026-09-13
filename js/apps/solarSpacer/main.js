@@ -76,7 +76,7 @@ const SolarSpacer = (() => {
                     </div>
 
                     <div style="margin-top:auto;font-size:11px;color:#8b949e;text-align:center;padding:4px;">
-                        ✨ 3D Shaded Spheres & Dynamic Glow
+                        ✨ 3D Shaded Spheres & Trajectory Bending Ray
                     </div>
                 </div>
 
@@ -129,6 +129,8 @@ const SolarSpacer = (() => {
         let currentMouseX = 0;
         let currentMouseY = 0;
         let grabbedBody = null;
+        let grabStartX = 0;
+        let grabStartY = 0;
         let activeWell = null;
 
         function loadPreset(type) {
@@ -277,6 +279,8 @@ const SolarSpacer = (() => {
                     const dist = Math.hypot(b.x - x, b.y - y);
                     if (dist <= Math.max(b.radius + 6, 14)) {
                         grabbedBody = b;
+                        grabStartX = x;
+                        grabStartY = y;
                         break;
                     }
                 }
@@ -328,13 +332,16 @@ const SolarSpacer = (() => {
             }
 
             if (grabbedBody) {
+                // Throw! Set velocity vector based on drag/fling vector
+                grabbedBody.vx = (currentMouseX - grabStartX) * 0.12;
+                grabbedBody.vy = (currentMouseY - grabStartY) * 0.12;
                 grabbedBody = null;
+                Sounds.confirm();
             }
 
             isDragging = false;
         });
 
-        let lastTime = performance.now();
         let frameCount = 0;
         let fpsTimer = performance.now();
 
@@ -403,6 +410,39 @@ const SolarSpacer = (() => {
             }
         }
 
+        // Calculate future trajectory prediction (bending ray)
+        function calculateTrajectory(startX, startY, vx, vy, mass) {
+            let path = [];
+            let px = startX;
+            let py = startY;
+            let pvx = vx;
+            let pvy = vy;
+
+            // Clone bodies positions for simulation prediction
+            let simBodies = bodies.map(b => ({ x: b.x, y: b.y, vx: b.vx, vy: b.vy, mass: b.mass, radius: b.radius }));
+
+            for (let step = 0; step < 120; step++) {
+                let pfx = 0, pfy = 0;
+                for (let sb of simBodies) {
+                    let dx = sb.x - px;
+                    let dy = sb.y - py;
+                    let distSq = dx * dx + dy * dy + 100;
+                    let dist = Math.sqrt(distSq);
+                    let force = (G * mass * sb.mass) / distSq;
+                    pfx += force * (dx / dist);
+                    pfy += force * (dy / dist);
+                }
+
+                pvx += (pfx / mass) * 0.5;
+                pvy += (pfy / mass) * 0.5;
+                px += pvx * 0.5;
+                py += pvy * 0.5;
+
+                path.push({ x: px, y: py });
+            }
+            return path;
+        }
+
         let animId;
         function draw(now) {
             frameCount++;
@@ -415,7 +455,6 @@ const SolarSpacer = (() => {
             updatePhysics();
             countEl.textContent = bodies.length;
 
-            // Clear background
             ctx.fillStyle = '#06080d';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -467,9 +506,8 @@ const SolarSpacer = (() => {
                 }
             }
 
-            // Draw 3D Spherical Bodies with Lighting & Atmospheric Glow
+            // Draw 3D Spherical Bodies
             for (let b of bodies) {
-                // Outer atmospheric glow
                 const glowGrad = ctx.createRadialGradient(b.x, b.y, b.radius * 0.5, b.x, b.y, b.radius * 2.2);
                 glowGrad.addColorStop(0, b.glow || b.color);
                 glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
@@ -480,7 +518,6 @@ const SolarSpacer = (() => {
                 ctx.fill();
                 ctx.globalAlpha = 1.0;
 
-                // 3D Sphere Shading (Radial Gradient for lighting reflection offset)
                 const sphereGrad = ctx.createRadialGradient(
                     b.x - b.radius * 0.3, b.y - b.radius * 0.3, b.radius * 0.1,
                     b.x, b.y, b.radius
@@ -497,7 +534,6 @@ const SolarSpacer = (() => {
                 ctx.fill();
                 ctx.shadowBlur = 0;
 
-                // Body label
                 if (b.mass > 6 || b.radius > 6) {
                     ctx.fillStyle = '#f0f6fc';
                     ctx.font = '600 11px Segoe UI';
@@ -506,30 +542,39 @@ const SolarSpacer = (() => {
                 }
             }
 
-            // Draw velocity vector arrow preview when dragging spawn tool
+            // Draw spawn trajectory ray / bending prediction
             if (activeTool === 'spawn' && isDragging) {
+                const vx = (dragStartX - currentMouseX) * 0.08;
+                const vy = (dragStartY - currentMouseY) * 0.08;
+                const radius = Math.max(4, Math.min(30, Math.cbrt(newMass) * 2.5));
+
                 // Preview body
-                const prevGrad = ctx.createRadialGradient(dragStartX - 3, dragStartY - 3, 1, dragStartX, dragStartY, Math.max(4, Math.min(30, Math.cbrt(newMass) * 2.5)));
+                const prevGrad = ctx.createRadialGradient(dragStartX - 3, dragStartY - 3, 1, dragStartX, dragStartY, radius);
                 prevGrad.addColorStop(0, '#ffffff');
                 prevGrad.addColorStop(0.4, newColor);
                 prevGrad.addColorStop(1, '#000000');
 
                 ctx.beginPath();
-                ctx.arc(dragStartX, dragStartY, Math.max(4, Math.min(30, Math.cbrt(newMass) * 2.5)), 0, Math.PI * 2);
+                ctx.arc(dragStartX, dragStartY, radius, 0, Math.PI * 2);
                 ctx.fillStyle = prevGrad;
                 ctx.globalAlpha = 0.85;
                 ctx.fill();
                 ctx.globalAlpha = 1.0;
 
-                // Velocity line
-                ctx.beginPath();
-                ctx.moveTo(dragStartX, dragStartY);
-                ctx.lineTo(currentMouseX, currentMouseY);
-                ctx.strokeStyle = '#58a6ff';
-                ctx.lineWidth = 2.5;
-                ctx.setLineDash([5, 5]);
-                ctx.stroke();
-                ctx.setLineDash([]);
+                // Calculate future path bending ray
+                const trajectory = calculateTrajectory(dragStartX, dragStartY, vx, vy, newMass);
+                if (trajectory.length > 1) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#58a6ff';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([4, 4]);
+                    ctx.moveTo(trajectory[0].x, trajectory[0].y);
+                    for (let pt of trajectory) {
+                        ctx.lineTo(pt.x, pt.y);
+                    }
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
             }
 
             ctx.restore();
