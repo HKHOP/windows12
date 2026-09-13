@@ -32,31 +32,48 @@ const CopilotButBetter = (() => {
     const MAX_AGENT_TURNS = 8;
     const TOOL_OUTPUT_LIMIT = 6000;
 
-    const TOOLS_DOC = `You are a hybrid agent. You can answer directly, OR use tools by ending your message with ONE inline tool call in a fenced block:
+    const TOOLS_DOC = `You are a hybrid agent. You can answer directly, OR use tools by ending your message with ONE inline tool call in a fenced block.
 
-\`\`\`toolcall
-{"tool": "<name>", "args": {...}}
-\`\`\`
-
-Rules:
-- Put any explanation BEFORE the toolcall block. The toolcall block must be the last thing in your message.
+RULES:
+- Put any explanation BEFORE the toolcall block. The toolcall block MUST be the very last thing in your message.
+- You MUST include ALL required args in the JSON. Do NOT send empty args {}.
 - Exactly one tool call per message. After the tool runs you get another turn: its result arrives as "[TOOL RESULT status=success|failed tool=<name>] ..." — then answer the user or call another tool.
-- Never invent tool output. If a tool fails, adapt (fix args, try another tool) or explain.
-- Keep file work inside the per-conversation workspace (relative paths like "notes.txt" or "src/app.js"). The workspace persists until the conversation is deleted.
-- For images already attached or in the workspace, prefer the analyze tool — if the model is vision-capable the image bytes are included.
+- Never invent tool output. If a tool fails, fix the args and retry.
+- Keep file work inside the per-conversation workspace (relative paths like "notes.txt"). The workspace persists until the conversation is deleted.
 - Stop calling tools once you can answer. Do not call tools for plain chit-chat.
 
+EXAMPLE — saving a file:
+I'll save that for you right now.
+
+\`\`\`toolcall
+{"tool": "write", "args": {"path": "haiku.md", "content": "# Haiku\\n\\nGlass and light entwine\\nPixels dance in liquid glow\\nDigital sunrise"}}
+\`\`\`
+
+EXAMPLE — reading a file:
+Let me read that file.
+
+\`\`\`toolcall
+{"tool": "read", "args": {"path": "haiku.md"}}
+\`\`\`
+
+EXAMPLE — running a command:
+Let me check the date.
+
+\`\`\`toolcall
+{"tool": "cmd", "args": {"script": "echo %DATE% %TIME%"}}
+\`\`\`
+
 Available tools:
-- datetime {} — current date/time (ISO + locale string + timezone offset).
-- powershell {"script": "<ps code>"} — run PowerShell against the virtual filesystem, rooted at the conversation workspace. Supports Get-Date, Write-Output/Write-Host/echo, Get-Location, Get-ChildItem/ls/dir, Get-Content/cat/type, Set-Content/Out-File, New-Item, Remove-Item/rm/del, Clear-Host, $vars; anything else falls through to the built-in CMD-compatible engine. Output truncated.
-- cmd {"script": "<batch>"} — run CMD/batch against the virtual filesystem via the built-in CMD-compatible engine (echo, dir, cd, type, mkdir, del, set, if, for, ...), rooted at the conversation workspace. Output truncated.
-- write {"path": "notes.txt", "content": "..."} — save a file in the conversation workspace (subfolders auto-created). Overwrites. Returns bytes written.
-- read {"path": "notes.txt", "offset": 0, "limit": 100} — read a workspace file. offset = first line (0-based), limit = max lines (default 200, max 500).
-- edit {"path": "notes.txt", "oldText": "...", "newText": "..."} — replace the first occurrence of oldText with newText. Returns a small diff summary. For big rewrites use write instead.
-- grep {"pattern": "TODO", "path": "", "include": ""} — regex search over workspace text files. path = subfolder/file to scope (default: whole workspace). include = filename regex filter (e.g. "\\\\.js$"). Returns file:line matches.
-- websearch {"query": "...", "count": 5} — search the web via DuckDuckGo. Returns titles/snippets/links.
-- webfetch {"url": "https://..."} — fetch a URL, strip scripts/styles, keep headings/paragraphs/lists plus link hrefs as markdown, truncated.
-- analyze {"path": "image.png", "limit": 4000} — inspect a workspace file or attachment: text files return a preview; images return metadata (and image bytes are forwarded when the model is vision-capable).`;
+- datetime {} — current date/time. No args needed.
+- powershell {"script": "..."} — run PowerShell script, workspace-rooted. Supports Get-Date, echo, ls, cat, type, mkdir, rm, etc. Falls through to CMD engine.
+- cmd {"script": "..."} — run CMD/batch, workspace-rooted.
+- write {"path": "file.md", "content": "full text here"} — save a file. BOTH path AND content are required.
+- read {"path": "file.md", "offset": 0, "limit": 200} — read a file. path is required. offset/limit are optional.
+- edit {"path": "file.md", "oldText": "...", "newText": "..."} — find and replace in a file. ALL three required.
+- grep {"pattern": "TODO", "path": "", "include": ""} — regex search. pattern is required.
+- websearch {"query": "...", "count": 5} — DuckDuckGo search.
+- webfetch {"url": "https://..."} — fetch and strip a URL.
+- analyze {"path": "file.png"} — inspect a file (text preview or image bytes). path is required.`;
 
     function truncateOut(s, limit) {
         const t = String(s == null ? '' : s);
@@ -389,7 +406,7 @@ Available tools:
         });
     }
 
-    async function executeTool(convId, tool, args) {
+    async function executeTool(convId, tool, args, assistantText) {
         const ws = ensureWorkspace(convId);
         const a = args || {};
         try {
@@ -399,19 +416,22 @@ Available tools:
                     return { ok: true, output: `ISO: ${d.toISOString()}\nLocal: ${d.toString()}\nTimezone offset (min): ${d.getTimezoneOffset()}`, images: [] };
                 }
                 case 'powershell': {
-                    const script = a.script != null ? a.script : a.command;
+                    let script = a.script != null ? a.script : a.command;
+                    if (!script || !String(script).trim()) script = assistantText || '';
                     if (!script || !String(script).trim()) return { ok: false, output: 'powershell: missing "script" argument.', images: [] };
                     return { ok: true, output: runPowerShellCapture(String(script), ws), images: [] };
                 }
                 case 'cmd': {
-                    const script = a.script != null ? a.script : a.command;
+                    let script = a.script != null ? a.script : a.command;
+                    if (!script || !String(script).trim()) script = assistantText || '';
                     if (!script || !String(script).trim()) return { ok: false, output: 'cmd: missing "script" argument.', images: [] };
                     return { ok: true, output: runBatchCapture(String(script), ws), images: [] };
                 }
                 case 'write': {
-                    if (!a.path) return { ok: false, output: 'write: missing "path".', images: [] };
+                    if (!a.path) a.path = 'output.txt';
                     const rel = String(a.path).replace(/^\/+/, '');
-                    const content = a.content != null ? String(a.content) : '';
+                    let content = a.content != null ? String(a.content) : '';
+                    if (!content && assistantText) content = assistantText;
                     ensureWorkspaceParents(ws, rel);
                     const full = resolveWorkspacePath(ws, rel);
                     const name = full[full.length - 1];
@@ -426,15 +446,14 @@ Available tools:
                     return { ok: true, output: `Wrote ${content.length} chars to ${rel}`, images: [] };
                 }
                 case 'read': {
-                    if (!a.path) return { ok: false, output: 'read: missing "path".', images: [] };
+                    if (!a.path) a.path = '.';
                     const rel = String(a.path).replace(/^\/+/, '');
                     const full = resolveWorkspacePath(ws, rel);
                     const node = FileSystem.getNode(full);
                     if (!node) return { ok: false, output: `read: no such file '${rel}'. Workspace files: ${(walkWorkspaceFiles(ws).slice(0, 20).join(', ') || '(empty)')}`, images: [] };
                     if (node.type === 'folder') {
-                        let children = [];
-                        try { children = FileSystem.getChildren(full); } catch (e) { children = []; }
-                        return { ok: true, output: `Directory ${rel}:\n` + (children.map(c => (c.type === 'folder' ? c.name + '/' : c.name)).join('\n') || '(empty)'), images: [] };
+                        const files = walkWorkspaceFiles(ws, rel === '.' ? [] : rel.split('/'));
+                        return { ok: true, output: `Workspace files${rel !== '.' ? ' in ' + rel : ''} (${files.length}):\n` + (files.slice(0, 50).join('\n') || '(empty)'), images: [] };
                     }
                     if (node.blobRef) return { ok: false, output: `read: '${rel}' is binary (${node.size || 0} bytes). Use analyze instead.`, images: [] };
                     const raw = FileSystem.readFile(full);
@@ -446,7 +465,7 @@ Available tools:
                     return { ok: true, output: `File ${rel} (${lines.length} lines, showing ${offset}-${offset + slice.length - 1}):\n` + slice.join('\n'), images: [] };
                 }
                 case 'edit': {
-                    if (!a.path) return { ok: false, output: 'edit: missing "path".', images: [] };
+                    if (!a.path) a.path = 'output.txt';
                     if (a.oldText == null || a.newText == null) return { ok: false, output: 'edit: need "oldText" and "newText".', images: [] };
                     const rel = String(a.path).replace(/^\/+/, '');
                     const full = resolveWorkspacePath(ws, rel);
@@ -1073,7 +1092,7 @@ Available tools:
                     }
                     let result;
                     try {
-                        result = await executeTool(c.id, tc.tool, tc.args);
+                        result = await executeTool(c.id, tc.tool, tc.args, stripToolCall(reply));
                     } catch (e) {
                         result = { ok: false, output: `Tool ${tc.tool} crashed: ${e && e.message || e}`, images: [] };
                     }

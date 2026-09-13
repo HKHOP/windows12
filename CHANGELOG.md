@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4872] - 2026-09-13
+
+### Fixed
+- CopilotBB agent tools now auto-repair missing args — empty `{}` write calls default path to `output.txt` and use the assistant's explanation text as content; read/edit default to workspace root; cmd/powershell default to the assistant text as script
+
 ## [12.0.4871] - 2026-09-13
 
 ### Changed
