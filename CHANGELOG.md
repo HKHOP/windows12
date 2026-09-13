@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4877] - 2026-09-13
+
+### Added
+- CopilotBB OpenCode Zen provider — paste a Zen API key in Settings and pick the Zen provider; `gemini-*` ids use Zen's Gemini endpoint, everything else uses OpenAI-compatible chat (with vision image parts)
+
+### Changed
+- CopilotBB model picker replaced with a provider dropdown (Google Gemini direct / OpenCode Zen) plus a free-typed model id field — empty defaults to gemini-3.5-flash-lite on Zen, gemini-2.0-flash on direct (old dropdown/custom settings migrate automatically)
+
 ## [12.0.4876] - 2026-09-13
 
 ### Added

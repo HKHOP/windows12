@@ -15,9 +15,10 @@ const CopilotButBetter = (() => {
     const CONVS_FILE = 'conversations.json';
 
     const DEFAULT_SETTINGS = {
+        provider: 'gemini',
         apiKey: '',
-        model: 'gemini-2.0-flash',
-        customModel: '',
+        zenApiKey: '',
+        model: '',
         systemPrompt: 'You are CopilotButBetter, a helpful, friendly AI assistant. Answer clearly and concisely with markdown formatting where useful.',
         temperature: 0.7,
         maxTokens: 2048,
@@ -28,6 +29,10 @@ const CopilotButBetter = (() => {
         enterToSend: true,
         agentMode: true
     };
+
+    // Empty model field falls back per provider.
+    const DEFAULT_MODEL_GEMINI = 'gemini-2.0-flash';
+    const DEFAULT_MODEL_ZEN = 'gemini-3.5-flash-lite';
 
     const MAX_AGENT_TURNS = 8;
     const TOOL_OUTPUT_LIMIT = 6000;
@@ -82,14 +87,6 @@ Available tools:
         return t.slice(0, (limit || TOOL_OUTPUT_LIMIT)) + `\n…[truncated ${(t.length - (limit || TOOL_OUTPUT_LIMIT))} chars]`;
     }
 
-    const MODELS = [
-        'gemini-2.0-flash',
-        'gemini-2.5-flash',
-        'gemini-1.5-flash',
-        'gemini-1.5-pro',
-        'gemini-2.0-flash-lite'
-    ];
-
     const SUGGESTIONS = [
         { title: 'Write', desc: 'a haiku about glass and light' },
         { title: 'Explain', desc: 'quantum computing in simple terms' },
@@ -123,7 +120,12 @@ Available tools:
     }
 
     function loadSettings() {
-        return { ...DEFAULT_SETTINGS, ...readJson(SETTINGS_FILE, {}) };
+        const s = { ...DEFAULT_SETTINGS, ...readJson(SETTINGS_FILE, {}) };
+        // Migrate the old dropdown+custom setup to the single manual field.
+        if (!s.model && s.customModel) s.model = s.customModel;
+        delete s.customModel;
+        if (s.provider !== 'zen') s.provider = 'gemini';
+        return s;
     }
 
     function saveSettings(s) {
@@ -179,7 +181,18 @@ Available tools:
     }
 
     function effectiveModel(s) {
-        return (s.customModel || '').trim() || s.model;
+        const manual = (s.model || '').trim();
+        if (manual) return manual;
+        return (s.provider === 'zen' ? DEFAULT_MODEL_ZEN : DEFAULT_MODEL_GEMINI);
+    }
+
+    function isZen(s) {
+        return (s.provider || 'gemini') === 'zen';
+    }
+
+    // Zen model ids may carry the opencode/ config prefix — endpoints take it bare.
+    function zenModelId(s) {
+        return effectiveModel(s).replace(/^opencode\//i, '').trim() || DEFAULT_MODEL_ZEN;
     }
 
     // ---------- agent workspaces (per-conversation temp dirs) ----------
@@ -604,16 +617,16 @@ Available tools:
         }
     }
 
-    async function callGemini(settings, messages) {
-        const key = (settings.apiKey || '').trim();
-        if (!key) throw new Error('No API key set. Open Settings and paste your Gemini API key.');
-        const model = effectiveModel(settings);
+    function buildPrompt(settings) {
         const memBlock = (settings.memoryEnabled && settings.memory.length)
             ? `\n\n[Long-term memory about the user — use it to personalize replies]:\n- ${settings.memory.join('\n- ')}`
             : '';
         const agentBlock = settings.agentMode === false ? '' : `\n\n${TOOLS_DOC}`;
-        const sysText = (settings.systemPrompt || DEFAULT_SETTINGS.systemPrompt) + memBlock + agentBlock;
-        const contents = messages
+        return (settings.systemPrompt || DEFAULT_SETTINGS.systemPrompt) + memBlock + agentBlock;
+    }
+
+    function historyForGemini(messages) {
+        return messages
             .filter(m => m.role === 'user' || m.role === 'assistant' || m.role === 'tool')
             .map(m => {
                 const role = m.role === 'assistant' ? 'model' : 'user';
@@ -625,13 +638,16 @@ Available tools:
                 }
                 return { role, parts };
             });
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
+    }
+
+    async function postGeminiProtocol(url, extraHeaders, settings, messages) {
+        const sysText = buildPrompt(settings);
         const res = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(extraHeaders || {}) },
             body: JSON.stringify({
                 systemInstruction: { parts: [{ text: sysText }] },
-                contents,
+                contents: historyForGemini(messages),
                 generationConfig: {
                     temperature: Number(settings.temperature) || 0.7,
                     maxOutputTokens: Math.max(1, parseInt(settings.maxTokens, 10) || 2048)
@@ -649,6 +665,76 @@ Available tools:
         const text = Array.isArray(parts) ? parts.map(p => p.text || '').join('') : '';
         if (!text.trim()) throw new Error('Empty response from the model. Try a different model or prompt.');
         return text;
+    }
+
+    async function callGemini(settings, messages) {
+        const key = (settings.apiKey || '').trim();
+        if (!key) throw new Error('No API key set. Open Settings and paste your Gemini API key.');
+        const model = effectiveModel(settings);
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
+        return postGeminiProtocol(url, null, settings, messages);
+    }
+
+    // OpenCode Zen: gemini-* ids speak the Gemini protocol on a per-model
+    // endpoint; every other family goes through OpenAI-compatible chat.
+    async function callZen(settings, messages) {
+        const key = (settings.zenApiKey || '').trim();
+        if (!key) throw new Error('No Zen API key set. Open Settings and paste your OpenCode Zen API key.');
+        const id = zenModelId(settings);
+        if (/^gemini/i.test(id)) {
+            const url = `https://opencode.ai/zen/v1/models/${encodeURIComponent(id)}`;
+            return postGeminiProtocol(url, {
+                'Authorization': `Bearer ${key}`,
+                'x-goog-api-key': key
+            }, settings, messages);
+        }
+        const sysText = buildPrompt(settings);
+        const msgs = [{ role: 'system', content: sysText }];
+        for (const m of messages) {
+            if (m.role !== 'user' && m.role !== 'assistant' && m.role !== 'tool') continue;
+            const role = m.role === 'assistant' ? 'assistant' : 'user';
+            const text = String(m.content == null ? '' : m.content);
+            if (Array.isArray(m.images) && m.images.length) {
+                const parts = [{ type: 'text', text }];
+                for (const img of m.images) {
+                    if (img && img.data) parts.push({
+                        type: 'image_url',
+                        image_url: { url: `data:${img.mime || 'image/png'};base64,${img.data}` }
+                    });
+                }
+                msgs.push({ role, content: parts });
+            } else {
+                msgs.push({ role, content: text });
+            }
+        }
+        const res = await fetch('https://opencode.ai/zen/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+            body: JSON.stringify({
+                model: id,
+                messages: msgs,
+                temperature: Number(settings.temperature) || 0.7,
+                max_tokens: Math.max(1, parseInt(settings.maxTokens, 10) || 2048)
+            })
+        });
+        let data = null;
+        try { data = await res.json(); } catch (e) { /* fall through */ }
+        if (!res.ok) {
+            const err = data && data.error;
+            const msg = (err && (err.message || (typeof err === 'string' ? err : null))) || `HTTP ${res.status}`;
+            throw new Error(msg);
+        }
+        const content = data && data.choices && data.choices[0] && data.choices[0].message &&
+            data.choices[0].message.content;
+        const text = Array.isArray(content)
+            ? content.map(p => (p && (p.text || p.content)) || '').join('')
+            : String(content == null ? '' : content);
+        if (!text.trim()) throw new Error('Empty response from the model. Try a different model or prompt.');
+        return text;
+    }
+
+    async function callModel(settings, messages) {
+        return isZen(settings) ? callZen(settings, messages) : callGemini(settings, messages);
     }
 
     function css() {
@@ -1055,9 +1141,13 @@ Available tools:
         async function send() {
             const text = ta.value.trim();
             if (!text || generating) return;
-            if (!(settings.apiKey || '').trim()) {
+            const zen = isZen(settings);
+            const activeKey = zen ? settings.zenApiKey : settings.apiKey;
+            if (!(activeKey || '').trim()) {
                 const go = await Popup.confirm('API key needed',
-                    'CopilotButBetter needs your Gemini API key first (free at Google AI Studio). Open Settings now?');
+                    zen
+                        ? 'CopilotButBetter needs your OpenCode Zen API key first (copy it from opencode.ai/zen). Open Settings now?'
+                        : 'CopilotButBetter needs your Gemini API key first (free at Google AI Studio). Open Settings now?');
                 if (go) openSettings();
                 return;
             }
@@ -1082,7 +1172,7 @@ Available tools:
                 for (;;) {
                     if (stopFlag) return;
                     turns++;
-                    const reply = await callGemini(settings, c.messages);
+                    const reply = await callModel(settings, c.messages);
                     if (stopFlag) return;
                     const tc = agentOn ? parseToolCall(reply) : null;
                     if (tc && tc.parseError) {
@@ -1154,12 +1244,23 @@ Available tools:
                 : `<div style="font-size:12.5px;color:#8e8e8e;margin-top:6px;">Nothing remembered yet. Use “✦ Remember” under any reply.</div>`;
             panel.innerHTML = `
                 <h2>Settings</h2><div class="sub">API key, model, memory &amp; glass — stored locally in the virtual filesystem.</div>
-                <div class="cbb-sec"><h3>Gemini API</h3>
-                    <label>Paste your key — get one free at <a class="cbb-link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></label>
-                    <div class="cbb-keyrow"><input type="password" class="s-key" value="${esc(s.apiKey)}" placeholder="AIza…"><button class="cbb-mini s-show">Show</button></div>
-                    <label>Model</label>
-                    <div class="cbb-rowline"><select class="s-model">${MODELS.map(m => `<option ${m === s.model ? 'selected' : ''}>${m}</option>`).join('')}</select>
-                    <input type="text" class="s-custom" value="${esc(s.customModel)}" placeholder="Custom model id (optional)"></div>
+                <div class="cbb-sec"><h3>Provider & API keys</h3>
+                    <label>Provider</label>
+                    <select class="s-provider">
+                        <option value="gemini"${s.provider !== 'zen' ? ' selected' : ''}>Google Gemini (direct)</option>
+                        <option value="zen"${s.provider === 'zen' ? ' selected' : ''}>OpenCode Zen</option>
+                    </select>
+                    <div class="s-gemini-key" style="${s.provider === 'zen' ? 'display:none;' : ''}">
+                        <label>Gemini key — get one free at <a class="cbb-link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></label>
+                        <div class="cbb-keyrow"><input type="password" class="s-key" value="${esc(s.apiKey)}" placeholder="AIza…"><button class="cbb-mini s-show">Show</button></div>
+                    </div>
+                    <div class="s-zen-key" style="${s.provider === 'zen' ? '' : 'display:none;'}">
+                        <label>Zen key — copy it from <a class="cbb-link" href="https://opencode.ai/zen" target="_blank" rel="noopener">opencode.ai/zen</a></label>
+                        <div class="cbb-keyrow"><input type="password" class="s-zenkey" value="${esc(s.zenApiKey || '')}" placeholder="zen_…"><button class="cbb-mini s-showzen">Show</button></div>
+                    </div>
+                    <label>Model id — empty uses the default (<span class="s-defmodel">${s.provider === 'zen' ? esc(DEFAULT_MODEL_ZEN) : esc(DEFAULT_MODEL_GEMINI)}</span>)</label>
+                    <input type="text" class="s-model" value="${esc(s.model || '')}" placeholder="e.g. gemini-3.5-flash-lite, gpt-5.5, claude-sonnet-5">
+                    <div style="font-size:12px;color:#8e8e8e;margin-top:6px;">On Zen, <span style="font-family:Consolas,monospace;">gemini-*</span> ids use the Gemini endpoint, everything else uses OpenAI-compatible chat. Full list: <a class="cbb-link" href="https://opencode.ai/zen/v1/models" target="_blank" rel="noopener">opencode.ai/zen/v1/models</a></div>
                 </div>
                 <div class="cbb-sec"><h3>Behavior</h3>
                     <label>System prompt (personality)</label>
@@ -1203,6 +1304,17 @@ Available tools:
                 inp.type = inp.type === 'password' ? 'text' : 'password';
                 e.target.textContent = inp.type === 'password' ? 'Show' : 'Hide';
             });
+            panel.querySelector('.s-showzen').addEventListener('click', (e) => {
+                const inp = panel.querySelector('.s-zenkey');
+                inp.type = inp.type === 'password' ? 'text' : 'password';
+                e.target.textContent = inp.type === 'password' ? 'Show' : 'Hide';
+            });
+            panel.querySelector('.s-provider').addEventListener('change', (e) => {
+                const zen = e.target.value === 'zen';
+                panel.querySelector('.s-gemini-key').style.display = zen ? 'none' : '';
+                panel.querySelector('.s-zen-key').style.display = zen ? '' : 'none';
+                panel.querySelector('.s-defmodel').textContent = zen ? DEFAULT_MODEL_ZEN : DEFAULT_MODEL_GEMINI;
+            });
             panel.querySelector('.s-temp').addEventListener('input', (e) => {
                 panel.querySelector('.s-tval').textContent = e.target.value;
             });
@@ -1242,9 +1354,10 @@ Available tools:
                 const selAcc = panel.querySelector('[data-acc].sel');
                 settings = {
                     ...settings,
+                    provider: panel.querySelector('.s-provider').value === 'zen' ? 'zen' : 'gemini',
                     apiKey: panel.querySelector('.s-key').value.trim(),
-                    model: panel.querySelector('.s-model').value,
-                    customModel: panel.querySelector('.s-custom').value.trim(),
+                    zenApiKey: panel.querySelector('.s-zenkey').value.trim(),
+                    model: panel.querySelector('.s-model').value.trim(),
                     systemPrompt: panel.querySelector('.s-sys').value,
                     temperature: parseFloat(panel.querySelector('.s-temp').value) || 0.7,
                     maxTokens: parseInt(panel.querySelector('.s-max').value, 10) || 2048,
