@@ -1011,8 +1011,7 @@ Available tools:
                 <div class="cbb-msgs"><div class="cbb-col"></div></div>
                 <div class="cbb-compwrap"><div class="cbb-comp">
                     <div class="cbb-box">
-                        <button class="cbb-attach" title="Attach file to workspace">📎</button>
-                        <input type="file" class="cbb-fileinput" style="display:none;" multiple>
+                        <button class="cbb-attach" title="Attach file from filesystem">📎</button>
                         <textarea rows="1" placeholder="Message CopilotBB…"></textarea>
                         <button class="cbb-stop" title="Stop" style="display:none;">■</button>
                         <button class="cbb-send" title="Send">↑</button>
@@ -1531,47 +1530,177 @@ Available tools:
         sendBtn.addEventListener('click', send);
         stopBtn.addEventListener('click', () => { stopFlag = true; });
 
-        // ---------- attachments -> conversation workspace (for analyze) ----------
+        // ---------- attachments: pick files from the virtual filesystem ----------
+        // The picker browses FileSystem (not the native <input type=file>)
+        // and copies the chosen files into this conversation's workspace.
+        function pickFilesystemFiles() {
+            return new Promise((resolve) => {
+                let settled = false;
+                const done = (v) => { if (!settled) { settled = true; resolve(v); } };
+                const places = [
+                    { name: 'Home', icon: '🏠', path: ['/', 'users', 'default'] },
+                    { name: 'Desktop', icon: '🖥️', path: ['/', 'users', 'default', 'Desktop'] },
+                    { name: 'Documents', icon: '📄', path: ['/', 'users', 'default', 'Documents'] },
+                    { name: 'Downloads', icon: '⬇️', path: ['/', 'users', 'default', 'Downloads'] },
+                    { name: 'Pictures', icon: '🖼️', path: ['/', 'users', 'default', 'Pictures'] },
+                    { name: 'Music', icon: '🎵', path: ['/', 'users', 'default', 'Music'] },
+                    { name: 'Videos', icon: '🎬', path: ['/', 'users', 'default', 'Videos'] }
+                ];
+                const icons = {
+                    'txt': '📝', 'md': '📝', 'log': '📝', 'json': '📜', 'js': '📜',
+                    'html': '📜', 'css': '📜', 'csv': '📜',
+                    'png': '🖼️', 'jpg': '🖼️', 'jpeg': '🖼️', 'gif': '🖼️',
+                    'webp': '🖼️', 'bmp': '🖼️', 'svg': '🖼️',
+                    'mp3': '🎵', 'wav': '🎵', 'ogg': '🎵',
+                    'mp4': '🎬', 'webm': '🎬',
+                    'pdf': '📄', 'doc': '📄', 'docx': '📄',
+                    'zip': '📦', 'rar': '📦', 'exe': '⚙️'
+                };
+                const html = `
+                <div style="display:flex;flex-direction:column;height:100%;background:#212121;color:#ececec;font-family:'Segoe UI',system-ui,sans-serif;">
+                    <div style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.1);font-size:13px;color:#b4b4b4;">Select files from the filesystem — copies go into this chat's workspace.</div>
+                    <div style="display:flex;flex:1;overflow:hidden;">
+                        <div class="cbb-pick-side" style="width:150px;background:rgba(0,0,0,.2);border-right:1px solid rgba(255,255,255,.1);padding:8px;overflow-y:auto;">
+                            ${places.map(p => `<div class="cbb-pick-place" data-path='${JSON.stringify(p.path)}' style="padding:6px 8px;border-radius:6px;cursor:pointer;font-size:12.5px;display:flex;align-items:center;gap:6px;">${p.icon} ${p.name}</div>`).join('')}
+                        </div>
+                        <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+                            <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.1);">
+                                <button class="cbb-pick-up" title="Up" style="background:none;border:1px solid rgba(255,255,255,.15);color:#ccc;padding:2px 8px;border-radius:4px;cursor:pointer;">▲</button>
+                                <div class="cbb-pick-path" style="flex:1;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:4px;padding:4px 8px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+                            </div>
+                            <div class="cbb-pick-grid" style="flex:1;padding:8px;overflow-y:auto;display:flex;flex-wrap:wrap;align-content:flex-start;gap:4px;"></div>
+                        </div>
+                    </div>
+                    <div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                        <span class="cbb-pick-count" style="font-size:12px;color:#8e8e8e;">No files selected</span>
+                        <span style="display:flex;gap:8px;">
+                            <button class="cbb-pick-cancel" style="padding:6px 18px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);color:#ececec;border-radius:6px;cursor:pointer;font-size:13px;">Cancel</button>
+                            <button class="cbb-pick-ok" style="padding:6px 18px;border:none;background:#10a37f;color:#fff;border-radius:6px;cursor:pointer;font-size:13px;">Attach</button>
+                        </span>
+                    </div>
+                </div>`;
+                const dlg = WindowManager.createWindow(APP_ID, 'Attach files', '📎', html, { width: 560, height: 420, minWidth: 440, minHeight: 320, saveState: false });
+                const del = dlg.element;
+                const maxBtn = del.querySelector('.maximize-btn');
+                if (maxBtn) maxBtn.remove();
+                const grid = del.querySelector('.cbb-pick-grid');
+                const pathEl = del.querySelector('.cbb-pick-path');
+                const countEl = del.querySelector('.cbb-pick-count');
+                const okBtn = del.querySelector('.cbb-pick-ok');
+                let currentPath = ['/', 'users', 'default', 'Documents'];
+                const selected = new Set();
+                const keyOf = (p) => p.join('/');
+                function render() {
+                    pathEl.textContent = currentPath.length <= 1 ? 'Local Disk (C:)' : currentPath.filter(s => s !== '/').join(' / ');
+                    let entries = [];
+                    try { entries = FileSystem.getChildren(currentPath) || []; } catch (e) { entries = []; }
+                    entries.sort((a, b) => {
+                        if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+                        return a.name.localeCompare(b.name);
+                    });
+                    grid.innerHTML = '';
+                    if (!entries.length) {
+                        grid.innerHTML = '<div style="width:100%;text-align:center;padding:30px;color:#8e8e8e;font-size:12.5px;">This folder is empty</div>';
+                    }
+                    for (const entry of entries) {
+                        const item = document.createElement('div');
+                        item.style.cssText = 'width:76px;padding:8px 4px;border-radius:8px;cursor:pointer;text-align:center;font-size:11px;border:1px solid transparent;';
+                        const full = [...currentPath, entry.name];
+                        if (entry.type === 'folder') {
+                            item.innerHTML = `<div style="font-size:28px;">📁</div><div style="word-break:break-all;line-height:1.2;">${esc(entry.name)}</div>`;
+                            item.addEventListener('dblclick', () => { currentPath = full; render(); });
+                            item.addEventListener('click', () => { currentPath = full; render(); });
+                        } else {
+                            const ext = (entry.name.split('.').pop() || '').toLowerCase();
+                            const isSel = selected.has(keyOf(full));
+                            if (isSel) item.style.cssText += 'border-color:#10a37f;background:rgba(16,163,127,.15);';
+                            item.innerHTML = `<div style="font-size:28px;">${icons[ext] || '📄'}</div><div style="word-break:break-all;line-height:1.2;">${esc(entry.name)}</div>`;
+                            item.addEventListener('click', () => {
+                                const k = keyOf(full);
+                                if (selected.has(k)) selected.delete(k);
+                                else { if (selected.size >= 5) { Notifications.info('Attach limit', 'You can attach up to 5 files at once.', { appId: APP_ID }); return; } selected.add(k); }
+                                render();
+                            });
+                        }
+                        item.addEventListener('mouseenter', () => { if (!item.style.background) item.style.background = 'rgba(255,255,255,.06)'; });
+                        item.addEventListener('mouseleave', () => { if (!selected.has(keyOf([...currentPath, entry.name]))) item.style.background = ''; });
+                        grid.appendChild(item);
+                    }
+                    const n = selected.size;
+                    countEl.textContent = n ? `${n} file${n > 1 ? 's' : ''} selected` : 'No files selected';
+                    okBtn.style.opacity = n ? '1' : '.5';
+                    okBtn.style.cursor = n ? 'pointer' : 'not-allowed';
+                }
+                del.querySelectorAll('.cbb-pick-place').forEach(n => n.addEventListener('click', () => {
+                    try {
+                        const p = JSON.parse(n.dataset.path);
+                        if (FileSystem.isFolder(p)) { currentPath = p; render(); }
+                    } catch (e) { /* noop */ }
+                }));
+                del.querySelector('.cbb-pick-up').addEventListener('click', () => {
+                    if (currentPath.length > 1) { currentPath = currentPath.slice(0, -1); render(); }
+                });
+                const close = (v) => { done(v); WindowManager.closeWindow(dlg.id); };
+                del.querySelector('.cbb-pick-cancel').addEventListener('click', () => close(null));
+                okBtn.addEventListener('click', () => {
+                    if (!selected.size) return;
+                    close(Array.from(selected).map(k => k.split('/').filter(Boolean)).map(parts => ['/', ...parts]));
+                });
+                const xBtn = del.querySelector('.close-btn');
+                if (xBtn) xBtn.addEventListener('click', () => done(null), { once: true });
+                render();
+            });
+        }
+
+        async function copyIntoWorkspace(ws, srcPath) {
+            const node = FileSystem.getNode(srcPath);
+            if (!node || node.type !== 'file') return null;
+            const rawName = String(node.name || 'attachment').replace(/[\\/:*?"<>|]/g, '_').slice(0, 80) || 'attachment';
+            const dot = rawName.lastIndexOf('.');
+            const stem = dot > 0 ? rawName.slice(0, dot) : rawName;
+            const ext = dot > 0 ? rawName.slice(dot + 1) : (node.ext || '');
+            let safe = rawName, i = 1;
+            while (FileSystem.itemExists([...ws, safe])) {
+                safe = `${stem} (${i++})${ext ? '.' + ext : ''}`;
+            }
+            try {
+                if (node.blobRef) {
+                    const blob = await FileSystem.readFileBlob(srcPath);
+                    if (!blob) return null;
+                    const ok = await FileSystem.writeFileBlob(ws, safe, blob, ext).catch(() => false);
+                    return ok ? safe : null;
+                }
+                const content = FileSystem.readFile(srcPath);
+                if (content == null) return null;
+                if (FileSystem.itemExists([...ws, safe])) FileSystem.writeFile([...ws, safe], content);
+                else if (!FileSystem.createFile(ws, safe, content, ext)) return null;
+                return safe;
+            } catch (e) { return null; }
+        }
+
         const attachBtn = el.querySelector('.cbb-attach');
-        const fileInput = el.querySelector('.cbb-fileinput');
-        if (attachBtn && fileInput) {
-            attachBtn.addEventListener('click', () => {
+        if (attachBtn) {
+            attachBtn.addEventListener('click', async () => {
                 let cc = getActive();
                 if (!cc) {
                     cc = { id: uid(), title: 'New chat', createdAt: Date.now(), updatedAt: Date.now(), messages: [] };
                     convs.unshift(cc); activeId = cc.id; persist(); renderAll();
                 }
-                ensureWorkspace(cc.id);
-                fileInput.click();
-            });
-            fileInput.addEventListener('change', async () => {
-                const cc = getActive();
-                if (!cc || !fileInput.files || !fileInput.files.length) { fileInput.value = ''; return; }
                 const ws = ensureWorkspace(cc.id);
+                const picked = await pickFilesystemFiles();
+                if (!picked || !picked.length) return;
                 const names = [];
-                for (const f of Array.from(fileInput.files).slice(0, 5)) {
-                    const safe = String(f.name || 'attachment').replace(/[\\/:*?"<>|]/g, '_').slice(0, 80) || 'attachment';
-                    try {
-                        if ((f.type || '').startsWith('text/') || /json|javascript|xml|csv|markdown/.test(f.type || '') || f.size < 200000) {
-                            const txt = await f.text().catch(() => null);
-                            if (txt != null && txt.length < 500000) {
-                                const full = resolveWorkspacePath(ws, safe);
-                                if (FileSystem.itemExists(full)) FileSystem.writeFile(full, txt);
-                                else FileSystem.createFile(full.slice(0, -1), safe, txt, safe.includes('.') ? safe.split('.').pop() : '');
-                                names.push(safe);
-                                continue;
-                            }
-                        }
-                        const ok = await FileSystem.writeFileBlob(ws, safe, f, safe.includes('.') ? safe.split('.').pop() : '').catch(() => false);
-                        if (ok) names.push(safe);
-                    } catch (e) { /* skip file */ }
+                for (const src of picked.slice(0, 5)) {
+                    const safe = await copyIntoWorkspace(ws, src);
+                    if (safe) names.push(safe);
                 }
-                fileInput.value = '';
                 if (names.length) {
                     cc.messages.push({ role: 'user', content: `Attached ${names.length} file(s) to the workspace: ${names.join(', ')}. Use the analyze tool on them when relevant.`, attachments: names, time: Date.now() });
                     cc.updatedAt = Date.now();
                     persist(); renderAll();
                     Notifications.info('Files attached', names.join(', '), { appId: APP_ID });
+                } else {
+                    Popup.error('Attach failed', 'Could not copy the selected files into the chat workspace.');
                 }
             });
         }

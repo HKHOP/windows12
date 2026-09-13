@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4879] - 2026-09-13
+
+### Changed
+- CopilotBB 📎 button now opens a virtual filesystem browser (sidebar places, folder navigation, multi-select up to 5 files) and copies the chosen files into the chat workspace instead of the native OS file picker
+
 ## [12.0.4878] - 2026-09-13
 
 ### Added
