@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4883] - 2026-09-14
+
+### Changed
+- Solar Spacer completely redesigned with 3D-shaded spherical planets, atmospheric glows, radial lighting, dynamic starfield parallax background, live FPS counter, and a sleek glassmorphic acrylic UI
+
 ## [12.0.4882] - 2026-09-14
 
 ### Added
