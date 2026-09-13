@@ -14,7 +14,7 @@ const SolarSpacer = (() => {
                         <div style="width:40px;height:40px;background:linear-gradient(135deg, #ffaa00, #ff4500);border-radius:12px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(255,170,0,0.5);font-size:20px;">🪐</div>
                         <div>
                             <h2 style="font-size:16px;font-weight:600;margin:0;letter-spacing:0.3px;">Solar Spacer 3D</h2>
-                            <p style="font-size:11px;color:#8b949e;margin:0;">Galactic & Orbital Sandbox</p>
+                            <p style="font-size:11px;color:#8b949e;margin:0;">Procedural Textures & Galaxies</p>
                         </div>
                     </div>
 
@@ -29,24 +29,21 @@ const SolarSpacer = (() => {
                         </div>
                     </div>
 
-                    <!-- Planet Customizer -->
+                    <!-- Celestial Body Type Picker -->
                     <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;">
-                        <h3 style="font-size:12px;font-weight:600;margin:0;color:#8b949e;text-transform:uppercase;letter-spacing:0.5px;">Planet Properties</h3>
-                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#8b949e;">
-                            <span>Mass & Size</span>
-                            <strong class="ss-mass-val" style="color:#58a6ff;">15 (Planet)</strong>
+                        <h3 style="font-size:12px;font-weight:600;margin:0;color:#8b949e;text-transform:uppercase;letter-spacing:0.5px;">Celestial Body Type</h3>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;" class="ss-type-picker">
+                            <button class="ss-type-btn active" data-type="rocky" style="background:rgba(77,178,255,0.2);border:1px solid #4db2ff;color:white;padding:6px;border-radius:6px;font-size:11px;cursor:pointer;">🌍 Rocky Planet</button>
+                            <button class="ss-type-btn" data-type="gas" style="background:rgba(255,166,87,0.1);border:1px solid rgba(255,255,255,0.1);color:white;padding:6px;border-radius:6px;font-size:11px;cursor:pointer;">🪐 Gas Giant</button>
+                            <button class="ss-type-btn" data-type="star" style="background:rgba(255,170,0,0.1);border:1px solid rgba(255,255,255,0.1);color:white;padding:6px;border-radius:6px;font-size:11px;cursor:pointer;">☀️ Star / Sun</button>
+                            <button class="ss-type-btn" data-type="galaxy" style="background:rgba(163,113,247,0.1);border:1px solid rgba(255,255,255,0.1);color:white;padding:6px;border-radius:6px;font-size:11px;cursor:pointer;">🌌 Spiral Galaxy</button>
+                            <button class="ss-type-btn" data-type="asteroid" style="background:rgba(150,150,150,0.1);border:1px solid rgba(255,255,255,0.1);color:white;padding:6px;border-radius:6px;font-size:11px;cursor:pointer;grid-column:span 2;">☄️ Asteroid / Comets</button>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#8b949e;margin-top:4px;">
+                            <span>Mass</span>
+                            <strong class="ss-mass-val" style="color:#58a6ff;">15</strong>
                         </div>
                         <input type="range" class="ss-mass-slider" min="1" max="500" value="15" style="accent-color:#58a6ff;cursor:pointer;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#8b949e;margin-top:4px;">
-                            <span>Atmosphere Color</span>
-                            <div style="display:flex;gap:6px;" class="ss-color-picker">
-                                <span class="ss-color-opt active" data-color="#4db2ff" style="width:18px;height:18px;border-radius:50%;background:#4db2ff;cursor:pointer;border:2px solid white;box-shadow:0 0 8px #4db2ff;"></span>
-                                <span class="ss-color-opt" data-color="#39d353" style="width:18px;height:18px;border-radius:50%;background:#39d353;cursor:pointer;border:2px solid transparent;"></span>
-                                <span class="ss-color-opt" data-color="#ff7b72" style="width:18px;height:18px;border-radius:50%;background:#ff7b72;cursor:pointer;border:2px solid transparent;"></span>
-                                <span class="ss-color-opt" data-color="#ffa657" style="width:18px;height:18px;border-radius:50%;background:#ffa657;cursor:pointer;border:2px solid transparent;"></span>
-                                <span class="ss-color-opt" data-color="#a371f7" style="width:18px;height:18px;border-radius:50%;background:#a371f7;cursor:pointer;border:2px solid transparent;"></span>
-                            </div>
-                        </div>
                     </div>
 
                     <!-- Simulation Controls -->
@@ -69,14 +66,13 @@ const SolarSpacer = (() => {
                     <!-- Presets -->
                     <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px;">
                         <h3 style="font-size:12px;font-weight:600;margin:0;color:#8b949e;text-transform:uppercase;letter-spacing:0.5px;">Presets</h3>
-                        <button class="ss-preset-btn" data-preset="solar" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:white;padding:7px 10px;border-radius:8px;text-align:left;cursor:pointer;font-size:11px;transition:background 0.2s;">☀️ Inner Solar System</button>
-                        <button class="ss-preset-btn" data-preset="galaxy" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:white;padding:7px 10px;border-radius:8px;text-align:left;cursor:pointer;font-size:11px;transition:background 0.2s;">🌌 Galaxy Collision</button>
-                        <button class="ss-preset-btn" data-preset="swing" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:white;padding:7px 10px;border-radius:8px;text-align:left;cursor:pointer;font-size:11px;transition:background 0.2s;">🎢 Orbit Swing Pendulum</button>
-                        <button class="ss-preset-btn" data-preset="binary" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:white;padding:7px 10px;border-radius:8px;text-align:left;cursor:pointer;font-size:11px;transition:background 0.2s;">⭐ Binary Star System</button>
+                        <button class="ss-preset-btn" data-preset="solar" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:white;padding:7px 10px;border-radius:8px;text-align:left;cursor:pointer;font-size:11px;">☀️ Inner Solar System</button>
+                        <button class="ss-preset-btn" data-preset="galaxy" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:white;padding:7px 10px;border-radius:8px;text-align:left;cursor:pointer;font-size:11px;">🌌 Galaxy Collision</button>
+                        <button class="ss-preset-btn" data-preset="binary" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:white;padding:7px 10px;border-radius:8px;text-align:left;cursor:pointer;font-size:11px;">⭐ Binary Star System</button>
                     </div>
 
                     <div style="margin-top:auto;font-size:11px;color:#8b949e;text-align:center;padding:4px;">
-                        ✨ Tidal Plasma Streams & Collision Sparks
+                        ✨ Unique Procedural Textures for Every Body
                     </div>
                 </div>
 
@@ -100,13 +96,13 @@ const SolarSpacer = (() => {
         const ctx = canvas.getContext('2d');
 
         let bodies = [];
-        let particles = []; // Particle system for collisions and tidal streams
+        let particles = [];
         let isRunning = true;
         let timeSpeed = 1.0;
         let G = 1.0;
         let activeTool = 'spawn';
         let newMass = 15;
-        let newColor = '#4db2ff';
+        let newType = 'rocky';
 
         // Starfield background cache
         let stars = [];
@@ -123,7 +119,6 @@ const SolarSpacer = (() => {
         }
         initStars();
 
-        // Interaction state
         let isDragging = false;
         let dragStartX = 0;
         let dragStartY = 0;
@@ -139,35 +134,31 @@ const SolarSpacer = (() => {
             particles = [];
             activeWell = null;
             if (type === 'solar') {
-                bodies.push({ x: 0, y: 0, vx: 0, vy: 0, mass: 2500, radius: 28, color: '#ffaa00', name: 'Sun', glow: '#ff4500', trail: [] });
-                bodies.push({ x: 0, y: -80, vx: 5.4, vy: 0, mass: 5, radius: 5, color: '#a0a0a0', name: 'Mercury', glow: '#888888', trail: [] });
-                bodies.push({ x: 0, y: -130, vx: 4.3, vy: 0, mass: 14, radius: 8, color: '#e3bb76', name: 'Venus', glow: '#ffcc00', trail: [] });
-                bodies.push({ x: 0, y: -190, vx: 3.5, vy: 0, mass: 18, radius: 9, color: '#4db2ff', name: 'Earth', glow: '#0088ff', trail: [] });
-                bodies.push({ x: 0, y: -210, vx: 4.9, vy: 0, mass: 1, radius: 3, color: '#cccccc', name: 'Moon', glow: '#ffffff', trail: [] });
-                bodies.push({ x: 0, y: -270, vx: 2.9, vy: 0, mass: 10, radius: 7, color: '#ff5533', name: 'Mars', glow: '#ff2200', trail: [] });
+                bodies.push({ x: 0, y: 0, vx: 0, vy: 0, mass: 2500, radius: 28, type: 'star', color: '#ffaa00', name: 'Sun', glow: '#ff4500', trail: [] });
+                bodies.push({ x: 0, y: -80, vx: 5.4, vy: 0, mass: 5, radius: 5, type: 'rocky', color: '#a0a0a0', name: 'Mercury', glow: '#888888', trail: [] });
+                bodies.push({ x: 0, y: -130, vx: 4.3, vy: 0, mass: 14, radius: 8, type: 'rocky', color: '#e3bb76', name: 'Venus', glow: '#ffcc00', trail: [] });
+                bodies.push({ x: 0, y: -190, vx: 3.5, vy: 0, mass: 18, radius: 9, type: 'rocky', color: '#4db2ff', name: 'Earth', glow: '#0088ff', trail: [] });
+                bodies.push({ x: 0, y: -210, vx: 4.9, vy: 0, mass: 1, radius: 3, type: 'asteroid', color: '#cccccc', name: 'Moon', glow: '#ffffff', trail: [] });
+                bodies.push({ x: 0, y: -270, vx: 2.9, vy: 0, mass: 10, radius: 7, type: 'rocky', color: '#ff5533', name: 'Mars', glow: '#ff2200', trail: [] });
+                bodies.push({ x: 0, y: -370, vx: 2.4, vy: 0, mass: 80, radius: 14, type: 'gas', color: '#ffa657', name: 'Jupiter', glow: '#ff8800', trail: [] });
             } else if (type === 'galaxy') {
-                // Two massive galaxies / suns interacting with tidal streams
-                bodies.push({ x: -140, y: 0, vx: 0, vy: -2.2, mass: 3500, radius: 32, color: '#ff7b72', name: 'Galaxy A', glow: '#ff3333', trail: [] });
-                bodies.push({ x: 140, y: 0, vx: 0, vy: 2.2, mass: 3500, radius: 32, color: '#58a6ff', name: 'Galaxy B', glow: '#0088ff', trail: [] });
-                // Surrounding stars
-                for (let i = 0; i < 8; i++) {
-                    const angle = (i / 8) * Math.PI * 2;
+                bodies.push({ x: -160, y: 0, vx: 0, vy: -2.2, mass: 4000, radius: 36, type: 'galaxy', color: '#a371f7', name: 'Spiral Galaxy A', glow: '#bb88ff', trail: [] });
+                bodies.push({ x: 160, y: 0, vx: 0, vy: 2.2, mass: 4000, radius: 36, type: 'galaxy', color: '#58a6ff', name: 'Spiral Galaxy B', glow: '#0088ff', trail: [] });
+                for (let i = 0; i < 12; i++) {
+                    const angle = (i / 12) * Math.PI * 2;
                     bodies.push({
-                        x: -140 + Math.cos(angle) * 60,
-                        y: Math.sin(angle) * 60,
-                        vx: -2.2 + Math.sin(angle) * 2,
-                        vy: Math.cos(angle) * 2,
-                        mass: 5, radius: 4, color: '#ffa657', glow: '#ffaa00', name: 'Star', trail: []
+                        x: -160 + Math.cos(angle) * 70,
+                        y: Math.sin(angle) * 70,
+                        vx: -2.2 + Math.sin(angle) * 2.2,
+                        vy: Math.cos(angle) * 2.2,
+                        mass: 4, radius: 4, type: 'star', color: '#ffaa00', glow: '#ff6600', name: 'Star', trail: []
                     });
                 }
-            } else if (type === 'swing') {
-                bodies.push({ x: 0, y: 0, vx: 0, vy: 0, mass: 3000, radius: 30, color: '#ffaa00', name: 'Anchor Star', glow: '#ff6600', trail: [] });
-                bodies.push({ x: 0, y: -160, vx: 4.2, vy: 0, mass: 25, radius: 10, color: '#39d353', name: 'Swing Planet', glow: '#00ff66', trail: [] });
-                bodies.push({ x: 0, y: -250, vx: 3.3, vy: 0, mass: 6, radius: 5, color: '#a371f7', name: 'Outer Comet', glow: '#bb88ff', trail: [] });
             } else if (type === 'binary') {
-                bodies.push({ x: -80, y: 0, vx: 0, vy: -3.0, mass: 1500, radius: 22, color: '#ff4500', name: 'Alpha', glow: '#ff2200', trail: [] });
-                bodies.push({ x: 80, y: 0, vx: 0, vy: 3.0, mass: 1500, radius: 22, color: '#00bfff', name: 'Beta', glow: '#0088ff', trail: [] });
-                bodies.push({ x: 0, y: -250, vx: 2.7, vy: 0, mass: 10, radius: 7, color: '#39d353', name: 'Planet', glow: '#00ff66', trail: [] });
+                bodies.push({ x: -90, y: 0, vx: 0, vy: -3.0, mass: 1800, radius: 24, type: 'star', color: '#ff4500', name: 'Alpha Star', glow: '#ff2200', trail: [] });
+                bodies.push({ x: 90, y: 0, vx: 0, vy: 3.0, mass: 1800, radius: 24, type: 'star', color: '#00bfff', name: 'Beta Star', glow: '#0088ff', trail: [] });
+                bodies.push({ x: 0, y: -280, vx: 2.6, vy: 0, mass: 15, radius: 8, type: 'gas', color: '#39d353', name: 'Gas Giant', glow: '#00ff66', trail: [] });
+                bodies.push({ x: 0, y: 260, vx: -2.6, vy: 0, mass: 5, radius: 5, type: 'asteroid', color: '#888888', name: 'Asteroid Belt', trail: [] });
             }
             Sounds.confirm();
         }
@@ -232,19 +223,21 @@ const SolarSpacer = (() => {
 
         massSlider.addEventListener('input', () => {
             newMass = parseInt(massSlider.value);
-            const label = newMass > 300 ? 'Super Star ⭐' : newMass > 100 ? 'Giant Planet 🪐' : newMass > 20 ? 'Planet 🌍' : 'Asteroid ☄️';
-            massVal.textContent = `${newMass} (${label})`;
+            massVal.textContent = newMass;
         });
 
-        el.querySelectorAll('.ss-color-opt').forEach(opt => {
-            opt.addEventListener('click', () => {
-                el.querySelectorAll('.ss-color-opt').forEach(o => {
-                    o.style.border = '2px solid transparent';
-                    o.style.boxShadow = 'none';
+        el.querySelectorAll('.ss-type-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                el.querySelectorAll('.ss-type-btn').forEach(b => {
+                    b.style.background = 'rgba(255,255,255,0.03)';
+                    b.style.border = '1px solid rgba(255,255,255,0.1)';
                 });
-                opt.style.border = '2px solid white';
-                opt.style.boxShadow = `0 0 10px ${opt.dataset.color}`;
-                newColor = opt.dataset.color;
+                btn.style.background = 'rgba(77,178,255,0.2)';
+                btn.style.border = '1px solid #4db2ff';
+                newType = btn.dataset.type;
+                if (newType === 'star' && newMass < 1000) { newMass = 2000; massSlider.value = 2000; massVal.textContent = 2000; }
+                else if (newType === 'galaxy' && newMass < 2000) { newMass = 3500; massSlider.value = 3500; massVal.textContent = 3500; }
+                else if (newType === 'gas' && newMass < 80) { newMass = 80; massSlider.value = 80; massVal.textContent = 80; }
                 Sounds.click();
             });
         });
@@ -329,7 +322,8 @@ const SolarSpacer = (() => {
             if (activeTool === 'spawn' && isDragging) {
                 const vx = (dragStartX - currentMouseX) * 0.08;
                 const vy = (dragStartY - currentMouseY) * 0.08;
-                const radius = Math.max(4, Math.min(30, Math.cbrt(newMass) * 2.5));
+                const radius = newType === 'galaxy' ? 36 : newType === 'star' ? 26 : newType === 'gas' ? 14 : newType === 'asteroid' ? 4 : Math.max(5, Math.min(22, Math.cbrt(newMass) * 2.2));
+                const color = newType === 'galaxy' ? '#a371f7' : newType === 'star' ? '#ffaa00' : newType === 'gas' ? '#ffa657' : newType === 'asteroid' ? '#888888' : '#4db2ff';
 
                 bodies.push({
                     x: dragStartX,
@@ -337,9 +331,10 @@ const SolarSpacer = (() => {
                     vx, vy,
                     mass: newMass,
                     radius,
-                    color: newColor,
-                    glow: newColor,
-                    name: newMass > 300 ? 'Star' : 'Planet ' + (bodies.length + 1),
+                    type: newType,
+                    color,
+                    glow: color,
+                    name: newType === 'galaxy' ? 'Galaxy' : newType === 'star' ? 'Star' : newType === 'gas' ? 'Gas Giant' : newType === 'asteroid' ? 'Asteroid' : 'Planet',
                     trail: []
                 });
                 Sounds.confirm();
@@ -374,7 +369,7 @@ const SolarSpacer = (() => {
                 }
             }
 
-            // Check for massive object tidal stream generation (galaxy/sun interaction)
+            // Tidal stream particles between massive objects/galaxies/stars
             for (let i = 0; i < bodies.length; i++) {
                 for (let j = i + 1; j < bodies.length; j++) {
                     let bi = bodies[i];
@@ -383,18 +378,17 @@ const SolarSpacer = (() => {
                         let dx = bj.x - bi.x;
                         let dy = bj.y - bi.y;
                         let dist = Math.hypot(dx, dy);
-                        // When two huge objects gravitate closely, spawn tidal stream spark particles
-                        if (dist < 300 && Math.random() < 0.4) {
-                            const mx = (bi.x + bj.x) / 2 + (Math.random() - 0.5) * 40;
-                            const my = (bi.y + bj.y) / 2 + (Math.random() - 0.5) * 40;
+                        if (dist < 350 && Math.random() < 0.45) {
+                            const mx = (bi.x + bj.x) / 2 + (Math.random() - 0.5) * 50;
+                            const my = (bi.y + bj.y) / 2 + (Math.random() - 0.5) * 50;
                             particles.push({
                                 x: mx,
                                 y: my,
                                 vx: (Math.random() - 0.5) * 3 + (bi.vx + bj.vx) / 2,
                                 vy: (Math.random() - 0.5) * 3 + (bi.vy + bj.vy) / 2,
-                                color: '#ffaa00',
+                                color: bi.type === 'galaxy' || bj.type === 'galaxy' ? '#a371f7' : '#ffaa00',
                                 size: Math.random() * 2 + 1,
-                                alpha: 0.8,
+                                alpha: 0.85,
                                 life: 0,
                                 maxLife: 40 + Math.random() * 30
                             });
@@ -423,12 +417,11 @@ const SolarSpacer = (() => {
                         survivor.mass += victim.mass;
                         survivor.radius = Math.max(survivor.radius, Math.cbrt(survivor.mass) * 2.2);
 
-                        // Spawn explosion / swallow particle burst
                         const burstX = (bi.x + bj.x) / 2;
                         const burstY = (bi.y + bj.y) / 2;
-                        for (let p = 0; p < 35; p++) {
+                        for (let p = 0; p < 40; p++) {
                             const angle = Math.random() * Math.PI * 2;
-                            const speed = Math.random() * 4 + 1;
+                            const speed = Math.random() * 5 + 1;
                             particles.push({
                                 x: burstX,
                                 y: burstY,
@@ -438,14 +431,11 @@ const SolarSpacer = (() => {
                                 size: Math.random() * 3 + 1.5,
                                 alpha: 1.0,
                                 life: 0,
-                                maxLife: 30 + Math.random() * 25
+                                maxLife: 35 + Math.random() * 25
                             });
                         }
 
-                        // Play explosion / swallow sound effect
-                        try {
-                            Sounds.recycleBin();
-                        } catch(e) {}
+                        try { Sounds.recycleBin(); } catch(e) {}
 
                         bodies.splice(removeIdx, 1);
                         j--;
@@ -524,6 +514,147 @@ const SolarSpacer = (() => {
             return path;
         }
 
+        // Distinct procedural body renderers
+        function drawBody(b, time) {
+            ctx.save();
+            ctx.translate(b.x, b.y);
+
+            const type = b.type || (b.mass > 1000 ? 'star' : b.mass > 60 ? 'gas' : 'rocky');
+
+            if (type === 'galaxy') {
+                // Spiral Galaxy texture with swirling arms
+                ctx.rotate(time * 0.0005);
+                const gGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, b.radius * 1.8);
+                gGrad.addColorStop(0, '#ffffff');
+                gGrad.addColorStop(0.3, b.color);
+                gGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.beginPath();
+                ctx.arc(0, 0, b.radius * 1.8, 0, Math.PI * 2);
+                ctx.fillStyle = gGrad;
+                ctx.globalAlpha = 0.5;
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+
+                // Spiral arms
+                for (let arm = 0; arm < 2; arm++) {
+                    ctx.save();
+                    ctx.rotate(arm * Math.PI);
+                    ctx.beginPath();
+                    for (let a = 0; a < Math.PI * 3; a += 0.1) {
+                        const r = a * (b.radius / 3);
+                        const sx = Math.cos(a) * r;
+                        const sy = Math.sin(a) * r;
+                        if (a === 0) ctx.moveTo(sx, sy);
+                        else ctx.lineTo(sx, sy);
+                    }
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2.5;
+                    ctx.globalAlpha = 0.7;
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            } else if (type === 'star') {
+                // Sun / Star with corona flares and pulsing plasma
+                const pulse = Math.sin(time * 0.005) * 3;
+                const corona = ctx.createRadialGradient(0, 0, b.radius * 0.5, 0, 0, b.radius + 12 + pulse);
+                corona.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+                corona.addColorStop(0.5, b.color);
+                corona.addColorStop(1, 'rgba(255, 69, 0, 0)');
+                ctx.beginPath();
+                ctx.arc(0, 0, b.radius + 12 + pulse, 0, Math.PI * 2);
+                ctx.fillStyle = corona;
+                ctx.fill();
+
+                // Surface shading
+                const sunGrad = ctx.createRadialGradient(-b.radius * 0.3, -b.radius * 0.3, b.radius * 0.1, 0, 0, b.radius);
+                sunGrad.addColorStop(0, '#ffffff');
+                sunGrad.addColorStop(0.5, '#ffaa00');
+                sunGrad.addColorStop(1, '#ff3300');
+                ctx.beginPath();
+                ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
+                ctx.fillStyle = sunGrad;
+                ctx.shadowColor = '#ff4500';
+                ctx.shadowBlur = 25;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            } else if (type === 'gas') {
+                // Gas Giant with horizontal atmospheric bands
+                ctx.beginPath();
+                ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
+                ctx.fillStyle = b.color;
+                ctx.fill();
+                ctx.clip();
+
+                // Atmosphere lighting gradient overlay
+                const gasGrad = ctx.createRadialGradient(-b.radius * 0.3, -b.radius * 0.3, b.radius * 0.1, 0, 0, b.radius);
+                gasGrad.addColorStop(0, 'rgba(255,255,255,0.4)');
+                gasGrad.addColorStop(0.5, 'rgba(0,0,0,0)');
+                gasGrad.addColorStop(1, 'rgba(0,0,0,0.7)');
+
+                // Horizontal bands
+                ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                ctx.fillRect(-b.radius, -b.radius * 0.5, b.radius * 2, b.radius * 0.3);
+                ctx.fillRect(-b.radius, b.radius * 0.2, b.radius * 2, b.radius * 0.25);
+
+                ctx.fillStyle = gasGrad;
+                ctx.beginPath();
+                ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (type === 'asteroid') {
+                // Jagged rocky asteroid polygon
+                ctx.beginPath();
+                const pts = 7;
+                for (let i = 0; i < pts; i++) {
+                    const angle = (i / pts) * Math.PI * 2;
+                    const r = b.radius * (0.8 + Math.sin(i * 3) * 0.2);
+                    const ax = Math.cos(angle) * r;
+                    const ay = Math.sin(angle) * r;
+                    if (i === 0) ctx.moveTo(ax, ay);
+                    else ctx.lineTo(ax, ay);
+                }
+                ctx.closePath();
+                const astGrad = ctx.createRadialGradient(-2, -2, 1, 0, 0, b.radius);
+                astGrad.addColorStop(0, '#cccccc');
+                astGrad.addColorStop(1, '#555555');
+                ctx.fillStyle = astGrad;
+                ctx.fill();
+                ctx.strokeStyle = '#333333';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            } else {
+                // Rocky Planet with atmosphere & continent look
+                const glowGrad = ctx.createRadialGradient(0, 0, b.radius * 0.5, 0, 0, b.radius * 2.2);
+                glowGrad.addColorStop(0, b.glow || b.color);
+                glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.beginPath();
+                ctx.arc(0, 0, b.radius * 2.2, 0, Math.PI * 2);
+                ctx.fillStyle = glowGrad;
+                ctx.globalAlpha = 0.3;
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+
+                const sphereGrad = ctx.createRadialGradient(-b.radius * 0.3, -b.radius * 0.3, b.radius * 0.1, 0, 0, b.radius);
+                sphereGrad.addColorStop(0, '#ffffff');
+                sphereGrad.addColorStop(0.3, b.color);
+                sphereGrad.addColorStop(1, '#050505');
+
+                ctx.beginPath();
+                ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
+                ctx.fillStyle = sphereGrad;
+                ctx.fill();
+            }
+
+            ctx.restore();
+
+            // Name label
+            if (b.mass > 6 || b.radius > 6) {
+                ctx.fillStyle = '#f0f6fc';
+                ctx.font = '600 11px Segoe UI';
+                ctx.textAlign = 'center';
+                ctx.fillText(b.name, b.x, b.y + b.radius + 14);
+            }
+        }
+
         let animId;
         function draw(now) {
             frameCount++;
@@ -571,7 +702,7 @@ const SolarSpacer = (() => {
                 ctx.shadowBlur = 0;
             }
 
-            // Draw glowing 3D-shaded orbits (trails)
+            // Draw glowing orbits (trails)
             for (let b of bodies) {
                 if (b.trail.length > 1) {
                     ctx.beginPath();
@@ -587,40 +718,9 @@ const SolarSpacer = (() => {
                 }
             }
 
-            // Draw 3D Spherical Bodies
+            // Draw bodies with distinct textures
             for (let b of bodies) {
-                const glowGrad = ctx.createRadialGradient(b.x, b.y, b.radius * 0.5, b.x, b.y, b.radius * 2.2);
-                glowGrad.addColorStop(0, b.glow || b.color);
-                glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
-                ctx.beginPath();
-                ctx.arc(b.x, b.y, b.radius * 2.2, 0, Math.PI * 2);
-                ctx.fillStyle = glowGrad;
-                ctx.globalAlpha = b.mass > 100 ? 0.6 : 0.25;
-                ctx.fill();
-                ctx.globalAlpha = 1.0;
-
-                const sphereGrad = ctx.createRadialGradient(
-                    b.x - b.radius * 0.3, b.y - b.radius * 0.3, b.radius * 0.1,
-                    b.x, b.y, b.radius
-                );
-                sphereGrad.addColorStop(0, '#ffffff');
-                sphereGrad.addColorStop(0.3, b.color);
-                sphereGrad.addColorStop(1, '#050505');
-
-                ctx.beginPath();
-                ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
-                ctx.fillStyle = sphereGrad;
-                ctx.shadowColor = b.color;
-                ctx.shadowBlur = b.mass > 200 ? 25 : 8;
-                ctx.fill();
-                ctx.shadowBlur = 0;
-
-                if (b.mass > 6 || b.radius > 6) {
-                    ctx.fillStyle = '#f0f6fc';
-                    ctx.font = '600 11px Segoe UI';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(b.name, b.x, b.y + b.radius + 14);
-                }
+                drawBody(b, now);
             }
 
             // Draw collision & tidal stream particles
@@ -640,19 +740,17 @@ const SolarSpacer = (() => {
             if (activeTool === 'spawn' && isDragging) {
                 const vx = (dragStartX - currentMouseX) * 0.08;
                 const vy = (dragStartY - currentMouseY) * 0.08;
-                const radius = Math.max(4, Math.min(30, Math.cbrt(newMass) * 2.5));
+                const radius = newType === 'galaxy' ? 36 : newType === 'star' ? 26 : newType === 'gas' ? 14 : newType === 'asteroid' ? 4 : Math.max(5, Math.min(22, Math.cbrt(newMass) * 2.2));
+                const color = newType === 'galaxy' ? '#a371f7' : newType === 'star' ? '#ffaa00' : newType === 'gas' ? '#ffa657' : newType === 'asteroid' ? '#888888' : '#4db2ff';
 
-                const prevGrad = ctx.createRadialGradient(dragStartX - 3, dragStartY - 3, 1, dragStartX, dragStartY, radius);
-                prevGrad.addColorStop(0, '#ffffff');
-                prevGrad.addColorStop(0.4, newColor);
-                prevGrad.addColorStop(1, '#000000');
-
+                ctx.save();
+                ctx.translate(dragStartX, dragStartY);
                 ctx.beginPath();
-                ctx.arc(dragStartX, dragStartY, radius, 0, Math.PI * 2);
-                ctx.fillStyle = prevGrad;
+                ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                ctx.fillStyle = color;
                 ctx.globalAlpha = 0.85;
                 ctx.fill();
-                ctx.globalAlpha = 1.0;
+                ctx.restore();
 
                 const trajectory = calculateTrajectory(dragStartX, dragStartY, vx, vy, newMass);
                 if (trajectory.length > 1) {
