@@ -4,6 +4,13 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4870] - 2026-09-13
+
+### Added
+- CopilotBB hybrid agent mode — the model can end a message with one inline ```toolcall JSON block, the tool runs locally, and its success/failed result is fed back for another model turn (up to 8 turns)
+- CopilotBB agent tools: datetime, powershell (built-in cmdlet emulation with CMD-engine fallback), cmd (built-in CMD-compatible engine), write/read/edit/grep over a per-conversation workspace temp folder, websearch via DuckDuckGo, webfetch with script/style stripping and markdown links, analyze for workspace files and attachments (images forwarded as vision input when the model supports it)
+- CopilotBB attachments (paperclip button) saved into the active chat workspace, workspace file lister in Settings, agent-mode toggle, and tool-call/result cards in the chat UI
+
 ## [12.0.4860] - 2026-09-13
 
 ### Changed

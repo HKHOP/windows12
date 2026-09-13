@@ -6,6 +6,7 @@ import AppIcons from '../../modules/appIcons.js';
 import Popup from '../../modules/popup.js';
 import FileSystem from '../../modules/fileSystem.js';
 import Notifications from '../../modules/notifications.js';
+import BatchEngine from '../../modules/batchEngine.js';
 
 const CopilotButBetter = (() => {
     const APP_ID = 'copilotButBetter';
@@ -24,8 +25,44 @@ const CopilotButBetter = (() => {
         memory: [],
         accent: '#10a37f',
         glass: 0.65,
-        enterToSend: true
+        enterToSend: true,
+        agentMode: true
     };
+
+    const MAX_AGENT_TURNS = 8;
+    const TOOL_OUTPUT_LIMIT = 6000;
+
+    const TOOLS_DOC = `You are a hybrid agent. You can answer directly, OR use tools by ending your message with ONE inline tool call in a fenced block:
+
+\`\`\`toolcall
+{"tool": "<name>", "args": {...}}
+\`\`\`
+
+Rules:
+- Put any explanation BEFORE the toolcall block. The toolcall block must be the last thing in your message.
+- Exactly one tool call per message. After the tool runs you get another turn: its result arrives as "[TOOL RESULT status=success|failed tool=<name>] ..." — then answer the user or call another tool.
+- Never invent tool output. If a tool fails, adapt (fix args, try another tool) or explain.
+- Keep file work inside the per-conversation workspace (relative paths like "notes.txt" or "src/app.js"). The workspace persists until the conversation is deleted.
+- For images already attached or in the workspace, prefer the analyze tool — if the model is vision-capable the image bytes are included.
+- Stop calling tools once you can answer. Do not call tools for plain chit-chat.
+
+Available tools:
+- datetime {} — current date/time (ISO + locale string + timezone offset).
+- powershell {"script": "<ps code>"} — run PowerShell against the virtual filesystem, rooted at the conversation workspace. Supports Get-Date, Write-Output/Write-Host/echo, Get-Location, Get-ChildItem/ls/dir, Get-Content/cat/type, Set-Content/Out-File, New-Item, Remove-Item/rm/del, Clear-Host, $vars; anything else falls through to the built-in CMD-compatible engine. Output truncated.
+- cmd {"script": "<batch>"} — run CMD/batch against the virtual filesystem via the built-in CMD-compatible engine (echo, dir, cd, type, mkdir, del, set, if, for, ...), rooted at the conversation workspace. Output truncated.
+- write {"path": "notes.txt", "content": "..."} — save a file in the conversation workspace (subfolders auto-created). Overwrites. Returns bytes written.
+- read {"path": "notes.txt", "offset": 0, "limit": 100} — read a workspace file. offset = first line (0-based), limit = max lines (default 200, max 500).
+- edit {"path": "notes.txt", "oldText": "...", "newText": "..."} — replace the first occurrence of oldText with newText. Returns a small diff summary. For big rewrites use write instead.
+- grep {"pattern": "TODO", "path": "", "include": ""} — regex search over workspace text files. path = subfolder/file to scope (default: whole workspace). include = filename regex filter (e.g. "\\\\.js$"). Returns file:line matches.
+- websearch {"query": "...", "count": 5} — search the web via DuckDuckGo. Returns titles/snippets/links.
+- webfetch {"url": "https://..."} — fetch a URL, strip scripts/styles, keep headings/paragraphs/lists plus link hrefs as markdown, truncated.
+- analyze {"path": "image.png", "limit": 4000} — inspect a workspace file or attachment: text files return a preview; images return metadata (and image bytes are forwarded when the model is vision-capable).`;
+
+    function truncateOut(s, limit) {
+        const t = String(s == null ? '' : s);
+        if (t.length <= (limit || TOOL_OUTPUT_LIMIT)) return t;
+        return t.slice(0, (limit || TOOL_OUTPUT_LIMIT)) + `\n…[truncated ${(t.length - (limit || TOOL_OUTPUT_LIMIT))} chars]`;
+    }
 
     const MODELS = [
         'gemini-2.0-flash',
@@ -127,6 +164,425 @@ const CopilotButBetter = (() => {
         return (s.customModel || '').trim() || s.model;
     }
 
+    // ---------- agent workspaces (per-conversation temp dirs) ----------
+    function workspacePath(convId) {
+        return [...DATA_PATH, 'workspaces', String(convId)];
+    }
+    function ensureWorkspace(convId) {
+        try {
+            ensureDataDir();
+            if (!FileSystem.itemExists([...DATA_PATH, 'workspaces'])) {
+                FileSystem.createFolder(DATA_PATH, 'workspaces');
+            }
+            const ws = workspacePath(convId);
+            if (!FileSystem.itemExists(ws)) {
+                FileSystem.createFolder([...DATA_PATH, 'workspaces'], String(convId));
+            }
+        } catch (e) { /* best effort */ }
+        return workspacePath(convId);
+    }
+    function deleteWorkspace(convId) {
+        try {
+            const ws = workspacePath(convId);
+            if (FileSystem.itemExists(ws)) {
+                if (FileSystem.permanentDelete) FileSystem.permanentDelete(ws);
+                else FileSystem.deleteItem(ws);
+            }
+        } catch (e) { /* noop */ }
+    }
+    function resolveWorkspacePath(ws, rel) {
+        const parts = String(rel || '').split('/').filter(Boolean);
+        const clean = [];
+        for (const p of parts) {
+            if (p === '.') continue;
+            if (p === '..') { clean.pop(); continue; }
+            clean.push(p);
+        }
+        return [...ws, ...clean];
+    }
+    function ensureWorkspaceParents(ws, rel) {
+        const parts = String(rel || '').split('/').filter(Boolean).filter(p => p !== '.' && p !== '..');
+        parts.pop();
+        let cur = [...ws];
+        for (const p of parts) {
+            if (!FileSystem.itemExists([...cur, p])) FileSystem.createFolder(cur, p);
+            cur = [...cur, p];
+        }
+    }
+    function walkWorkspaceFiles(ws, base) {
+        const out = [];
+        const dir = base && base.length ? [...ws, ...base] : [...ws];
+        let children = [];
+        try { children = FileSystem.getChildren(dir); } catch (e) { children = []; }
+        for (const ch of children) {
+            const rel = [...(base || []), ch.name].join('/');
+            if (ch.type === 'folder') out.push(...walkWorkspaceFiles(ws, [...(base || []), ch.name]));
+            else out.push(rel);
+        }
+        return out;
+    }
+
+    // ---------- toolcall parsing ----------
+    function parseToolCall(text) {
+        const src = String(text || '');
+        const fence = src.match(/```toolcall\s*([\s\S]*?)```\s*$/i);
+        const tag = !fence && src.match(/<toolcall>\s*([\s\S]*?)\s*<\/toolcall>\s*$/i);
+        const raw = (fence && fence[1]) || (tag && tag[1]) || null;
+        if (!raw) return null;
+        try {
+            const obj = JSON.parse(raw.trim());
+            if (!obj || typeof obj.tool !== 'string') return null;
+            return { tool: obj.tool.toLowerCase(), args: (obj.args && typeof obj.args === 'object') ? obj.args : {} };
+        } catch (e) {
+            return { parseError: String(e && e.message || e), raw: raw.trim() };
+        }
+    }
+    function stripToolCall(text) {
+        return String(text || '')
+            .replace(/```toolcall\s*[\s\S]*?```\s*$/i, '')
+            .replace(/<toolcall>\s*[\s\S]*?\s*<\/toolcall>\s*$/i, '')
+            .trim();
+    }
+
+    // ---------- shell runners (built-in engines, workspace-rooted) ----------
+    function runBatchCapture(script, ws) {
+        const lines = [];
+        let cwd = [...ws];
+        const print = (t) => { lines.push(String(t == null ? '' : t)); };
+        const getCwd = () => [...cwd];
+        const setCwd = (next) => { if (Array.isArray(next) && next.length) cwd = [...next]; };
+        try {
+            const engine = BatchEngine.create(print, getCwd, setCwd);
+            engine.run(String(script || ''));
+        } catch (e) {
+            lines.push(`[engine error] ${e && e.message || e}`);
+        }
+        return truncateOut(lines.join('\n') || '(no output)');
+    }
+    function runPowerShellCapture(script, ws) {
+        // Minimal PowerShell emulation: native cmdlets + $vars, everything
+        // else falls through to the built-in CMD-compatible engine.
+        const out = [];
+        const vars = Object.create(null);
+        const expand = (s) => String(s).replace(/\$([A-Za-z_][A-Za-z0-9_]*)/g, (m, n) => (vars[n] != null ? vars[n] : m));
+        const unquote = (s) => {
+            const t = String(s || '').trim();
+            if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) return t.slice(1, -1);
+            return t;
+        };
+        const listDir = (rel) => {
+            const dir = rel ? resolveWorkspacePath(ws, expand(rel)) : [...ws];
+            let children = [];
+            try { children = FileSystem.getChildren(dir); } catch (e) { children = []; }
+            if (!children.length) return '(empty)';
+            return children.map(c => (c.type === 'folder' ? c.name + '/' : c.name)).join('\n');
+        };
+        const passthrough = [];
+        const flushPassthrough = () => {
+            if (!passthrough.length) return;
+            out.push(runBatchCapture(passthrough.join('\n'), ws));
+            passthrough.length = 0;
+        };
+        const lines = String(script || '').split(/\r?\n/);
+        for (let rawLine of lines) {
+            const line = rawLine.trim();
+            if (!line || line.startsWith('#')) continue;
+            let m;
+            if ((m = line.match(/^\$([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/))) {
+                vars[m[1]] = unquote(expand(m[2]));
+                continue;
+            }
+            if (/^Get-Date/i.test(line)) {
+                const d = new Date();
+                const extra = line.replace(/^Get-Date/i, '').trim();
+                out.push(extra ? d.toISOString() : `${d.toString()} | ${d.toISOString()}`);
+                continue;
+            }
+            if ((m = line.match(/^(Write-Output|Write-Host|echo)\b\s*(.*)$/i))) {
+                out.push(unquote(expand(m[2])));
+                continue;
+            }
+            if (/^(Get-Location|pwd)\b/i.test(line)) { out.push('/' + ws.slice(1).join('/')); continue; }
+            if ((m = line.match(/^(Get-ChildItem|ls|dir)\b\s*(.*)$/i))) { out.push(listDir(unquote(expand(m[2])))); continue; }
+            if ((m = line.match(/^(Get-Content|cat|type)\b\s+(.+)$/i))) {
+                const p = resolveWorkspacePath(ws, unquote(expand(m[2])));
+                const content = FileSystem.readFile(p);
+                out.push(content == null ? `Get-Content: cannot find path '${m[2]}'` : content);
+                continue;
+            }
+            if ((m = line.match(/^Set-Content\b\s+(.+)$/i))) {
+                const parts = m[1].trim().match(/^(.*?)\s+-Value\s+(.+)$/i) || m[1].trim().match(/^(.*?)\s+(.+)$/);
+                if (parts) {
+                    const p = unquote(expand(parts[1]));
+                    const val = unquote(expand(parts[2]));
+                    ensureWorkspaceParents(ws, p);
+                    const full = resolveWorkspacePath(ws, p);
+                    const name = full[full.length - 1];
+                    if (FileSystem.itemExists(full)) FileSystem.writeFile(full, val);
+                    else FileSystem.createFile(full.slice(0, -1), name, val, name.includes('.') ? name.split('.').pop() : '');
+                    out.push(`Wrote ${p}`);
+                } else out.push('Set-Content: usage: Set-Content <path> [-Value] <text>');
+                continue;
+            }
+            if ((m = line.match(/^New-Item\b\s*(.*)$/i))) {
+                const rest = expand(m[1]);
+                const pm = rest.match(/-Path\s+("[^"]+"|'[^']+'|\S+)/i);
+                const tm = rest.match(/-ItemType\s+(\S+)/i);
+                const target = pm ? unquote(pm[1]) : rest.trim();
+                if (!target) { out.push('New-Item: missing -Path'); continue; }
+                const isDir = tm ? /dir/i.test(tm[1]) : /\/$/.test(target);
+                ensureWorkspaceParents(ws, target);
+                const full = resolveWorkspacePath(ws, target);
+                const name = full[full.length - 1];
+                if (isDir) {
+                    out.push(FileSystem.createFolder(full.slice(0, -1), name) ? `Created directory ${target}` : `New-Item: already exists '${target}'`);
+                } else {
+                    out.push(FileSystem.createFile(full.slice(0, -1), name, '', name.includes('.') ? name.split('.').pop() : '') ? `Created file ${target}` : `New-Item: already exists '${target}'`);
+                }
+                continue;
+            }
+            if ((m = line.match(/^(Remove-Item|rm|del)\b\s+(.+)$/i))) {
+                const p = resolveWorkspacePath(ws, unquote(expand(m[2])));
+                if (!FileSystem.itemExists(p)) out.push(`Remove-Item: cannot find path '${m[2]}'`);
+                else { try { FileSystem.deleteItem(p); out.push(`Removed ${m[2]}`); } catch (e) { out.push(`Remove-Item failed: ${e && e.message || e}`); } }
+                continue;
+            }
+            if (/^(Clear-Host|cls)\b/i.test(line)) { out.push('(screen cleared)'); continue; }
+            passthrough.push(rawLine);
+        }
+        flushPassthrough();
+        return truncateOut(out.join('\n') || '(no output)');
+    }
+
+    // ---------- tool executors ----------
+    async function blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+            try {
+                const fr = new FileReader();
+                fr.onload = () => {
+                    const s = String(fr.result || '');
+                    const i = s.indexOf(',');
+                    resolve(i >= 0 ? s.slice(i + 1) : s);
+                };
+                fr.onerror = () => reject(new Error('Failed to read blob'));
+                fr.readAsDataURL(blob);
+            } catch (e) { reject(e); }
+        });
+    }
+    async function imageDimensions(blob) {
+        try {
+            if (typeof createImageBitmap === 'function') {
+                const bmp = await createImageBitmap(blob);
+                const w = bmp.width, h = bmp.height;
+                if (bmp.close) bmp.close();
+                return { w, h };
+            }
+        } catch (e) { /* fall through */ }
+        return new Promise((resolve) => {
+            try {
+                const url = URL.createObjectURL(blob);
+                const img = new Image();
+                img.onload = () => { resolve({ w: img.naturalWidth, h: img.naturalHeight }); URL.revokeObjectURL(url); };
+                img.onerror = () => { resolve({ w: 0, h: 0 }); URL.revokeObjectURL(url); };
+                img.src = url;
+            } catch (e) { resolve({ w: 0, h: 0 }); }
+        });
+    }
+
+    async function executeTool(convId, tool, args) {
+        const ws = ensureWorkspace(convId);
+        const a = args || {};
+        try {
+            switch (tool) {
+                case 'datetime': {
+                    const d = new Date();
+                    return { ok: true, output: `ISO: ${d.toISOString()}\nLocal: ${d.toString()}\nTimezone offset (min): ${d.getTimezoneOffset()}`, images: [] };
+                }
+                case 'powershell': {
+                    const script = a.script != null ? a.script : a.command;
+                    if (!script || !String(script).trim()) return { ok: false, output: 'powershell: missing "script" argument.', images: [] };
+                    return { ok: true, output: runPowerShellCapture(String(script), ws), images: [] };
+                }
+                case 'cmd': {
+                    const script = a.script != null ? a.script : a.command;
+                    if (!script || !String(script).trim()) return { ok: false, output: 'cmd: missing "script" argument.', images: [] };
+                    return { ok: true, output: runBatchCapture(String(script), ws), images: [] };
+                }
+                case 'write': {
+                    if (!a.path) return { ok: false, output: 'write: missing "path".', images: [] };
+                    const rel = String(a.path).replace(/^\/+/, '');
+                    const content = a.content != null ? String(a.content) : '';
+                    ensureWorkspaceParents(ws, rel);
+                    const full = resolveWorkspacePath(ws, rel);
+                    const name = full[full.length - 1];
+                    const ext = name.includes('.') ? name.split('.').pop() : '';
+                    if (FileSystem.itemExists(full)) {
+                        const node = FileSystem.getNode(full);
+                        if (node && node.type === 'folder') return { ok: false, output: `write: '${rel}' is a directory.`, images: [] };
+                        FileSystem.writeFile(full, content);
+                    } else {
+                        if (!FileSystem.createFile(full.slice(0, -1), name, content, ext)) return { ok: false, output: `write: could not create '${rel}'.`, images: [] };
+                    }
+                    return { ok: true, output: `Wrote ${content.length} chars to ${rel}`, images: [] };
+                }
+                case 'read': {
+                    if (!a.path) return { ok: false, output: 'read: missing "path".', images: [] };
+                    const rel = String(a.path).replace(/^\/+/, '');
+                    const full = resolveWorkspacePath(ws, rel);
+                    const node = FileSystem.getNode(full);
+                    if (!node) return { ok: false, output: `read: no such file '${rel}'. Workspace files: ${(walkWorkspaceFiles(ws).slice(0, 20).join(', ') || '(empty)')}`, images: [] };
+                    if (node.type === 'folder') {
+                        let children = [];
+                        try { children = FileSystem.getChildren(full); } catch (e) { children = []; }
+                        return { ok: true, output: `Directory ${rel}:\n` + (children.map(c => (c.type === 'folder' ? c.name + '/' : c.name)).join('\n') || '(empty)'), images: [] };
+                    }
+                    if (node.blobRef) return { ok: false, output: `read: '${rel}' is binary (${node.size || 0} bytes). Use analyze instead.`, images: [] };
+                    const raw = FileSystem.readFile(full);
+                    if (raw == null) return { ok: false, output: `read: could not read '${rel}'.`, images: [] };
+                    const offset = Math.max(0, parseInt(a.offset, 10) || 0);
+                    const limit = Math.min(500, Math.max(1, parseInt(a.limit, 10) || 200));
+                    const lines = String(raw).split('\n');
+                    const slice = lines.slice(offset, offset + limit);
+                    return { ok: true, output: `File ${rel} (${lines.length} lines, showing ${offset}-${offset + slice.length - 1}):\n` + slice.join('\n'), images: [] };
+                }
+                case 'edit': {
+                    if (!a.path) return { ok: false, output: 'edit: missing "path".', images: [] };
+                    if (a.oldText == null || a.newText == null) return { ok: false, output: 'edit: need "oldText" and "newText".', images: [] };
+                    const rel = String(a.path).replace(/^\/+/, '');
+                    const full = resolveWorkspacePath(ws, rel);
+                    const raw = FileSystem.readFile(full);
+                    if (raw == null) return { ok: false, output: `edit: no such text file '${rel}'.`, images: [] };
+                    const idx = String(raw).indexOf(String(a.oldText));
+                    if (idx < 0) return { ok: false, output: `edit: oldText not found in '${rel}'.`, images: [] };
+                    const next = String(raw).slice(0, idx) + String(a.newText) + String(raw).slice(idx + String(a.oldText).length);
+                    FileSystem.writeFile(full, next);
+                    const before = String(raw).slice(Math.max(0, idx - 60), idx + String(a.oldText).length + 60).replace(/\n/g, '\\n');
+                    const after = String(next).slice(Math.max(0, idx - 60), idx + String(a.newText).length + 60).replace(/\n/g, '\\n');
+                    return { ok: true, output: `Edited ${rel} at char ${idx}.\n- before: ...${before}...\n+ after:  ...${after}...`, images: [] };
+                }
+                case 'grep': {
+                    if (!a.pattern) return { ok: false, output: 'grep: missing "pattern".', images: [] };
+                    let re;
+                    try { re = new RegExp(String(a.pattern), 'i'); } catch (e) { return { ok: false, output: `grep: invalid regex: ${e.message}`, images: [] }; }
+                    const scope = a.path ? String(a.path).replace(/^\/+/, '') : '';
+                    const incRe = a.include ? new RegExp(String(a.include)) : null;
+                    const files = walkWorkspaceFiles(ws).filter(f => (!scope || f === scope || f.startsWith(scope.replace(/\/$/, '') + '/')) && (!incRe || incRe.test(f)));
+                    const hits = [];
+                    for (const f of files.slice(0, 200)) {
+                        const raw = FileSystem.readFile(resolveWorkspacePath(ws, f));
+                        if (raw == null || typeof raw !== 'string') continue;
+                        if (raw.length > 200000) continue;
+                        const lines = raw.split('\n');
+                        for (let i = 0; i < lines.length && hits.length < 100; i++) {
+                            if (re.test(lines[i])) hits.push(`${f}:${i}: ${lines[i].slice(0, 220)}`);
+                        }
+                        if (hits.length >= 100) break;
+                    }
+                    return { ok: true, output: hits.length ? `Matches (${hits.length}):\n` + hits.join('\n') : `No matches for /${a.pattern}/ in ${scope || 'workspace'} (${files.length} files searched).`, images: [] };
+                }
+                case 'websearch': {
+                    if (!a.query) return { ok: false, output: 'websearch: missing "query".', images: [] };
+                    const count = Math.min(10, Math.max(1, parseInt(a.count, 10) || 5));
+                    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(String(a.query))}&format=json&no_html=1&skip_disambig=1`;
+                    let data = null;
+                    try {
+                        const res = await fetch(url);
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        data = await res.json();
+                    } catch (e) {
+                        return { ok: false, output: `websearch failed: ${e.message}. (Browser may block cross-origin search; try webfetch on a specific URL.)`, images: [] };
+                    }
+                    const lines = [];
+                    if (data.AbstractText) lines.push(`Summary: ${data.AbstractText}${data.AbstractURL ? ` (${data.AbstractURL})` : ''}`);
+                    const topics = Array.isArray(data.RelatedTopics) ? data.RelatedTopics.flatMap(t => t.Topics ? t.Topics : [t]) : [];
+                    for (const t of topics.slice(0, count)) {
+                        if (t && t.Text) lines.push(`- ${t.Text}${t.FirstURL ? ` [${t.FirstURL}]` : ''}`);
+                    }
+                    if (Array.isArray(data.Results)) {
+                        for (const r of data.Results.slice(0, count)) {
+                            if (r && r.Text) lines.push(`- ${r.Text}${r.FirstURL ? ` [${r.FirstURL}]` : ''}`);
+                        }
+                    }
+                    if (!lines.length) lines.push('No instant-answer results. Try webfetch on a targeted URL.');
+                    return { ok: true, output: `DuckDuckGo results for "${a.query}":\n` + truncateOut(lines.join('\n'), 5000), images: [] };
+                }
+                case 'webfetch': {
+                    if (!a.url) return { ok: false, output: 'webfetch: missing "url".', images: [] };
+                    let urlStr = String(a.url).trim();
+                    if (!/^https?:\/\//i.test(urlStr)) urlStr = 'https://' + urlStr;
+                    let html = '';
+                    try {
+                        const res = await fetch(urlStr);
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        html = await res.text();
+                    } catch (e) {
+                        return { ok: false, output: `webfetch failed for ${urlStr}: ${e.message}`, images: [] };
+                    }
+                    let base = urlStr;
+                    try { base = new URL(urlStr).origin; } catch (e) { /* noop */ }
+                    html = html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ');
+                    const links = [];
+                    html = html.replace(/<a\s[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, (m, href, txt) => {
+                        const clean = String(txt).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || href;
+                        let abs = href;
+                        try { abs = new URL(href, base).href; } catch (e) { /* keep */ }
+                        links.push(`- [${clean}](${abs})`);
+                        return ` ${clean} `;
+                    });
+                    const blocks = [];
+                    const re = /<(h1|h2|h3|h4|p|li|blockquote|pre|code|td|th)[^>]*>([\s\S]*?)<\/\1>/gi;
+                    let m2;
+                    while ((m2 = re.exec(html)) && blocks.length < 300) {
+                        const t = m2[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                        if (t) blocks.push(t);
+                    }
+                    let text = blocks.join('\n');
+                    if (!text.trim()) text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                    text = truncateOut(text, 8000);
+                    const linkSection = links.length ? '\n\nLinks:\n' + truncateOut(links.slice(0, 40).join('\n'), 2000) : '';
+                    return { ok: true, output: `Fetched ${urlStr}:\n${text}${linkSection}`, images: [] };
+                }
+                case 'analyze': {
+                    if (!a.path) return { ok: false, output: 'analyze: missing "path". Workspace files: ' + (walkWorkspaceFiles(ws).slice(0, 30).join(', ') || '(empty)'), images: [] };
+                    const rel = String(a.path).replace(/^\/+/, '');
+                    const full = resolveWorkspacePath(ws, rel);
+                    const node = FileSystem.getNode(full);
+                    if (!node) return { ok: false, output: `analyze: no such file '${rel}'.`, images: [] };
+                    if (node.type === 'folder') return { ok: false, output: `analyze: '${rel}' is a folder.`, images: [] };
+                    if (node.blobRef) {
+                        let blob = null;
+                        try { blob = await FileSystem.readFileBlob(full); } catch (e) { blob = null; }
+                        if (!blob) return { ok: false, output: `analyze: could not load binary '${rel}'.`, images: [] };
+                        const mime = blob.type || 'application/octet-stream';
+                        if (mime.startsWith('image/')) {
+                            const dim = await imageDimensions(blob);
+                            const b64 = await blobToBase64(blob);
+                            const limit = Math.min(4000000, Math.max(100000, parseInt(a.limit, 10) || 1500000));
+                            return { ok: true, output: `Image ${rel}: type=${mime}, size=${blob.size} bytes, dimensions=${dim.w}x${dim.h}. Image bytes attached for vision-capable models.`, images: [{ mime, data: b64.slice(0, limit) }] };
+                        }
+                        if (mime.startsWith('text/') || /json|javascript|xml|csv/.test(mime)) {
+                            const txt = await blob.text().catch(() => '');
+                            return { ok: true, output: `Text blob ${rel} (${blob.size} bytes):\n` + truncateOut(txt, parseInt(a.limit, 10) || 4000), images: [] };
+                        }
+                        return { ok: true, output: `Binary ${rel}: type=${mime}, size=${blob.size} bytes. No preview available.`, images: [] };
+                    }
+                    const raw = FileSystem.readFile(full);
+                    if (raw == null) return { ok: false, output: `analyze: could not read '${rel}'.`, images: [] };
+                    const txt = String(raw);
+                    if (/\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(rel) && txt.startsWith('data:image/')) {
+                        const mm = txt.match(/^data:(image\/[^;]+);base64,(.*)$/);
+                        if (mm) return { ok: true, output: `Embedded image ${rel} (${txt.length} chars). Image bytes attached for vision-capable models.`, images: [{ mime: mm[1], data: mm[2].slice(0, 1500000) }] };
+                    }
+                    return { ok: true, output: `File ${rel} (${txt.length} chars, ${txt.split('\n').length} lines):\n` + truncateOut(txt, parseInt(a.limit, 10) || 4000), images: [] };
+                }
+                default:
+                    return { ok: false, output: `Unknown tool "${tool}". Available: datetime, powershell, cmd, write, read, edit, grep, websearch, webfetch, analyze.`, images: [] };
+            }
+        } catch (e) {
+            return { ok: false, output: `Tool ${tool} crashed: ${e && e.message || e}`, images: [] };
+        }
+    }
+
     async function callGemini(settings, messages) {
         const key = (settings.apiKey || '').trim();
         if (!key) throw new Error('No API key set. Open Settings and paste your Gemini API key.');
@@ -134,10 +590,20 @@ const CopilotButBetter = (() => {
         const memBlock = (settings.memoryEnabled && settings.memory.length)
             ? `\n\n[Long-term memory about the user — use it to personalize replies]:\n- ${settings.memory.join('\n- ')}`
             : '';
-        const sysText = (settings.systemPrompt || DEFAULT_SETTINGS.systemPrompt) + memBlock;
+        const agentBlock = settings.agentMode === false ? '' : `\n\n${TOOLS_DOC}`;
+        const sysText = (settings.systemPrompt || DEFAULT_SETTINGS.systemPrompt) + memBlock + agentBlock;
         const contents = messages
-            .filter(m => m.role === 'user' || m.role === 'assistant')
-            .map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
+            .filter(m => m.role === 'user' || m.role === 'assistant' || m.role === 'tool')
+            .map(m => {
+                const role = m.role === 'assistant' ? 'model' : 'user';
+                const parts = [{ text: String(m.content == null ? '' : m.content) }];
+                if (Array.isArray(m.images)) {
+                    for (const img of m.images) {
+                        if (img && img.data) parts.push({ inline_data: { mime_type: img.mime || 'image/png', data: img.data } });
+                    }
+                }
+                return { role, parts };
+            });
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
         const res = await fetch(url, {
             method: 'POST',
@@ -286,6 +752,18 @@ const CopilotButBetter = (() => {
         .cbb-toggle input{width:18px;height:18px;accent-color:var(--acc);cursor:pointer;}
         .cbb-setfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:12px;}
         .cbb-link{color:var(--acc);font-size:12px;text-decoration:none;} .cbb-link:hover{text-decoration:underline;}
+        .cbb-tool{margin-top:10px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.45);overflow:hidden;font-size:12.5px;}
+        .cbb-tool-head{display:flex;align-items:center;gap:8px;padding:7px 12px;background:rgba(255,255,255,.06);color:#ddd;font-family:Consolas,monospace;}
+        .cbb-tool-head .dot{width:8px;height:8px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc);}
+        .cbb-tool-head .st{margin-left:auto;font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid rgba(255,255,255,.2);}
+        .cbb-tool-head .st.ok{color:#7dffa8;border-color:rgba(125,255,168,.4);} .cbb-tool-head .st.bad{color:#ff9b9b;border-color:rgba(255,107,107,.5);}
+        .cbb-tool-head .st.run{color:#ffd97d;border-color:rgba(255,217,125,.5);}
+        .cbb-tool pre{margin:0;padding:10px 12px;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word;color:#cfcfcf;font-family:Consolas,monospace;font-size:12px;line-height:1.5;}
+        .cbb-toolres{margin-top:10px;border-radius:12px;border:1px dashed rgba(255,255,255,.2);background:rgba(255,255,255,.03);padding:8px 12px;font-size:12px;color:#bdbdbd;}
+        .cbb-toolres b{color:#eee;} .cbb-toolres pre{margin:6px 0 2px;max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-family:Consolas,monospace;font-size:11.5px;color:#cfcfcf;}
+        .cbb-attach{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;cursor:pointer;font-size:15px;flex-shrink:0;}
+        .cbb-attach:hover{border-color:var(--acc);}
+        .cbb-filechip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:3px 8px;font-size:11.5px;color:#ddd;margin:2px 4px 2px 0;}
         @media (max-width:720px){.cbb-side{position:absolute;left:0;top:0;bottom:0;transform:translateX(-100%);transition:.2s;box-shadow:20px 0 60px rgba(0,0,0,.5);} .cbb-side.open{transform:none;} .cbb-sugg{grid-template-columns:1fr;}}
         </style>`;
     }
@@ -315,11 +793,13 @@ const CopilotButBetter = (() => {
                 <div class="cbb-msgs"><div class="cbb-col"></div></div>
                 <div class="cbb-compwrap"><div class="cbb-comp">
                     <div class="cbb-box">
-                        <textarea rows="1" placeholder="Message CopilotButBetter…"></textarea>
+                        <button class="cbb-attach" title="Attach file to workspace">📎</button>
+                        <input type="file" class="cbb-fileinput" style="display:none;" multiple>
+                        <textarea rows="1" placeholder="Message CopilotBB… (agent tools: datetime, powershell, cmd, write, read, edit, grep, websearch, webfetch, analyze)"></textarea>
                         <button class="cbb-stop" title="Stop" style="display:none;">■</button>
                         <button class="cbb-send" title="Send">↑</button>
                     </div>
-                    <div class="cbb-hint">CopilotButBetter can make mistakes. Check important info. · Bring-your-own Gemini key</div>
+                    <div class="cbb-hint">CopilotBB agent can run tools inline (files live in this chat's workspace until deleted) · Check important info</div>
                 </div></div>
             </div>
             <div class="cbb-set hidden"><div class="cbb-panel"></div></div>
@@ -375,14 +855,28 @@ const CopilotButBetter = (() => {
         }
 
         function persist() {
-            saveConvs(convs);
+            // Image bytes (analyze results) stay in memory for the next model
+            // turn only — never persist base64 into localStorage.
+            try {
+                saveConvs(convs.map(c => ({
+                    ...c,
+                    messages: c.messages.map(m => {
+                        if (!m.images) return m;
+                        const copy = { ...m };
+                        delete copy.images;
+                        return copy;
+                    })
+                })));
+            } catch (e) {
+                try { saveConvs(convs); } catch (e2) { /* noop */ }
+            }
         }
 
         // ---------- sidebar ----------
         function renderSidebar(filter) {
             const q = (filter || '').toLowerCase();
             const items = convs.filter(c => !q || (c.title || '').toLowerCase().includes(q) ||
-                c.messages.some(m => m.content.toLowerCase().includes(q)));
+                c.messages.some(m => String(m.content || '').toLowerCase().includes(q)));
             if (!items.length) {
                 listEl.innerHTML = `<div style="padding:18px 12px;color:#8e8e8e;font-size:12.5px;text-align:center;">${q ? 'No matches.' : 'No conversations yet.<br>Start a new chat ✦'}</div>`;
                 return;
@@ -419,8 +913,9 @@ const CopilotButBetter = (() => {
         }
 
         async function deleteConv(id) {
-            const ok = await Popup.confirm('Delete chat', 'Delete this conversation permanently?');
+            const ok = await Popup.confirm('Delete chat', 'Delete this conversation and its workspace files permanently?');
             if (!ok) return;
+            deleteWorkspace(id);
             convs = convs.filter(c => c.id !== id);
             if (activeId === id) activeId = convs.length ? convs[0].id : null;
             persist(); renderAll();
@@ -452,11 +947,28 @@ const CopilotButBetter = (() => {
             }
             colEl.innerHTML = c.messages.map((m, i) => {
                 if (m.role === 'user') {
-                    return `<div class="cbb-row user"><div class="cbb-ubub">${esc(m.content)}</div></div>`;
+                    const chips = Array.isArray(m.attachments) && m.attachments.length
+                        ? `<div style="margin-top:6px;">${m.attachments.map(a => `<span class="cbb-filechip">📎 ${esc(a)}</span>`).join('')}</div>` : '';
+                    return `<div class="cbb-row user"><div class="cbb-ubub">${esc(m.content)}${chips}</div></div>`;
+                }
+                if (m.role === 'tool') {
+                    const ok = m.status !== 'failed';
+                    return `<div class="cbb-row"><div class="cbb-avatar">🔧</div><div class="cbb-abub">` +
+                        `<div class="cbb-tool"><div class="cbb-tool-head"><span class="dot"></span><span>🔧 ${esc(m.tool || 'tool')}</span>` +
+                        `<span class="st ${ok ? 'ok' : 'bad'}">${ok ? 'success' : 'failed'}</span></div>` +
+                        `<pre>${esc(truncateOut(m.content || '', 2000))}</pre></div>` +
+                        `</div></div>`;
                 }
                 const errCls = m.error ? ' error' : '';
+                const tc = parseToolCall(m.content || '');
+                const bodyText = stripToolCall(m.content || '');
+                let toolHtml = '';
+                if (tc && !tc.parseError) {
+                    toolHtml = `<div class="cbb-tool"><div class="cbb-tool-head"><span class="dot"></span><span>🔧 ${esc(tc.tool)}</span>` +
+                        `<span class="st run">toolcall</span></div><pre>${esc(truncateOut(JSON.stringify(tc.args, null, 2), 1500))}</pre></div>`;
+                }
                 return `<div class="cbb-row"><div class="cbb-avatar">✦</div><div class="cbb-abub${errCls}">` +
-                    `${renderMarkdown(m.content)}` +
+                    `${renderMarkdown(bodyText)}${toolHtml}` +
                     `<div class="cbb-msgacts"><button data-copy="${i}">⧉ Copy</button>` +
                     `<button data-mem="${i}">✦ Remember</button></div></div></div>`;
             }).join('');
@@ -529,11 +1041,54 @@ const CopilotButBetter = (() => {
             sendBtn.style.display = 'none'; stopBtn.style.display = '';
             persist(); renderAll();
             try {
-                const history = c.messages;
-                const reply = await callGemini(settings, history);
-                if (stopFlag) return;
-                c.messages.push({ role: 'assistant', content: reply, time: Date.now() });
-                c.updatedAt = Date.now();
+                ensureWorkspace(c.id);
+                const agentOn = settings.agentMode !== false;
+                let turns = 0;
+                for (;;) {
+                    if (stopFlag) return;
+                    turns++;
+                    const reply = await callGemini(settings, c.messages);
+                    if (stopFlag) return;
+                    const tc = agentOn ? parseToolCall(reply) : null;
+                    if (tc && tc.parseError) {
+                        c.messages.push({ role: 'assistant', content: reply, time: Date.now() });
+                        c.messages.push({ role: 'tool', tool: 'parse', status: 'failed', content: `Tool call JSON parse failed: ${tc.parseError}\nRaw:\n${truncateOut(tc.raw, 1000)}`, time: Date.now() });
+                        c.updatedAt = Date.now();
+                        persist(); renderAll();
+                        continue;
+                    }
+                    if (!tc) {
+                        c.messages.push({ role: 'assistant', content: reply, time: Date.now() });
+                        c.updatedAt = Date.now();
+                        break;
+                    }
+                    // Tool turn: keep the assistant message (with its explanation),
+                    // run the tool, feed the result back for another model turn.
+                    c.messages.push({ role: 'assistant', content: reply, time: Date.now(), toolcall: { tool: tc.tool, args: tc.args } });
+                    persist(); renderAll();
+                    if (turns >= MAX_AGENT_TURNS) {
+                        c.messages.push({ role: 'tool', tool: tc.tool, status: 'failed', content: `Stopped: max ${MAX_AGENT_TURNS} tool turns reached. Answer with what you have.`, time: Date.now() });
+                        persist(); renderAll();
+                        continue;
+                    }
+                    let result;
+                    try {
+                        result = await executeTool(c.id, tc.tool, tc.args);
+                    } catch (e) {
+                        result = { ok: false, output: `Tool ${tc.tool} crashed: ${e && e.message || e}`, images: [] };
+                    }
+                    if (stopFlag) return;
+                    const status = result.ok ? 'success' : 'failed';
+                    const out = truncateOut(result.output || '', TOOL_OUTPUT_LIMIT);
+                    c.messages.push({
+                        role: 'tool', tool: tc.tool, status,
+                        content: `[TOOL RESULT status=${status} tool=${tc.tool}]\n${out}`,
+                        images: result.images && result.images.length ? result.images : undefined,
+                        time: Date.now()
+                    });
+                    c.updatedAt = Date.now();
+                    persist(); renderAll();
+                }
             } catch (e) {
                 if (!stopFlag) {
                     c.messages.push({ role: 'assistant', content: `⚠️ **Request failed:** ${e.message}`, time: Date.now(), error: true });
@@ -568,6 +1123,14 @@ const CopilotButBetter = (() => {
                     <label>Max output tokens</label>
                     <select class="s-max"><option ${s.maxTokens === 1024 ? 'selected' : ''}>1024</option><option ${s.maxTokens === 2048 ? 'selected' : ''}>2048</option><option ${s.maxTokens === 4096 ? 'selected' : ''}>4096</option><option ${s.maxTokens === 8192 ? 'selected' : ''}>8192</option></select>
                     <label class="cbb-toggle" style="margin-top:10px;">Send with Enter (Shift+Enter = newline)<input type="checkbox" class="s-enter" ${s.enterToSend ? 'checked' : ''}></label>
+                    <label class="cbb-toggle" style="margin-top:10px;">Agent mode — let the model call tools inline (datetime, powershell, cmd, write, read, edit, grep, websearch, webfetch, analyze)<input type="checkbox" class="s-agent" ${s.agentMode !== false ? 'checked' : ''}></label>
+                </div>
+                <div class="cbb-sec"><h3>Agent workspace</h3>
+                    <div style="font-size:12.5px;color:#a8a8a8;">Each conversation gets its own temp folder (deleted with the chat). Attach files with 📎 or let the agent write/read/edit there.</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+                        <button class="cbb-mini s-wslist">List active chat files</button>
+                    </div>
+                    <div class="s-wsout" style="font-size:12px;color:#c9c9c9;margin-top:8px;font-family:Consolas,monospace;white-space:pre-wrap;"></div>
                 </div>
                 <div class="cbb-sec"><h3>Memory</h3>
                     <label class="cbb-toggle">Long-term memory (facts are sent with every request)<input type="checkbox" class="s-memon" ${s.memoryEnabled ? 'checked' : ''}></label>
@@ -615,7 +1178,18 @@ const CopilotButBetter = (() => {
             panel.querySelector('.s-export').addEventListener('click', () => exportChats());
             panel.querySelector('.s-clear').addEventListener('click', async () => {
                 const ok = await Popup.confirm('Delete all chats', 'Permanently delete every conversation?');
-                if (ok) { convs = []; activeId = null; persist(); renderAll(); renderSettings(); }
+                if (ok) {
+                    for (const cc of convs) deleteWorkspace(cc.id);
+                    convs = []; activeId = null; persist(); renderAll(); renderSettings();
+                }
+            });
+            panel.querySelector('.s-wslist').addEventListener('click', () => {
+                const cc = getActive();
+                const out = panel.querySelector('.s-wsout');
+                if (!cc) { out.textContent = 'No active chat.'; return; }
+                const ws = ensureWorkspace(cc.id);
+                const files = walkWorkspaceFiles(ws);
+                out.textContent = files.length ? `Workspace of "${cc.title || 'New chat'}" (${files.length}):\n` + files.join('\n') : 'Workspace is empty. Attach files with 📎 or ask the agent to write some.';
             });
             panel.querySelector('.s-close').addEventListener('click', () => setWrap.classList.add('hidden'));
             panel.querySelector('.s-save').addEventListener('click', () => {
@@ -630,6 +1204,7 @@ const CopilotButBetter = (() => {
                     maxTokens: parseInt(panel.querySelector('.s-max').value, 10) || 2048,
                     enterToSend: panel.querySelector('.s-enter').checked,
                     memoryEnabled: panel.querySelector('.s-memon').checked,
+                    agentMode: panel.querySelector('.s-agent').checked,
                     accent: selAcc ? selAcc.dataset.acc : settings.accent,
                     glass: parseFloat(panel.querySelector('.s-glass').value)
                 };
@@ -676,6 +1251,51 @@ const CopilotButBetter = (() => {
         });
         sendBtn.addEventListener('click', send);
         stopBtn.addEventListener('click', () => { stopFlag = true; });
+
+        // ---------- attachments -> conversation workspace (for analyze) ----------
+        const attachBtn = el.querySelector('.cbb-attach');
+        const fileInput = el.querySelector('.cbb-fileinput');
+        if (attachBtn && fileInput) {
+            attachBtn.addEventListener('click', () => {
+                let cc = getActive();
+                if (!cc) {
+                    cc = { id: uid(), title: 'New chat', createdAt: Date.now(), updatedAt: Date.now(), messages: [] };
+                    convs.unshift(cc); activeId = cc.id; persist(); renderAll();
+                }
+                ensureWorkspace(cc.id);
+                fileInput.click();
+            });
+            fileInput.addEventListener('change', async () => {
+                const cc = getActive();
+                if (!cc || !fileInput.files || !fileInput.files.length) { fileInput.value = ''; return; }
+                const ws = ensureWorkspace(cc.id);
+                const names = [];
+                for (const f of Array.from(fileInput.files).slice(0, 5)) {
+                    const safe = String(f.name || 'attachment').replace(/[\\/:*?"<>|]/g, '_').slice(0, 80) || 'attachment';
+                    try {
+                        if ((f.type || '').startsWith('text/') || /json|javascript|xml|csv|markdown/.test(f.type || '') || f.size < 200000) {
+                            const txt = await f.text().catch(() => null);
+                            if (txt != null && txt.length < 500000) {
+                                const full = resolveWorkspacePath(ws, safe);
+                                if (FileSystem.itemExists(full)) FileSystem.writeFile(full, txt);
+                                else FileSystem.createFile(full.slice(0, -1), safe, txt, safe.includes('.') ? safe.split('.').pop() : '');
+                                names.push(safe);
+                                continue;
+                            }
+                        }
+                        const ok = await FileSystem.writeFileBlob(ws, safe, f, safe.includes('.') ? safe.split('.').pop() : '').catch(() => false);
+                        if (ok) names.push(safe);
+                    } catch (e) { /* skip file */ }
+                }
+                fileInput.value = '';
+                if (names.length) {
+                    cc.messages.push({ role: 'user', content: `Attached ${names.length} file(s) to the workspace: ${names.join(', ')}. Use the analyze tool on them when relevant.`, attachments: names, time: Date.now() });
+                    cc.updatedAt = Date.now();
+                    persist(); renderAll();
+                    Notifications.info('Files attached', names.join(', '), { appId: APP_ID });
+                }
+            });
+        }
 
         // Mouse-reactive layer: ambient glow follows the cursor, spotlights light up
         // the hovered bubble/card/composer, hero logo + suggestion cards tilt in 3D.
