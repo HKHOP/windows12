@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4886] - 2026-09-14
+
+### Added
+- Solar Spacer: Collision explosion particle bursts when planets swallow each other, gravitational tidal plasma stream particles between massive objects/galaxies, audio sound effects on collisions, and Galaxy Collision preset
+
 ## [12.0.4885] - 2026-09-14
 
 ### Added
