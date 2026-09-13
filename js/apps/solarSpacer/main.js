@@ -159,15 +159,24 @@ const SolarSpacer = (() => {
 
         loadPreset('solar');
 
+        const container = canvas.parentElement;
         function resizeCanvas() {
-            const rect = canvas.getBoundingClientRect();
-            if (rect.width && rect.height) {
-                canvas.width = rect.width;
-                canvas.height = rect.height;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            if (w && h && (canvas.width !== w || canvas.height !== h)) {
+                canvas.width = w;
+                canvas.height = h;
             }
         }
         resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
+        const observer = new ResizeObserver(() => {
+            if (!el.isConnected) {
+                observer.disconnect();
+                return;
+            }
+            resizeCanvas();
+        });
+        observer.observe(container);
 
         // UI Controls wiring
         const playBtn = el.querySelector('.ss-play-btn');
@@ -531,7 +540,7 @@ const SolarSpacer = (() => {
 
         WindowManager.setCloseHandler('solarSpacer', () => {
             cancelAnimationFrame(animId);
-            window.removeEventListener('resize', resizeCanvas);
+            observer.disconnect();
             return true;
         });
     }

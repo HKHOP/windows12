@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4884] - 2026-09-14
+
+### Fixed
+- Solar Spacer canvas sizing when resizing the app window now uses ResizeObserver to smoothly adapt without distorting or breaking the simulation viewport
+
 ## [12.0.4883] - 2026-09-14
 
 ### Changed
