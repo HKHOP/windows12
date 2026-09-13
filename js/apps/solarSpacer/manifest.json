@@ -1,0 +1,35 @@
+{
+    "manifestVersion": 1,
+    "id": "solarSpacer",
+    "uuid": "7f9b3c21-8a4e-4d12-9c10-2f8a3e7b1a6c",
+    "name": "Solar Spacer",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Education",
+        "rating": "4.8",
+        "reviews": "412",
+        "description": "An interactive orbital gravity and planet simulation sandbox. Learn how gravity, velocity, and mass shape planetary orbits and solar systems.",
+        "features": [
+            "Interactive gravitational N-body simulation sandbox",
+            "Real-time orbit tracing and velocity vectors",
+            "Presets for inner planets, solar system, and binary stars",
+            "Educational guide on gravity, Kepler's laws, and orbital mechanics"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #0b0c10, #1f2833)",
+                "text": "Orbital Sandbox"
+            },
+            {
+                "bg": "linear-gradient(135deg, #1f2833, #0b0c10)",
+                "text": "Gravity Dynamics"
+            }
+        ],
+        "size": "4.5 MB",
+        "ageRating": "3+"
+    }
+}

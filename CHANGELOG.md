@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4881] - 2026-09-14
+
+### Added
+- Solar Spacer app — an interactive orbital gravity and planet simulation sandbox to learn how gravity, velocity, mass, and orbital mechanics keep planets and moons in motion (installable from the Microsoft Store)
+
 ## [12.0.4880] - 2026-09-14
 
 ### Fixed

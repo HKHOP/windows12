@@ -45,6 +45,7 @@ const urlsToCache = [
     './js/apps/sampleApp/main.js',
     './js/apps/settings/main.js',
     './js/apps/sledgePoint/main.js',
+    './js/apps/solarSpacer/main.js',
     './js/apps/taskManager/main.js',
     './js/apps/terminal/main.js',
     './js/apps/vscode/main.js',
