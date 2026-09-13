@@ -772,13 +772,17 @@ Available tools:
         .cbb-setfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:12px;}
         .cbb-link{color:var(--acc);font-size:12px;text-decoration:none;} .cbb-link:hover{text-decoration:underline;}
         .cbb-tool{margin-top:10px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.45);overflow:hidden;font-size:12.5px;}
-        .cbb-tool-head{display:flex;align-items:center;gap:8px;padding:7px 12px;background:rgba(255,255,255,.06);color:#ddd;font-family:Consolas,monospace;}
-        .cbb-tool-head .dot{width:8px;height:8px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc);}
-        .cbb-tool-head .st{margin-left:auto;font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid rgba(255,255,255,.2);}
-        .cbb-tool-head .st.ok{color:#7dffa8;border-color:rgba(125,255,168,.4);} .cbb-tool-head .st.bad{color:#ff9b9b;border-color:rgba(255,107,107,.5);}
-        .cbb-tool-head .st.run{color:#ffd97d;border-color:rgba(255,217,125,.5);}
+        .cbb-tool summary,.cbb-tool-head{display:flex;align-items:center;gap:8px;padding:7px 12px;background:rgba(255,255,255,.06);color:#ddd;font-family:Consolas,monospace;list-style:none;cursor:pointer;user-select:none;}
+        .cbb-tool summary::-webkit-details-marker{display:none;}
+        .cbb-tool summary::before{content:'▶';font-size:9px;color:#888;transition:transform .15s;}
+        .cbb-tool[open] summary::before{transform:rotate(90deg);}
+        .cbb-tool summary .dot,.cbb-tool-head .dot{width:8px;height:8px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc);}
+        .cbb-tool summary .st,.cbb-tool-head .st{margin-left:auto;font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid rgba(255,255,255,.2);}
+        .cbb-tool summary .st.ok,.cbb-tool-head .st.ok{color:#7dffa8;border-color:rgba(125,255,168,.4);}
+        .cbb-tool summary .st.bad,.cbb-tool-head .st.bad{color:#ff9b9b;border-color:rgba(255,107,107,.5);}
+        .cbb-tool summary .st.run,.cbb-tool-head .st.run{color:#ffd97d;border-color:rgba(255,217,125,.5);}
         .cbb-tool pre{margin:0;padding:10px 12px;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word;color:#cfcfcf;font-family:Consolas,monospace;font-size:12px;line-height:1.5;}
-        .cbb-toolres{margin-top:10px;border-radius:12px;border:1px dashed rgba(255,255,255,.2);background:rgba(255,255,255,.03);padding:8px 12px;font-size:12px;color:#bdbdbd;}
+        .cbb-toolres{margin:0;padding:8px 12px;border-top:1px solid rgba(255,255,255,.1);font-size:12px;color:#bdbdbd;}
         .cbb-toolres b{color:#eee;} .cbb-toolres pre{margin:6px 0 2px;max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-family:Consolas,monospace;font-size:11.5px;color:#cfcfcf;}
         .cbb-attach{width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;cursor:pointer;font-size:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
         .cbb-attach:hover{border-color:var(--acc);}
@@ -970,6 +974,7 @@ Available tools:
                         ? `<div style="margin-top:6px;">${m.attachments.map(a => `<span class="cbb-filechip">📎 ${esc(a)}</span>`).join('')}</div>` : '';
                     return `<div class="cbb-row user"><div class="cbb-ubub">${esc(m.content)}${chips}</div></div>`;
                 }
+                // Legacy standalone tool messages (backward compat)
                 if (m.role === 'tool') {
                     const ok = m.status !== 'failed';
                     return `<div class="cbb-row"><div class="cbb-avatar">🔧</div><div class="cbb-abub">` +
@@ -979,12 +984,21 @@ Available tools:
                         `</div></div>`;
                 }
                 const errCls = m.error ? ' error' : '';
-                const tc = parseToolCall(m.content || '');
+                const tc = m.toolcall || parseToolCall(m.content || '');
                 const bodyText = stripToolCall(m.content || '');
                 let toolHtml = '';
-                if (tc && !tc.parseError) {
-                    toolHtml = `<div class="cbb-tool"><div class="cbb-tool-head"><span class="dot"></span><span>🔧 ${esc(tc.tool)}</span>` +
-                        `<span class="st run">toolcall</span></div><pre>${esc(truncateOut(JSON.stringify(tc.args, null, 2), 1500))}</pre></div>`;
+                if (tc && tc.tool) {
+                    const tr = m.toolResult;
+                    const toolOk = tr && tr.status !== 'failed';
+                    const toolLabel = tr ? (toolOk ? 'success' : 'failed') : 'running…';
+                    const toolStClass = tr ? (toolOk ? 'ok' : 'bad') : 'run';
+                    // Collapsed toolcall + result block
+                    toolHtml = `<details class="cbb-tool" open>` +
+                        `<summary class="cbb-tool-head"><span class="dot"></span><span>🔧 ${esc(tc.tool)}</span>` +
+                        `<span class="st ${toolStClass}">${toolLabel}</span></summary>` +
+                        `<pre>${esc(truncateOut(JSON.stringify(tc.args, null, 2), 1500))}</pre>` +
+                        (tr ? `<div class="cbb-toolres"><b>Result:</b><pre>${esc(truncateOut(tr.output || '', 2000))}</pre></div>` : '') +
+                        `</details>`;
                 }
                 return `<div class="cbb-row"><div class="cbb-avatar">✦</div><div class="cbb-abub${errCls}">` +
                     `${renderMarkdown(bodyText)}${toolHtml}` +
@@ -1086,7 +1100,10 @@ Available tools:
                     c.messages.push({ role: 'assistant', content: reply, time: Date.now(), toolcall: { tool: tc.tool, args: tc.args } });
                     persist(); renderAll();
                     if (turns >= MAX_AGENT_TURNS) {
-                        c.messages.push({ role: 'tool', tool: tc.tool, status: 'failed', content: `Stopped: max ${MAX_AGENT_TURNS} tool turns reached. Answer with what you have.`, time: Date.now() });
+                        const last = c.messages[c.messages.length - 1];
+                        if (last && last.role === 'assistant') {
+                            last.toolResult = { status: 'failed', output: `Stopped: max ${MAX_AGENT_TURNS} tool turns reached. Answer with what you have.` };
+                        }
                         persist(); renderAll();
                         continue;
                     }
@@ -1099,12 +1116,12 @@ Available tools:
                     if (stopFlag) return;
                     const status = result.ok ? 'success' : 'failed';
                     const out = truncateOut(result.output || '', TOOL_OUTPUT_LIMIT);
-                    c.messages.push({
-                        role: 'tool', tool: tc.tool, status,
-                        content: `[TOOL RESULT status=${status} tool=${tc.tool}]\n${out}`,
-                        images: result.images && result.images.length ? result.images : undefined,
-                        time: Date.now()
-                    });
+                    // Attach result to the assistant message instead of a separate bubble
+                    const lastMsg = c.messages[c.messages.length - 1];
+                    if (lastMsg && lastMsg.role === 'assistant') {
+                        lastMsg.toolResult = { status, output: out };
+                        if (result.images && result.images.length) lastMsg.images = result.images;
+                    }
                     c.updatedAt = Date.now();
                     persist(); renderAll();
                 }

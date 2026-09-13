@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4873] - 2026-09-13
+
+### Changed
+- CopilotBB toolcalls now collapse by default — click the ▶ arrow to expand/collapse tool args and results
+- CopilotBB tool results are merged into the same assistant message bubble instead of separate standalone tool messages
+
 ## [12.0.4872] - 2026-09-13
 
 ### Fixed
