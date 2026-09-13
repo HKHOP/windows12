@@ -48,62 +48,156 @@ const Terminal = (() => {
             promptEl.textContent = getPrompt();
         }
 
+        function escHtml(s) {
+            return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function stripQuotes(s) {
+            const t = String(s ?? '').trim();
+            if (t.length >= 2 && ((t[0] === '"' && t[t.length - 1] === '"') || (t[0] === "'" && t[t.length - 1] === "'"))) {
+                return t.slice(1, -1);
+            }
+            return t;
+        }
+
+        // Split on whitespace, respecting single/double quotes.
+        function splitTokens(text) {
+            const out = [];
+            let cur = '';
+            let q = null;
+            for (const ch of String(text ?? '')) {
+                if (q) {
+                    if (ch === q) q = null;
+                    else cur += ch;
+                } else if (ch === '"' || ch === "'") {
+                    q = ch;
+                } else if (/\s/.test(ch)) {
+                    if (cur) { out.push(cur); cur = ''; }
+                } else {
+                    cur += ch;
+                }
+            }
+            if (cur) out.push(cur);
+            return out;
+        }
+
+        // First whitespace-separated token + the verbatim remainder.
+        function splitFirst(text) {
+            const s = String(text ?? '');
+            let i = 0;
+            while (i < s.length && /\s/.test(s[i])) i++;
+            let first = '';
+            if (s[i] === '"' || s[i] === "'") {
+                const q = s[i++];
+                const start = i;
+                while (i < s.length && s[i] !== q) i++;
+                first = s.slice(start, i);
+                if (s[i] === q) i++;
+            } else {
+                const start = i;
+                while (i < s.length && !/\s/.test(s[i])) i++;
+                first = s.slice(start, i);
+            }
+            return { first, rest: s.slice(i).replace(/^\s+/, '') };
+        }
+
         function print(text) {
-            output.textContent += text + '\n';
+            for (const ln of String(text ?? '').split('\n')) {
+                const div = document.createElement('div');
+                div.textContent = ln;
+                output.appendChild(div);
+            }
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function printHTML(html) {
+            const div = document.createElement('div');
+            div.innerHTML = html;
+            output.appendChild(div);
             output.scrollTop = output.scrollHeight;
         }
 
         function resolvePath(input) {
-            if (!input) return [...cwd];
+            let s = stripQuotes(input);
+            if (!s || s === '~') return [...HOME];
+            s = s.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '');
             let parts;
-            if (input.startsWith('/')) {
-                parts = input.split('/').filter(Boolean);
-            } else if (input.startsWith('~/')) {
-                parts = [...HOME.slice(1), ...input.slice(2).split('/').filter(Boolean)];
+            if (s.startsWith('/')) {
+                parts = s.split('/').filter(Boolean);
+            } else if (s === '~' || s.startsWith('~/')) {
+                parts = [...HOME.slice(1), ...s.slice(2).split('/').filter(Boolean)];
             } else {
-                parts = [...cwd.slice(1), ...input.split('/').filter(Boolean)];
+                parts = [...cwd.slice(1), ...s.split('/').filter(Boolean)];
             }
 
             const resolved = [];
             for (const part of parts) {
-                if (part === '.') continue;
+                if (part === '.' || part === '') continue;
                 if (part === '..') { resolved.pop(); continue; }
                 resolved.push(part);
             }
             return ['/', ...resolved];
         }
 
-        function formatEntry(entry) {
-            const isDir = entry.type === 'folder';
-            const name = isDir ? entry.name + '/' : entry.name;
-            const color = isDir ? '#569CD6' : '#CCCCCC';
-            return `<span style="color:${color}">${name}</span>`;
+        // Create every missing folder along targetDir (array path). Returns bool.
+        function ensureParents(targetDir) {
+            let cur = ['/'];
+            for (const seg of targetDir.slice(1)) {
+                const next = [...cur, seg];
+                if (!FileSystem.itemExists(next)) {
+                    if (!FileSystem.createFolder(cur, seg)) return false;
+                } else if (!FileSystem.isFolder(next)) {
+                    return false;
+                }
+                cur = next;
+            }
+            return true;
         }
+
+        function clearOutput() {
+            output.innerHTML = '';
+        }
+
+        const BATCH_COMMANDS = ['type', 'copy', 'xcopy', 'move', 'del', 'erase', 'ren', 'rename', 'md', 'mkdir', 'rd', 'rmdir', 'dir', 'set', 'if', 'for', 'call', 'goto', 'exit', 'shift', 'pause', 'title', 'color', 'timeout', 'choice', 'pushd', 'popd', 'path', 'prompt', 'vol', 'date', 'time', 'tree', 'find', 'sort', 'more', 'fc', 'where', 'chcp', 'ver', 'systeminfo', 'ping', 'ipconfig', 'help', 'cls', 'echo'];
 
         const commands = {
             help() {
-                print('Available commands:');
+                print('Terminal commands:');
                 print('  help              Show this help message');
-                print('  ls / dir          List directory contents');
-                print('  cd <path>         Change directory');
+                print('  ls [path]         List directory contents');
+                print('  dir               Same as ls (supports DIR switches via CMD fallback)');
+                print('  cd <path>         Change directory (cd.., cd\\ and quotes supported)');
                 print('  pwd               Print working directory');
                 print('  cat <file>        Display file contents');
-                print('  echo <text>       Print text');
-                print('  mkdir <name>      Create a directory');
-                print('  touch <name>      Create an empty file');
+                print('  echo <text>       Print text (echo hi > file works too)');
+                print('  mkdir <dir...>    Create directories (nested paths ok)');
+                print('  touch <file>      Create an empty file');
                 print('  write <file> <text>  Write text to a file');
-                print('  rm <path>         Delete file or folder');
+                print('  rm [-r] <path>    Delete file or folder (-r for folders)');
                 print('  rename <old> <new>   Rename a file or folder');
-                print('  run <file.bat>    Run a batch script');
-                print('  clear             Clear the terminal');
+                print('  run <file>        Run a .bat/.cmd/.vbs script');
+                print('  script.bat args   Run a batch script directly');
+                print('  clear | cls       Clear the terminal');
                 print('  history           Show command history');
                 print('  whoami            Show current user');
                 print('  date              Show current date/time');
                 print('  neofetch          Show system info');
+                print('  exit              Close the terminal');
+                print('');
+                print('Anything else (copy, move, del, type, find, sort, set, ... and');
+                print('batch operators & && || | > >> <) runs through the CMD engine.');
+                print('Tip: Tab completes names, Up/Down browses history.');
             },
 
-            ls() {
-                const children = FileSystem.getChildren(cwd);
+            ls(args) {
+                const toks = splitTokens(args || '').filter(t => !t.startsWith('-'));
+                const target = toks.length ? resolvePath(toks[0]) : [...cwd];
+                if (!FileSystem.isFolder(target)) {
+                    print(`ls: cannot access '${toks[0]}': No such directory`);
+                    return;
+                }
+                const children = FileSystem.getChildren(target);
                 if (children.length === 0) {
                     print('(empty directory)');
                     return;
@@ -112,24 +206,34 @@ const Terminal = (() => {
                     const isDir = e.type === 'folder';
                     const name = isDir ? e.name + '/' : e.name;
                     const color = isDir ? '#569CD6' : '#D4D4D4';
-                    return `<span style="color:${color}">${name}</span>`;
+                    return `<span style="color:${color}">${escHtml(name)}</span>`;
                 });
-                print(lines.join('  '));
+                printHTML(lines.join('  '));
             },
 
-            dir() { commands.ls(); },
+            dir(args) {
+                if (args && /[/-]/.test(args[0])) runFallback('dir ' + args);
+                else commands.ls(args);
+            },
 
             cd(args) {
-                if (!args || args === '~') {
+                const raw = stripQuotes(args || '');
+                if (!raw || raw === '~') {
                     cwd = [...HOME];
                     updatePrompt();
                     return;
                 }
-                if (args === '-') {
+                if (raw === '-') {
                     print('cd: OLDPWD not set');
                     return;
                 }
-                const target = resolvePath(args);
+                const low = raw.toLowerCase();
+                if (low === '/d') return;
+                if (low.startsWith('/d ')) {
+                    commands.cd(raw.slice(3));
+                    return;
+                }
+                const target = resolvePath(raw);
                 if (!FileSystem.isFolder(target)) {
                     print(`cd: no such file or directory: ${args}`);
                     return;
@@ -139,81 +243,115 @@ const Terminal = (() => {
             },
 
             pwd() {
-                print(cwd.join('/'));
+                print('/' + cwd.slice(1).join('/'));
             },
 
             cat(args) {
-                if (!args) { print('cat: missing file operand'); return; }
-                const target = resolvePath(args);
-                const node = FileSystem.getNode(target);
-                if (!node) { print(`cat: ${args}: No such file or directory`); return; }
-                if (node.type === 'folder') { print(`cat: ${args}: Is a directory`); return; }
-                const content = FileSystem.readFile(target);
-                print(content !== null ? content : '(empty file)');
+                const toks = splitTokens(args || '');
+                if (!toks.length) { print('cat: missing file operand'); return; }
+                for (const name of toks) {
+                    const target = resolvePath(name);
+                    const node = FileSystem.getNode(target);
+                    if (!node) { print(`cat: ${name}: No such file or directory`); continue; }
+                    if (node.type === 'folder') { print(`cat: ${name}: Is a directory`); continue; }
+                    if (FileSystem.isBlobFile(target)) { print(`cat: ${name}: binary file, cannot display as text`); continue; }
+                    const content = FileSystem.readFile(target);
+                    print(content !== null && content !== undefined ? content : '(empty file)');
+                }
             },
 
             echo(args) {
-                if (args === undefined) { print(''); return; }
-                let text = args;
-                if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'"))) {
-                    text = text.slice(1, -1);
-                }
-                print(text);
+                if (args === undefined || args === '') { print(''); return; }
+                print(stripQuotes(args));
             },
 
             mkdir(args) {
-                if (!args) { print('mkdir: missing operand'); return; }
-                const name = args.trim().split('/').filter(Boolean).pop();
-                const parentPath = resolvePath(args.includes('/') ? args.substring(0, args.lastIndexOf('/')) : '.');
-                const ok = FileSystem.createFolder(parentPath, name);
-                if (!ok) print(`mkdir: cannot create directory '${args}': File exists or invalid path`);
+                const toks = splitTokens(args || '');
+                if (!toks.length) { print('mkdir: missing operand'); return; }
+                for (const name of toks) {
+                    const target = resolvePath(name);
+                    if (FileSystem.itemExists(target)) {
+                        print(`mkdir: cannot create directory '${name}': File exists`);
+                        continue;
+                    }
+                    if (!ensureParents(target)) print(`mkdir: cannot create directory '${name}': Invalid path`);
+                }
             },
 
             touch(args) {
-                if (!args) { print('touch: missing file operand'); return; }
-                const name = args.trim().split('/').filter(Boolean).pop();
-                const parentPath = resolvePath(args.includes('/') ? args.substring(0, args.lastIndexOf('/')) : '.');
-                if (FileSystem.itemExists(resolvePath(args))) return;
-                const ext = name.includes('.') ? name.split('.').pop() : '';
-                const ok = FileSystem.createFile(parentPath, name, '', ext);
-                if (!ok) print(`touch: cannot create file '${args}': File exists or invalid path`);
+                const toks = splitTokens(args || '');
+                if (!toks.length) { print('touch: missing file operand'); return; }
+                for (const name of toks) {
+                    const target = resolvePath(name);
+                    if (FileSystem.itemExists(target)) continue;
+                    if (!ensureParents(target.slice(0, -1))) {
+                        print(`touch: cannot create file '${name}': Invalid path`);
+                        continue;
+                    }
+                    const leaf = target[target.length - 1];
+                    const ext = leaf.includes('.') ? leaf.split('.').pop() : '';
+                    if (!FileSystem.createFile(target.slice(0, -1), leaf, '', ext)) {
+                        print(`touch: cannot create file '${name}': File exists or invalid path`);
+                    }
+                }
             },
 
             write(args) {
                 if (!args) { print('write: usage: write <file> <text>'); return; }
-                const spaceIdx = args.indexOf(' ');
-                if (spaceIdx === -1) { print('write: usage: write <file> <text>'); return; }
-                const filePath = args.substring(0, spaceIdx);
-                const content = args.substring(spaceIdx + 1);
-                const target = resolvePath(filePath);
+                const { first, rest } = splitFirst(args);
+                if (!first || !rest) { print('write: usage: write <file> <text>'); return; }
+                const target = resolvePath(first);
+                if (!ensureParents(target.slice(0, -1))) {
+                    print(`write: cannot write '${first}': Invalid path`);
+                    return;
+                }
                 if (!FileSystem.itemExists(target)) {
-                    const name = filePath.split('/').filter(Boolean).pop();
-                    const parentPath = resolvePath(filePath.includes('/') ? filePath.substring(0, filePath.lastIndexOf('/')) : '.');
-                    const ext = name.includes('.') ? name.split('.').pop() : '';
-                    FileSystem.createFile(parentPath, name, content, ext);
+                    const leaf = target[target.length - 1];
+                    const ext = leaf.includes('.') ? leaf.split('.').pop() : '';
+                    FileSystem.createFile(target.slice(0, -1), leaf, rest, ext);
                 } else {
-                    FileSystem.writeFile(target, content);
+                    FileSystem.writeFile(target, rest);
                 }
             },
 
             rm(args) {
-                if (!args) { print('rm: missing operand'); return; }
-                const target = resolvePath(args);
-                if (!FileSystem.itemExists(target)) { print(`rm: ${args}: No such file or directory`); return; }
-                FileSystem.deleteItem(target);
+                const toks = splitTokens(args || '');
+                if (!toks.length) { print('rm: missing operand'); return; }
+                let recursive = false;
+                const paths = [];
+                for (const t of toks) {
+                    if (/^(-r(f)?|--recursive|\/s)$/i.test(t)) recursive = true;
+                    else paths.push(t);
+                }
+                if (!paths.length) { print('rm: missing operand'); return; }
+                for (const p of paths) {
+                    const target = resolvePath(p);
+                    if (!FileSystem.itemExists(target)) { print(`rm: ${p}: No such file or directory`); continue; }
+                    const node = FileSystem.getNode(target);
+                    if (node && node.type === 'folder') {
+                        const kids = FileSystem.getChildren(target);
+                        if (kids.length && !recursive) { print(`rm: ${p}: is a directory (use rm -r)`); continue; }
+                    }
+                    FileSystem.deleteItem(target);
+                }
             },
 
             rename(args) {
-                if (!args) { print('rename: usage: rename <old> <new>'); return; }
-                const parts = args.split(/\s+/);
-                if (parts.length < 2) { print('rename: usage: rename <old> <new>'); return; }
-                const oldPath = resolvePath(parts[0]);
-                const ok = FileSystem.renameItem(oldPath, parts[1]);
-                if (!ok) print(`rename: cannot rename '${parts[0]}' to '${parts[1]}'`);
+                const toks = splitTokens(args || '');
+                if (toks.length < 2) { print('rename: usage: rename <old> <new>'); return; }
+                const oldPath = resolvePath(toks[0]);
+                const ok = FileSystem.renameItem(oldPath, toks[1].split('/').pop().split('\\').pop());
+                if (!ok) print(`rename: cannot rename '${toks[0]}' to '${toks[1]}'`);
             },
 
             clear() {
-                output.textContent = '';
+                output.innerHTML = '';
+            },
+
+            cls() { commands.clear(); },
+
+            exit() {
+                WindowManager.closeWindow(win.id);
             },
 
             history() {
@@ -232,12 +370,13 @@ const Terminal = (() => {
                 const user = SystemConfig.get('userName');
                 const w = window.innerWidth;
                 const h = window.innerHeight;
-                print(`<span style="color:#569CD6">        _____</span>         <span style="color:#569CD6">${user}</span>@<span style="color:#569CD6">PC</span>`);
-                print(`<span style="color:#569CD6">       /     \\</span>        ----------------`);
-                print(`<span style="color:#569CD6">      | () () |</span>       <span style="color:#569CD6">OS:</span> Windows 12`);
-                print(`<span style="color:#569CD6">      |  ___  |</span>       <span style="color:#569CD6">Resolution:</span> ${w}x${h}`);
-                print(`<span style="color:#569CD6">      |       |</span>       <span style="color:#569CD6">Shell:</span> Terminal`);
-                print(`<span style="color:#569CD6">       \\_____/</span>        <span style="color:#569CD6">Theme:</span> ${SystemConfig.get('darkMode') ? 'Dark' : 'Light'}`);
+                const theme = SystemConfig.get('darkMode') ? 'Dark' : 'Light';
+                const art = ['        _____', '       /     \\', '      | () () |', '      |  ___  |', '      |       |', '       \\_____/'];
+                const info = [`${user}@PC`, '----------------', 'OS: Windows 12', `Resolution: ${w}x${h}`, 'Shell: Terminal', `Theme: ${theme}`];
+                printHTML(art.map((a, i) => {
+                    const label = escHtml(info[i]);
+                    return `<span style="color:#569CD6">${a}</span>         ${label}`;
+                }).join('<br>'));
             }
         };
 
@@ -259,18 +398,19 @@ const Terminal = (() => {
             }
 
             let lastTitle = null;
+            const ESC = String.fromCharCode(27);
             const batchPrint = (text) => {
-                if (text === '\x1BCLS') {
-                    output.textContent = '';
+                if (text === ESC + 'CLS') {
+                    clearOutput();
                     return;
                 }
-                if (text && text.startsWith('\x1BTITLE:')) {
-                    lastTitle = text.substring(7);
+                if (text && text.startsWith(ESC + 'TITLE:')) {
+                    lastTitle = text.substring((ESC + 'TITLE:').length);
                     const titleEl = el.querySelector('.window-title');
                     if (titleEl) titleEl.textContent = lastTitle;
                     return;
                 }
-                if (text && text.startsWith('\x1BCOLOR:')) {
+                if (text && text.startsWith(ESC + 'COLOR:')) {
                     return;
                 }
                 print(text);
@@ -302,8 +442,8 @@ const Terminal = (() => {
             }
 
             const vbsPrint = (text) => {
-                if (text === '\x1BCLS') {
-                    output.textContent = '';
+                if (text === String.fromCharCode(27) + 'CLS') {
+                    clearOutput();
                     return;
                 }
                 print(text);
@@ -317,6 +457,27 @@ const Terminal = (() => {
             updatePrompt();
         }
 
+        // Anything the Terminal doesn't implement itself runs through the
+        // real CMD engine, so copy/move/del/type/set/operators work here too.
+        function runFallback(line) {
+            const ESC = String.fromCharCode(27);
+            const fallbackPrint = (text) => {
+                if (text === ESC + 'CLS') { clearOutput(); return; }
+                if (text && text.startsWith(ESC + 'TITLE:')) {
+                    const titleEl = el.querySelector('.window-title');
+                    if (titleEl) titleEl.textContent = text.substring((ESC + 'TITLE:').length);
+                    return;
+                }
+                if (text && text.startsWith(ESC + 'COLOR:')) return;
+                print(text);
+            };
+            const engine = BatchEngine.create(fallbackPrint, () => [...cwd], (nc) => { cwd = nc; });
+            // "@" suppresses the engine's own echo — the Terminal already
+            // echoed the typed line above.
+            engine.run(line.startsWith('@') ? line : '@' + line);
+            updatePrompt();
+        }
+
         function execute(raw) {
             const trimmed = raw.trim();
             if (!trimmed) return;
@@ -324,35 +485,32 @@ const Terminal = (() => {
             history.push(trimmed);
             historyIdx = history.length;
 
-            const spaceIdx = trimmed.indexOf(' ');
-            let cmd, args;
-            if (spaceIdx === -1) {
-                cmd = trimmed.toLowerCase();
-                args = undefined;
-            } else {
-                cmd = trimmed.substring(0, spaceIdx).toLowerCase();
-                args = trimmed.substring(spaceIdx + 1);
-            }
+            // Keep the original case for paths; only the command word itself
+            // is matched case-insensitively.
+            const { first: rawCmd, rest } = splitFirst(trimmed);
+            const cmd = rawCmd.toLowerCase();
+            const args = rest || undefined;
+
+            // cd.. / cd\ without a space, like real CMD.
+            if (cmd === 'cd..') { commands.cd('..'); return; }
+            if (cmd === 'cd\\') { cwd = ['/']; updatePrompt(); return; }
 
             if (cmd.endsWith('.bat') || cmd.endsWith('.cmd')) {
-                const argParts = args ? args.split(/\s+/) : [];
-                runBatch(cmd, argParts);
+                runBatch(rawCmd, args ? splitTokens(args) : []);
                 return;
             }
 
             if (cmd.endsWith('.vbs') || cmd.endsWith('.vbe')) {
-                const argParts = args ? args.split(/\s+/) : [];
-                runVBS(cmd, argParts);
+                runVBS(rawCmd, args ? splitTokens(args) : []);
                 return;
             }
 
-            if (cmd === 'run' && args) {
-                const parts = args.split(/\s+/);
-                const scriptFile = parts[0];
-                const scriptArgs = parts.slice(1);
-                if (scriptFile.endsWith('.bat') || scriptFile.endsWith('.cmd')) {
-                    runBatch(scriptFile, scriptArgs);
-                } else if (scriptFile.endsWith('.vbs') || scriptFile.endsWith('.vbe')) {
+            if (cmd === 'run') {
+                if (!args) { print('run: usage: run <script.bat|script.vbs> [args]'); return; }
+                const { first: scriptFile, rest: scriptRest } = splitFirst(args);
+                const scriptArgs = scriptRest ? splitTokens(scriptRest) : [];
+                const low = scriptFile.toLowerCase();
+                if (low.endsWith('.vbs') || low.endsWith('.vbe')) {
                     runVBS(scriptFile, scriptArgs);
                 } else {
                     runBatch(scriptFile, scriptArgs);
@@ -360,12 +518,84 @@ const Terminal = (() => {
                 return;
             }
 
+            // "help <topic>" shows the CMD help for batch commands.
+            if (cmd === 'help' && args) { runFallback(trimmed); return; }
+
             const fn = commands[cmd];
-            if (fn) {
+            // Batch-native commands containing operators (& && || | > >> <)
+            // run through the real engine so chaining/redirection work.
+            if (fn && !(BATCH_COMMANDS.includes(cmd) && /[&|<>]/.test(trimmed))) {
                 fn(args);
             } else {
-                print(`${cmd}: command not found. Type 'help' for available commands.`);
+                runFallback(trimmed);
             }
+        }
+
+        function tabComplete() {
+            const val = input.value;
+            const endsWithSpace = /\s$/.test(val);
+            const trimmed = val.replace(/^\s+/, '');
+            const pieces = trimmed === '' ? [] : trimmed.split(/\s+/);
+            const completingCommand = pieces.length === 0 || (pieces.length === 1 && !endsWithSpace);
+
+            if (completingCommand) {
+                const frag = (pieces[0] || '').toLowerCase();
+                const names = [...new Set([...Object.keys(commands), ...BATCH_COMMANDS, 'run'])];
+                const hits = names.filter(n => n.startsWith(frag)).sort();
+                if (hits.length === 1) {
+                    input.value = (val.match(/^\s*/) || [''])[0] + hits[0] + ' ';
+                } else if (hits.length > 1) {
+                    const common = longestCommonPrefix(hits);
+                    if (common.length > frag.length) {
+                        input.value = (val.match(/^\s*/) || [''])[0] + common;
+                    } else {
+                        printHTML(`<span style="color:#8e8e8e">${hits.map(escHtml).join('  ')}</span>`);
+                    }
+                }
+                return;
+            }
+
+            // Path completion for the last fragment.
+            const rawFrag = endsWithSpace ? '' : pieces[pieces.length - 1];
+            const head = endsWithSpace ? val : val.slice(0, val.length - rawFrag.length);
+            const frag = stripQuotes(rawFrag).replace(/\\/g, '/');
+            const slash = frag.lastIndexOf('/');
+            let dir = [...cwd];
+            let base = frag;
+            let prefix = '';
+            if (slash >= 0) {
+                prefix = frag.slice(0, slash + 1);
+                base = frag.slice(slash + 1);
+                dir = resolvePath(frag.slice(0, slash) || '/');
+            }
+            if (!FileSystem.isFolder(dir)) return;
+            const kids = FileSystem.getChildren(dir) || [];
+            const hits = kids.filter(k => k.name.toLowerCase().startsWith(base.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name));
+            if (hits.length === 1) {
+                const done = prefix + hits[0].name + (hits[0].type === 'folder' ? '/' : (/\s/.test(hits[0].name) ? '' : ' '));
+                input.value = head + (/\s/.test(done) && !/^"/.test(rawFrag) ? `"${done.trimEnd()}"` + (done.endsWith(' ') ? ' ' : '') : done);
+            } else if (hits.length > 1) {
+                const names = hits.map(k => k.name);
+                const common = longestCommonPrefix(names);
+                if (common.length > base.length) {
+                    input.value = head + prefix + common;
+                } else {
+                    printHTML(hits.map(k => `<span style="color:${k.type === 'folder' ? '#569CD6' : '#D4D4D4'}">${escHtml(k.name + (k.type === 'folder' ? '/' : ''))}</span>`).join('  '));
+                }
+            }
+        }
+
+        function longestCommonPrefix(words) {
+            if (!words.length) return '';
+            let pre = words[0];
+            for (let i = 1; i < words.length; i++) {
+                let j = 0;
+                const a = pre.toLowerCase(), b = words[i].toLowerCase();
+                while (j < a.length && j < b.length && a[j] === b[j]) j++;
+                pre = pre.slice(0, j);
+                if (!pre) break;
+            }
+            return pre;
         }
 
         input.addEventListener('keydown', (e) => {
@@ -393,7 +623,12 @@ const Terminal = (() => {
                 e.preventDefault();
                 commands.clear();
             } else if (e.key === 'c' && e.ctrlKey) {
+                e.preventDefault();
+                print(getPrompt() + input.value + '^C');
                 input.value = '';
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                tabComplete();
             }
         });
 

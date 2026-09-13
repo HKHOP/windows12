@@ -4,6 +4,24 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4876] - 2026-09-13
+
+### Added
+- CMD engine: `&`, `&&`, `||` chaining, `|` pipes (plus `<` stdin and `2>` merge redirections) with `sort`/`more`/`find` reading pipe input
+- CMD engine new commands: pushd/popd, path, prompt, vol, date, time, tree (/f), find (/v /c /n /i), sort (/r), more, fc, where, chcp, systeminfo, ipconfig, ping (loopback), help with per-command topics
+- CMD engine: `*`/`?` wildcards for dir/del/type/copy/move/where/if-exist, `dir /b /s /w`, `del /s`, multi-file `type`, `copy`/`move` of file sets and `a+b` concatenation, `md` with multiple dirs
+- CMD engine: `for /f` options (tokens/delims/skip/eol/usebackq) with real file input, `if /i`, `shift /n`, `exit [/b] [code]`, hex literals in `set /a`
+- Terminal: unknown commands fall through to the real CMD engine (copy/del/type/set/operators work interactively), Tab completion, `exit` closes the window, `help <topic>` shows CMD help, `cd..`/`cd\`, `rm -r`, multi-file cat/touch/mkdir
+
+### Fixed
+- CMD engine resolved every relative path against `/` instead of the current directory — files created by scripts landed in root; now relative paths honor `cd`/`pushd`
+- CMD engine wiped single-`%A` FOR loops during `%...%` expansion (`for %A in ... do ... %A` did nothing); lone `%X` is now treated as a loop variable
+- CMD engine executed `:label` definition lines as commands ("not recognized" errors); labels are now no-ops when reached sequentially
+- CMD engine `choice` always set errorlevel to NaN (Popup.pick resolves an option object); now uses the option value
+- CMD engine `%CD%` and echo prompt printed a malformed path (`\/\users...`); path formatting fixed
+- Terminal `ls`/`neofetch` printed raw `<span>` tags (HTML passed through a text-only printer); output is now line-based with proper HTML rendering and filename escaping
+- Terminal lowercased `.bat`/`.vbs` paths before lookup (broke mixed-case names), ignored `\` drive-letter and quoted paths, `mkdir`/`touch`/`write` failed on nested paths, `rm` could not remove folders
+
 ## [12.0.4875] - 2026-09-13
 
 ### Fixed

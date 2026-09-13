@@ -24,6 +24,7 @@ const BatchEngine = (() => {
         let errorLevel = 0;
         let labels = new Map();
         let envStack = [];
+        let dirStack = [];
         let args = [];
         let scriptName = 'script.bat';
         let scriptPath = '';
@@ -39,7 +40,7 @@ const BatchEngine = (() => {
         function getVar(name) {
             const key = normName(name);
             if (key === 'ERRORLEVEL') return String(errorLevel);
-            if (key === 'CD') return getCwd().join('\\').replace(/^\/$/, '\\');
+            if (key === 'CD') return pathToString(getCwd());
             if (key === 'DATE') return new Date().toLocaleDateString();
             if (key === 'TIME') return new Date().toLocaleTimeString();
             if (key === 'RANDOM') return String(Math.floor(Math.random() * 32768));
@@ -100,59 +101,124 @@ const BatchEngine = (() => {
             return out;
         }
 
-        function splitCommandChain(line) {
+        // Split a command line on top-level &, && and || (quote- and
+        // paren-aware). Single | is a pipe and stays inside the segment.
+        // Returns [{ cmd, op }] where op is the operator BEFORE the segment.
+        function splitChainTop(line) {
             const out = [];
             let cur = '';
             let quote = false;
             let paren = 0;
-            for (let i = 0; i < line.length; i++) {
-                const ch = line[i];
-                if (ch === '"') {
-                    quote = !quote;
-                    cur += ch;
-                    continue;
-                }
+            let pendingOp = null;
+            const src = String(line ?? '');
+            for (let i = 0; i < src.length; i++) {
+                const ch = src[i];
+                if (ch === '"') { quote = !quote; cur += ch; continue; }
                 if (!quote) {
                     if (ch === '(') paren++;
                     else if (ch === ')') paren = Math.max(0, paren - 1);
-                    else if (ch === '&' && paren === 0) {
-                        if (cur.trim()) out.push(cur.trim());
+                    else if (paren === 0 && ch === '&') {
+                        if (cur.trim()) out.push({ cmd: cur.trim(), op: pendingOp });
+                        else if (pendingOp) out.push({ cmd: '', op: pendingOp });
+                        pendingOp = src[i + 1] === '&' ? '&&' : '&';
+                        if (src[i + 1] === '&') i++;
+                        cur = '';
+                        continue;
+                    } else if (paren === 0 && ch === '|' && src[i + 1] === '|') {
+                        if (cur.trim()) out.push({ cmd: cur.trim(), op: pendingOp });
+                        else if (pendingOp) out.push({ cmd: '', op: pendingOp });
+                        pendingOp = '||';
+                        i++;
                         cur = '';
                         continue;
                     }
                 }
                 cur += ch;
             }
-            if (cur.trim()) out.push(cur.trim());
+            if (cur.trim() || pendingOp) out.push({ cmd: cur.trim(), op: pendingOp });
             return out;
         }
 
+        // Split a chain segment on top-level single pipes.
+        function splitPipeTop(line) {
+            const out = [];
+            let cur = '';
+            let quote = false;
+            let paren = 0;
+            const src = String(line ?? '');
+            for (let i = 0; i < src.length; i++) {
+                const ch = src[i];
+                if (ch === '"') { quote = !quote; cur += ch; continue; }
+                if (!quote) {
+                    if (ch === '(') paren++;
+                    else if (ch === ')') paren = Math.max(0, paren - 1);
+                    else if (ch === '|' && paren === 0) {
+                        if (src[i + 1] === '|') { cur += '||'; i++; continue; }
+                        out.push(cur.trim());
+                        cur = '';
+                        continue;
+                    }
+                }
+                cur += ch;
+            }
+            out.push(cur.trim());
+            return out.filter((s, i) => s !== '' || i === out.length - 1);
+        }
+
+        // Stdin for filter commands (sort/more/find), fed by pipes or "< file".
+        let pipeStdin = null;
+
         function findRedirection(line) {
             let quote = false;
-            for (let i = 0; i < line.length; i++) {
-                const ch = line[i];
-                if (ch === '"') quote = !quote;
-                if (quote) continue;
-
-                if (line.startsWith('>>', i) || ch === '>') {
-                    const append = line.startsWith('>>', i);
-                    let j = i + (append ? 2 : 1);
-                    while (j < line.length && /\s/.test(line[j])) j++;
-                    let k = j;
-                    let q = false;
-                    while (k < line.length) {
-                        if (line[k] === '"') q = !q;
-                        if (!q && (line[k] === '&')) break;
-                        k++;
-                    }
-                    return {
-                        command: line.slice(0, i).trim(),
-                        type: append ? 'append' : 'overwrite',
-                        file: stripOuterQuotes(line.slice(j, k).trim())
-                    };
+            let command = '';
+            let type = null;
+            let file = null;
+            let stdinFile = null;
+            const src = String(line ?? '');
+            let i = 0;
+            let cur = '';
+            const flushFile = (end) => {
+                let j = end;
+                while (j < src.length && /\s/.test(src[j])) j++;
+                let k = j;
+                let q = false;
+                while (k < src.length) {
+                    if (src[k] === '"') q = !q;
+                    if (!q && (src[k] === '&' || src[k] === '|' || src[k] === '<' || src[k] === '>')) break;
+                    k++;
                 }
+                return { name: stripOuterQuotes(src.slice(j, k).trim()), next: k };
+            };
+            while (i < src.length) {
+                const ch = src[i];
+                if (ch === '"') { quote = !quote; cur += ch; i++; continue; }
+                if (!quote) {
+                    // Handle merge operators like 2>&1 / 1>&2: strip, no-op.
+                    const merge = src.slice(i).match(/^[012]?>&[012]\b/);
+                    if (merge) { i += merge[0].length; continue; }
+                    if (ch === '<' && src[i + 1] !== '<') {
+                        const r = flushFile(i + 1);
+                        stdinFile = r.name;
+                        i = r.next;
+                        continue;
+                    }
+                    if (ch === '>' || src.startsWith('>>', i)) {
+                        const append = src.startsWith('>>', i);
+                        // Optional leading handle digit (0/1/2): already in cur tail.
+                        const hd = cur.match(/([012])\s*$/);
+                        if (hd) cur = cur.slice(0, cur.length - hd[0].length);
+                        const r = flushFile(i + (append ? 2 : 1));
+                        type = append ? 'append' : 'overwrite';
+                        file = r.name;
+                        i = r.next;
+                        continue;
+                    }
+                }
+                cur += ch;
+                i++;
             }
-            return { command: line, type: null, file: null };
+            command = cur.trim();
+            return { command, type, file, stdinFile };
         }
 
         function resolvePathArray(input) {
@@ -163,12 +229,16 @@ const BatchEngine = (() => {
                 p = p.replace(/^[A-Za-z]:/, '');
             }
 
-            const base = p.startsWith('/') ? ['/'] : [...getCwd()];
-            const parts = p.split('/').filter(Boolean);
-            const result = base.length && base[0] === '/' ? ['/'] : [];
-            if (base[0] !== '/') result.push(...base);
-
-            for (const part of parts) {
+            const absolute = p.startsWith('/');
+            const result = ['/'];
+            if (!absolute) {
+                // Relative paths resolve against the real cwd — the old code
+                // dropped the cwd segments and silently landed every file in /.
+                for (const seg of getCwd()) {
+                    if (seg !== '/') result.push(seg);
+                }
+            }
+            for (const part of p.split('/').filter(Boolean)) {
                 if (part === '.') continue;
                 if (part === '..') {
                     if (result.length > 1) result.pop();
@@ -180,8 +250,57 @@ const BatchEngine = (() => {
         }
 
         function pathToString(path) {
-            const p = path.join('\\');
-            return p === '' ? '\\' : (p.startsWith('\\') ? p : '\\' + p);
+            const parts = [...(path || [])].filter(p => p !== '/');
+            return '\\' + parts.join('\\');
+        }
+
+        function escapeRegExp(s) {
+            return String(s ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        // Translate CMD wildcards (* and ?) into a case-insensitive RegExp.
+        function wildcardToRegExp(pattern) {
+            let re = '';
+            for (const ch of String(pattern ?? '')) {
+                if (ch === '*') re += '.*';
+                else if (ch === '?') re += '.';
+                else re += escapeRegExp(ch);
+            }
+            return new RegExp('^' + re + '$', 'i');
+        }
+
+        // Split "dir/prefix*.txt" into a directory plus matches. Returns null
+        // when the argument has no wildcard characters.
+        function expandWildcard(arg) {
+            const raw = stripOuterQuotes(String(arg ?? '').trim()).replace(/\\/g, '/');
+            if (!/[*?]/.test(raw)) return null;
+            const cleaned = raw.replace(/^[A-Za-z]:/, '');
+            const slash = cleaned.lastIndexOf('/');
+            const dirPart = slash >= 0 ? cleaned.slice(0, slash) : '';
+            const pat = slash >= 0 ? cleaned.slice(slash + 1) : cleaned;
+            const dir = dirPart ? resolvePathArray(dirPart) : [...getCwd()];
+            if (!FileSystem.isFolder(dir)) return { dir, matches: [] };
+            let children = [];
+            try { children = FileSystem.getChildren(dir) || []; } catch { children = []; }
+            const re = wildcardToRegExp(pat);
+            return { dir, matches: children.filter(e => re.test(e.name)) };
+        }
+
+        // Depth-first walk returning [{ path, entry }] for every descendant.
+        function walkTree(dir, out = []) {
+            let children = [];
+            try { children = FileSystem.getChildren(dir) || []; } catch { children = []; }
+            for (const c of children) {
+                const full = [...dir, c.name];
+                out.push({ path: full, entry: c });
+                if (c.type === 'folder') walkTree(full, out);
+            }
+            return out;
+        }
+
+        function relDisplay(base, full) {
+            const rest = full.slice(base.length);
+            return rest.join('\\') || '.';
         }
 
         function fileExists(path) {
@@ -198,6 +317,15 @@ const BatchEngine = (() => {
             // %% -> literal %, except %%A-style FOR variables and %%~A modifiers.
             s = s.replace(/%%~([a-zA-Z])/g, (_, v) => `%FOR_${v.toUpperCase()}_FULL%`);
             s = s.replace(/%%([a-zA-Z])/g, (_, v) => `%FOR_${v.toUpperCase()}%`);
+
+            // Lone %X (single %A-style loop variable, interactive form).
+            // Without this, the generic %...% rule below pairs the two ends
+            // of "for %A ... do ... %A" into one fake variable and wipes the
+            // whole FOR statement. Closed %A% stays a normal variable.
+            s = s.replace(/%([A-Za-z])(?![A-Za-z0-9_])/g, (m, v, off, str) => {
+                if (str[off + 2] === '%') return m;
+                return `%FOR_${v.toUpperCase()}%`;
+            });
 
             // Positional batch parameters: %0..%9 and %*.
             s = s.replace(/%(10|[0-9])/g, (_, n) => getVar(n));
@@ -258,8 +386,16 @@ const BatchEngine = (() => {
             return result;
         }
 
+        // Output capture for pipeline stages. A file redirect on the same
+        // stage still wins and writes to the file instead of the pipe.
+        let captureHook = null;
+
         function doPrint(text, redirect = null) {
             const output = String(text ?? '');
+            if (captureHook && !redirect?.file) {
+                captureHook(output);
+                return;
+            }
             if (!redirect?.file) {
                 printFn(output);
                 return;
@@ -306,6 +442,8 @@ const BatchEngine = (() => {
 
         function evalSetA(expr) {
             let source = expand(expr).trim();
+            // Hex literals (0x1F) are not valid JS identifiers — fold first.
+            source = source.replace(/\b0[xX]([0-9a-fA-F]+)\b/g, (_, h) => String(parseInt(h, 16)));
             source = source.replace(/([A-Za-z_][A-Za-z0-9_]*)/g, (name) => {
                 const value = getVar(name);
                 return numeric(value) !== null ? String(numeric(value)) : '0';
@@ -321,7 +459,7 @@ const BatchEngine = (() => {
             return Math.trunc(Number(value));
         }
 
-        function evalIfCondition(condition) {
+        function evalIfCondition(condition, ignoreCase = false) {
             let c = expand(condition).trim();
 
             let negate = false;
@@ -330,8 +468,15 @@ const BatchEngine = (() => {
                 c = c.replace(/^not\s+/i, '').trim();
             }
 
-            let m = c.match(/^exist\s+"?(.+?)"?$/i);
-            if (m) return negate ? !fileExists(m[1]) : fileExists(m[1]);
+            let             m = c.match(/^exist\s+"?(.+?)"?$/i);
+            if (m) {
+                let exists = fileExists(m[1]);
+                if (!exists && /[*?]/.test(m[1])) {
+                    const wx = expandWildcard(m[1]);
+                    exists = !!wx && wx.matches.length > 0;
+                }
+                return negate ? !exists : exists;
+            }
 
             m = c.match(/^cmdextversion\s+(\d+)$/i);
             if (m) return negate ? false : Number(m[1]) <= 2;
@@ -356,12 +501,12 @@ const BatchEngine = (() => {
                 const na = numeric(a);
                 const nb = numeric(b);
                 let ok;
-                if (op === '==' || op === 'EQU') ok = na !== null && nb !== null ? na === nb : compareStrings(a, b, false) === 0;
-                else if (op === 'NEQ') ok = na !== null && nb !== null ? na !== nb : compareStrings(a, b, false) !== 0;
-                else if (op === 'LSS') ok = na !== null && nb !== null ? na < nb : compareStrings(a, b, false) < 0;
-                else if (op === 'LEQ') ok = na !== null && nb !== null ? na <= nb : compareStrings(a, b, false) <= 0;
-                else if (op === 'GTR') ok = na !== null && nb !== null ? na > nb : compareStrings(a, b, false) > 0;
-                else ok = na !== null && nb !== null ? na >= nb : compareStrings(a, b, false) >= 0;
+                if (op === '==' || op === 'EQU') ok = na !== null && nb !== null && !ignoreCase ? na === nb : compareStrings(a, b, ignoreCase) === 0;
+                else if (op === 'NEQ') ok = na !== null && nb !== null && !ignoreCase ? na !== nb : compareStrings(a, b, ignoreCase) !== 0;
+                else if (op === 'LSS') ok = na !== null && nb !== null ? na < nb : compareStrings(a, b, ignoreCase) < 0;
+                else if (op === 'LEQ') ok = na !== null && nb !== null ? na <= nb : compareStrings(a, b, ignoreCase) <= 0;
+                else if (op === 'GTR') ok = na !== null && nb !== null ? na > nb : compareStrings(a, b, ignoreCase) > 0;
+                else ok = na !== null && nb !== null ? na >= nb : compareStrings(a, b, ignoreCase) >= 0;
                 return negate ? !ok : ok;
             }
 
@@ -417,7 +562,12 @@ const BatchEngine = (() => {
         }
 
         function handleIf(expr) {
-            const text = expand(expr.trim());
+            let text = expand(expr.trim());
+            let ignoreCase = false;
+            if (/^\/i(?:\s+|$)/i.test(text)) {
+                ignoreCase = true;
+                text = text.replace(/^\/i\s*/i, '');
+            }
 
             // Full block form:
             // IF condition (
@@ -444,7 +594,7 @@ const BatchEngine = (() => {
                         }
                     }
 
-                    if (evalIfCondition(condition)) runInline(trueBlock);
+                    if (evalIfCondition(condition, ignoreCase)) runInline(trueBlock);
                     else if (elseBlock !== null) runInline(elseBlock);
                     return;
                 }
@@ -458,7 +608,7 @@ const BatchEngine = (() => {
                 const condition = tokens.slice(0, opIndex + 2).join(' ');
                 let action = tokens.slice(opIndex + 2).join(' ');
                 const elseMatch = action.match(/^(.+?)\s+else\s+(.+)$/i);
-                if (evalIfCondition(condition)) runInline(elseMatch ? elseMatch[1] : action);
+                if (evalIfCondition(condition, ignoreCase)) runInline(elseMatch ? elseMatch[1] : action);
                 else if (elseMatch) runInline(elseMatch[2]);
                 return;
             }
@@ -485,7 +635,7 @@ const BatchEngine = (() => {
             }
 
             const elseMatch = action.match(/^(.+?)\s+else\s+(.+)$/i);
-            if (evalIfCondition(condition)) runInline(elseMatch ? elseMatch[1] : action);
+            if (evalIfCondition(condition, ignoreCase)) runInline(elseMatch ? elseMatch[1] : action);
             else if (elseMatch) runInline(elseMatch[2]);
         }
 
@@ -494,15 +644,98 @@ const BatchEngine = (() => {
             if (!expanded) return;
             if (expanded.startsWith('(') && expanded.endsWith(')')) {
                 const inner = expanded.slice(1, -1);
-                for (const part of inner.split(/\r?\n|(?<!^)&(?!&)/).map(s => s.trim()).filter(Boolean)) {
+                for (const part of inner.split(/\r?\n/).map(s => s.trim()).filter(Boolean)) {
+                    // Each part may itself chain (&, &&, ||) or pipe — routing
+                    // lives in executeLine.
                     executeLine(part, true);
-                    if (!running) break;
+                    if (!running || waitingForAsync) break;
                 }
             } else {
-                for (const part of splitCommandChain(expanded)) {
+                for (const part of expanded.split(/\r?\n/).map(s => s.trim()).filter(Boolean)) {
                     executeLine(part, true);
-                    if (!running) break;
+                    if (!running || waitingForAsync) break;
                 }
+            }
+        }
+
+        function parseForFOptions(optStr) {
+            const o = { tokens: '1', delims: ' \t', skip: 0, eol: ';', usebackq: false };
+            if (!optStr) return o;
+            for (const t of String(optStr).trim().split(/\s+/)) {
+                let m;
+                if ((m = t.match(/^tokens=(.*)$/i))) { o.tokens = m[1] || '*'; continue; }
+                if ((m = t.match(/^delims=(.*)$/i))) { o.delims = m[1]; continue; }
+                if ((m = t.match(/^skip=(\d+)$/i))) { o.skip = Number(m[1]); continue; }
+                if ((m = t.match(/^eol=(.)$/i))) { o.eol = m[1]; continue; }
+                if (/^usebackq$/i.test(t)) o.usebackq = true;
+            }
+            return o;
+        }
+
+        // "1,3-4,5*" -> [{token,1},{token,3},{token,4},{token,5},{rest,5}]
+        // "*" alone -> [{rest,0}] (whole line).
+        function parseTokens(spec) {
+            const out = [];
+            for (const part of String(spec || '1').split(',')) {
+                const p = part.trim();
+                if (!p) continue;
+                if (p === '*') { out.push({ rest: 0 }); continue; }
+                const m = p.match(/^(\d+)(?:-(\d+))?(\*)?$/);
+                if (!m) continue;
+                const a = Number(m[1]), b = m[2] ? Number(m[2]) : a;
+                for (let n = a; n <= b; n++) out.push({ token: n });
+                if (m[3]) out.push({ rest: b });
+            }
+            return out.length ? out : [{ token: 1 }];
+        }
+
+        function splitDelims(line, delims) {
+            const src = String(line ?? '');
+            if (delims === '') return src ? [{ text: src, start: 0, end: src.length }] : [];
+            const isDel = (ch) => delims.includes(ch);
+            const out = [];
+            let i = 0;
+            while (i < src.length) {
+                while (i < src.length && isDel(src[i])) i++;
+                if (i >= src.length) break;
+                const s = i;
+                while (i < src.length && !isDel(src[i])) i++;
+                out.push({ text: src.slice(s, i), start: s, end: i });
+            }
+            return out;
+        }
+
+        function runForFLines(rawLines, opts, varName, action) {
+            const spec = parseTokens(opts.tokens);
+            const base = varName.toUpperCase().charCodeAt(0);
+            let skipped = 0;
+            for (const raw of rawLines) {
+                if (!running || waitingForAsync) break;
+                if (raw === '') continue;
+                if (skipped < opts.skip) { skipped++; continue; }
+                if (opts.eol && raw.startsWith(opts.eol)) continue;
+                const parts = splitDelims(raw, opts.delims);
+                spec.forEach((sel, pos) => {
+                    const letter = String.fromCharCode(base + pos);
+                    let val = '';
+                    if (sel.rest != null) {
+                        if (sel.rest === 0) {
+                            val = raw;
+                        } else {
+                            const anchor = parts[sel.rest - 1];
+                            if (anchor) {
+                                let j = anchor.end;
+                                while (j < raw.length && opts.delims.includes(raw[j])) j++;
+                                val = raw.slice(j);
+                            }
+                        }
+                    } else {
+                        val = parts[sel.token - 1] ? parts[sel.token - 1].text : '';
+                    }
+                    setVar(`FOR_${letter}`, val);
+                    setVar(`FOR_${letter}_FULL`, val);
+                });
+                runInline(replaceForVars(action));
             }
         }
 
@@ -540,26 +773,50 @@ const BatchEngine = (() => {
                 return;
             }
 
-            // for /F with a quoted command: lightweight command-output mode.
+            // for /F ["options"] %A in (source) do command
+            // options: tokens= delims= skip= eol= usebackq
             m = expr.match(/^\/F(?:\s+"([^"]*)")?\s+(?:%%?([A-Za-z])|%FOR_([A-Z])%)\s+in\s*\((.*)\)\s+do\s+(.+)$/is);
             if (m) {
                 const name = (m[2] || m[3]).toUpperCase();
+                const opts = parseForFOptions(m[1] || '');
                 const source = m[4].trim();
                 const action = m[5];
-                let records = [];
-                if (source.startsWith('"') && source.endsWith('"')) {
-                    records = source.slice(1, -1).split(/\r?\n/);
-                } else if (source.startsWith("'") && source.endsWith("'")) {
-                    // We do not execute host processes. Treat it as command text and
-                    // expose one logical record if it matches a built-in output source.
-                    records = [source.slice(1, -1)];
+                const feed = (lines) => runForFLines(lines, opts, name, action);
+                if (opts.usebackq) {
+                    if (source.startsWith('"') && source.endsWith('"') && source.length >= 2) {
+                        const full = resolvePathArray(source.slice(1, -1));
+                        const content = FileSystem.readFile(full);
+                        if (content === null || content === undefined || FileSystem.isFolder(full)) {
+                            doPrint('The system cannot find the file specified.');
+                            errorLevel = 1;
+                            return;
+                        }
+                        feed(String(content).split(/\r?\n/));
+                    } else {
+                        // 'command' / `command`: host processes cannot be
+                        // executed — expose the text as a single record.
+                        const q = source.match(/^'(.*)'$/s) || source.match(/^`(.*)`$/s);
+                        feed([(q ? q[1] : source).split(/\r?\n/)].flat());
+                    }
+                } else if (source.startsWith('"') && source.endsWith('"') && source.length >= 2) {
+                    feed(source.slice(1, -1).split(/\r?\n/));
+                } else if (source.startsWith("'") && source.endsWith("'") && source.length >= 2) {
+                    feed([source.slice(1, -1)]);
                 } else {
-                    records = parseForSet(source);
-                }
-                for (const item of records) {
-                    setVar(`FOR_${name}`, item);
-                    setVar(`FOR_${name}_FULL`, item);
-                    runInline(replaceForVars(action));
+                    // Bare set: existing files are read line by line,
+                    // anything else falls back to plain word records.
+                    const items = parseForSet(source);
+                    const lines = [];
+                    let usedFile = false;
+                    for (const item of items) {
+                        const full = resolvePathArray(item);
+                        const content = FileSystem.readFile(full);
+                        if (content !== null && content !== undefined && !FileSystem.isFolder(full)) {
+                            usedFile = true;
+                            lines.push(...String(content).split(/\r?\n/));
+                        }
+                    }
+                    feed(usedFile && lines.length ? lines : items);
                 }
                 errorLevel = 0;
                 return;
@@ -599,13 +856,17 @@ const BatchEngine = (() => {
         }
 
         function makeDir(path) {
-            const parts = String(path).replace(/\\/g, '/').split('/').filter(Boolean);
-            let current = String(path).startsWith('/') ? ['/'] : [...getCwd()];
-            for (const part of parts) {
+            const full = resolvePathArray(stripOuterQuotes(path));
+            let current = ['/'];
+            let ok = true;
+            for (const part of full.slice(1)) {
                 const child = [...current, part];
-                if (!FileSystem.itemExists(child)) FileSystem.createFolder(current, part);
+                if (!FileSystem.itemExists(child)) {
+                    if (!FileSystem.createFolder(current, part)) { ok = false; break; }
+                }
                 current = child;
             }
+            return ok;
         }
 
         function deletePath(path, recursive = false) {
@@ -623,30 +884,90 @@ const BatchEngine = (() => {
             return true;
         }
 
-        function copyFile(srcArg, dstArg, move = false) {
-            const src = resolvePathArray(stripOuterQuotes(srcArg));
-            const srcContent = FileSystem.readFile(src);
-            if (srcContent === null || srcContent === undefined) {
+        function writeFileAt(full, content) {
+            if (FileSystem.itemExists(full)) {
+                const node = FileSystem.getNode(full);
+                if (node && node.type === 'folder') return false;
+                return FileSystem.writeFile(full, content);
+            }
+            const name = full[full.length - 1];
+            const parent = full.slice(0, -1);
+            const dot = name.lastIndexOf('.');
+            const ext = dot >= 0 ? name.slice(dot + 1) : '';
+            return FileSystem.createFile(parent, name, content, ext);
+        }
+
+        // Collect source files for copy/move: expands "+" concatenation and
+        // wildcards. Returns { files: [pathArray], concat: bool }.
+        function collectCopySources(token) {
+            const chunks = String(token).split('+');
+            const concat = chunks.length > 1;
+            const files = [];
+            for (const chunk of chunks) {
+                const c = stripOuterQuotes(chunk.trim());
+                if (!c) continue;
+                const wx = expandWildcard(c);
+                if (wx) {
+                    for (const m of wx.matches) {
+                        if (m.type !== 'folder') files.push([...wx.dir, m.name]);
+                    }
+                    continue;
+                }
+                const full = resolvePathArray(c);
+                if (FileSystem.itemExists(full) && !FileSystem.isFolder(full)) files.push(full);
+            }
+            return { files, concat };
+        }
+
+        function copyMany(srcToken, dstArg, move = false) {
+            const { files, concat } = collectCopySources(srcToken);
+            if (!files.length) {
                 doPrint('The system cannot find the file specified.');
                 errorLevel = 1;
                 return;
             }
-
             const dst = resolvePathArray(stripOuterQuotes(dstArg));
-            let finalDst = dst;
-            if (FileSystem.isFolder(dst)) finalDst = [...dst, src[src.length - 1]];
-
-            if (FileSystem.itemExists(finalDst)) FileSystem.writeFile(finalDst, srcContent);
-            else {
-                const name = finalDst[finalDst.length - 1];
-                const parent = finalDst.slice(0, -1);
-                const dot = name.lastIndexOf('.');
-                const ext = dot >= 0 ? name.slice(dot + 1) : '';
-                FileSystem.createFile(parent, name, srcContent, ext);
+            const dstIsDir = FileSystem.isFolder(dst);
+            if (concat) {
+                let combined = '';
+                for (const f of files) combined += FileSystem.readFile(f) ?? '';
+                let finalDst = dst;
+                if (dstIsDir) finalDst = [...dst, files[0][files[0].length - 1]];
+                if (!writeFileAt(finalDst, combined)) {
+                    doPrint('The system cannot find the path specified.');
+                    errorLevel = 1;
+                    return;
+                }
+                if (move) for (const f of files) FileSystem.deleteItem(f);
+                doPrint(move ? '        1 file(s) moved.' : '        1 file(s) copied.');
+                errorLevel = 0;
+                return;
             }
-            if (move) FileSystem.deleteItem(src);
-            doPrint(move ? '        1 file(s) moved.' : '        1 file(s) copied.');
+            if (files.length > 1 && !dstIsDir) {
+                doPrint('The syntax of the command is incorrect.');
+                errorLevel = 1;
+                return;
+            }
+            let count = 0;
+            for (const f of files) {
+                const content = FileSystem.readFile(f);
+                if (content === null || content === undefined) continue;
+                const finalDst = dstIsDir ? [...dst, f[f.length - 1]] : dst;
+                if (!writeFileAt(finalDst, content)) continue;
+                if (move) FileSystem.deleteItem(f);
+                count++;
+            }
+            if (!count) {
+                doPrint('The system cannot find the path specified.');
+                errorLevel = 1;
+                return;
+            }
+            doPrint(`        ${count} file(s) ${move ? 'moved' : 'copied'}.`);
             errorLevel = 0;
+        }
+
+        function copyFile(srcArg, dstArg, move = false) {
+            copyMany(srcArg, dstArg, move);
         }
 
         function executeLine(rawLine, inline = false) {
@@ -663,6 +984,9 @@ const BatchEngine = (() => {
 
             if (/^rem(?:\s|$)/i.test(line) || /^::/.test(line)) return;
 
+            // A :label reached in normal sequence is a no-op (not a command).
+            if (/^:/.test(line)) return;
+
             // Parenthesized block is only a grouping construct; execute each line.
             if (line.startsWith('(') && line.endsWith(')') && !/^if\b/i.test(line)) {
                 const inner = line.slice(1, -1);
@@ -671,10 +995,90 @@ const BatchEngine = (() => {
             }
 
             const originalBeforeExpansion = line;
+
+            if (!inline) setEchoOutput(originalBeforeExpansion, suppressed);
+
+            // Compound lines: IF/FOR manage their own bodies, but anything
+            // else may chain (&, &&, ||) or pipe (|) several commands.
+            if (!/^(if|for)[\s(]/i.test(line)) {
+                const steps = splitChainTop(line);
+                if (steps.length > 1) {
+                    for (const step of steps) {
+                        if (!running || waitingForAsync) break;
+                        if (!step.cmd) continue;
+                        if (step.op === '&&' && errorLevel !== 0) continue;
+                        if (step.op === '||' && errorLevel === 0) continue;
+                        runPipeline(step.cmd, true);
+                    }
+                    return;
+                }
+                const pipes = splitPipeTop(line);
+                if (pipes.length > 1) {
+                    runPipeline(line, true);
+                    return;
+                }
+            }
+
             const redir = findRedirection(line);
             line = expand(redir.command);
 
-            if (!inline) setEchoOutput(originalBeforeExpansion, suppressed);
+            if (redir.stdinFile) {
+                const savedStdin = pipeStdin;
+                const data = FileSystem.readFile(resolvePathArray(expand(redir.stdinFile)));
+                pipeStdin = data == null ? '' : String(data);
+                try {
+                    execSingle(line, redir, true);
+                } finally {
+                    pipeStdin = savedStdin;
+                }
+                return;
+            }
+
+            execSingle(line, redir, inline);
+        }
+
+        // Run one chain segment, which may itself be a pipeline.
+        function runPipeline(segment, inline) {
+            const stages = splitPipeTop(segment);
+            if (stages.length < 2) {
+                const redir = findRedirection(segment);
+                execSingle(expand(redir.command), redir, inline);
+                return;
+            }
+            const savedStdin = pipeStdin;
+            const savedCapture = captureHook;
+            let stdin = null;
+            try {
+                for (let s = 0; s < stages.length; s++) {
+                    if (!running || waitingForAsync) break;
+                    const last = s === stages.length - 1;
+                    pipeStdin = stdin;
+                    const redir = findRedirection(stages[s]);
+                    if (redir.stdinFile) {
+                        const data = FileSystem.readFile(resolvePathArray(expand(redir.stdinFile)));
+                        pipeStdin = data == null ? '' : String(data);
+                    }
+                    if (last) {
+                        execSingle(expand(redir.command), redir, inline);
+                    } else {
+                        const captured = [];
+                        captureHook = (t) => captured.push(t);
+                        try {
+                            execSingle(expand(redir.command), redir, true);
+                        } finally {
+                            captureHook = savedCapture;
+                        }
+                        stdin = captured.join('\n');
+                    }
+                }
+            } finally {
+                pipeStdin = savedStdin;
+                captureHook = savedCapture;
+            }
+        }
+
+        function execSingle(line, redir, inline) {
+            if (!running) return;
 
             if (!line) return;
 
@@ -769,9 +1173,13 @@ const BatchEngine = (() => {
             }
 
             if (/^(md|mkdir)(?:\s|$)/i.test(line)) {
-                const arg = line.replace(/^(md|mkdir)\s+/i, '').trim().replace(/\/p\b/ig, '').trim();
-                makeDir(stripOuterQuotes(arg));
-                errorLevel = 0;
+                const rest = line.replace(/^(md|mkdir)\s+/i, '').trim();
+                if (!rest) { doPrint('The syntax of the command is incorrect.'); errorLevel = 1; return; }
+                let ok = true;
+                for (const part of splitArgs(rest)) {
+                    if (!makeDir(part)) ok = false;
+                }
+                errorLevel = ok ? 0 : 1;
                 return;
             }
 
@@ -787,44 +1195,100 @@ const BatchEngine = (() => {
             if (/^(del|erase)(?:\s|$)/i.test(line)) {
                 const rest = line.replace(/^(del|erase)\s+/i, '').trim();
                 const parts = splitArgs(rest);
-                let deleted = false;
+                let recursive = false;
+                const patterns = [];
                 for (const part of parts) {
-                    if (/^\/[a-z]+/i.test(part)) continue;
-                    const target = resolvePathArray(stripOuterQuotes(part));
-                    if (FileSystem.itemExists(target) && !FileSystem.isFolder(target)) {
-                        FileSystem.deleteItem(target);
-                        deleted = true;
+                    if (/^\/(p|f|q|s|a)(:.*)?$/i.test(part)) {
+                        if (/s/i.test(part.slice(1, 2))) recursive = true;
+                        // /p /f /q /a are accepted: the simulator never prompts.
+                        continue;
                     }
+                    patterns.push(stripOuterQuotes(part));
                 }
-                errorLevel = deleted ? 0 : 1;
+                if (!patterns.length) { doPrint('The syntax of the command is incorrect.'); errorLevel = 1; return; }
+                let deleted = 0;
+                let missing = 0;
+                const eraseFile = (full) => {
+                    if (FileSystem.itemExists(full) && !FileSystem.isFolder(full)) {
+                        FileSystem.deleteItem(full);
+                        deleted++;
+                    }
+                };
+                for (const pat of patterns) {
+                    const wx = expandWildcard(pat);
+                    if (wx) {
+                        const re = wildcardToRegExp(pat.split(/[\\/]/).pop());
+                        if (recursive) {
+                            for (const n of walkTree(wx.dir)) {
+                                if (n.entry.type !== 'folder' && re.test(n.path[n.path.length - 1])) eraseFile(n.path);
+                            }
+                        } else {
+                            for (const m of wx.matches) {
+                                if (m.type !== 'folder') eraseFile([...wx.dir, m.name]);
+                            }
+                        }
+                        continue;
+                    }
+                    const target = resolvePathArray(pat);
+                    if (FileSystem.itemExists(target) && !FileSystem.isFolder(target)) eraseFile(target);
+                    else missing++;
+                }
+                if (!deleted) {
+                    if (missing) doPrint('Could Not Find ' + pathToString(resolvePathArray(patterns[0])));
+                    errorLevel = 1;
+                    return;
+                }
+                errorLevel = 0;
                 return;
             }
 
             if (/^type(?:\s|$)/i.test(line)) {
-                const arg = stripOuterQuotes(line.replace(/^type\s*/i, '').trim());
-                const target = resolvePathArray(arg);
-                const content = FileSystem.readFile(target);
-                if (content === null || content === undefined || FileSystem.isFolder(target)) {
-                    doPrint('The system cannot find the file specified.', redir);
-                    errorLevel = 1;
-                } else {
+                const rest = line.replace(/^type\s*/i, '').trim();
+                const showOne = (target) => {
+                    const content = FileSystem.readFile(target);
+                    if (content === null || content === undefined || FileSystem.isFolder(target)) {
+                        doPrint('The system cannot find the file specified.');
+                        return false;
+                    }
                     doPrint(content, redir);
-                    errorLevel = 0;
+                    return true;
+                };
+                if (!rest) {
+                    if (pipeStdin != null) { doPrint(pipeStdin, redir); errorLevel = 0; }
+                    else { doPrint('The syntax of the command is incorrect.'); errorLevel = 1; }
+                    return;
                 }
+                let ok = true;
+                for (const part of splitArgs(rest)) {
+                    const arg = stripOuterQuotes(part);
+                    const wx = expandWildcard(arg);
+                    if (wx) {
+                        if (!wx.matches.length) { doPrint('The system cannot find the file specified.'); ok = false; continue; }
+                        for (const m of wx.matches) {
+                            if (m.type === 'folder') { doPrint('The system cannot find the file specified.'); ok = false; continue; }
+                            if (!showOne([...wx.dir, m.name])) ok = false;
+                        }
+                        continue;
+                    }
+                    if (!showOne(resolvePathArray(arg))) ok = false;
+                }
+                errorLevel = ok ? 0 : 1;
                 return;
             }
 
             if (/^(copy|xcopy)(?:\s|$)/i.test(line)) {
-                const parts = splitArgs(line.replace(/^(copy|xcopy)\s+/i, '').trim()).filter(p => !/^\/[a-z]/i.test(p));
+                const parts = splitArgs(line.replace(/^(copy|xcopy)\s+/i, '').trim())
+                    .filter(p => !(/^\/(y|v|d|a|b|q|s|e|i|h|k|o|x|exclude)(:.*)?$/i.test(p)));
                 if (parts.length < 2) { doPrint('The syntax of the command is incorrect.'); errorLevel = 1; }
-                else copyFile(parts[0], parts[1], false);
+                else copyMany(parts.slice(0, -1).join(' '), parts[parts.length - 1], false);
                 return;
             }
 
             if (/^move(?:\s|$)/i.test(line)) {
-                const parts = splitArgs(line.replace(/^move\s+/i, '').trim()).filter(p => !/^\/[a-z]/i.test(p));
+                const parts = splitArgs(line.replace(/^move\s+/i, '').trim())
+                    .filter(p => !(/^\/(y|-y)$/i.test(p)));
                 if (parts.length < 2) { doPrint('The syntax of the command is incorrect.'); errorLevel = 1; }
-                else copyFile(parts[0], parts[1], true);
+                else copyMany(parts.slice(0, -1).join(' '), parts[parts.length - 1], true);
                 return;
             }
 
@@ -840,15 +1304,113 @@ const BatchEngine = (() => {
 
             if (/^dir(?:\s|$)/i.test(line)) {
                 const rest = line.replace(/^dir\s*/i, '').trim();
-                const target = rest ? resolvePathArray(stripOuterQuotes(splitArgs(rest)[0])) : getCwd();
-                if (!FileSystem.isFolder(target)) { doPrint('File Not Found', redir); errorLevel = 1; return; }
-                const children = FileSystem.getChildren(target) || [];
-                const header = ` Volume in drive has no label.\n\n Directory of ${pathToString(target)}\n\n`;
-                const body = children.map(e => {
-                    const date = e.modified ? new Date(e.modified).toLocaleDateString() : '';
-                    return `${date}  ${e.type === 'folder' ? '<DIR>' : String(e.size ?? 0).padStart(14)}  ${e.name}`;
-                }).join('\n');
-                doPrint(header + body, redir);
+                const toks = splitArgs(rest);
+                let bare = false, recursive = false, wide = false;
+                let targetArg = null;
+                for (const t of toks) {
+                    // Single-letter switches only, so absolute paths like
+                    // /users/docs are never mistaken for flags.
+                    if (/^\/(b|s|w|p|q|d|a|o)(:.*)?$/i.test(t)) {
+                        const sw = t.slice(1).toLowerCase();
+                        if (sw.startsWith('b')) bare = true;
+                        else if (sw.startsWith('s')) recursive = true;
+                        else if (sw.startsWith('w')) wide = true;
+                        // /p /q /d /a (attributes) /o (order) are accepted and
+                        // ignored: no paging or attribute store in the simulator.
+                        continue;
+                    }
+                    if (targetArg === null) targetArg = stripOuterQuotes(t);
+                }
+                const listOne = (dir, matches, showHeader) => {
+                    const lines = [];
+                    if (showHeader && !bare) lines.push(`\n Directory of ${pathToString(dir)}\n`);
+                    if (wide && !bare) {
+                        lines.push(matches.map(e => (e.type === 'folder' ? `[${e.name}]` : e.name)).join('  '));
+                    } else {
+                        for (const e of matches) {
+                            if (bare) { lines.push(e.name); continue; }
+                            const date = e.modified ? new Date(e.modified).toLocaleDateString() : '';
+                            lines.push(`${date}  ${e.type === 'folder' ? '<DIR>' : String(e.size ?? 0).padStart(14)}  ${e.name}`);
+                        }
+                    }
+                    return lines.join('\n');
+                };
+                const out = bare ? [] : [' Volume in drive has no label.'];
+                // Wildcard or explicit path argument.
+                if (targetArg) {
+                    const wx = expandWildcard(targetArg);
+                    if (wx) {
+                        if (!wx.matches.length) { doPrint('File Not Found', redir); errorLevel = 1; return; }
+                        if (recursive) {
+                            const all = walkTree(wx.dir).filter(n => wildcardToRegExp(targetArg.split(/[\\/]/).pop()).test(n.path[n.path.length - 1]));
+                            if (bare) out.push(all.map(n => relDisplay(wx.dir, n.path)).join('\n'));
+                            else {
+                                const byDir = new Map();
+                                for (const n of all) {
+                                    const d = n.path.slice(0, -1);
+                                    const k = pathToString(d);
+                                    if (!byDir.has(k)) byDir.set(k, { dir: d, items: [] });
+                                    byDir.get(k).items.push({ ...n.entry, name: n.path[n.path.length - 1] });
+                                }
+                                for (const { dir, items } of byDir.values()) out.push(listOne(dir, items, true));
+                            }
+                        } else {
+                            out.push(listOne(wx.dir, wx.matches, true));
+                        }
+                        doPrint(out.join('\n'), redir);
+                        errorLevel = 0;
+                        return;
+                    }
+                    const resolved = resolvePathArray(targetArg);
+                    const node = FileSystem.getNode(resolved);
+                    if (node && node.type !== 'folder') {
+                        if (bare) out.push(targetArg.split(/[\\/]/).pop());
+                        else out.push(listOne(resolved.slice(0, -1), [{ name: resolved[resolved.length - 1], type: 'file', size: node.size ?? 0, modified: node.modified || 0 }], true));
+                        doPrint(out.join('\n'), redir);
+                        errorLevel = 0;
+                        return;
+                    }
+                    if (!FileSystem.isFolder(resolved)) { doPrint('File Not Found', redir); errorLevel = 1; return; }
+                    if (recursive) {
+                        const seen = [{ dir: resolved, items: FileSystem.getChildren(resolved) || [] }];
+                        for (const n of walkTree(resolved)) {
+                            if (n.entry.type === 'folder') {
+                                try { seen.push({ dir: n.path, items: FileSystem.getChildren(n.path) || [] }); } catch { /* noop */ }
+                            }
+                        }
+                        if (bare) {
+                            const names = [];
+                            for (const { dir, items } of seen) for (const e of items) names.push(relDisplay(resolved, [...dir, e.name]));
+                            out.push(names.join('\n'));
+                        } else {
+                            for (const { dir, items } of seen) out.push(listOne(dir, items, true));
+                        }
+                    } else {
+                        out.push(listOne(resolved, FileSystem.getChildren(resolved) || [], true));
+                    }
+                    doPrint(out.join('\n'), redir);
+                    errorLevel = 0;
+                    return;
+                }
+                const cwd = getCwd();
+                if (recursive) {
+                    const seen = [{ dir: cwd, items: FileSystem.getChildren(cwd) || [] }];
+                    for (const n of walkTree(cwd)) {
+                        if (n.entry.type === 'folder') {
+                            try { seen.push({ dir: n.path, items: FileSystem.getChildren(n.path) || [] }); } catch { /* noop */ }
+                        }
+                    }
+                    if (bare) {
+                        const names = [];
+                        for (const { dir, items } of seen) for (const e of items) names.push(relDisplay(cwd, [...dir, e.name]));
+                        out.push(names.join('\n'));
+                    } else {
+                        for (const { dir, items } of seen) out.push(listOne(dir, items, true));
+                    }
+                } else {
+                    out.push(listOne(cwd, FileSystem.getChildren(cwd) || [], true));
+                }
+                doPrint(out.join('\n'), redir);
                 errorLevel = 0;
                 return;
             }
@@ -880,7 +1442,9 @@ const BatchEngine = (() => {
                 running = false;
                 Popup.pick('Choice', message, choices.map((c, i) => ({ label: `[${c}] ${c}`, value: i + 1 })))
                     .then(result => {
-                        if (result !== null && result !== undefined) errorLevel = Number(result);
+                        // Popup.pick resolves with the chosen option object ({label, value}).
+                        const picked = result && typeof result === 'object' && result.value != null ? result.value : result;
+                        if (picked !== null && picked !== undefined && picked !== '') errorLevel = Number(picked) || 0;
                         else if (defaultChoice) {
                             const idx = choices.findIndex(c => c.toUpperCase() === defaultChoice.toUpperCase());
                             errorLevel = idx >= 0 ? idx + 1 : 1;
@@ -1014,22 +1578,423 @@ const BatchEngine = (() => {
 
             if (/^exit(?:\s|$)/i.test(line)) {
                 const rest = line.replace(/^exit\s*/i, '').trim();
+                const codeMatch = rest.match(/(?:\/b\s*)?(-?\d+)\s*$/i);
                 if (/^\/b\b/i.test(rest)) {
+                    if (codeMatch) errorLevel = Number(codeMatch[1]);
                     returnFromCall = true;
                     return;
                 }
+                if (codeMatch) errorLevel = Number(codeMatch[1]);
                 running = false;
                 return;
             }
 
-            if (/^shift\b/i.test(line)) {
-                if (args.length > 1) args.splice(1, 1);
+            if (/^shift(?:\s|$)/i.test(line)) {
+                const m = line.match(/^shift\s*(?:\/(\d+))?/i);
+                const start = m && m[1] ? Number(m[1]) : 1;
+                if (args.length > start) args.splice(start, 1);
                 errorLevel = 0;
                 return;
             }
 
             if (/^pause$/i.test(line)) {
                 doPrint('Press any key to continue . . .', redir);
+                errorLevel = 0;
+                return;
+            }
+
+            if (/^pushd(?:\s|$)/i.test(line)) {
+                const arg = stripOuterQuotes(line.replace(/^pushd\s*/i, '').trim());
+                if (!arg) { dirStack.push([...getCwd()]); errorLevel = 0; return; }
+                const target = resolvePathArray(arg);
+                if (folderExists(arg)) { dirStack.push([...getCwd()]); setCwd(target); errorLevel = 0; }
+                else { doPrint('The system cannot find the path specified.'); errorLevel = 1; }
+                return;
+            }
+
+            if (/^popd$/i.test(line)) {
+                const prev = dirStack.pop();
+                if (!prev) { doPrint('The directory stack is empty.'); errorLevel = 1; }
+                else if (!FileSystem.isFolder(prev)) { doPrint('The system cannot find the path specified.'); errorLevel = 1; }
+                else { setCwd(prev); errorLevel = 0; }
+                return;
+            }
+
+            if (/^path(?:\s|;|$)/i.test(line)) {
+                const rest = line.replace(/^path\s*/i, '').trim();
+                if (!rest) {
+                    doPrint(`PATH=${getVar('PATH') || '\\system'}`, redir);
+                } else if (rest === ';') {
+                    setVar('PATH', '');
+                } else {
+                    setVar('PATH', stripOuterQuotes(rest));
+                }
+                errorLevel = 0;
+                return;
+            }
+
+            if (/^prompt(?:\s|$)/i.test(line)) {
+                const rest = line.replace(/^prompt\s*/i, '').trim();
+                setVar('PROMPT', rest || '$P$G');
+                errorLevel = 0;
+                return;
+            }
+
+            if (/^vol(?:\s|$)/i.test(line)) {
+                doPrint(' Volume in drive \\ has no label.\n Volume Serial Number is 12AB-34CD', redir);
+                errorLevel = 0;
+                return;
+            }
+
+            if (/^date(?:\s|$|\/)/i.test(line)) {
+                const arg = line.replace(/^date\s*/i, '').trim();
+                const now = new Date();
+                if (!arg || /^\/t\b/i.test(arg)) doPrint(`The current date is: ${now.toLocaleDateString()}`, redir);
+                else doPrint(`The current date is: ${now.toLocaleDateString()}`, redir);
+                errorLevel = 0;
+                return;
+            }
+
+            if (/^time(?:\s|$|\/)/i.test(line)) {
+                const arg = line.replace(/^time\s*/i, '').trim();
+                const now = new Date();
+                if (!arg || /^\/t\b/i.test(arg)) doPrint(`The current time is: ${now.toLocaleTimeString()}`, redir);
+                else doPrint(`The current time is: ${now.toLocaleTimeString()}`, redir);
+                errorLevel = 0;
+                return;
+            }
+
+            if (/^tree(?:\s|$)/i.test(line)) {
+                const toks = splitArgs(line.replace(/^tree\s*/i, '').trim());
+                let showFiles = false;
+                let targetArg = null;
+                for (const t of toks) {
+                    if (/^\/f$/i.test(t)) showFiles = true;
+                    else if (targetArg === null) targetArg = stripOuterQuotes(t);
+                }
+                const root = targetArg ? resolvePathArray(targetArg) : [...getCwd()];
+                if (!FileSystem.isFolder(root)) { doPrint('Invalid path - ' + (targetArg || '')); errorLevel = 1; return; }
+                const out = ['Folder PATH listing for volume OS', 'Volume serial number is 12AB-34CD', pathToString(root)];
+                const walk = (dir, prefix) => {
+                    let kids = [];
+                    try { kids = (FileSystem.getChildren(dir) || []).filter(e => showFiles || e.type === 'folder'); } catch { kids = []; }
+                    kids.forEach((e, idx) => {
+                        const last = idx === kids.length - 1;
+                        out.push(`${prefix}${last ? '└───' : '├───'}${e.name}`);
+                        if (e.type === 'folder') walk([...dir, e.name], prefix + (last ? '    ' : '│   '));
+                    });
+                };
+                walk(root, '');
+                doPrint(out.join('\n'), redir);
+                errorLevel = 0;
+                return;
+            }
+
+            if (/^find(?:\s|$)/i.test(line)) {
+                const toks = splitArgs(line.replace(/^find\s*/i, '').trim());
+                let v = false, c = false, n = false, ic = false;
+                let needle = null;
+                const files = [];
+                for (const t of toks) {
+                    if (needle === null && files.length === 0 && /^\/[vcni]+$/i.test(t)) {
+                        const s = t.slice(1).toLowerCase();
+                        if (s.includes('v')) v = true;
+                        if (s.includes('c')) c = true;
+                        if (s.includes('n')) n = true;
+                        if (s.includes('i')) ic = true;
+                        continue;
+                    }
+                    if (needle === null) needle = stripOuterQuotes(t);
+                    else files.push(stripOuterQuotes(t));
+                }
+                if (needle === null || needle === '') { doPrint('FIND: Parameter format not correct'); errorLevel = 2; return; }
+                const sources = [];
+                if (!files.length) {
+                    if (pipeStdin != null) sources.push({ label: '', text: String(pipeStdin) });
+                    else { doPrint('FIND: Parameter format not correct'); errorLevel = 2; return; }
+                } else {
+                    for (const f of files) {
+                        const wx = expandWildcard(f);
+                        if (wx) {
+                            for (const m of wx.matches) {
+                                if (m.type === 'folder') continue;
+                                const content = FileSystem.readFile([...wx.dir, m.name]);
+                                if (content != null) sources.push({ label: m.name, text: String(content) });
+                            }
+                            continue;
+                        }
+                        const full = resolvePathArray(f);
+                        const content = FileSystem.readFile(full);
+                        if (content === null || content === undefined || FileSystem.isFolder(full)) {
+                            doPrint(`FIND: ${f}: No such file`);
+                            errorLevel = 1;
+                            return;
+                        }
+                        sources.push({ label: f, text: String(content) });
+                    }
+                }
+                const has = ic
+                    ? (a, b) => a.toLowerCase().includes(b.toLowerCase())
+                    : (a, b) => a.includes(b);
+                const out = [];
+                let hits = 0;
+                for (const g of sources) {
+                    if (!c && sources.length > 1 && g.label) out.push(`---------- ${g.label}`);
+                    g.text.split(/\r?\n/).forEach((ln, idx) => {
+                        const hit = has(ln, needle);
+                        if (v ? !hit : hit) {
+                            hits++;
+                            if (!c) out.push(`${n ? `[${idx + 1}]` : ''}${ln}`);
+                        }
+                    });
+                }
+                if (c) out.push(String(hits));
+                doPrint(out.join('\n'), redir);
+                errorLevel = hits ? 0 : 1;
+                return;
+            }
+
+            if (/^sort(?:\s|$)/i.test(line)) {
+                const toks = splitArgs(line.replace(/^sort\s*/i, '').trim());
+                let rev = false;
+                let fileArg = null;
+                for (const t of toks) {
+                    if (/^\/r$/i.test(t)) rev = true;
+                    else if (/^\//.test(t)) continue;
+                    else if (fileArg === null) fileArg = stripOuterQuotes(t);
+                }
+                let text = null;
+                if (fileArg) {
+                    const full = resolvePathArray(fileArg);
+                    const content = FileSystem.readFile(full);
+                    if (content === null || content === undefined || FileSystem.isFolder(full)) {
+                        doPrint('The system cannot find the file specified.');
+                        errorLevel = 1;
+                        return;
+                    }
+                    text = String(content);
+                } else if (pipeStdin != null) {
+                    text = String(pipeStdin);
+                } else {
+                    doPrint('SORT: Missing file argument.');
+                    errorLevel = 1;
+                    return;
+                }
+                const lines = text.split(/\r?\n/);
+                // A trailing newline is a terminator, not an extra blank line.
+                if (lines.length && lines[lines.length - 1] === '') lines.pop();
+                lines.sort((a, b) => {
+                    const x = a.toLowerCase(), y = b.toLowerCase();
+                    return x < y ? -1 : (x > y ? 1 : 0);
+                });
+                if (rev) lines.reverse();
+                doPrint(lines.join('\n'), redir);
+                errorLevel = 0;
+                return;
+            }
+
+            if (/^more(?:\s|$)/i.test(line)) {
+                const rest = line.replace(/^more\s*/i, '').trim();
+                if (!rest) {
+                    if (pipeStdin != null) { doPrint(String(pipeStdin), redir); errorLevel = 0; }
+                    else { doPrint('MORE: Missing file argument.'); errorLevel = 1; }
+                    return;
+                }
+                let ok = true;
+                for (const part of splitArgs(rest)) {
+                    const arg = stripOuterQuotes(part);
+                    if (/^\//.test(arg)) continue;
+                    const wx = expandWildcard(arg);
+                    if (wx) {
+                        for (const m of wx.matches) {
+                            if (m.type === 'folder') continue;
+                            const content = FileSystem.readFile([...wx.dir, m.name]);
+                            if (content != null) doPrint(String(content), redir);
+                        }
+                        continue;
+                    }
+                    const full = resolvePathArray(arg);
+                    const content = FileSystem.readFile(full);
+                    if (content === null || content === undefined || FileSystem.isFolder(full)) {
+                        doPrint('The system cannot find the file specified.');
+                        ok = false;
+                    } else doPrint(String(content), redir);
+                }
+                errorLevel = ok ? 0 : 1;
+                return;
+            }
+
+            if (/^fc(?:\s|$)/i.test(line)) {
+                const parts = splitArgs(line.replace(/^fc\s*/i, '').trim()).filter(p => !(/^\/(b|l|n|t|c)(:.*)?$/i.test(p)));
+                if (parts.length < 2) { doPrint('FC: Missing file arguments. Usage: FC file1 file2'); errorLevel = 2; return; }
+                const a = FileSystem.readFile(resolvePathArray(stripOuterQuotes(parts[0])));
+                const b = FileSystem.readFile(resolvePathArray(stripOuterQuotes(parts[1])));
+                if (a === null || a === undefined || b === null || b === undefined) {
+                    doPrint('FC: Cannot find one of the files.');
+                    errorLevel = 2;
+                    return;
+                }
+                const la = String(a).split(/\r?\n/), lb = String(b).split(/\r?\n/);
+                const out = [`Comparing files ${parts[0]} and ${parts[1]}`];
+                let diff = 0;
+                const top = Math.max(la.length, lb.length);
+                for (let i = 0; i < top; i++) {
+                    if (la[i] !== lb[i]) {
+                        diff++;
+                        if (diff <= 20) out.push(`***** ${parts[0]} [line ${i + 1}]\n${la[i] ?? '*missing*'}\n***** ${parts[1]} [line ${i + 1}]\n${lb[i] ?? '*missing*'}\n*****`);
+                    }
+                }
+                if (!diff) out.push('FC: no differences encountered');
+                else if (diff > 20) out.push(`... (${diff - 20} more differences)`);
+                doPrint(out.join('\n'), redir);
+                errorLevel = diff ? 1 : 0;
+                return;
+            }
+
+            if (/^where(?:\s|$)/i.test(line)) {
+                const rest = line.replace(/^where\s*/i, '').trim();
+                const pat = stripOuterQuotes(splitArgs(rest)[0] || '');
+                if (!pat) { doPrint('WHERE: Missing pattern. Usage: WHERE pattern'); errorLevel = 2; return; }
+                const re = wildcardToRegExp(pat.includes('.') || /[*?]/.test(pat) ? pat : pat + '.*');
+                const pathDirs = (getVar('PATH') || '\\system').split(';').map(d => resolvePathArray(d.trim() || '\\'));
+                const seen = new Set();
+                const hits = [];
+                for (const d of [[...getCwd()], ...pathDirs]) {
+                    let kids = [];
+                    try { kids = FileSystem.getChildren(d) || []; } catch { kids = []; }
+                    for (const k of kids) {
+                        if (k.type !== 'folder' && re.test(k.name)) {
+                            const full = pathToString([...d, k.name]);
+                            if (!seen.has(full)) { seen.add(full); hits.push(full); }
+                        }
+                    }
+                }
+                if (!hits.length) { doPrint(`INFO: Could not find files for the given pattern(s).`); errorLevel = 1; return; }
+                doPrint(hits.join('\n'), redir);
+                errorLevel = 0;
+                return;
+            }
+
+            if (/^chcp(?:\s|$)/i.test(line)) {
+                const arg = line.replace(/^chcp\s*/i, '').trim();
+                if (!arg) { doPrint('Active code page: 437', redir); errorLevel = 0; return; }
+                if (/^(437|850|1252|65001)$/.test(arg)) { doPrint(`Active code page: ${arg}`, redir); errorLevel = 0; }
+                else { doPrint('Invalid code page'); errorLevel = 1; }
+                return;
+            }
+
+            if (/^systeminfo$/i.test(line)) {
+                const now = new Date();
+                doPrint([
+                    `Host Name:                 ${getVar('COMPUTERNAME')}`,
+                    'OS Name:                   Microsoft Windows 12',
+                    'OS Version:                12.0.0',
+                    `Registered Owner:          ${getVar('USERNAME')}`,
+                    'System Type:               x64-based PC',
+                    'System Directory:          \\system',
+                    `System Boot Time:          ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`
+                ].join('\n'), redir);
+                errorLevel = 0;
+                return;
+            }
+
+            if (/^ipconfig(?:\s|$)/i.test(line)) {
+                doPrint([
+                    'Windows IP Configuration',
+                    '',
+                    'Ethernet adapter Loopback:',
+                    '   Connection-specific DNS Suffix  . : local',
+                    '   IPv4 Address. . . . . . . . . . . : 127.0.0.1',
+                    '   Subnet Mask . . . . . . . . . . . : 255.0.0.0',
+                    '   Default Gateway . . . . . . . . . :'
+                ].join('\n'), redir);
+                errorLevel = 0;
+                return;
+            }
+
+            if (/^ping(?:\s|$)/i.test(line)) {
+                const toks = splitArgs(line.replace(/^ping\s*/i, '').trim()).filter(t => !(/^\//.test(t)));
+                const target = stripOuterQuotes(toks[toks.length - 1] || '');
+                if (!target) { doPrint('Usage: ping [-n count] [-l size] target'); errorLevel = 1; return; }
+                if (!/^(localhost|127\.0\.0\.1|::1)$/i.test(target)) {
+                    doPrint(`Ping request could not find host ${target}. Please check the name and try again.`);
+                    errorLevel = 1;
+                    return;
+                }
+                const addr = /localhost|::1/i.test(target) ? target : '127.0.0.1';
+                doPrint([
+                    `Pinging ${addr} with 32 bytes of data:`,
+                    'Reply from 127.0.0.1: bytes=32 time<1ms TTL=128',
+                    'Reply from 127.0.0.1: bytes=32 time<1ms TTL=128',
+                    'Reply from 127.0.0.1: bytes=32 time<1ms TTL=128',
+                    'Reply from 127.0.0.1: bytes=32 time<1ms TTL=128',
+                    '',
+                    'Ping statistics for 127.0.0.1:',
+                    '    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),'
+                ].join('\n'), redir);
+                errorLevel = 0;
+                return;
+            }
+
+            if (/^help(?:\s|$)/i.test(line)) {
+                const topic = line.replace(/^help\s*/i, '').trim().toLowerCase();
+                const topics = {
+                    cd: 'CD — Displays the current directory or changes it. Usage: CD [path] | CD ..',
+                    dir: 'DIR — Lists files and folders. Usage: DIR [/B] [/S] [/W] [path|pattern]',
+                    md: 'MD/MKDIR — Creates directories (intermediate folders too). Usage: MD name [name2 ...]',
+                    rd: 'RD/RMDIR — Removes folders. Usage: RD [/S] [/Q] folder',
+                    del: 'DEL/ERASE — Deletes files. Usage: DEL [/S] file [pattern ...]  (wildcards * ? allowed)',
+                    copy: 'COPY — Copies files. Usage: COPY source[+] dest  (wildcards and a+b concat allowed)',
+                    move: 'MOVE — Moves files. Usage: MOVE source[+] dest',
+                    ren: 'REN/RENAME — Renames a file or folder. Usage: REN old new',
+                    type: 'TYPE — Prints file contents. Usage: TYPE file [file2 ...]  (wildcards allowed)',
+                    echo: 'ECHO — Prints text. ECHO [ON|OFF|.|text]. Redirect with > (write) or >> (append).',
+                    set: 'SET — Shows, sets or evaluates variables. SET [name=[value]] | SET /A expr | SET /P (kept, non-interactive)',
+                    if: 'IF — Conditional. IF [/I] [NOT] EXIST|DEFINED|ERRORLEVEL|cmdextversion|a==b ...',                    for: 'FOR — Loops. FOR %A IN (set) DO cmd | FOR /L %A IN (s,step,e) DO cmd | FOR /F ["opts"] %A IN (file|"str") DO cmd',
+                    call: 'CALL — Calls a :label or another .bat file. CALL :label [args] | CALL other.bat [args]',
+                    goto: 'GOTO — Jumps to a :label. GOTO label | GOTO :EOF',
+                    exit: 'EXIT — Ends the script (EXIT /B [code] returns from a CALL).',
+                    shift: 'SHIFT — Shifts batch args. SHIFT [/n]',
+                    cls: 'CLS — Clears the screen.',
+                    title: 'TITLE — Sets the window title. Usage: TITLE text',
+                    color: 'COLOR — Accepted (no visual effect in this build).',
+                    timeout: 'TIMEOUT — Accepted (scripts continue immediately).',
+                    choice: 'CHOICE — Asks the user to pick. Usage: CHOICE [/C ABC] [/M text] [/D default]',
+                    pushd: 'PUSHD — Saves the folder and changes to it. Usage: PUSHD [path]',
+                    popd: 'POPD — Restores the folder saved by PUSHD.',
+                    path: 'PATH — Shows or sets the search path. Usage: PATH [dirs] | PATH ;',
+                    vol: 'VOL — Shows the volume label and serial number.',
+                    date: 'DATE — Shows the current date. Usage: DATE [/T]',
+                    time: 'TIME — Shows the current time. Usage: TIME [/T]',
+                    tree: 'TREE — Draws the folder tree. Usage: TREE [/F] [path]',
+                    find: 'FIND — Searches text. Usage: FIND [/V] [/C] [/N] [/I] "text" [files...]',
+                    sort: 'SORT — Sorts lines. Usage: SORT [/R] [file]  (also reads pipes and < input)',
+                    more: 'MORE — Prints files. Usage: MORE file [file2 ...]',
+                    fc: 'FC — Compares two files. Usage: FC file1 file2',
+                    where: 'WHERE — Locates files. Usage: WHERE pattern  (searches folder + PATH)',
+                    chcp: 'CHCP — Shows the code page. Usage: CHCP [437|850|1252|65001]',
+                    ver: 'VER — Shows the Windows version.',
+                    whoami: 'WHOAMI — Shows COMPUTERNAME\\USERNAME.',
+                    hostname: 'HOSTNAME — Shows the computer name.',
+                    systeminfo: 'SYSTEMINFO — Shows system summary.',
+                    ping: 'PING — Pings loopback only in this build. Usage: PING 127.0.0.1',
+                    ipconfig: 'IPCONFIG — Shows the loopback network configuration.',
+                    pause: 'PAUSE — Prints "Press any key to continue . . ."',
+                    setlocal: 'SETLOCAL — Saves variables. SETLOCAL [ENABLEDELAYEDEXPANSION|DISABLEDELAYEDEXPANSION]',
+                    endlocal: 'ENDLOCAL — Restores variables saved by SETLOCAL.',
+                    rem: 'REM — A comment. Ignored.'
+                };
+                if (!topic) {
+                    const names = Object.keys(topics);
+                    doPrint('Supported commands (type HELP <name> for details):\n' +
+                        names.map(n => n.toUpperCase()).join('  '), redir);
+                } else if (topics[topic]) {
+                    doPrint(topics[topic], redir);
+                } else {
+                    doPrint('This command is not supported by the help utility.');
+                    errorLevel = 1;
+                    return;
+                }
                 errorLevel = 0;
                 return;
             }
@@ -1113,6 +2078,9 @@ const BatchEngine = (() => {
             delayedExpansion = false;
             errorLevel = 0;
             envStack = [];
+            dirStack = [];
+            pipeStdin = null;
+            captureHook = null;
             for (const key of Object.keys(vars)) delete vars[key];
             args = [scriptName, ...(runArgs || [])].map(v => String(v));
             scriptName = 'script.bat';
