@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4894] - 2026-09-15
+
+### Fixed
+- Desktop icon grid alignment and Recycle Bin spawning: unified placement and drag-snap grid math, added an automatic self-healing `normalizeLayout()` pass on every render that clamps positions into visible bounds, resolves overlaps/duplicates, and correctly assigns the Recycle Bin its slot on first boot (no more manual re-adjustments)
+
 ## [12.0.4893] - 2026-09-15
 
 ### Changed

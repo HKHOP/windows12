@@ -13,8 +13,12 @@ const DesktopIcons = (() => {
     const ICON_W = 80;
     const ICON_H = 90;
     const PADDING = 16;
+    const STEP_X = ICON_W + PADDING;
+    const STEP_Y = ICON_H + PADDING;
+    const BOTTOM_RESERVE = 100;
     let container;
     let positions = {};
+    let resizeTimer = null;
 
     const RECYCLE_BIN_ICON = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none">
         <path d="M4 6H20" stroke="#888" stroke-width="1.5" stroke-linecap="round"/>
@@ -28,6 +32,15 @@ const DesktopIcons = (() => {
         container = document.getElementById('desktop');
         loadPositions();
         render();
+        // Self-heal the grid when the viewport changes (resize, zoom,
+        // resolution/scale switches): re-snap, clamp and de-overlap icons.
+        window.addEventListener('resize', () => {
+            if (resizeTimer) clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                resizeTimer = null;
+                try { render(); } catch (e) { /* noop */ }
+            }, 200);
+        });
     }
 
     function loadPositions() {
@@ -50,15 +63,89 @@ const DesktopIcons = (() => {
         }
     }
 
-    function getDefaultPosition(name, index) {
-        const s = Scaling.getScale();
-        const cols = Math.floor((window.innerWidth / s - PADDING) / (ICON_W + PADDING));
-        const col = index % cols;
-        const row = Math.floor(index / cols);
+    // ---------- Single grid model (placement AND drag-snap share it) ----------
+    // Cell (col, row) -> top-left pixel. Every icon slot, including the
+    // Recycle Bin's first-boot slot, comes from here, so default placement
+    // and manual drag-snapping can never disagree.
+    function getGridMetrics() {
+        const s = Scaling.getScale() || 1;
+        const availW = window.innerWidth / s;
+        const availH = window.innerHeight / s - BOTTOM_RESERVE;
+        const cols = Math.max(1, Math.floor((availW - PADDING) / STEP_X));
+        const rows = Math.max(1, Math.floor((availH - PADDING - ICON_H) / STEP_Y) + 1);
+        return { s, cols, rows };
+    }
+
+    function cellToPos(col, row) {
+        return { x: PADDING + col * STEP_X, y: PADDING + row * STEP_Y };
+    }
+
+    function posToCell(x, y) {
         return {
-            x: PADDING + col * (ICON_W + PADDING),
-            y: PADDING + row * (ICON_H + PADDING)
+            col: Math.round((x - PADDING) / STEP_X),
+            row: Math.round((y - PADDING) / STEP_Y)
         };
+    }
+
+    function clampCell(col, row, m) {
+        return {
+            col: Math.max(0, Math.min(m.cols - 1, col)),
+            row: Math.max(0, Math.min(m.rows - 1, row))
+        };
+    }
+
+    function claimFreeCell(cell, m, occupied) {
+        let col = cell.col, row = cell.row;
+        const key = (c, r) => c + ':' + r;
+        let guard = m.cols * m.rows + 1;
+        while (occupied.has(key(col, row)) && guard-- > 0) {
+            col++;
+            if (col >= m.cols) { col = 0; row++; }
+            if (row >= m.rows) { row = 0; col = 0; }
+        }
+        occupied.add(key(col, row));
+        return { col, row };
+    }
+
+    function sortedEntries(entries) {
+        return [...entries].sort((a, b) => {
+            if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+            return a.name.localeCompare(b.name);
+        });
+    }
+
+    // Self-healing pass, run before every render: snaps every stored position
+    // onto the current grid, clamps into the visible area, pushes colliding
+    // icons to the next free cell, assigns slots to new icons, and drops
+    // stale entries (deleted/renamed). The repaired layout is persisted.
+    function normalizeLayout() {
+        let entries = [];
+        try { entries = FileSystem.getChildren(DESKTOP_PATH) || []; } catch (e) { entries = []; }
+        const names = ['$Recycle.Bin', ...sortedEntries(entries).map(e => e.name)];
+        const m = getGridMetrics();
+        const occupied = new Set();
+        const fresh = {};
+        let changed = false;
+        names.forEach((name, order) => {
+            const stored = positions[name];
+            let cell;
+            if (stored && isFinite(stored.x) && isFinite(stored.y)) {
+                const c = posToCell(stored.x, stored.y);
+                cell = clampCell(c.col, c.row, m);
+            } else {
+                cell = clampCell(order % m.cols, Math.floor(order / m.cols), m);
+            }
+            cell = claimFreeCell(cell, m, occupied);
+            const pos = cellToPos(cell.col, cell.row);
+            if (!stored || stored.x !== pos.x || stored.y !== pos.y) changed = true;
+            fresh[name] = pos;
+        });
+        if (Object.keys(positions).length !== names.length) changed = true;
+        positions = fresh;
+        if (changed) {
+            try { savePositions(); } catch (e) { /* noop */ }
+        }
+        return entries;
     }
 
     function render() {
@@ -66,15 +153,11 @@ const DesktopIcons = (() => {
 
         renderRecycleBin();
 
-        const entries = FileSystem.getChildren(DESKTOP_PATH);
+        const entries = sortedEntries(normalizeLayout());
 
-        entries.sort((a, b) => {
-            if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
-            return a.name.localeCompare(b.name);
-        });
-
-        entries.forEach((entry, i) => {
-            const pos = positions[entry.name] || getDefaultPosition(entry.name, i + 1);
+        entries.forEach((entry) => {
+            // normalizeLayout() guarantees a valid, collision-free slot.
+            const pos = positions[entry.name] || cellToPos(0, 0);
 
             const el = document.createElement('div');
             el.className = 'desktop-icon';
@@ -167,12 +250,22 @@ const DesktopIcons = (() => {
             const rawX = parseInt(el.style.left);
             const rawY = parseInt(el.style.top);
 
-            const gridX = Math.round(rawX / (ICON_W + PADDING)) * (ICON_W + PADDING);
-            const gridY = Math.round(rawY / (ICON_H + PADDING)) * (ICON_H + PADDING);
-
-            const s = Scaling.getScale();
-            const x = Math.max(0, Math.min(window.innerWidth / s - ICON_W, gridX));
-            const y = Math.max(0, Math.min(window.innerHeight / s - 100, gridY));
+            // Snap with the same grid model as placement, then dodge icons
+            // that already own a cell so drops never stack.
+            const m = getGridMetrics();
+            const dropped = posToCell(rawX, rawY);
+            const clamped = clampCell(dropped.col, dropped.row, m);
+            const occupied = new Set();
+            Object.entries(positions).forEach(([other, p]) => {
+                if (other === name) return;
+                const c = posToCell(p.x, p.y);
+                const cc = clampCell(c.col, c.row, m);
+                occupied.add(cc.col + ':' + cc.row);
+            });
+            const free = claimFreeCell(clamped, m, occupied);
+            const pos = cellToPos(free.col, free.row);
+            const x = pos.x;
+            const y = pos.y;
 
             el.style.left = x + 'px';
             el.style.top = y + 'px';
