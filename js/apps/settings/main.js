@@ -794,6 +794,10 @@ const Settings = (() => {
                 <div style="display:flex;gap:8px;">
                     ${(typeof Cursor !== 'undefined' ? Cursor.getSizes() : []).map(s => cursorSizeOption(s, config.cursorSize)).join('')}
                 </div>
+                <div style="font-size:13px;font-weight:500;margin:12px 0 8px;">Pointer style</div>
+                <div style="display:flex;gap:8px;">
+                    ${(typeof Cursor !== 'undefined' ? Cursor.getStyles() : []).map(s => cursorStyleOption(s, config.cursorStyle)).join('')}
+                </div>
                 <div class="cursor-test-area" style="margin-top:12px;background:rgba(255,255,255,0.04);border:1px dashed var(--window-border);border-radius:8px;padding:14px;display:flex;align-items:center;gap:16px;">
                     <span style="font-size:12px;color:var(--text-secondary);">Try it:</span>
                     <button style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;padding:6px 14px;color:var(--text-primary);font-size:12px;cursor:pointer;">Hover me</button>
@@ -1036,6 +1040,14 @@ const Settings = (() => {
         </div>`;
     }
 
+    function cursorStyleOption(s, activeId) {
+        const active = (activeId || 'modern') === s.id;
+        return `<div class="cursor-style-option" data-style="${s.id}" title="${s.desc}" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid ${active ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'};border-radius:8px;padding:10px 8px;cursor:pointer;text-align:center;transition:border-color 0.15s;">
+            <div style="height:30px;display:flex;align-items:center;justify-content:center;">${s.preview || ''}</div>
+            <div style="font-size:11px;font-weight:${active ? '600' : '400'};margin-top:4px;">${s.name}</div>
+        </div>`;
+    }
+
     const TASKBAR_POSITIONS = [
         { id: 'bottom', name: 'Bottom' },
         { id: 'top', name: 'Top' },
@@ -1097,6 +1109,14 @@ const Settings = (() => {
             opt.addEventListener('click', () => {
                 try { Cursor.setSize(opt.dataset.size); } catch (e) {}
                 SystemConfig.set('cursorSize', opt.dataset.size);
+                renderPersonalization(win.element.querySelector('.settings-content'));
+            });
+        });
+
+        win.element.querySelectorAll('.cursor-style-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                try { Cursor.setStyle(opt.dataset.style); } catch (e) {}
+                SystemConfig.set('cursorStyle', opt.dataset.style);
                 renderPersonalization(win.element.querySelector('.settings-content'));
             });
         });

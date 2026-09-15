@@ -6,9 +6,9 @@
 // pointing hand on links / buttons / file items, I-beam on text, ...).
 //
 // Custom mode via set(): forces one cursor everywhere for both mice.
-// Themes via setTheme()/setSize(): recolors + rescales both mice while
-// keeping per-context shapes (arrow / hand / I-beam). Persisted through
-// SystemConfig (`cursorTheme`, `cursorSize`).
+// Themes via setTheme()/setSize()/setStyle(): recolor, rescale and restyle
+// both mice while keeping per-context shapes (arrow / hand / I-beam).
+// Persisted through SystemConfig (`cursorTheme`, `cursorSize`, `cursorStyle`).
 //
 // Apps: import Cursor from '../../modules/cursor.js';
 
@@ -36,6 +36,13 @@ const Cursor = (() => {
 
     const DEFAULT_THEME = 'default';
     const DEFAULT_SIZE = 'normal';
+    const DEFAULT_STYLE = 'modern';
+
+    const STYLES = {
+        modern:  { name: 'Modern Arrow',  desc: 'The default Spark pointer' },
+        classic: { name: 'Classic',       desc: 'Windows-style arrow with notched tail' },
+        hands:   { name: 'Hands',         desc: 'A pointing hand for the pointer' }
+    };
 
     // ---------- Themed shape builders (virtual cursor) ----------
     function arrowSvg(t, px) {
@@ -67,9 +74,58 @@ const Cursor = (() => {
         return `<div class="vc-spinner" style="width:${s}px;height:${s}px;border-top-color:${t.accent};"></div>`;
     }
 
-    function themedShape(shape, themeId, sizeId) {
+    // Windows-authentic arrow: straight left edge with the classic notched
+    // tail (tip at 6.5,3.5 in viewBox units).
+    function classicArrowSvg(t, px) {
+        return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none"><path d="M6.5 3.5 L6.5 16.5 L10.3 13 L12.3 17.6 L14.7 16.5 L12.7 12 L17.3 12 Z" fill="${t.fill}" stroke="${t.stroke}" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+    }
+
+    // Pointing glove with a cuff (classic Windows link hand). Fingertip at
+    // the same point as the plain hand so hotspots stay shared.
+    function cuffHandSvg(t, px) {
+        return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none"><path d="M9.5 3.8a1.2 1.2 0 012.4 0v5.4l.5-.5a1.2 1.2 0 011.7 0l.3.3V7.2a1.2 1.2 0 012.4 0v2.5l.4-.3a1.2 1.2 0 011.7.4l.2.5v4c0 3.5-2.5 6.4-6 6.9-2.9.4-5.1-1-6.5-3.3l-2.6-4.3a1.2 1.2 0 012-1.3l1.8 2.2V3.8z" fill="${t.fill}" stroke="${t.stroke}" stroke-width="1.3" stroke-linejoin="round"/><rect x="3.6" y="16.6" width="8" height="4.6" rx="1.2" fill="${t.accent}" stroke="${t.stroke}" stroke-width="1.1"/></svg>`;
+    }
+
+    // Classic hourglass (Classic pack's busy cursor).
+    function hourglassSvg(t, px) {
+        return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none"><path d="M7 3.5h10M7 20.5h10M8.5 3.5c0 5 1.2 6.8 3.5 8.5-2.3 1.7-3.5 3.5-3.5 8.5M15.5 3.5c0 5-1.2 6.8-3.5 8.5 2.3 1.7 3.5 3.5 3.5 8.5" stroke="${t.fill}" stroke-width="1.7" stroke-linecap="round"/><path d="M7 3.5h10M7 20.5h10" stroke="${t.stroke}" stroke-width="0.7" stroke-linecap="round"/></svg>`;
+    }
+
+    // Open palm (Hands pack's move cursor).
+    function palmSvg(t, px) {
+        return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none"><path d="M8.5 12.5V6.8a1.4 1.4 0 012.8 0v3.7V5.2a1.4 1.4 0 012.8 0v5.3V6a1.4 1.4 0 012.8 0v6.6c0 4.2-2.6 7.4-6.2 7.4-2.6 0-4.3-1.4-5.7-4L3.6 13a1.4 1.4 0 012.4-1.4l2.5 3.1v-2.2z" fill="${t.fill}" stroke="${t.stroke}" stroke-width="1.3" stroke-linejoin="round"/></svg>`;
+    }
+
+    function themedShape(shape, themeId, sizeId, styleId) {
         const t = THEMES[themeId] || THEMES[DEFAULT_THEME];
         const px = (SIZES[sizeId] || SIZES[DEFAULT_SIZE]).px;
+        const style = STYLES[styleId] ? styleId : DEFAULT_STYLE;
+        if (style === 'classic') {
+            switch (shape) {
+                case 'hand': return cuffHandSvg(t, px);
+                case 'wait': return hourglassSvg(t, px);
+                case 'text': return textSvg(t, px);
+                case 'cross': return crossSvg(t, px);
+                case 'move': return moveSvg(t, px);
+                case 'ban': return banSvg(t, px);
+                case 'none': return ``;
+                case 'arrow':
+                default: return classicArrowSvg(t, px);
+            }
+        }
+        if (style === 'hands') {
+            switch (shape) {
+                case 'hand': return cuffHandSvg(t, px);
+                case 'text': return textSvg(t, px);
+                case 'wait': return spinnerHtml(t, px);
+                case 'cross': return crossSvg(t, px);
+                case 'move': return palmSvg(t, px);
+                case 'ban': return banSvg(t, px);
+                case 'none': return ``;
+                case 'arrow':
+                default: return handSvg(t, px);
+            }
+        }
         switch (shape) {
             case 'hand': return handSvg(t, px);
             case 'text': return textSvg(t, px);
@@ -84,23 +140,46 @@ const Cursor = (() => {
     }
 
     // Hotspot (click point) of each virtual-cursor shape, in 24x24 viewBox
-    // units matching the SVGs below. The touch layer anchors this exact
-    // point on its logic coordinates, so shape detection and clicks land
-    // precisely where the tip points — no offset.
+    // units matching the SVGs above, per pointer style. The touch layer
+    // anchors this exact point on its logic coordinates, so shape detection
+    // and clicks land precisely where the tip points — no offset.
     const HOTSPOTS = {
-        arrow: { x: 5, y: 3 },
-        hand: { x: 10.7, y: 3.8 },
-        text: { x: 12, y: 12 },
-        wait: { x: 12, y: 12 },
-        cross: { x: 12, y: 12 },
-        move: { x: 12, y: 12 },
-        ban: { x: 12, y: 12 },
-        none: { x: 0, y: 0 }
+        modern: {
+            arrow: { x: 5, y: 3 },
+            hand: { x: 10.7, y: 3.8 },
+            text: { x: 12, y: 12 },
+            wait: { x: 12, y: 12 },
+            cross: { x: 12, y: 12 },
+            move: { x: 12, y: 12 },
+            ban: { x: 12, y: 12 },
+            none: { x: 0, y: 0 }
+        },
+        classic: {
+            arrow: { x: 6.5, y: 3.5 },
+            hand: { x: 10.7, y: 3.8 },
+            text: { x: 12, y: 12 },
+            wait: { x: 12, y: 12 },
+            cross: { x: 12, y: 12 },
+            move: { x: 12, y: 12 },
+            ban: { x: 12, y: 12 },
+            none: { x: 0, y: 0 }
+        },
+        hands: {
+            arrow: { x: 10.7, y: 3.8 },
+            hand: { x: 10.7, y: 3.8 },
+            text: { x: 12, y: 12 },
+            wait: { x: 12, y: 12 },
+            cross: { x: 12, y: 12 },
+            move: { x: 12, y: 12 },
+            ban: { x: 12, y: 12 },
+            none: { x: 0, y: 0 }
+        }
     };
 
-    // Rendered-pixel hotspot for the current shape + size.
+    // Rendered-pixel hotspot for the current style + shape + size.
     function getHotspot() {
-        const h = HOTSPOTS[currentShape] || HOTSPOTS.arrow;
+        const pack = HOTSPOTS[currentStyle] || HOTSPOTS[DEFAULT_STYLE];
+        const h = pack[currentShape] || pack.arrow;
         const px = (SIZES[currentSize] || SIZES[DEFAULT_SIZE]).px;
         return { x: h.x / 24 * px, y: h.y / 24 * px };
     }
@@ -144,6 +223,7 @@ const Cursor = (() => {
     let currentShape = 'arrow';
     let currentTheme = DEFAULT_THEME;
     let currentSize = DEFAULT_SIZE;
+    let currentStyle = DEFAULT_STYLE;
     let pendingSync = null;     // {x, y} waiting for rAF
     let syncScheduled = false;
     let styleEl = null;
@@ -158,9 +238,9 @@ const Cursor = (() => {
         if (!(shape in SHAPES)) shape = 'arrow';
         if (shape === currentShape) {
             // Still ensure content exists (element may have been recreated)
-            // or the theme/size changed under us.
+            // or the theme/size/style changed under us.
             const el = getCursorEl();
-            if (el && (!el.dataset.shape || el.dataset.theme !== currentTheme || el.dataset.size !== currentSize)) {
+            if (el && (!el.dataset.shape || el.dataset.theme !== currentTheme || el.dataset.size !== currentSize || el.dataset.style !== currentStyle)) {
                 applyShape(el, shape);
             }
             return;
@@ -171,10 +251,11 @@ const Cursor = (() => {
     }
 
     function applyShape(el, shape) {
-        el.innerHTML = themedShape(shape, currentTheme, currentSize);
+        el.innerHTML = themedShape(shape, currentTheme, currentSize, currentStyle);
         el.dataset.shape = shape;
         el.dataset.theme = currentTheme;
         el.dataset.size = currentSize;
+        el.dataset.style = currentStyle;
         const px = (SIZES[currentSize] || SIZES[DEFAULT_SIZE]).px;
         el.style.width = px + 'px';
         el.style.height = px + 'px';
@@ -252,7 +333,7 @@ const Cursor = (() => {
     function refreshVirtual() {
         const el = getCursorEl();
         if (!el) return;
-        if (el.dataset.shape !== currentShape || el.dataset.theme !== currentTheme || el.dataset.size !== currentSize) {
+        if (el.dataset.shape !== currentShape || el.dataset.theme !== currentTheme || el.dataset.size !== currentSize || el.dataset.style !== currentStyle) {
             applyShape(el, currentShape);
         }
     }
@@ -302,6 +383,14 @@ const Cursor = (() => {
         return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 24 24"><path d="M5 3l14 7-6.5 1.5L9 18 5 3z" fill="${t.fill}" stroke="${t.stroke}" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
     }
 
+    function realClassicArrowSvg(t, px) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 24 24"><path d="M6.5 3.5 L6.5 16.5 L10.3 13 L12.3 17.6 L14.7 16.5 L12.7 12 L17.3 12 Z" fill="${t.fill}" stroke="${t.stroke}" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+    }
+
+    function realCuffHandSvg(t, px) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 24 24"><path d="M9.5 3.8a1.2 1.2 0 012.4 0v5.4l.5-.5a1.2 1.2 0 011.7 0l.3.3V7.2a1.2 1.2 0 012.4 0v2.5l.4-.3a1.2 1.2 0 011.7.4l.2.5v4c0 3.5-2.5 6.4-6 6.9-2.9.4-5.1-1-6.5-3.3l-2.6-4.3a1.2 1.2 0 012-1.3l1.8 2.2V3.8z" fill="${t.fill}" stroke="${t.stroke}" stroke-width="1.3" stroke-linejoin="round"/><rect x="3.6" y="16.6" width="8" height="4.6" rx="1.2" fill="${t.accent}" stroke="${t.stroke}" stroke-width="1.1"/></svg>`;
+    }
+
     function realHandSvg(t, px) {
         return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 24 24"><path d="M9.5 3.8a1.2 1.2 0 012.4 0v5.4l.5-.5a1.2 1.2 0 011.7 0l.3.3V7.2a1.2 1.2 0 012.4 0v2.5l.4-.3a1.2 1.2 0 011.7.4l.2.5v4c0 3.5-2.5 6.4-6 6.9-2.9.4-5.1-1-6.5-3.3l-2.6-4.3a1.2 1.2 0 012-1.3l1.8 2.2V3.8z" fill="${t.fill}" stroke="${t.stroke}" stroke-width="1.3" stroke-linejoin="round"/></svg>`;
     }
@@ -317,7 +406,7 @@ const Cursor = (() => {
         'input[type="checkbox"]', 'input[type="radio"]', 'input[type="range"]', 'input[type="color"]',
         '.desktop-icon', '.fe-content .fe-item', '.drive-item', '.fe-sidebar-item',
         '.settings-nav-item', '.system-sub-card', '.theme-option', '.accent-option',
-        '.bg-option', '.cursor-theme-option', '.cursor-size-option',
+        '.bg-option', '.cursor-theme-option', '.cursor-size-option', '.cursor-style-option',
         '.taskbar-btn', '.app-item', '.start-menu-all-btn', '.ctx-item',
         '.notif-action-btn', '.search-result-item'
     ];
@@ -333,15 +422,32 @@ const Cursor = (() => {
         const t = THEMES[currentTheme] || THEMES[DEFAULT_THEME];
         const px = (SIZES[currentSize] || SIZES[DEFAULT_SIZE]).px;
         const scale = px / 22;
-        const ax = Math.max(1, Math.round(5 * scale));
-        const ay = Math.max(1, Math.round(3 * scale));
-        const hx = Math.max(1, Math.round(10 * scale));
-        const hy = Math.max(1, Math.round(5 * scale));
+        // Hotspot per style: modern arrow tip (5,3); classic arrow tip
+        // (6.5,3.5); pointing-hand fingertip (10.7,3.8); I-beam center.
+        let arrowSvg = realArrowSvg(t, px);
+        let ax = 5;
+        let ay = 3;
+        let handSvg = realHandSvg(t, px);
+        if (currentStyle === 'classic') {
+            arrowSvg = realClassicArrowSvg(t, px);
+            ax = 6.5;
+            ay = 3.5;
+            handSvg = realCuffHandSvg(t, px);
+        } else if (currentStyle === 'hands') {
+            arrowSvg = realHandSvg(t, px);
+            ax = 10.7;
+            ay = 3.8;
+            handSvg = realCuffHandSvg(t, px);
+        }
+        const axPx = Math.max(1, Math.round(ax * scale));
+        const ayPx = Math.max(1, Math.round(ay * scale));
+        const hx = Math.max(1, Math.round(10.7 * scale));
+        const hy = Math.max(1, Math.round(3.8 * scale));
         const tx = Math.max(1, Math.round(px / 2));
         const ty = Math.max(1, Math.round(px / 2));
 
-        const arrow = `${svgUrl(realArrowSvg(t, px))} ${ax} ${ay}, default`;
-        const hand = `${svgUrl(realHandSvg(t, px))} ${hx} ${hy}, pointer`;
+        const arrow = `${svgUrl(arrowSvg)} ${axPx} ${ayPx}, default`;
+        const hand = `${svgUrl(handSvg)} ${hx} ${hy}, pointer`;
         const text = `${svgUrl(realTextSvg(t, px))} ${tx} ${ty}, text`;
 
         const root = `html[data-cursor-theme="${currentTheme}"]:not(.os-cursor-override)`;
@@ -360,6 +466,7 @@ const Cursor = (() => {
         const doc = document.documentElement;
         doc.setAttribute('data-cursor-theme', currentTheme);
         doc.setAttribute('data-cursor-size', currentSize);
+        doc.setAttribute('data-cursor-style', currentStyle);
         doc.style.setProperty('--cursor-scale', String((SIZES[currentSize] || SIZES[DEFAULT_SIZE]).scale));
     }
 
@@ -369,6 +476,34 @@ const Cursor = (() => {
 
     function getSizes() {
         return Object.entries(SIZES).map(([id, s]) => ({ id, ...s }));
+    }
+
+    // Pointer-style packs, each with a preview arrow (default theme, 26px)
+    // for settings UI cards.
+    function getStyles() {
+        const t = THEMES[DEFAULT_THEME];
+        const previews = {
+            modern: arrowSvg(t, 26),
+            classic: classicArrowSvg(t, 26),
+            hands: handSvg(t, 26)
+        };
+        return Object.entries(STYLES).map(([id, s]) => ({ id, ...s, preview: previews[id] }));
+    }
+
+    function getStyle() {
+        return currentStyle;
+    }
+
+    // Switch the pointer style pack for both mice. Returns true on success.
+    function setStyle(id) {
+        if (typeof id !== 'string' || !STYLES[id]) return false;
+        currentStyle = id;
+        applyThemeToReal();
+        // Re-render the virtual cursor with the new artwork + hotspot.
+        const el = getCursorEl();
+        if (el) applyShape(el, currentShape);
+        else refreshVirtual();
+        return true;
     }
 
     function getTheme() {
@@ -403,12 +538,14 @@ const Cursor = (() => {
     }
 
     // Apply persisted config values (called by SystemConfig + boot).
-    function applyFromConfig(theme, size) {
+    function applyFromConfig(theme, size, style) {
         let ok = true;
         if (typeof theme === 'string' && THEMES[theme]) currentTheme = theme;
         else if (theme != null) ok = false;
         if (typeof size === 'string' && SIZES[size]) currentSize = size;
         else if (size != null) ok = false;
+        if (typeof style === 'string' && STYLES[style]) currentStyle = style;
+        else if (style != null) ok = false;
         applyThemeToReal();
         refreshVirtual();
         return ok;
@@ -451,7 +588,7 @@ const Cursor = (() => {
         return currentShape;
     }
 
-    return { set, reset, get, isCustom, getShape, getHotspot, syncToPosition, refreshVirtual, setTheme, getTheme, setSize, getSize, getThemes, getSizes, applyFromConfig };
+    return { set, reset, get, isCustom, getShape, getHotspot, syncToPosition, refreshVirtual, setTheme, getTheme, setSize, getSize, getThemes, getSizes, getStyle, setStyle, getStyles, applyFromConfig };
 })();
 
 window._Cursor = Cursor;

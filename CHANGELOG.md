@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4900] - 2026-09-15
+
+### Added
+- Pointer style packs in Settings > Personalization > Mouse Cursor: Modern Arrow (the current default), Classic (Windows-authentic arrow with notched tail, gloved link hand with cuff, classic hourglass busy cursor), and Hands (a pointing hand as the pointer, cuffed glove for links, open palm for move). Applies to both the real mouse and the virtual touchpad cursor with per-style click hotspots, persisted via the new `cursorStyle` SystemConfig key and applied at boot
+
 ## [12.0.4899] - 2026-09-15
 
 ### Added
