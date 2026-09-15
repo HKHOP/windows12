@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4895] - 2026-09-15
+
+### Added
+- Mouse cursor personalization (Settings > Personalization > Mouse Cursor): 9 color themes (Arctic White, Midnight Black, Ocean Blue, Forest Green, Sunset Orange, Royal Purple, Crimson Red, Bubblegum Pink, Golden) and 3 sizes (Normal, Large, Extra large) applied to both the real mouse (themed SVG data-URL cursors preserving arrow/hand/I-beam per context, resize handles untouched) and the virtual touchpad cursor (themed shapes), with a hover-to-preview test area; persisted via new `cursorTheme` / `cursorSize` SystemConfig keys and applied at boot
+
 ## [12.0.4894] - 2026-09-15
 
 ### Fixed
