@@ -1,6 +1,7 @@
 import Scaling from './scaling.js';
 import SystemConfig from './systemConfig.js';
 import Cursor from './cursor.js';
+import IframePointer from './iframePointer.js';
 
 const Touch = (() => {
     const LONG_PRESS_MS = 500;
@@ -213,102 +214,51 @@ const Touch = (() => {
         return getTarget(cursorX, cursorY);
     }
 
-    function dispatchPointerAt(target, type, button, buttons) {
-        if (!target) return;
-        let ev = null;
-        try {
-            ev = new PointerEvent(type, {
-                bubbles: true,
-                cancelable: true,
-                clientX: cursorX,
-                clientY: cursorY,
-                screenX: cursorX,
-                screenY: cursorY,
-                button: button || 0,
-                buttons: typeof buttons === 'number' ? buttons : 0,
-                pointerId: 1,
-                pointerType: 'mouse',
-                isPrimary: true,
-                view: window
-            });
-        } catch (err) {
-            try {
-                ev = new MouseEvent(type, {
-                    bubbles: true,
-                    cancelable: true,
-                    clientX: cursorX,
-                    clientY: cursorY,
-                    button: button || 0,
-                    view: window
-                });
-            } catch (e2) { return; }
+    // Cross-origin frames are sealed by the browser: the virtual cursor can
+    // never synthesize events inside them. Focus helps keyboard users, and a
+    // one-time hint tells touch users to tap the page directly instead.
+    let blockedHintShown = false;
+
+    function noteBlockedFrame(route, withHint) {
+        if (!route || route.kind !== 'blocked' || !route.iframe) return;
+        IframePointer.focusBlocked(route.iframe);
+        if (withHint && !blockedHintShown) {
+            blockedHintShown = true;
+            showHint('This web page is isolated by the browser — tap the page directly with your finger to click inside it');
         }
-        target.dispatchEvent(ev);
     }
 
+    // Route an interaction at the virtual cursor, piercing same-origin
+    // iframes (local HTML previews, same-origin sites) so the page inside
+    // receives real mousedown/mouseup/click/wheel/etc. Returns the element
+    // that received the event (possibly inside a frame).
     function dispatchAtCursor(type, button, extra) {
-        const target = targetAtCursor();
-        if (!target) return null;
         const buttons = type === 'mouseup' ? 0 : (button === 2 ? 2 : 1);
         const resolvedButtons = extra && typeof extra.buttons === 'number' ? extra.buttons : buttons;
-        let ev;
         if (type === 'wheel') {
-            ev = new WheelEvent('wheel', {
-                bubbles: true,
-                cancelable: true,
-                clientX: cursorX,
-                clientY: cursorY,
-                deltaX: (extra && extra.deltaX) || 0,
-                deltaY: (extra && extra.deltaY) || 0,
-                view: window
-            });
-        } else if (type === 'contextmenu') {
-            ev = new MouseEvent('contextmenu', {
-                bubbles: true,
-                cancelable: true,
-                clientX: cursorX,
-                clientY: cursorY,
-                screenX: cursorX,
-                screenY: cursorY,
-                button: 2,
-                buttons: 0,
-                view: window
-            });
-        } else {
-            // Mirror real-mouse ordering: pointer event first, then the
-            // compatibility mouse event, so pointer-based apps (canvas draw,
-            // drag/resize handles) follow the virtual cursor too.
-            if (type === 'mousemove') {
-                dispatchPointerAt(target, 'pointermove', button || 0, resolvedButtons);
-            } else if (type === 'mousedown') {
-                dispatchPointerAt(target, 'pointerdown', button || 0, resolvedButtons);
-            } else if (type === 'mouseup') {
-                dispatchPointerAt(target, 'pointerup', button || 0, 0);
-            }
-            ev = new MouseEvent(type, {
-                bubbles: true,
-                cancelable: true,
-                clientX: cursorX,
-                clientY: cursorY,
-                screenX: cursorX,
-                screenY: cursorY,
+            const res = IframePointer.dispatch('wheel', cursorX, cursorY, {
                 button: button || 0,
-                buttons: extra && typeof extra.buttons === 'number' ? extra.buttons : buttons,
-                view: window
+                buttons: resolvedButtons,
+                deltaX: (extra && extra.deltaX) || 0,
+                deltaY: (extra && extra.deltaY) || 0
             });
+            return res.target;
         }
-        target.dispatchEvent(ev);
-        return target;
+        if (type === 'contextmenu') {
+            const res = IframePointer.dispatch('contextmenu', cursorX, cursorY, { button: 2, buttons: 0 });
+            noteBlockedFrame(res.route, false);
+            return res.target;
+        }
+        const res = IframePointer.dispatch(type, cursorX, cursorY, { button: button || 0, buttons: resolvedButtons });
+        if (type === 'mousedown') noteBlockedFrame(res.route, false);
+        if (type === 'click') noteBlockedFrame(res.route, true);
+        return res.target;
     }
 
     function focusIfEditable(target) {
-        if (!target) return;
-        try {
-            const editable = target.closest('input, textarea, select, [contenteditable]');
-            if (editable && typeof editable.focus === 'function') {
-                editable.focus({ preventScroll: true });
-            }
-        } catch (e) { /* noop */ }
+        // Works for outer elements and for elements inside same-origin
+        // iframes (the bridge focuses within the right document).
+        IframePointer.focusTarget({ target });
     }
 
     function leftClick() {
@@ -389,6 +339,17 @@ const Touch = (() => {
         const cursorDistToLastTap = Math.hypot(cursorX - lastTap.x, cursorY - lastTap.y);
         const pendingDoubleDrag = sinceLastTap < DOUBLE_TAP_MAX_MS && cursorDistToLastTap < DOUBLE_TAP_MAX_DIST;
 
+        // A finger landing directly on a web page (iframe) talks to that page
+        // natively — the browser routes real touches into frames, even
+        // cross-origin ones the virtual cursor can never pierce. Synthesizing
+        // a trackpad click at the cursor on top would double-fire, so this
+        // touch becomes passthrough: the cursor jumps to the finger and no
+        // synthetic clicks are produced for it.
+        let direct = false;
+        try {
+            direct = IframePointer.pointOverIframe(t.clientX, t.clientY);
+        } catch (err) { direct = false; }
+
         pad = {
             mode: 'one',
             id: t.identifier,
@@ -401,8 +362,17 @@ const Touch = (() => {
             longPressTimer: null,
             longPressFired: false,
             dragging: false,
-            pendingDoubleDrag
+            pendingDoubleDrag,
+            direct
         };
+
+        if (direct) {
+            setCursorPos(t.clientX, t.clientY);
+            // NOTE: no preventDefault here — the native tap/scroll inside the
+            // page must survive. The caller only stops propagation (outer app
+            // handlers like window-drag must not fire for page touches).
+            return true;
+        }
 
         if (pendingDoubleDrag) {
             // Second tap of a double-tap: hold the left button down immediately.
@@ -450,9 +420,16 @@ const Touch = (() => {
             return true;
         }
 
-        // One-finger: relative cursor movement.
+        // One-finger: relative cursor movement — unless this touch landed
+        // directly on a page (passthrough): the cursor tracks the finger and
+        // hover is forwarded, but no synthetic clicks are produced.
         if (e.touches.length !== 1) return true;
         const t = e.touches[0];
+        if (pad.direct) {
+            setCursorPos(t.clientX, t.clientY);
+            hoverMove(0);
+            return true;
+        }
         const dx = t.clientX - pad.lastX;
         const dy = t.clientY - pad.lastY;
         pad.lastX = t.clientX;
@@ -480,6 +457,14 @@ const Touch = (() => {
     function padTouchEnd(e) {
         if (!pad) return true;
         const now = Date.now();
+
+        // Passthrough page touches: native behavior already ran at the
+        // finger — never synthesize trackpad clicks for them.
+        if (pad.direct) {
+            pad = null;
+            lastTap = { time: 0, x: 0, y: 0 };
+            return true;
+        }
 
         if (pad.mode === 'two') {
             // Still one finger down -> keep waiting for full release, no click yet.
@@ -582,11 +567,18 @@ const Touch = (() => {
     }
 
     // ---------- Direct-touch handling (touchpad OFF) ----------
+    function stopPropOnly(e) {
+        try { e.stopPropagation(); } catch (err) {}
+    }
+
     function handleTouchStart(e) {
         requestFullscreen();
         if (isTouchpadEnabled()) {
             padTouchStart(e);
-            swallowTouch(e);
+            // Direct page touches keep their native default (real tap/scroll
+            // inside the frame) — only keep outer app handlers out of it.
+            if (pad && pad.direct) stopPropOnly(e);
+            else swallowTouch(e);
             return;
         }
         if (e.touches.length > 1) return;
@@ -632,8 +624,10 @@ const Touch = (() => {
 
     function handleTouchMove(e) {
         if (isTouchpadEnabled()) {
+            const wasDirect = !!(pad && pad.direct);
             padTouchMove(e);
-            swallowTouch(e);
+            if (wasDirect) stopPropOnly(e);
+            else swallowTouch(e);
             return;
         }
         if (!touchData || e.touches.length > 1) return;
@@ -664,8 +658,10 @@ const Touch = (() => {
 
     function handleTouchEnd(e) {
         if (isTouchpadEnabled()) {
+            const wasDirect = !!(pad && pad.direct);
             padTouchEnd(e);
-            swallowTouch(e);
+            if (wasDirect) stopPropOnly(e);
+            else swallowTouch(e);
             return;
         }
         if (!touchData) return;

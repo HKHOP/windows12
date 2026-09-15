@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4897] - 2026-09-15
+
+### Fixed
+- Local HTML files still showing a big white strip on the right and below on iPad: iPad Safari lays framed pages without a viewport meta out at a 980px default width, so the page canvas overflowed the frame — the preview now injects `<meta name="viewport" content="width=device-width, initial-scale=1">` when the file has none, and Words exports include the viewport meta at the source
+- Virtual touchpad cursor could not click, tap, or scroll inside websites in iframes or local HTML previews: synthesized events dispatched on the `<iframe>` element never reached the inner page. Added an `iframePointer` bridge that re-dispatches pointer/mouse/wheel/click/dblclick/contextmenu events inside same-origin frames with translated coordinates (nested frames included), mirrors inner cursor styles (hand over links, I-beam over text), focuses fields inside pages, and for sealed cross-origin sites focuses the frame plus shows a one-time hint; a finger landing directly on a page now passes through natively (cursor jumps to the finger, no double-firing) so even isolated sites stay fully usable by direct tap
+
 ## [12.0.4896] - 2026-09-15
 
 ### Fixed

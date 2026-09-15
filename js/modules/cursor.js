@@ -12,6 +12,8 @@
 //
 // Apps: import Cursor from '../../modules/cursor.js';
 
+import IframePointer from './iframePointer.js';
+
 const Cursor = (() => {
     // ---------- Themes ----------
     const THEMES = {
@@ -170,6 +172,13 @@ const Cursor = (() => {
     // Walk up from the deepest element: 'auto' inherits, so the first
     // non-auto cursor found is what the real mouse shows.
     function detectAt(x, y) {
+        // Same-origin pages inside iframes expose their own cursor styles —
+        // mirror those (hand over links, I-beam over text) for the virtual
+        // cursor. Cross-origin frames fall through to the outer lookup.
+        try {
+            const inner = IframePointer.cursorValueAt(x, y);
+            if (inner) return shapeForValue(inner);
+        } catch (e) { /* fall through to outer detection */ }
         let el = null;
         try {
             el = document.elementFromPoint(x, y);

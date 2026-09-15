@@ -835,6 +835,18 @@ const FileExplorer = (() => {
         html = html.replace(/import\s+\w+\s+from/g, '/* blocked */ var');
         html = html.replace(/export\s+(default\s+)?/g, '/* blocked */ ');
         html = html.replace(/export\s+{[^}]*}/g, '/* blocked */');
+        // iPad Safari lays framed pages lacking a viewport meta out at a 980px
+        // default width — the page canvas then overflows the frame and shows
+        // as a big white strip on the right (and below short content).
+        // Force the layout viewport to match the frame width instead.
+        if (!/<meta\b[^>]*\bname\s*=\s*["']viewport["']/i.test(html)) {
+            const meta = '<meta name="viewport" content="width=device-width, initial-scale=1">';
+            if (/<head\b[^>]*>/i.test(html)) {
+                html = html.replace(/<head\b[^>]*>/i, (m) => `${m}${meta}`);
+            } else {
+                html = meta + html;
+            }
+        }
         return html;
     }
 

@@ -97,7 +97,7 @@ const Words = (() => {
     }
 
     function htmlDocument(title, body, metadata = '') {
-        return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{margin:0;background:#fff;color:#111;font-family:Arial,sans-serif}.page{max-width:820px;min-height:1050px;margin:0 auto;padding:82px;box-sizing:border-box;line-height:1.55}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:7px}</style></head><body><div class="page">${body}</div>${metadata}</body></html>`;
+        return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)}</title><style>body{margin:0;background:#fff;color:#111;font-family:Arial,sans-serif}.page{max-width:820px;min-height:1050px;margin:0 auto;padding:82px;box-sizing:border-box;line-height:1.55}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:7px}</style></head><body><div class="page">${body}</div>${metadata}</body></html>`;
     }
 
     function ensureFolder() {
