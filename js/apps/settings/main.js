@@ -59,7 +59,7 @@ const Settings = (() => {
 
     function buildNav() {
         return Object.entries(pages).map(([id, page]) => `
-            <div class="settings-nav-item" data-page="${id}" style="padding:10px 16px;border-radius:6px;cursor:pointer;font-size:14px;${currentPage === id && !currentSubPage ? 'background:rgba(255,255,255,0.08);' : ''}transition:background 0.15s;display:flex;align-items:center;gap:10px;">
+            <div class="settings-nav-item" data-page="${id}" style="padding:10px 16px;border-radius:6px;cursor:pointer;font-size:14px;${currentPage === id ? 'background:rgba(255,255,255,0.08);' : ''}transition:background 0.15s;display:flex;align-items:center;gap:10px;">
                 <span>${page.icon}</span>${page.name}
             </div>
         `).join('');
@@ -70,7 +70,7 @@ const Settings = (() => {
         const navItems = win.element.querySelectorAll('.settings-nav-item');
 
         navItems.forEach(item => {
-            if (item.dataset.page === currentPage && !currentSubPage) {
+            if (item.dataset.page === currentPage) {
                 item.style.background = 'rgba(255,255,255,0.08)';
             } else {
                 item.style.background = '';
@@ -1162,8 +1162,35 @@ const Settings = (() => {
         }
     }
 
-    function launch() {
-        currentSubPage = null;
+    function showPage(page, subPage = null) {
+        const validPage = Object.hasOwn(pages, page) ? page : 'system';
+        const validSubPage = validPage === 'system' && Object.hasOwn(systemSubPages, subPage) ? subPage : null;
+
+        currentPage = validPage;
+        currentSubPage = validSubPage;
+
+        if (!win || !win.element.isConnected) {
+            return;
+        }
+
+        if (win.element.style.display === 'none') {
+            win.element.style.display = 'flex';
+        }
+        WindowManager.focusWindow(win.id);
+        renderPage();
+    }
+
+    function launch(options = {}) {
+        if (options.page || options.subPage) {
+            showPage(options.page || 'system', options.subPage);
+
+            if (win && win.element.isConnected) {
+                return;
+            }
+        } else if (win && win.element.isConnected) {
+            return;
+        }
+
         win = WindowManager.createWindow('settings', 'Settings', icon, getContent(), { width: 800, height: 550 });
 
         win.element.querySelectorAll('.settings-nav-item').forEach(item => {
@@ -1189,7 +1216,7 @@ const Settings = (() => {
         });
     }
 
-    return { launch };
+    return { launch, showPage };
 })();
 
 export default Settings;

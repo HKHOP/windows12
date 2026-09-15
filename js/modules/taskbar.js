@@ -260,28 +260,35 @@ const Taskbar = (() => {
         });
     }
 
-    function openApp(appId) {
+    function openApp(appId, options = {}) {
         const existing = WindowManager.getWindowsByApp(appId);
         if (existing.length > 0) {
             const win = existing[0];
+            const wasFocused = win.element.classList.contains('focused');
             if (win.element.style.display === 'none') {
                 win.element.style.display = 'flex';
                 WindowManager.focusWindow(win.id);
-            } else if (win.element.classList.contains('focused')) {
+            } else if (wasFocused && !options.page) {
                 win.element.style.display = 'none';
             } else {
                 WindowManager.focusWindow(win.id);
             }
+            if (options.page) {
+                const app = AppRegistry.get(appId);
+                if (app && typeof app.showPage === 'function') {
+                    app.showPage(options.page, options.subPage);
+                }
+            }
         } else {
-            launchApp(appId);
+            launchApp(appId, options);
         }
         document.getElementById('start-menu').classList.add('hidden');
     }
 
-    function launchApp(appId) {
+    function launchApp(appId, options = {}) {
         const app = AppRegistry.get(appId);
         if (app) {
-            app.launch();
+            app.launch(options);
         }
     }
 

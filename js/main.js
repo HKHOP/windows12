@@ -123,8 +123,8 @@ function setupDesktopContextMenu() {
             { label: 'New folder', icon: '📁', action: () => { DesktopIcons.createNewFolder(); } },
             { label: 'New text file', icon: '📄', action: () => { DesktopIcons.createNewFile(); } },
             'separator',
-            { label: 'Display settings', icon: '🖥', action: () => { Taskbar.openApp('settings'); } },
-            { label: 'Personalize', icon: '🎨', action: () => { Taskbar.openApp('settings'); } }
+            { label: 'Display settings', icon: '🖥', action: () => { Taskbar.openApp('settings', { page: 'system', subPage: 'display' }); } },
+            { label: 'Personalize', icon: '🎨', action: () => { Taskbar.openApp('settings', { page: 'personalization' }); } }
         ]);
     });
 }
@@ -137,7 +137,7 @@ function setupTaskbarContextMenu() {
         ContextMenu.show(e.clientX, e.clientY, [
             { label: 'Task Manager', icon: '📊', action: () => { Taskbar.openApp('taskManager'); } },
             'separator',
-            { label: 'Taskbar settings', icon: '⚙', action: () => { Taskbar.openApp('settings'); } }
+            { label: 'Taskbar settings', icon: '⚙', action: () => { Taskbar.openApp('settings', { page: 'personalization' }); } }
         ]);
     });
 }

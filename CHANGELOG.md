@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4909] - 2026-09-15
+
+### Fixed
+- Desktop right-click Personalize and Display settings now deep-link into Settings (Personalization page and System > Display subpage, including retargeting an already-open window) instead of always opening the Settings home page; taskbar Taskbar settings entry also opens Personalization
+
 ## [12.0.4908] - 2026-09-15
 
 ### Changed
