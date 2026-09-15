@@ -34,6 +34,22 @@ const Cursor = (() => {
         'extra-large': { name: 'Extra large', scale: 2,   px: 44 }
     };
 
+    function getSizeObj(id) {
+        if (typeof id === 'number') {
+            const px = Math.max(12, Math.min(96, Math.round(id)));
+            return { id: px, name: px + 'px', scale: px / 22, px };
+        }
+        if (typeof id === 'string') {
+            if (SIZES[id]) return SIZES[id];
+            const parsed = parseFloat(id);
+            if (!isNaN(parsed)) {
+                const px = Math.max(12, Math.min(96, Math.round(parsed)));
+                return { id: px, name: px + 'px', scale: px / 22, px };
+            }
+        }
+        return SIZES[DEFAULT_SIZE];
+    }
+
     const DEFAULT_THEME = 'default';
     const DEFAULT_SIZE = 'normal';
     const DEFAULT_STYLE = 'modern';
@@ -145,7 +161,7 @@ const Cursor = (() => {
 
     function themedShape(shape, themeId, sizeId, styleId) {
         const t = THEMES[themeId] || THEMES[DEFAULT_THEME];
-        const px = (SIZES[sizeId] || SIZES[DEFAULT_SIZE]).px;
+        const px = getSizeObj(sizeId).px;
         const style = STYLES[styleId] ? styleId : DEFAULT_STYLE;
         if (style === 'classic') {
             switch (shape) {
@@ -231,7 +247,7 @@ const Cursor = (() => {
     function getHotspot() {
         const pack = HOTSPOTS[currentStyle] || HOTSPOTS[DEFAULT_STYLE];
         const h = pack[currentShape] || pack.arrow;
-        const px = (SIZES[currentSize] || SIZES[DEFAULT_SIZE]).px;
+        const px = getSizeObj(currentSize).px;
         return { x: h.x / 24 * px, y: h.y / 24 * px };
     }
 
@@ -473,8 +489,9 @@ const Cursor = (() => {
 
     function applyThemeToReal() {
         const t = THEMES[currentTheme] || THEMES[DEFAULT_THEME];
-        const px = (SIZES[currentSize] || SIZES[DEFAULT_SIZE]).px;
-        const scale = px / 22;
+        const sObj = getSizeObj(currentSize);
+        const px = sObj.px;
+        const scale = sObj.scale;
         // Artwork + hotspot tip per style pack.
         let arrowSvg = realArrowSvg(t, px);
         let ax = 4;
@@ -532,9 +549,9 @@ const Cursor = (() => {
 
         const doc = document.documentElement;
         doc.setAttribute('data-cursor-theme', currentTheme);
-        doc.setAttribute('data-cursor-size', currentSize);
+        doc.setAttribute('data-cursor-size', typeof currentSize === 'string' ? currentSize : String(currentSize));
         doc.setAttribute('data-cursor-style', currentStyle);
-        doc.style.setProperty('--cursor-scale', String((SIZES[currentSize] || SIZES[DEFAULT_SIZE]).scale));
+        doc.style.setProperty('--cursor-scale', String(scale));
     }
 
     function getThemes() {
@@ -596,9 +613,15 @@ const Cursor = (() => {
     }
 
     // Switch the cursor size for both mice. Returns true on success.
-    function setSize(id) {
-        if (typeof id !== 'string' || !SIZES[id]) return false;
-        currentSize = id;
+    function setSize(val) {
+        if (val == null) return false;
+        if (typeof val === 'string' && SIZES[val]) {
+            currentSize = val;
+        } else {
+            const parsed = parseFloat(val);
+            if (isNaN(parsed)) return false;
+            currentSize = Math.max(12, Math.min(96, Math.round(parsed)));
+        }
         applyThemeToReal();
         const el = getCursorEl();
         if (el) applyShape(el, currentShape);
@@ -611,8 +634,14 @@ const Cursor = (() => {
         let ok = true;
         if (typeof theme === 'string' && THEMES[theme]) currentTheme = theme;
         else if (theme != null) ok = false;
-        if (typeof size === 'string' && SIZES[size]) currentSize = size;
-        else if (size != null) ok = false;
+        if (size != null) {
+            if (typeof size === 'string' && SIZES[size]) currentSize = size;
+            else {
+                const parsed = parseFloat(size);
+                if (!isNaN(parsed)) currentSize = Math.max(12, Math.min(96, Math.round(parsed)));
+                else ok = false;
+            }
+        }
         if (typeof style === 'string' && STYLES[style]) currentStyle = style;
         else if (style != null) ok = false;
         applyThemeToReal();
@@ -657,7 +686,7 @@ const Cursor = (() => {
         return currentShape;
     }
 
-    return { set, reset, get, isCustom, getShape, getHotspot, syncToPosition, refreshVirtual, setTheme, getTheme, setSize, getSize, getThemes, getSizes, getStyle, setStyle, getStyles, applyFromConfig };
+    return { set, reset, get, isCustom, getShape, getHotspot, syncToPosition, refreshVirtual, setTheme, getTheme, setSize, getSize, getSizeObj, getThemes, getSizes, getStyle, setStyle, getStyles, applyFromConfig };
 })();
 
 window._Cursor = Cursor;

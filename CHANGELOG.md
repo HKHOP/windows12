@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4912] - 2026-09-15
+
+### Changed
+- Personalization settings > Mouse Cursor: replaced the 3 preset size buttons with a precise range slider (16px to 64px) with live preview and smooth persistent sizing for both the real mouse and virtual touchpad cursor
+
 ## [12.0.4911] - 2026-09-15
 
 ### Fixed

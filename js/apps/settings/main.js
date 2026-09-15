@@ -790,9 +790,10 @@ const Settings = (() => {
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
                     ${(typeof Cursor !== 'undefined' ? Cursor.getThemes() : []).map(t => cursorThemeOption(t, config.cursorTheme)).join('')}
                 </div>
-                <div style="font-size:13px;font-weight:500;margin:12px 0 8px;">Size</div>
-                <div style="display:flex;gap:8px;">
-                    ${(typeof Cursor !== 'undefined' ? Cursor.getSizes() : []).map(s => cursorSizeOption(s, config.cursorSize, config.cursorTheme)).join('')}
+                <div style="font-size:13px;font-weight:500;margin:12px 0 8px;">Cursor Size</div>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <input type="range" class="cursor-size-slider" min="16" max="64" step="1" value="${(typeof Cursor !== 'undefined' && typeof Cursor.getSizeObj === 'function') ? Cursor.getSizeObj(config.cursorSize).px : 22}" style="flex:1;accent-color:var(--accent-color);">
+                    <span class="cursor-size-value" style="min-width:45px;text-align:right;font-size:14px;">${(typeof Cursor !== 'undefined' && typeof Cursor.getSizeObj === 'function') ? Cursor.getSizeObj(config.cursorSize).px : 22}px</span>
                 </div>
                 <div style="font-size:13px;font-weight:500;margin:12px 0 8px;">Pointer style</div>
                 <div style="display:flex;gap:8px;">
@@ -1107,13 +1108,19 @@ const Settings = (() => {
             });
         });
 
-        win.element.querySelectorAll('.cursor-size-option').forEach(opt => {
-            opt.addEventListener('click', () => {
-                try { Cursor.setSize(opt.dataset.size); } catch (e) {}
-                SystemConfig.set('cursorSize', opt.dataset.size);
-                renderPersonalization(win.element.querySelector('.settings-content'));
+        const cursorSlider = win.element.querySelector('.cursor-size-slider');
+        const cursorSliderVal = win.element.querySelector('.cursor-size-value');
+        if (cursorSlider) {
+            cursorSlider.addEventListener('input', () => {
+                const px = parseInt(cursorSlider.value);
+                if (cursorSliderVal) cursorSliderVal.textContent = `${px}px`;
+                try { Cursor.setSize(px); } catch (e) {}
             });
-        });
+            cursorSlider.addEventListener('change', () => {
+                const px = parseInt(cursorSlider.value);
+                SystemConfig.set('cursorSize', px);
+            });
+        }
 
         win.element.querySelectorAll('.cursor-style-option').forEach(opt => {
             opt.addEventListener('click', () => {
