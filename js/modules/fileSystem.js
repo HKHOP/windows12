@@ -416,7 +416,7 @@ const FileSystem = (() => {
         return node !== null && node.type === 'folder';
     }
 
-    return { init, save, flush, serializedSize, wouldFit, storageInfo, getNode, getChildren, createFolder, createFile, readFile, writeFile, writeFileBlob, readFileBlob, isBlobFile, deleteItem, permanentDelete, restoreFromRecycleBin, emptyRecycleBin, getRecycleBinContent, renameItem, moveItem, itemExists, isFolder };
+    return { init, save, flush, serializedSize, wouldFit, storageInfo, STORAGE_BUDGET, getNode, getChildren, createFolder, createFile, readFile, writeFile, writeFileBlob, readFileBlob, isBlobFile, deleteItem, permanentDelete, restoreFromRecycleBin, emptyRecycleBin, getRecycleBinContent, renameItem, moveItem, itemExists, isFolder };
 })();
 
 window._FileSystem = FileSystem;

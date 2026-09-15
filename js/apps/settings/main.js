@@ -1,6 +1,7 @@
 import AppIcons from '../../modules/appIcons.js';
 import WindowManager from '../../modules/windowManager.js';
 import SystemConfig from '../../modules/systemConfig.js';
+import FileSystem from '../../modules/fileSystem.js';
 import Scaling from '../../modules/scaling.js';
 import Popup from '../../modules/popup.js';
 import AppSystem from '../../modules/appSystem.js';
@@ -513,37 +514,95 @@ const Settings = (() => {
         });
     }
 
+    function formatBytes(n) {
+        if (n == null || isNaN(n)) return 'unknown';
+        n = Math.max(0, n);
+        if (n < 1024) return `${n} B`;
+        if (n < 1048576) return `${(n / 1024).toFixed(1)} KB`;
+        if (n < 1073741824) return `${(n / 1048576).toFixed(1)} MB`;
+        return `${(n / 1073741824).toFixed(2)} GB`;
+    }
+
+    // Recursively totals a filesystem subtree. Inline file contents live in
+    // localStorage (their string length is the footprint); blob-backed files
+    // live in IndexedDB (their verified `size` is the footprint).
+    function measureNode(node) {
+        if (!node) return { local: 0, blob: 0, files: 0 };
+        if (node.type === 'file') {
+            if (node.blobRef) return { local: 0, blob: node.size || 0, files: 1 };
+            return { local: node.content ? node.content.length : 0, blob: 0, files: 1 };
+        }
+        let local = 0, blob = 0, files = 0;
+        if (node.type === 'folder' && node.children) {
+            for (const key of Object.keys(node.children)) {
+                const r = measureNode(node.children[key]);
+                local += r.local; blob += r.blob; files += r.files;
+            }
+        }
+        return { local, blob, files };
+    }
+
     function renderStorageSettings(el) {
-        const used = 45;
+        let totalLocal = 0;
+        try { totalLocal = FileSystem.serializedSize(); } catch (e) { totalLocal = 0; }
+        const budget = FileSystem.STORAGE_BUDGET || Math.floor(4.5 * 1024 * 1024);
+        const usedPct = Math.min(100, Math.max(0, (totalLocal / budget) * 100));
+
+        const home = ['/', 'users', 'default'];
+        const categories = [
+            { name: 'Documents', path: [...home, 'Documents'], color: '#FFC107' },
+            { name: 'Downloads', path: [...home, 'Downloads'], color: '#00ACC1' },
+            { name: 'Pictures', path: [...home, 'Pictures'], color: '#43A047' },
+            { name: 'Music', path: [...home, 'Music'], color: '#AB47BC' },
+            { name: 'Videos', path: [...home, 'Videos'], color: '#E53935' },
+            { name: 'Desktop', path: [...home, 'Desktop'], color: '#7E57C2' },
+            { name: 'Apps & data', path: ['/', 'programs data'], color: '#0078D4' },
+            { name: 'System & reserved', path: ['/', 'system'], color: '#888' }
+        ].map(cat => {
+            let m = { local: 0, blob: 0, files: 0 };
+            try { m = measureNode(FileSystem.getNode(cat.path)); } catch (e) { /* treat as empty */ }
+            return { ...cat, ...m, bytes: m.local + m.blob };
+        });
+
+        const blobTotal = categories.reduce((sum, c) => sum + c.blob, 0);
+
         el.innerHTML += `
             <div style="display:flex;flex-direction:column;gap:16px;">
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
-                    <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Local Disk (C:)</div>
+                    <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Virtual disk (browser storage)</div>
                     <div style="height:20px;background:rgba(255,255,255,0.06);border-radius:10px;overflow:hidden;margin-bottom:8px;">
-                        <div style="height:100%;width:${used}%;background:linear-gradient(90deg,#0078D4,#00a8e8);border-radius:10px;"></div>
+                        <div style="height:100%;width:${usedPct.toFixed(1)}%;background:linear-gradient(90deg,#0078D4,#00a8e8);border-radius:10px;"></div>
                     </div>
-                    <div style="font-size:13px;color:var(--text-secondary);">${used}% used</div>
+                    <div style="font-size:13px;color:var(--text-secondary);">${formatBytes(totalLocal)} of ${formatBytes(budget)} used (${usedPct.toFixed(1)}%)</div>
+                    <div class="storage-disk-line" style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Media files (IndexedDB): ${formatBytes(blobTotal)}${blobTotal > 0 ? '' : ' • nothing stored off-index yet'}</div>
                 </div>
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Storage usage</div>
                     <div style="display:flex;flex-direction:column;gap:8px;">
-                        ${[
-                            { name: 'Apps & features', size: '12.3 GB', color: '#0078D4' },
-                            { name: 'Documents', size: '2.1 GB', color: '#FFC107' },
-                            { name: 'Pictures', size: '1.8 GB', color: '#43A047' },
-                            { name: 'Videos', size: '0.9 GB', color: '#E53935' },
-                            { name: 'Other', size: '4.2 GB', color: '#888' }
-                        ].map(item => `
-                            <div style="display:flex;align-items:center;gap:8px;">
+                        ${categories.map(item => `
+                            <div style="display:flex;align-items:center;gap:8px;" title="${item.files} file(s)">
                                 <div style="width:12px;height:12px;border-radius:3px;background:${item.color};"></div>
                                 <span style="flex:1;font-size:13px;">${item.name}</span>
-                                <span style="font-size:13px;color:var(--text-secondary);">${item.size}</span>
+                                <span style="font-size:12px;color:var(--text-secondary);">${item.files} items</span>
+                                <span style="font-size:13px;color:var(--text-secondary);min-width:70px;text-align:right;">${formatBytes(item.bytes)}</span>
                             </div>
                         `).join('')}
                     </div>
                 </div>
             </div>
         `;
+
+        // Fill in the real on-disk browser estimate when it resolves.
+        try {
+            FileSystem.storageInfo().then(info => {
+                if (!el.isConnected) return;
+                const line = el.querySelector('.storage-disk-line');
+                if (!line) return;
+                const usage = info.usage == null ? 'unknown' : formatBytes(info.usage);
+                const quota = info.quota == null ? 'unknown' : formatBytes(info.quota);
+                line.textContent = `Media files (IndexedDB): ${formatBytes(blobTotal)} • On-disk usage: ${usage} of ${quota}`;
+            }).catch(() => { /* keep the synchronous numbers */ });
+        } catch (e) { /* keep the synchronous numbers */ }
     }
 
     function renderMultitaskingSettings(el) {
@@ -657,7 +716,10 @@ const Settings = (() => {
         el.querySelector('.touchpad-enable-toggle').addEventListener('change', (e) => {
             SystemConfig.set('virtualTouchpadEnabled', e.target.checked);
             try { Touch.refreshTouchpad(true); } catch (err) {}
-            renderTouchpadSettings(el);
+            // Clean re-render (header reset + single content block). Never call
+            // renderTouchpadSettings(el) here: it appends via `innerHTML +=`,
+            // which would duplicate the block and destroy live listeners.
+            renderPage();
         });
 
         const slider = el.querySelector('.touchpad-sensitivity-slider');

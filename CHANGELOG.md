@@ -4,6 +4,16 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4893] - 2026-09-15
+
+### Changed
+- Settings Storage tab now calculates real usage from the virtual filesystem: per-folder sizes and file counts for Documents, Downloads, Pictures, Music, Videos, Desktop, Apps & data and System, used-vs-budget bar from the actual localStorage footprint, IndexedDB media bytes, plus the live browser on-disk estimate (replaces the hardcoded 45% demo numbers); `FileSystem.STORAGE_BUDGET` is now exported for UI use
+
+## [12.0.4892] - 2026-09-15
+
+### Fixed
+- Settings touchpad toggle not applying until leaving and re-entering the page: the toggle handler re-invoked the section renderer which appends via `innerHTML +=`, duplicating the block and killing the live toggle listeners; it now does a clean page re-render instead
+
 ## [12.0.4891] - 2026-09-15
 
 ### Fixed
