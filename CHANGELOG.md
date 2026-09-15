@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4901] - 2026-09-15
+
+### Fixed
+- Pointer hand looking wrong, especially the fingers: the old glove was stitched from mismatched arc segments that rendered as rectangular notches. Redrew it as one clean silhouette — straight index finger, two knuckle scallops, rounded thumb stub, tapered wrist — shared by all packs (plain, cuffed, real-mouse, and settings preview) with the click hotspot moved to the true fingertip, and verified by rendering old vs new side-by-side in headless Edge before shipping
+
 ## [12.0.4900] - 2026-09-15
 
 ### Added
