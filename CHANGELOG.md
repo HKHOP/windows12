@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4891] - 2026-09-15
+
+### Fixed
+- Virtual touchpad mode no longer lets apps use the finger's touch point: native touch and touch-pointer events are swallowed in the capture phase while touchpad mode is on, Paint ignores raw canvas touches in touchpad mode, and the virtual cursor now synthesizes pointer events (pointermove/pointerdown/pointerup) alongside mouse events so pointer-based apps follow the virtual mouse instead of the finger
+
 ## [12.0.4890] - 2026-09-15
 
 ### Fixed

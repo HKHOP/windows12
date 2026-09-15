@@ -2,6 +2,7 @@ import WindowManager from '../../modules/windowManager.js';
 import FileSystem from '../../modules/fileSystem.js';
 import SavePrompt from '../../modules/saveprompt.js';
 import AppIcons from '../../modules/appIcons.js';
+import SystemConfig from '../../modules/systemConfig.js';
 
 const Paint = (() => {
     const icon = AppIcons.get('paint');
@@ -380,7 +381,20 @@ const Paint = (() => {
         el.addEventListener('mouseup', endDrawing);
         el.addEventListener('mouseleave', endDrawing);
 
+        function isTouchpadMode() {
+            try {
+                return !!SystemConfig.get('virtualTouchpadEnabled');
+            } catch (e) {
+                return false;
+            }
+        }
+
         canvas.addEventListener('touchstart', (e) => {
+            // In virtual-touchpad mode the finger is a relative trackpad, not a
+            // direct pen: drawing is driven by synthesized mouse events at the
+            // virtual cursor. Ignore raw finger-position touches here (the Touch
+            // module also swallows them in the capture phase).
+            if (isTouchpadMode()) return;
             e.preventDefault();
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
@@ -390,6 +404,7 @@ const Paint = (() => {
         }, { passive: false });
 
         canvas.addEventListener('touchmove', (e) => {
+            if (isTouchpadMode()) return;
             e.preventDefault();
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
@@ -398,8 +413,8 @@ const Paint = (() => {
             moveDrawing({ x: (touch.clientX - rect.left) * scaleX, y: (touch.clientY - rect.top) * scaleY });
         }, { passive: false });
 
-        canvas.addEventListener('touchend', (e) => { e.preventDefault(); endDrawing(); });
-        canvas.addEventListener('touchcancel', endDrawing);
+        canvas.addEventListener('touchend', (e) => { if (isTouchpadMode()) return; e.preventDefault(); endDrawing(); });
+        canvas.addEventListener('touchcancel', () => { if (isTouchpadMode()) return; endDrawing(); });
 
         el.querySelectorAll('.paint-tool-btn').forEach(btn => {
             btn.addEventListener('click', () => setTool(btn.dataset.tool));

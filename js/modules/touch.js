@@ -213,10 +213,44 @@ const Touch = (() => {
         return getTarget(cursorX, cursorY);
     }
 
+    function dispatchPointerAt(target, type, button, buttons) {
+        if (!target) return;
+        let ev = null;
+        try {
+            ev = new PointerEvent(type, {
+                bubbles: true,
+                cancelable: true,
+                clientX: cursorX,
+                clientY: cursorY,
+                screenX: cursorX,
+                screenY: cursorY,
+                button: button || 0,
+                buttons: typeof buttons === 'number' ? buttons : 0,
+                pointerId: 1,
+                pointerType: 'mouse',
+                isPrimary: true,
+                view: window
+            });
+        } catch (err) {
+            try {
+                ev = new MouseEvent(type, {
+                    bubbles: true,
+                    cancelable: true,
+                    clientX: cursorX,
+                    clientY: cursorY,
+                    button: button || 0,
+                    view: window
+                });
+            } catch (e2) { return; }
+        }
+        target.dispatchEvent(ev);
+    }
+
     function dispatchAtCursor(type, button, extra) {
         const target = targetAtCursor();
         if (!target) return null;
         const buttons = type === 'mouseup' ? 0 : (button === 2 ? 2 : 1);
+        const resolvedButtons = extra && typeof extra.buttons === 'number' ? extra.buttons : buttons;
         let ev;
         if (type === 'wheel') {
             ev = new WheelEvent('wheel', {
@@ -241,6 +275,16 @@ const Touch = (() => {
                 view: window
             });
         } else {
+            // Mirror real-mouse ordering: pointer event first, then the
+            // compatibility mouse event, so pointer-based apps (canvas draw,
+            // drag/resize handles) follow the virtual cursor too.
+            if (type === 'mousemove') {
+                dispatchPointerAt(target, 'pointermove', button || 0, resolvedButtons);
+            } else if (type === 'mousedown') {
+                dispatchPointerAt(target, 'pointerdown', button || 0, resolvedButtons);
+            } else if (type === 'mouseup') {
+                dispatchPointerAt(target, 'pointerup', button || 0, 0);
+            }
             ev = new MouseEvent(type, {
                 bubbles: true,
                 cancelable: true,
@@ -511,10 +555,40 @@ const Touch = (() => {
         return true;
     }
 
+    // While touchpad mode is on, the finger is a relative trackpad — never a
+    // direct pointer. Swallow native touch-position events in the capture phase
+    // (before they reach app handlers like Paint's canvas touch drawing), so
+    // apps only ever see the synthesized mouse/pointer events at the virtual
+    // cursor. Real-mouse pointer events (pointerType 'mouse') always pass.
+    function suppressTouchPointer(e) {
+        if (!isTouchpadEnabled()) return;
+        // Only swallow explicit touch pointers. Real mouse ('mouse'), pen
+        // ('pen') and our own synthesized virtual-cursor events ('mouse')
+        // always pass through untouched.
+        try {
+            if (!e || e.pointerType !== 'touch') return;
+        } catch (err) { return; }
+        try { e.stopPropagation(); } catch (err) {}
+        if (e.cancelable) {
+            try { e.preventDefault(); } catch (err) {}
+        }
+    }
+
+    function swallowTouch(e) {
+        if (e.cancelable) {
+            try { e.preventDefault(); } catch (err) {}
+        }
+        try { e.stopPropagation(); } catch (err) {}
+    }
+
     // ---------- Direct-touch handling (touchpad OFF) ----------
     function handleTouchStart(e) {
         requestFullscreen();
-        if (isTouchpadEnabled()) return void padTouchStart(e);
+        if (isTouchpadEnabled()) {
+            padTouchStart(e);
+            swallowTouch(e);
+            return;
+        }
         if (e.touches.length > 1) return;
         const t = e.touches[0];
         const x = t.clientX;
@@ -557,7 +631,11 @@ const Touch = (() => {
     }
 
     function handleTouchMove(e) {
-        if (isTouchpadEnabled()) return void padTouchMove(e);
+        if (isTouchpadEnabled()) {
+            padTouchMove(e);
+            swallowTouch(e);
+            return;
+        }
         if (!touchData || e.touches.length > 1) return;
         const t = e.touches[0];
         const dx = t.clientX - touchData.x;
@@ -585,7 +663,11 @@ const Touch = (() => {
     }
 
     function handleTouchEnd(e) {
-        if (isTouchpadEnabled()) return void padTouchEnd(e);
+        if (isTouchpadEnabled()) {
+            padTouchEnd(e);
+            swallowTouch(e);
+            return;
+        }
         if (!touchData) return;
 
         if (touchData.timer) {
@@ -610,7 +692,7 @@ const Touch = (() => {
         }
     }
 
-    function handleTouchCancel() {
+    function handleTouchCancel(e) {
         if (isTouchpadEnabled()) {
             if (pad && pad.longPressTimer) clearTimeout(pad.longPressTimer);
             if (pad && pad.dragging) {
@@ -618,6 +700,7 @@ const Touch = (() => {
                 lastTap = { time: 0, x: 0, y: 0 };
             }
             pad = null;
+            if (e) swallowTouch(e);
             return;
         }
         if (!touchData) return;
@@ -639,10 +722,16 @@ const Touch = (() => {
     function init() {
         ensureCursor();
         refreshTouchpad(false);
-        document.addEventListener('touchstart', handleTouchStart, { passive: false });
-        document.addEventListener('touchmove', handleTouchMove, { passive: false });
-        document.addEventListener('touchend', handleTouchEnd, { passive: false });
-        document.addEventListener('touchcancel', handleTouchCancel, { passive: false });
+        // Capture phase: in touchpad mode we must swallow finger-position
+        // events before they reach app (target-phase) handlers.
+        document.addEventListener('touchstart', handleTouchStart, { passive: false, capture: true });
+        document.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
+        document.addEventListener('touchend', handleTouchEnd, { passive: false, capture: true });
+        document.addEventListener('touchcancel', handleTouchCancel, { passive: false, capture: true });
+        document.addEventListener('pointerdown', suppressTouchPointer, { passive: false, capture: true });
+        document.addEventListener('pointermove', suppressTouchPointer, { passive: false, capture: true });
+        document.addEventListener('pointerup', suppressTouchPointer, { passive: false, capture: true });
+        document.addEventListener('pointercancel', suppressTouchPointer, { passive: false, capture: true });
         document.addEventListener('mousemove', syncCursorWithMouse, { passive: true });
         window.addEventListener('resize', () => {
             clampCursor();
@@ -650,7 +739,11 @@ const Touch = (() => {
         });
     }
 
-    return { init, refreshTouchpad, isTouchpadEnabled };
+    function getCursor() {
+        return { x: cursorX, y: cursorY };
+    }
+
+    return { init, refreshTouchpad, isTouchpadEnabled, getCursor };
 })();
 
 export default Touch;
