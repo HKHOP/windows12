@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4898] - 2026-09-15
+
+### Fixed
+- Virtual cursor pointer-finger (and clicks) landing offset from the arrow tip, most visible on icons: hit-testing and click dispatch used the cursor box's top-left while the tip renders several pixels away, and the cursor lived inside the zoomed `body` so page zoom displaced the visual from the logic point on iPad. The cursor, touch indicator, and hint now live directly under `<html>` (outside body zoom, 1:1 client pixels, no scale division) and each shape carries an exact hotspot (arrow tip, fingertip, I-beam center) that JS anchors precisely on the cursor point — hand shapes and taps now fire exactly where the tip points, at any cursor size, with instant re-anchor on theme/size change
+
 ## [12.0.4897] - 2026-09-15
 
 ### Fixed

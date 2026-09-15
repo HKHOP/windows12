@@ -83,6 +83,28 @@ const Cursor = (() => {
         }
     }
 
+    // Hotspot (click point) of each virtual-cursor shape, in 24x24 viewBox
+    // units matching the SVGs below. The touch layer anchors this exact
+    // point on its logic coordinates, so shape detection and clicks land
+    // precisely where the tip points — no offset.
+    const HOTSPOTS = {
+        arrow: { x: 5, y: 3 },
+        hand: { x: 10.7, y: 3.8 },
+        text: { x: 12, y: 12 },
+        wait: { x: 12, y: 12 },
+        cross: { x: 12, y: 12 },
+        move: { x: 12, y: 12 },
+        ban: { x: 12, y: 12 },
+        none: { x: 0, y: 0 }
+    };
+
+    // Rendered-pixel hotspot for the current shape + size.
+    function getHotspot() {
+        const h = HOTSPOTS[currentShape] || HOTSPOTS.arrow;
+        const px = (SIZES[currentSize] || SIZES[DEFAULT_SIZE]).px;
+        return { x: h.x / 24 * px, y: h.y / 24 * px };
+    }
+
     // Legacy static shapes (default theme, normal size) — kept so any
     // external code referencing them keeps working.
     const SHAPES = {
@@ -156,6 +178,11 @@ const Cursor = (() => {
         const px = (SIZES[currentSize] || SIZES[DEFAULT_SIZE]).px;
         el.style.width = px + 'px';
         el.style.height = px + 'px';
+        // The box size changed, so the tip offset changed too — tell the
+        // touch layer to re-anchor the hotspot immediately.
+        try {
+            window.dispatchEvent(new CustomEvent('vc-reshape'));
+        } catch (e) { /* noop */ }
     }
 
     function shapeForValue(value) {
@@ -424,7 +451,7 @@ const Cursor = (() => {
         return currentShape;
     }
 
-    return { set, reset, get, isCustom, getShape, syncToPosition, refreshVirtual, setTheme, getTheme, setSize, getSize, getThemes, getSizes, applyFromConfig };
+    return { set, reset, get, isCustom, getShape, getHotspot, syncToPosition, refreshVirtual, setTheme, getTheme, setSize, getSize, getThemes, getSizes, applyFromConfig };
 })();
 
 window._Cursor = Cursor;

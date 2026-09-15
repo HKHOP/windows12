@@ -343,7 +343,9 @@ input[type="number"], input[type="search"], input[type="url"], textarea {
     margin: 0;
     pointer-events: none;
     z-index: 1000000;
-    transform: translate(calc(-2px * var(--cursor-scale, 1)), calc(-2px * var(--cursor-scale, 1)));
+    /* No translate: JS anchors the shape's hotspot (arrow tip) exactly on
+       the cursor point, so hover detection and clicks land on the tip. */
+    transform: none;
     filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
     display: none;
     transition: scale 0.12s ease-out;

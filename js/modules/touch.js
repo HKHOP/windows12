@@ -1,4 +1,3 @@
-import Scaling from './scaling.js';
 import SystemConfig from './systemConfig.js';
 import Cursor from './cursor.js';
 import IframePointer from './iframePointer.js';
@@ -22,10 +21,13 @@ const Touch = (() => {
     let pad = null;
     let lastTap = { time: 0, x: 0, y: 0 };
 
-    function getScale() {
-        const scale = Scaling.getScale() || 1;
-        const resScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--res-scale')) || 1;
-        return scale * resScale;
+    // NOTE: overlay elements (virtual cursor, touch indicator, hint) live
+    // directly under <html>, OUTSIDE the zoomed <body>. position:fixed then
+    // maps 1:1 to client pixels with no scale division — immune to zoom
+    // misreporting (the iPad offset bug). Logic coordinates everywhere in
+    // this module are plain client pixels.
+    function overlayRoot() {
+        return document.documentElement;
     }
 
     function isTouchpadEnabled() {
@@ -51,18 +53,15 @@ const Touch = (() => {
         const el = document.createElement('div');
         el.id = 'touch-indicator';
         el.style.cssText = 'position:fixed;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.5);pointer-events:none;z-index:999999;transform:translate(-50%,-50%) scale(0);transition:transform 0.15s ease-out, opacity 0.3s ease-out;opacity:0;display:none;';
-        document.body.appendChild(el);
+        overlayRoot().appendChild(el);
         return el;
     }
 
     function showIndicator(x, y) {
         if (!indicator) indicator = createIndicator();
-        const scale = getScale();
-        const scaledX = x / scale;
-        const scaledY = y / scale;
         indicator.style.display = 'block';
-        indicator.style.left = scaledX + 'px';
-        indicator.style.top = scaledY + 'px';
+        indicator.style.left = x + 'px';
+        indicator.style.top = y + 'px';
         indicator.style.opacity = '1';
         indicator.style.transform = 'translate(-50%,-50%) scale(1)';
     }
@@ -130,7 +129,7 @@ const Touch = (() => {
         el.id = 'virtual-cursor';
         el.setAttribute('aria-hidden', 'true');
         el.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 3l14 7-6.5 1.5L9 18 5 3z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
-        document.body.appendChild(el);
+        overlayRoot().appendChild(el);
         cursorEl = el;
         positionCursorEl();
         Cursor.refreshVirtual();
@@ -139,9 +138,19 @@ const Touch = (() => {
 
     function positionCursorEl() {
         if (!cursorEl) return;
-        const scale = getScale() || 1;
-        cursorEl.style.left = (cursorX / scale) + 'px';
-        cursorEl.style.top = (cursorY / scale) + 'px';
+        // Anchor the shape's hotspot (arrow tip) exactly on the logic point,
+        // so hover-shape detection and clicks land where the tip points.
+        let hx = 0;
+        let hy = 0;
+        try {
+            const hs = Cursor.getHotspot();
+            if (hs) {
+                hx = hs.x;
+                hy = hs.y;
+            }
+        } catch (e) { /* fall back to top-left */ }
+        cursorEl.style.left = (cursorX - hx) + 'px';
+        cursorEl.style.top = (cursorY - hy) + 'px';
         // Mirror the native cursor under the virtual one (hand on links, ...).
         Cursor.syncToPosition(cursorX, cursorY);
     }
@@ -181,7 +190,7 @@ const Touch = (() => {
             if (!hintEl) {
                 hintEl = document.createElement('div');
                 hintEl.id = 'virtual-touchpad-hint';
-                document.body.appendChild(hintEl);
+                overlayRoot().appendChild(hintEl);
             }
             hintEl.textContent = text;
             hintEl.classList.add('visible');
@@ -643,10 +652,9 @@ const Touch = (() => {
             }
         }
 
-        const scale = getScale();
         if (indicator) {
-            indicator.style.left = (t.clientX / scale) + 'px';
-            indicator.style.top = (t.clientY / scale) + 'px';
+            indicator.style.left = t.clientX + 'px';
+            indicator.style.top = t.clientY + 'px';
         }
 
         synthesizeMouse('mousemove', touchData.target, t.clientX, t.clientY, 0);
@@ -729,6 +737,7 @@ const Touch = (() => {
         document.addEventListener('pointerup', suppressTouchPointer, { passive: false, capture: true });
         document.addEventListener('pointercancel', suppressTouchPointer, { passive: false, capture: true });
         document.addEventListener('mousemove', syncCursorWithMouse, { passive: true });
+        window.addEventListener('vc-reshape', () => positionCursorEl());
         window.addEventListener('resize', () => {
             clampCursor();
             positionCursorEl();
