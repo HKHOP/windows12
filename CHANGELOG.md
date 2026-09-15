@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4905] - 2026-09-15
+
+### Fixed
+- Hands and Classic styles ignoring the chosen cursor color: the Settings style and size preview cards were hardcoded to the default white theme, so picking a color seemingly did nothing for them. Style previews now render in the active theme color and size dots follow it too (verified live in headless Edge: ocean theme flows into all three style previews, the virtual cursor, and the real-mouse stylesheet). The underlying fills were already correct — this was purely the previews not reflecting them
+
 ## [12.0.4904] - 2026-09-15
 
 ### Changed

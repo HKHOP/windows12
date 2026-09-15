@@ -792,7 +792,7 @@ const Settings = (() => {
                 </div>
                 <div style="font-size:13px;font-weight:500;margin:12px 0 8px;">Size</div>
                 <div style="display:flex;gap:8px;">
-                    ${(typeof Cursor !== 'undefined' ? Cursor.getSizes() : []).map(s => cursorSizeOption(s, config.cursorSize)).join('')}
+                    ${(typeof Cursor !== 'undefined' ? Cursor.getSizes() : []).map(s => cursorSizeOption(s, config.cursorSize, config.cursorTheme)).join('')}
                 </div>
                 <div style="font-size:13px;font-weight:500;margin:12px 0 8px;">Pointer style</div>
                 <div style="display:flex;gap:8px;">
@@ -1030,10 +1030,12 @@ const Settings = (() => {
         </div>`;
     }
 
-    function cursorSizeOption(s, activeId) {
+    function cursorSizeOption(s, activeId, themeId) {
         const active = (activeId || 'normal') === s.id;
         const px = Math.round(14 * s.scale);
-        const dot = `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none"><path d="M5 3l14 7-6.5 1.5L9 18 5 3z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+        const themes = (typeof Cursor !== 'undefined' ? Cursor.getThemes() : []);
+        const theme = themes.find(x => x.id === (themeId || 'default')) || { fill: '#fff', stroke: '#111' };
+        const dot = `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none"><path d="M5 3l14 7-6.5 1.5L9 18 5 3z" fill="${theme.fill}" stroke="${theme.stroke}" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
         return `<div class="cursor-size-option" data-size="${s.id}" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid ${active ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'};border-radius:8px;padding:10px 8px;cursor:pointer;text-align:center;transition:border-color 0.15s;">
             <div style="height:30px;display:flex;align-items:center;justify-content:center;">${dot}</div>
             <div style="font-size:11px;font-weight:${active ? '600' : '400'};margin-top:4px;">${s.name}</div>

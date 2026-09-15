@@ -545,10 +545,12 @@ const Cursor = (() => {
         return Object.entries(SIZES).map(([id, s]) => ({ id, ...s }));
     }
 
-    // Pointer-style packs, each with a preview (default theme, 26px) for
-    // settings UI cards. Hands previews the hand pointer it uses everywhere.
+    // Pointer-style packs, each with a preview (26px) for settings UI
+    // cards. Previews use the CURRENT theme so the cards always show each
+    // style in the user's chosen color. Hands previews the hand pointer it
+    // uses everywhere.
     function getStyles() {
-        const t = THEMES[DEFAULT_THEME];
+        const t = THEMES[currentTheme] || THEMES[DEFAULT_THEME];
         const previews = {
             modern: arrowSvg(t, 26),
             classic: classicArrowSvg(t, 26),
