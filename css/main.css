@@ -402,6 +402,11 @@ input[type="number"], input[type="search"], input[type="url"], textarea {
     animation: vcRotate 1.1s linear infinite;
 }
 
+/* Small loading ring composited onto Working cursors (spins in place). */
+#virtual-cursor .vc-busy-ring-sm {
+    animation: vcRotate 1.1s linear infinite;
+}
+
 @keyframes vcRotate {
     to { transform: rotate(360deg); }
 }
