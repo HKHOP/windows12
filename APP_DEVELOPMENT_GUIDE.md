@@ -603,11 +603,39 @@ import AppIcons from '../../modules/appIcons.js';
 import SavePrompt from '../../modules/saveprompt.js';
 import FileAssociations from '../../modules/fileAssociations.js';
 import Notifications from '../../modules/notifications.js';
+import Cursor from '../../modules/cursor.js';
 ```
 
 ---
 
-## 17. Complete Example: Reddit-Style App
+## 17. Cursor API
+
+**Import:** `import Cursor from '../../modules/cursor.js';`
+
+Controls the mouse pointer for **both** the real (hardware) mouse and the virtual touchpad cursor at once.
+
+By default (auto mode) nothing needs to be done: the real mouse shows each element's native CSS cursor, and the virtual cursor mirrors it — arrow on plain areas, pointing hand on links/buttons/File Explorer items, I-beam on text fields. Tip for app authors: give clickable elements `cursor: pointer` (e.g. `style="cursor:pointer"`) so both mice show the hand.
+
+| Method | Description |
+|--------|-------------|
+| `Cursor.set(cursor)` | Force one cursor everywhere for both mice. Returns `true` on success, `false` if rejected. Accepts a CSS cursor keyword (`'pointer'`, `'wait'`, `'text'`, `'crosshair'`, `'move'`, `'not-allowed'`, `'grab'`, `'none'`, `'default'`) or a full CSS cursor value such as `'url("...") 4 4, pointer'`. `'auto'`/`'default'` resets to auto mode. |
+| `Cursor.reset()` | Back to auto mode (native cursors + mirroring). |
+| `Cursor.get()` | Current override value, or `'auto'` when in auto mode. |
+| `Cursor.isCustom()` | `true` when an override is active. |
+| `Cursor.getShape()` | Current virtual-cursor shape (`'arrow'`, `'hand'`, `'text'`, `'wait'`, `'cross'`, `'move'`, `'ban'`, `'none'`). |
+
+**Example:**
+```js
+Cursor.set('wait');      // hourglass/spinner on both mice during a long task
+doHeavyWork().finally(() => Cursor.reset());
+
+Cursor.set('pointer');   // pointing hand everywhere (e.g. drag-and-drop mode)
+Cursor.set('none');      // hide both cursors (e.g. kiosk / presentation mode)
+```
+
+---
+
+## 18. Complete Example: Reddit-Style App
 
 ```js
 import WindowManager from '../../modules/windowManager.js';
@@ -721,7 +749,7 @@ export default MyReddit;
 
 ---
 
-## 18. Gotchas & Rules
+## 19. Gotchas & Rules
 
 1. **Never use native `alert()`, `confirm()`, `prompt()`** — use Popup API
 2. **Never use `localStorage` directly** — use FileSystem for persistence
@@ -736,7 +764,7 @@ export default MyReddit;
 
 ---
 
-## 19. Notifications API
+## 20. Notifications API
 
 **Import:** `import Notifications from '../../modules/notifications.js';`
 

@@ -20,6 +20,7 @@ const urlsToCache = [
     './js/modules/systemConfig.js',
     './js/modules/scaling.js',
     './js/modules/touch.js',
+    './js/modules/cursor.js',
     './js/modules/desktopIcons.js',
     './js/modules/userActivity.js',
     './js/modules/windowState.js',

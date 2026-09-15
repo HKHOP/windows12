@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4889] - 2026-09-15
+
+### Added
+- Cursor API (`js/modules/cursor.js`): `Cursor.set()` / `reset()` / `get()` changes the pointer for both the real and virtual mouse at once; virtual touchpad cursor now auto-mirrors the native cursor (pointing hand on links, buttons and File Explorer items, I-beam on text fields)
+
 ## [12.0.4888] - 2026-09-15
 
 ### Added

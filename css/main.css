@@ -318,6 +318,21 @@ select option {
     touch-action: none;
 }
 
+/* Clickable things show the pointing hand for the real mouse.
+   The virtual touchpad cursor mirrors this automatically (see cursor.js). */
+a[href], a[href] *,
+.fe-content .fe-item, .fe-content .fe-item *,
+.drive-item, .drive-item *,
+.fe-sidebar-item, .fe-sidebar-item *,
+.desktop-icon, .desktop-icon * {
+    cursor: pointer;
+}
+
+input[type="text"], input:not([type]), input[type="password"], input[type="email"],
+input[type="number"], input[type="search"], input[type="url"], textarea {
+    cursor: text;
+}
+
 #virtual-cursor {
     position: fixed;
     left: 0;
@@ -335,6 +350,24 @@ select option {
 
 #virtual-cursor.visible {
     display: block;
+}
+
+#virtual-cursor[data-shape="none"] {
+    opacity: 0;
+}
+
+#virtual-cursor .vc-spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: vcSpin 0.8s linear infinite;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+}
+
+@keyframes vcSpin {
+    to { transform: rotate(360deg); }
 }
 
 #virtual-cursor.virtual-cursor-click svg,

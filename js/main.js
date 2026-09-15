@@ -12,6 +12,7 @@ import AppSystem from './modules/appSystem.js';
 import WindowsUpdate from './modules/windowsUpdate.js';
 import Search from './modules/search.js';
 import Notifications from './modules/notifications.js';
+import Cursor from './modules/cursor.js';
 
 AppSystem.init();
 
@@ -43,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     Search.init();
     Notifications.init();
 
-    window._modules = { ContextMenu };
+    window._modules = { ContextMenu, Cursor };
 
     WindowManager.setOnFocusChanged((appId) => {
         if (appId) {

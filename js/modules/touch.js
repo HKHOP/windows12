@@ -1,5 +1,6 @@
 import Scaling from './scaling.js';
 import SystemConfig from './systemConfig.js';
+import Cursor from './cursor.js';
 
 const Touch = (() => {
     const LONG_PRESS_MS = 500;
@@ -131,6 +132,7 @@ const Touch = (() => {
         document.body.appendChild(el);
         cursorEl = el;
         positionCursorEl();
+        Cursor.refreshVirtual();
         return el;
     }
 
@@ -139,6 +141,8 @@ const Touch = (() => {
         const scale = getScale() || 1;
         cursorEl.style.left = (cursorX / scale) + 'px';
         cursorEl.style.top = (cursorY / scale) + 'px';
+        // Mirror the native cursor under the virtual one (hand on links, ...).
+        Cursor.syncToPosition(cursorX, cursorY);
     }
 
     function clampCursor() {
