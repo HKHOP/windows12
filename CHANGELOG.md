@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4907] - 2026-09-15
+
+### Added
+- Minesweeper game app available for download in the Microsoft Store: Windows 11 style UI, Beginner/Intermediate/Expert difficulties, first-click safety guarantee, flag counter, timer, animated smiley face status button, WebAudio sound effects, and persistent high scores via FileSystem
+
 ## [12.0.4906] - 2026-09-15
 
 ### Added
