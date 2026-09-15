@@ -623,6 +623,12 @@ By default (auto mode) nothing needs to be done: the real mouse shows each eleme
 | `Cursor.get()` | Current override value, or `'auto'` when in auto mode. |
 | `Cursor.isCustom()` | `true` when an override is active. |
 | `Cursor.getShape()` | Current virtual-cursor shape (`'arrow'`, `'hand'`, `'text'`, `'wait'`, `'cross'`, `'move'`, `'ban'`, `'none'`). |
+| `Cursor.setTheme(id)` | Apply a cursor color theme for both mice (keeps arrow/hand/I-beam per context). Ids: `'default'`, `'midnight'`, `'ocean'`, `'forest'`, `'sunset'`, `'royal'`, `'crimson'`, `'pink'`, `'gold'`. Returns `true` on success. Persist with `SystemConfig.set('cursorTheme', id)`. |
+| `Cursor.getTheme()` | Current theme id. |
+| `Cursor.setSize(id)` | Apply a cursor size for both mice (`'normal'`, `'large'`, `'extra-large'`). Returns `true` on success. Persist with `SystemConfig.set('cursorSize', id)`. |
+| `Cursor.getSize()` | Current size id. |
+| `Cursor.getThemes()` | Array of `{ id, name, desc, fill, stroke, accent }` for building theme pickers. |
+| `Cursor.getSizes()` | Array of `{ id, name, scale, px }`. |
 
 **Example:**
 ```js

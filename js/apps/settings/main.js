@@ -9,6 +9,7 @@ import AppLoader from '../../modules/appLoader.js';
 import { AppMetadata } from '../../modules/taskbar.js';
 import WindowsUpdate from '../../modules/windowsUpdate.js';
 import Touch from '../../modules/touch.js';
+import Cursor from '../../modules/cursor.js';
 
 const Settings = (() => {
     const icon = AppIcons.get('settings');
@@ -784,6 +785,24 @@ const Settings = (() => {
             </div>
 
             <div class="settings-section" style="margin-bottom:24px;">
+                <h3 style="font-size:16px;font-weight:500;margin-bottom:4px;">Mouse Cursor</h3>
+                <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Applies to the real mouse and the virtual touchpad cursor.</p>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+                    ${(typeof Cursor !== 'undefined' ? Cursor.getThemes() : []).map(t => cursorThemeOption(t, config.cursorTheme)).join('')}
+                </div>
+                <div style="font-size:13px;font-weight:500;margin:12px 0 8px;">Size</div>
+                <div style="display:flex;gap:8px;">
+                    ${(typeof Cursor !== 'undefined' ? Cursor.getSizes() : []).map(s => cursorSizeOption(s, config.cursorSize)).join('')}
+                </div>
+                <div class="cursor-test-area" style="margin-top:12px;background:rgba(255,255,255,0.04);border:1px dashed var(--window-border);border-radius:8px;padding:14px;display:flex;align-items:center;gap:16px;">
+                    <span style="font-size:12px;color:var(--text-secondary);">Try it:</span>
+                    <button style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;padding:6px 14px;color:var(--text-primary);font-size:12px;cursor:pointer;">Hover me</button>
+                    <input type="text" placeholder="Text cursor" style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;padding:6px 10px;color:var(--text-primary);font-size:12px;outline:none;width:130px;">
+                    <a href="#" onclick="return false;" style="font-size:12px;">Link</a>
+                </div>
+            </div>
+
+            <div class="settings-section" style="margin-bottom:24px;">
                 <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Taskbar Opacity</h3>
                 <div style="display:flex;align-items:center;gap:12px;">
                     <input type="range" class="taskbar-opacity-slider" min="30" max="100" value="${config.taskbarOpacity}" style="flex:1;accent-color:var(--accent-color);">
@@ -991,6 +1010,25 @@ const Settings = (() => {
         </div>`;
     }
 
+    function cursorThemeOption(t, activeId) {
+        const active = (activeId || 'default') === t.id;
+        const arrow = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M5 3l14 7-6.5 1.5L9 18 5 3z" fill="${t.fill}" stroke="${t.stroke}" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+        return `<div class="cursor-theme-option" data-theme="${t.id}" title="${t.desc}" style="background:rgba(255,255,255,0.04);border:1px solid ${active ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'};border-radius:8px;padding:10px 8px;cursor:pointer;text-align:center;transition:border-color 0.15s;">
+            <div style="height:30px;display:flex;align-items:center;justify-content:center;">${arrow}</div>
+            <div style="font-size:11px;font-weight:${active ? '600' : '400'};margin-top:4px;">${t.name}</div>
+        </div>`;
+    }
+
+    function cursorSizeOption(s, activeId) {
+        const active = (activeId || 'normal') === s.id;
+        const px = Math.round(14 * s.scale);
+        const dot = `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none"><path d="M5 3l14 7-6.5 1.5L9 18 5 3z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+        return `<div class="cursor-size-option" data-size="${s.id}" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid ${active ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'};border-radius:8px;padding:10px 8px;cursor:pointer;text-align:center;transition:border-color 0.15s;">
+            <div style="height:30px;display:flex;align-items:center;justify-content:center;">${dot}</div>
+            <div style="font-size:11px;font-weight:${active ? '600' : '400'};margin-top:4px;">${s.name}</div>
+        </div>`;
+    }
+
     function setupPersonalizationEvents() {
         win.element.querySelectorAll('.theme-option').forEach(opt => {
             opt.addEventListener('click', () => {
@@ -1010,6 +1048,22 @@ const Settings = (() => {
         win.element.querySelectorAll('.bg-option').forEach(opt => {
             opt.addEventListener('click', () => {
                 SystemConfig.set('backgroundStyle', opt.dataset.style);
+                renderPersonalization(win.element.querySelector('.settings-content'));
+            });
+        });
+
+        win.element.querySelectorAll('.cursor-theme-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                try { Cursor.setTheme(opt.dataset.theme); } catch (e) {}
+                SystemConfig.set('cursorTheme', opt.dataset.theme);
+                renderPersonalization(win.element.querySelector('.settings-content'));
+            });
+        });
+
+        win.element.querySelectorAll('.cursor-size-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                try { Cursor.setSize(opt.dataset.size); } catch (e) {}
+                SystemConfig.set('cursorSize', opt.dataset.size);
                 renderPersonalization(win.element.querySelector('.settings-content'));
             });
         });

@@ -27,7 +27,9 @@ const SystemConfig = (() => {
         snapBar: true,
         snapAuto: true,
         virtualTouchpadEnabled: false,
-        touchpadSensitivity: 1.6
+        touchpadSensitivity: 1.6,
+        cursorTheme: 'default',
+        cursorSize: 'normal'
     };
 
     let config = { ...defaults };
@@ -153,6 +155,20 @@ const SystemConfig = (() => {
         }
 
         applyResolution();
+
+        // Mouse cursor theme + size (real mouse via Cursor stylesheet,
+        // virtual touchpad cursor via themed SVG). Guarded so config can
+        // apply even if the Cursor module hasn't loaded yet.
+        const cursorTheme = config.cursorTheme || 'default';
+        const cursorSize = config.cursorSize || 'normal';
+        root.setAttribute('data-cursor-theme', cursorTheme);
+        root.setAttribute('data-cursor-size', cursorSize);
+        try {
+            const C = window._Cursor;
+            if (C && typeof C.applyFromConfig === 'function') {
+                C.applyFromConfig(cursorTheme, cursorSize);
+            }
+        } catch (e) { /* cursor applies on next boot / settings change */ }
 
         const desktop = document.getElementById('desktop');
         if (desktop) {

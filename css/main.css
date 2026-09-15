@@ -7,6 +7,7 @@
 :root {
     --scale: 1;
     --res-scale: 1;
+    --cursor-scale: 1;
     --accent-color: #0078D4;
     --accent-hover: #1a86d9;
     --window-bg: #202020;
@@ -342,10 +343,21 @@ input[type="number"], input[type="search"], input[type="url"], textarea {
     margin: 0;
     pointer-events: none;
     z-index: 1000000;
-    transform: translate(-2px, -2px);
+    transform: translate(calc(-2px * var(--cursor-scale, 1)), calc(-2px * var(--cursor-scale, 1)));
     filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
     display: none;
     transition: scale 0.12s ease-out;
+}
+
+#virtual-cursor svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.cursor-theme-option:hover,
+.cursor-size-option:hover {
+    border-color: var(--accent-color) !important;
 }
 
 #virtual-cursor.visible {
