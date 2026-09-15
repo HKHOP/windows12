@@ -14,6 +14,23 @@ import FileAssociations from '../../modules/fileAssociations.js';
 const FileExplorer = (() => {
     const icon = AppIcons.get('fileExplorer');
 
+    // Open windows by id -> { win, state }. Pruned lazily via isConnected so
+    // no global WindowManager close hook is needed (main.js owns that one).
+    const openWindows = new Map();
+
+    function pruneClosedWindows() {
+        for (const [id, rec] of openWindows) {
+            if (!rec.win.element.isConnected) openWindows.delete(id);
+        }
+    }
+
+    function focusExplorerWindow(rec) {
+        if (rec.win.element.style.display === 'none') {
+            rec.win.element.style.display = 'flex';
+        }
+        WindowManager.focusWindow(rec.win.id);
+    }
+
     function getContent() {
         return `
             <div style="display:flex;flex-direction:column;height:100%;">
@@ -87,11 +104,13 @@ const FileExplorer = (() => {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    function showThisPC(win) {
+    function showThisPC(win, state) {
         const contentEl = win.element.querySelector('.fe-content');
         const countEl = win.element.querySelector('.fe-count');
         const pathEl = win.element.querySelector('.fe-path');
         const pathText = win.element.querySelector('.fe-path-text');
+
+        if (state) state.currentPath = null;
 
         pathEl.value = 'This PC';
         pathText.textContent = 'This PC';
@@ -130,6 +149,7 @@ const FileExplorer = (() => {
 
         if (state) {
             deselectAll(state);
+            state.currentPath = path.slice();
             if (addToHistory) {
                 state.pathHistory = state.pathHistory.slice(0, state.historyIndex + 1);
                 state.pathHistory.push(path);
@@ -463,6 +483,28 @@ const FileExplorer = (() => {
 
     function getFolderIcon(name) {
         return UIIcons.folder(name, 36);
+    }
+
+    // Raw editable form of a path for the address bar (Windows-style, so it
+    // can be copied out or pasted in). Root '/' is Local Disk (C:).
+    function pathToEditable(path) {
+        if (!path) return 'This PC';
+        if (path.length === 0) return 'This PC';
+        if (path.length === 1 && path[0] === '/') return 'C:\\';
+        return 'C:\\' + path.slice(1).join('\\');
+    }
+
+    // Parses what the user typed: 'C:\a\b', 'C:/a/b', '/a/b' (and bare
+    // 'This PC' for the drives view). Returns a path array, ['__thispc__']
+    // for the drives view, or null when blank.
+    function parseEditablePath(text) {
+        const t = String(text || '').trim();
+        if (!t) return null;
+        if (/^this\s*pc$/i.test(t)) return ['__thispc__'];
+        const noDrive = t.replace(/^[A-Za-z]:/, '');
+        const parts = noDrive.replace(/\\/g, '/').split('/').filter(p => p.length > 0);
+        if (parts.length === 0) return ['/'];
+        return ['/', ...parts];
     }
 
     function formatPath(path) {
@@ -872,17 +914,19 @@ const FileExplorer = (() => {
         state.lastClicked = null;
     }
 
-    function launch() {
+    function launch(options = {}) {
         const state = {
             pathHistory: [['/']],
             historyIndex: 0,
             clipboard: [],
             clipboardAction: null,
             selected: new Set(),
-            lastClicked: null
+            lastClicked: null,
+            currentPath: null
         };
 
         const win = WindowManager.createWindow('fileExplorer', 'File Explorer', icon, getContent(), { width: 800, height: 500 });
+        openWindows.set(win.id, { win, state });
 
         const contentEl = win.element.querySelector('.fe-content');
         contentEl.addEventListener('contextmenu', (e) => {
@@ -917,7 +961,10 @@ const FileExplorer = (() => {
             }
         });
 
-        navigate(win, ['/', 'users', 'default'], true, state);
+        const initialPath = options.path && FileSystem.isFolder(options.path)
+            ? options.path
+            : ['/', 'users', 'default'];
+        navigate(win, initialPath, true, state);
 
         win.element.querySelector('.fe-back').addEventListener('click', () => {
             if (state.historyIndex > 0) {
@@ -941,33 +988,56 @@ const FileExplorer = (() => {
         });
 
         const pathInput = win.element.querySelector('.fe-path');
+
+        function revertAddressBar() {
+            const cur = state.currentPath || state.pathHistory[state.historyIndex];
+            pathInput.value = cur ? formatPath(cur) : 'This PC';
+        }
+
         pathInput.addEventListener('keydown', (e) => {
+            e.stopPropagation();
             if (e.key === 'Enter') {
                 e.preventDefault();
                 const inputPath = pathInput.value.trim();
-                const rawPath = inputPath.split('/').filter(p => p);
-                if (rawPath.length === 0) rawPath.unshift('/');
-                if (FileSystem.isFolder(rawPath)) {
+                const rawPath = parseEditablePath(inputPath);
+                if (!rawPath) {
+                    revertAddressBar();
+                    return;
+                }
+                if (rawPath[0] === '__thispc__') {
+                    showThisPC(win, state);
+                } else if (FileSystem.isFolder(rawPath)) {
                     navigate(win, rawPath, true, state);
                 } else if (FileSystem.itemExists(rawPath)) {
                     navigate(win, rawPath.slice(0, -1), true, state);
                 } else {
                     Popup.error('Path Not Found', 'Path not found: ' + inputPath);
-                    pathInput.value = formatPath(state.pathHistory[state.historyIndex]);
+                    revertAddressBar();
                 }
             } else if (e.key === 'Escape') {
-                pathInput.value = formatPath(state.pathHistory[state.historyIndex]);
+                revertAddressBar();
                 pathInput.blur();
             }
         });
 
-        pathInput.addEventListener('focus', () => pathInput.select());
+        // Windows-style: focusing the address bar swaps the friendly
+        // breadcrumbs for the raw path so it can be copied or edited.
+        pathInput.addEventListener('focus', () => {
+            const cur = state.currentPath || state.pathHistory[state.historyIndex];
+            pathInput.value = cur ? pathToEditable(cur) : 'This PC';
+            pathInput.select();
+        });
+
+        // Leaving without pressing Enter discards the edit.
+        pathInput.addEventListener('blur', () => {
+            revertAddressBar();
+        });
 
         win.element.querySelectorAll('.fe-sidebar-item').forEach(item => {
             item.addEventListener('click', (e) => {
                 const path = JSON.parse(item.dataset.path);
                 if (path[0] === '__thispc__') {
-                    showThisPC(win);
+                    showThisPC(win, state);
                 } else {
                     navigate(win, path, true, state);
                 }
@@ -1013,7 +1083,21 @@ const FileExplorer = (() => {
         }
     }
 
-    return { launch };
+    // Opens a folder: reuses the most recent Explorer window (focusing and
+    // navigating it) or launches a fresh one. Used by desktop icons.
+    function openPath(path) {
+        pruneClosedWindows();
+        const safe = path && FileSystem.isFolder(path) ? path : null;
+        if (openWindows.size > 0) {
+            const rec = [...openWindows.values()].pop();
+            focusExplorerWindow(rec);
+            if (safe) navigate(rec.win, safe, true, rec.state);
+            return;
+        }
+        launch(safe ? { path: safe } : {});
+    }
+
+    return { launch, openPath };
 })();
 
 export default FileExplorer;

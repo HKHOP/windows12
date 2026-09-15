@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4916] - 2026-09-15
+
+### Added
+- File Explorer address bar edit mode: focusing it swaps the friendly breadcrumbs for the raw Windows-style path (`C:\users\...`) so it can be copied or edited; Enter navigates (accepting `C:\`, `C:/`, `/` forms and `This PC`), Escape/blur reverts, and address-bar keys no longer leak into global shortcuts
+
+### Fixed
+- Opening a folder from the desktop now navigates File Explorer to that folder (reusing the latest window or launching one at the path) instead of just bringing up whatever it last showed
+
 ## [12.0.4915] - 2026-09-15
 
 ### Added

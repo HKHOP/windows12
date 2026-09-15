@@ -811,16 +811,13 @@ const DesktopIcons = (() => {
     }
 
     function openFolderInExplorer(path) {
-        const existing = WindowManager.getWindowsByApp('fileExplorer');
-        if (existing.length > 0) {
-            const win = existing[0];
-            if (win.element.style.display === 'none') {
-                win.element.style.display = 'flex';
-            }
-            WindowManager.focusWindow(win.id);
-        } else {
-            const explorer = AppRegistry.get('fileExplorer');
-            if (explorer) explorer.launch();
+        // Route through the Explorer module so the window actually lands on
+        // the folder (reused or freshly opened) instead of just appearing.
+        const explorer = AppRegistry.get('fileExplorer');
+        if (explorer && typeof explorer.openPath === 'function') {
+            explorer.openPath(path);
+        } else if (explorer) {
+            explorer.launch();
         }
     }
 
