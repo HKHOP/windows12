@@ -407,6 +407,13 @@ const Browser = (() => {
         function switchTab(tabId) {
             if (!tabState.tabs.has(tabId)) return;
             tabState.activeTabId = tabId;
+            // Only the active tab's iframe may be visible. Without this,
+            // background tabs' 100%-height iframes stack up inside
+            // .browser-content and push blank (white) overflow below/right
+            // of the visible page — very noticeable on iPad Safari.
+            for (const [id, t] of tabState.tabs) {
+                if (t.iframeEl && id !== tabId) t.iframeEl.style.display = 'none';
+            }
             renderTabs();
             const tab = tabState.tabs.get(tabId);
             updateNavState(tab);
@@ -581,7 +588,8 @@ const Browser = (() => {
 
             if (!tab.iframeEl) {
                 const iframe = document.createElement('iframe');
-                iframe.style.cssText = 'width:100%;height:100%;border:none;';
+                iframe.style.cssText = 'width:100%;height:100%;min-width:0;min-height:0;max-width:100%;max-height:100%;display:block;flex-shrink:0;border:none;background:#ffffff;';
+                iframe.setAttribute('scrolling', 'auto');
                 iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox';
                 tab.iframeEl = iframe;
                 contentEl.appendChild(iframe);

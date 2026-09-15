@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4896] - 2026-09-15
+
+### Fixed
+- Browser / local HTML preview showing a big white area to the right and below the page on iPad Safari: iframes are now block-level, flex-shrink-proof (`min-width/min-height: 0`, `max-width/max-height: 100%`) so page content can no longer stretch them past the window, the browser layout clips instead of scrolling outer blank gutters, background tabs' iframes are hidden on tab switch instead of stacking up as white overflow, and the local-HTML preview header/footer no longer squeeze the page frame
+
 ## [12.0.4895] - 2026-09-15
 
 ### Added

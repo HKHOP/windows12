@@ -761,12 +761,12 @@ const FileExplorer = (() => {
         const browserIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#2196F3" stroke-width="2"/><path d="M2 12h20" stroke="#2196F3" stroke-width="1.5"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="#2196F3" stroke-width="1.5"/></svg>`;
 
         const content2 = `
-            <div style="display:flex;flex-direction:column;height:100%;">
-                <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(128,128,128,0.12);border-bottom:1px solid var(--window-border);">
+            <div style="display:flex;flex-direction:column;height:100%;min-height:0;overflow:hidden;">
+                <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(128,128,128,0.12);border-bottom:1px solid var(--window-border);flex-shrink:0;">
                     <span style="color:var(--text-secondary);font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${displayPath}">${displayPath}</span>
                 </div>
-                <iframe sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" style="width:100%;flex:1;border:none;background:white;" srcdoc="${escapeAttr(secureContent)}"></iframe>
-                <div style="padding:3px 12px;border-top:1px solid var(--window-border);display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary);">
+                <iframe sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" style="width:100%;max-width:100%;flex:1;min-height:0;min-width:0;display:block;border:none;background:white;" srcdoc="${escapeAttr(secureContent)}"></iframe>
+                <div style="padding:3px 12px;border-top:1px solid var(--window-border);display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary);flex-shrink:0;">
                     <span>Local file</span>
                     <span>Restricted mode</span>
                 </div>
