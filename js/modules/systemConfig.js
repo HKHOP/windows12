@@ -25,7 +25,9 @@ const SystemConfig = (() => {
         sleepTimeout: '15 minutes',
         snapLayouts: true,
         snapBar: true,
-        snapAuto: true
+        snapAuto: true,
+        virtualTouchpadEnabled: false,
+        touchpadSensitivity: 1.6
     };
 
     let config = { ...defaults };

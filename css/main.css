@@ -318,6 +318,66 @@ select option {
     touch-action: none;
 }
 
+#virtual-cursor {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    pointer-events: none;
+    z-index: 1000000;
+    transform: translate(-2px, -2px);
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+    display: none;
+    transition: scale 0.12s ease-out;
+}
+
+#virtual-cursor.visible {
+    display: block;
+}
+
+#virtual-cursor.virtual-cursor-click svg,
+#virtual-cursor.virtual-cursor-right svg {
+    animation: virtualCursorPulse 0.22s ease-out;
+}
+
+#virtual-cursor.virtual-cursor-right svg path {
+    fill: #aee2ff;
+}
+
+@keyframes virtualCursorPulse {
+    0% { scale: 1; }
+    40% { scale: 0.75; }
+    100% { scale: 1; }
+}
+
+#virtual-touchpad-hint {
+    position: fixed;
+    left: 50%;
+    bottom: 64px;
+    transform: translateX(-50%) translateY(10px);
+    background: rgba(20, 20, 20, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #fff;
+    font-size: 12px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    z-index: 1000001;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease-out, transform 0.25s ease-out;
+    white-space: nowrap;
+    max-width: 92vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#virtual-touchpad-hint.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
 @media (pointer: coarse) {
     .window-header {
         min-height: 44px;

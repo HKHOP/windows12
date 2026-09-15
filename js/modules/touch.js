@@ -1,11 +1,24 @@
 import Scaling from './scaling.js';
+import SystemConfig from './systemConfig.js';
 
 const Touch = (() => {
     const LONG_PRESS_MS = 500;
     const MOVE_THRESHOLD = 10;
+    const TAP_MAX_MS = 350;
+    const DOUBLE_TAP_MAX_MS = 350;
+    const DOUBLE_TAP_MAX_DIST = 28;
 
     let indicator = null;
     let touchData = null;
+
+    // ---------- Virtual touchpad state ----------
+    let cursorEl = null;
+    let hintEl = null;
+    let hintTimer = null;
+    let cursorX = Math.floor(window.innerWidth / 2);
+    let cursorY = Math.floor(window.innerHeight / 2);
+    let pad = null;
+    let lastTap = { time: 0, x: 0, y: 0 };
 
     function getScale() {
         const scale = Scaling.getScale() || 1;
@@ -13,6 +26,25 @@ const Touch = (() => {
         return scale * resScale;
     }
 
+    function isTouchpadEnabled() {
+        try {
+            return !!SystemConfig.get('virtualTouchpadEnabled');
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function getSensitivity() {
+        try {
+            const v = parseFloat(SystemConfig.get('touchpadSensitivity'));
+            if (isNaN(v)) return 1.6;
+            return Math.min(4, Math.max(0.4, v));
+        } catch (e) {
+            return 1.6;
+        }
+    }
+
+    // ---------- Direct-touch indicator (unchanged behavior) ----------
     function createIndicator() {
         const el = document.createElement('div');
         el.id = 'touch-indicator';
@@ -58,9 +90,7 @@ const Touch = (() => {
     }
 
     function getTarget(x, y) {
-        if (indicator) indicator.style.pointerEvents = 'none';
         const el = document.elementFromPoint(x, y);
-        if (indicator) indicator.style.pointerEvents = '';
         return el;
     }
 
@@ -91,8 +121,363 @@ const Touch = (() => {
         }
     }
 
+    // ---------- Virtual touchpad cursor ----------
+    function ensureCursor() {
+        if (cursorEl) return cursorEl;
+        const el = document.createElement('div');
+        el.id = 'virtual-cursor';
+        el.setAttribute('aria-hidden', 'true');
+        el.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 3l14 7-6.5 1.5L9 18 5 3z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+        document.body.appendChild(el);
+        cursorEl = el;
+        positionCursorEl();
+        return el;
+    }
+
+    function positionCursorEl() {
+        if (!cursorEl) return;
+        const scale = getScale() || 1;
+        cursorEl.style.left = (cursorX / scale) + 'px';
+        cursorEl.style.top = (cursorY / scale) + 'px';
+    }
+
+    function clampCursor() {
+        cursorX = Math.min(window.innerWidth - 2, Math.max(0, cursorX));
+        cursorY = Math.min(window.innerHeight - 2, Math.max(0, cursorY));
+    }
+
+    function moveCursorBy(dx, dy) {
+        const s = getSensitivity();
+        cursorX += dx * s;
+        cursorY += dy * s;
+        clampCursor();
+        positionCursorEl();
+    }
+
+    function setCursorPos(x, y) {
+        cursorX = x;
+        cursorY = y;
+        clampCursor();
+        positionCursorEl();
+    }
+
+    function pulseCursor(kind) {
+        if (!cursorEl) return;
+        cursorEl.classList.remove('virtual-cursor-click', 'virtual-cursor-right');
+        void cursorEl.offsetWidth;
+        cursorEl.classList.add(kind === 'right' ? 'virtual-cursor-right' : 'virtual-cursor-click');
+        setTimeout(() => {
+            if (cursorEl) cursorEl.classList.remove('virtual-cursor-click', 'virtual-cursor-right');
+        }, 220);
+    }
+
+    function showHint(text) {
+        try {
+            if (!hintEl) {
+                hintEl = document.createElement('div');
+                hintEl.id = 'virtual-touchpad-hint';
+                document.body.appendChild(hintEl);
+            }
+            hintEl.textContent = text;
+            hintEl.classList.add('visible');
+            if (hintTimer) clearTimeout(hintTimer);
+            hintTimer = setTimeout(() => {
+                if (hintEl) hintEl.classList.remove('visible');
+            }, 4000);
+        } catch (e) { /* noop */ }
+    }
+
+    function refreshTouchpad(showHintOnEnable) {
+        ensureCursor();
+        const enabled = isTouchpadEnabled();
+        if (enabled) {
+            clampCursor();
+            positionCursorEl();
+            cursorEl.classList.add('visible');
+            if (showHintOnEnable) {
+                showHint('Touchpad mode: swipe to move • tap = click • 2-finger tap = right-click');
+            }
+        } else {
+            cursorEl.classList.remove('visible');
+            if (hintEl) hintEl.classList.remove('visible');
+            pad = null;
+        }
+        return enabled;
+    }
+
+    function targetAtCursor() {
+        return getTarget(cursorX, cursorY);
+    }
+
+    function dispatchAtCursor(type, button, extra) {
+        const target = targetAtCursor();
+        if (!target) return null;
+        const buttons = type === 'mouseup' ? 0 : (button === 2 ? 2 : 1);
+        let ev;
+        if (type === 'wheel') {
+            ev = new WheelEvent('wheel', {
+                bubbles: true,
+                cancelable: true,
+                clientX: cursorX,
+                clientY: cursorY,
+                deltaX: (extra && extra.deltaX) || 0,
+                deltaY: (extra && extra.deltaY) || 0,
+                view: window
+            });
+        } else if (type === 'contextmenu') {
+            ev = new MouseEvent('contextmenu', {
+                bubbles: true,
+                cancelable: true,
+                clientX: cursorX,
+                clientY: cursorY,
+                screenX: cursorX,
+                screenY: cursorY,
+                button: 2,
+                buttons: 0,
+                view: window
+            });
+        } else {
+            ev = new MouseEvent(type, {
+                bubbles: true,
+                cancelable: true,
+                clientX: cursorX,
+                clientY: cursorY,
+                screenX: cursorX,
+                screenY: cursorY,
+                button: button || 0,
+                buttons: extra && typeof extra.buttons === 'number' ? extra.buttons : buttons,
+                view: window
+            });
+        }
+        target.dispatchEvent(ev);
+        return target;
+    }
+
+    function focusIfEditable(target) {
+        if (!target) return;
+        try {
+            const editable = target.closest('input, textarea, select, [contenteditable]');
+            if (editable && typeof editable.focus === 'function') {
+                editable.focus({ preventScroll: true });
+            }
+        } catch (e) { /* noop */ }
+    }
+
+    function leftClick() {
+        dispatchAtCursor('mousemove', 0, { buttons: 0 });
+        dispatchAtCursor('mousedown', 0);
+        const target = dispatchAtCursor('mouseup', 0);
+        dispatchAtCursor('click', 0);
+        focusIfEditable(target);
+        pulseCursor('left');
+    }
+
+    function doubleClick() {
+        dispatchAtCursor('mousemove', 0, { buttons: 0 });
+        dispatchAtCursor('mousedown', 0);
+        dispatchAtCursor('mouseup', 0);
+        const target = dispatchAtCursor('click', 0);
+        dispatchAtCursor('mousedown', 0);
+        dispatchAtCursor('mouseup', 0);
+        dispatchAtCursor('click', 0);
+        dispatchAtCursor('dblclick', 0);
+        focusIfEditable(target);
+        pulseCursor('left');
+    }
+
+    function rightClick() {
+        dispatchAtCursor('mousemove', 2, { buttons: 0 });
+        dispatchAtCursor('mousedown', 2);
+        dispatchAtCursor('mouseup', 2);
+        dispatchAtCursor('contextmenu', 2);
+        pulseCursor('right');
+    }
+
+    function hoverMove(buttons) {
+        dispatchAtCursor('mousemove', 0, { buttons: typeof buttons === 'number' ? buttons : 0 });
+    }
+
+    // ---------- Touchpad gesture handling ----------
+    function padTouchStart(e) {
+        const now = Date.now();
+        if (e.touches.length === 2) {
+            // Switch to / start two-finger gesture (right-click or scroll).
+            if (pad && pad.longPressTimer) {
+                clearTimeout(pad.longPressTimer);
+                pad.longPressTimer = null;
+            }
+            // If we were mid single-finger drag, release it first.
+            if (pad && pad.dragging) {
+                dispatchAtCursor('mouseup', 0);
+                pad.dragging = false;
+            }
+            const a = e.touches[0];
+            const b = e.touches[1];
+            pad = {
+                mode: 'two',
+                startX: (a.clientX + b.clientX) / 2,
+                startY: (a.clientY + b.clientY) / 2,
+                lastX: (a.clientX + b.clientX) / 2,
+                lastY: (a.clientY + b.clientY) / 2,
+                moved: false,
+                startTime: now,
+                longPressTimer: null,
+                longPressFired: false,
+                dragging: false,
+                pendingDoubleDrag: false
+            };
+            if (e.cancelable) e.preventDefault();
+            return true;
+        }
+        if (e.touches.length !== 1) return true;
+
+        const t = e.touches[0];
+        const distToLastTap = Math.hypot(t.clientX - lastTap.x, t.clientY - lastTap.y);
+        const pendingDoubleDrag = (now - lastTap.time) < DOUBLE_TAP_MAX_MS && distToLastTap < 60;
+
+        pad = {
+            mode: 'one',
+            id: t.identifier,
+            startX: t.clientX,
+            startY: t.clientY,
+            lastX: t.clientX,
+            lastY: t.clientY,
+            moved: false,
+            startTime: now,
+            longPressTimer: null,
+            longPressFired: false,
+            dragging: false,
+            pendingDoubleDrag
+        };
+
+        pad.longPressTimer = setTimeout(() => {
+            if (!pad || pad.mode !== 'one' || pad.moved || pad.dragging) return;
+            pad.longPressFired = true;
+            rightClick();
+        }, LONG_PRESS_MS);
+
+        if (e.cancelable) e.preventDefault();
+        return true;
+    }
+
+    function padTouchMove(e) {
+        if (!pad) return true;
+        if (pad.mode === 'two') {
+            if (e.touches.length < 2) return true;
+            const a = e.touches[0];
+            const b = e.touches[1];
+            const cx = (a.clientX + b.clientX) / 2;
+            const cy = (a.clientY + b.clientY) / 2;
+            const dx = cx - pad.lastX;
+            const dy = cy - pad.lastY;
+            pad.lastX = cx;
+            pad.lastY = cy;
+            const totalDx = cx - pad.startX;
+            const totalDy = cy - pad.startY;
+            if (!pad.moved && Math.hypot(totalDx, totalDy) > MOVE_THRESHOLD) {
+                pad.moved = true;
+            }
+            if (pad.moved) {
+                // Two-finger swipe = scroll under the virtual cursor.
+                dispatchAtCursor('wheel', 0, { deltaX: -dx * 2, deltaY: -dy * 2 });
+            }
+            if (e.cancelable) e.preventDefault();
+            return true;
+        }
+
+        // One-finger: relative cursor movement.
+        if (e.touches.length !== 1) return true;
+        const t = e.touches[0];
+        const dx = t.clientX - pad.lastX;
+        const dy = t.clientY - pad.lastY;
+        pad.lastX = t.clientX;
+        pad.lastY = t.clientY;
+
+        const totalDx = t.clientX - pad.startX;
+        const totalDy = t.clientY - pad.startY;
+        if (!pad.moved && Math.hypot(totalDx, totalDy) > MOVE_THRESHOLD) {
+            pad.moved = true;
+            if (pad.longPressTimer) {
+                clearTimeout(pad.longPressTimer);
+                pad.longPressTimer = null;
+            }
+            // Tap-then-hold-drag: second touch of a double-tap becomes a drag.
+            if (pad.pendingDoubleDrag && !pad.dragging && !pad.longPressFired) {
+                pad.dragging = true;
+                dispatchAtCursor('mousedown', 0);
+            }
+        }
+
+        if (pad.moved) {
+            moveCursorBy(dx, dy);
+            hoverMove(pad.dragging ? 1 : 0);
+        }
+        if (e.cancelable) e.preventDefault();
+        return true;
+    }
+
+    function padTouchEnd(e) {
+        if (!pad) return true;
+        const now = Date.now();
+
+        if (pad.mode === 'two') {
+            // Still one finger down -> keep waiting for full release, no click yet.
+            if (e.touches.length > 0) {
+                if (e.cancelable) e.preventDefault();
+                return true;
+            }
+            if (!pad.moved && !pad.longPressFired) {
+                rightClick();
+            }
+            pad = null;
+            if (e.cancelable) e.preventDefault();
+            return true;
+        }
+
+        // One finger released (or cancelled down to zero touches).
+        if (e.touches.length > 0) return true;
+
+        if (pad.longPressTimer) {
+            clearTimeout(pad.longPressTimer);
+            pad.longPressTimer = null;
+        }
+
+        const duration = now - pad.startTime;
+
+        if (pad.longPressFired) {
+            pad = null;
+            lastTap = { time: 0, x: 0, y: 0 };
+        } else if (pad.dragging) {
+            dispatchAtCursor('mouseup', 0);
+            pad = null;
+            lastTap = { time: 0, x: 0, y: 0 };
+        } else if (!pad.moved && duration < 2000) {
+            // Tap.
+            const sinceLastTap = now - lastTap.time;
+            const distToLastTap = Math.hypot(cursorX - lastTap.x, cursorY - lastTap.y);
+            if (sinceLastTap < DOUBLE_TAP_MAX_MS && distToLastTap < DOUBLE_TAP_MAX_DIST) {
+                doubleClick();
+                lastTap = { time: 0, x: 0, y: 0 };
+            } else {
+                // Short tap = left click. A second quick tap upgrades it to double-click.
+                void TAP_MAX_MS;
+                leftClick();
+                lastTap = { time: now, x: cursorX, y: cursorY };
+            }
+            pad = null;
+        } else {
+            // Pure swipe (cursor already moved via hover events).
+            pad = null;
+        }
+
+        if (e.cancelable) e.preventDefault();
+        return true;
+    }
+
+    // ---------- Direct-touch handling (touchpad OFF) ----------
     function handleTouchStart(e) {
         requestFullscreen();
+        if (isTouchpadEnabled()) return void padTouchStart(e);
         if (e.touches.length > 1) return;
         const t = e.touches[0];
         const x = t.clientX;
@@ -135,6 +520,7 @@ const Touch = (() => {
     }
 
     function handleTouchMove(e) {
+        if (isTouchpadEnabled()) return void padTouchMove(e);
         if (!touchData || e.touches.length > 1) return;
         const t = e.touches[0];
         const dx = t.clientX - touchData.x;
@@ -162,6 +548,7 @@ const Touch = (() => {
     }
 
     function handleTouchEnd(e) {
+        if (isTouchpadEnabled()) return void padTouchEnd(e);
         if (!touchData) return;
 
         if (touchData.timer) {
@@ -187,20 +574,43 @@ const Touch = (() => {
     }
 
     function handleTouchCancel() {
+        if (isTouchpadEnabled()) {
+            if (pad && pad.longPressTimer) clearTimeout(pad.longPressTimer);
+            if (pad && pad.dragging) dispatchAtCursor('mouseup', 0);
+            pad = null;
+            return;
+        }
         if (!touchData) return;
         if (touchData.timer) clearTimeout(touchData.timer);
         hideIndicator();
         touchData = null;
     }
 
+    function syncCursorWithMouse(e) {
+        if (!isTouchpadEnabled()) return;
+        if (pad && pad.mode) return;
+        if (typeof e.clientX !== 'number') return;
+        cursorX = e.clientX;
+        cursorY = e.clientY;
+        clampCursor();
+        positionCursorEl();
+    }
+
     function init() {
+        ensureCursor();
+        refreshTouchpad(false);
         document.addEventListener('touchstart', handleTouchStart, { passive: false });
         document.addEventListener('touchmove', handleTouchMove, { passive: false });
         document.addEventListener('touchend', handleTouchEnd, { passive: false });
         document.addEventListener('touchcancel', handleTouchCancel, { passive: false });
+        document.addEventListener('mousemove', syncCursorWithMouse, { passive: true });
+        window.addEventListener('resize', () => {
+            clampCursor();
+            positionCursorEl();
+        });
     }
 
-    return { init };
+    return { init, refreshTouchpad, isTouchpadEnabled };
 })();
 
 export default Touch;

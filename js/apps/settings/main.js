@@ -7,6 +7,7 @@ import AppSystem from '../../modules/appSystem.js';
 import AppLoader from '../../modules/appLoader.js';
 import { AppMetadata } from '../../modules/taskbar.js';
 import WindowsUpdate from '../../modules/windowsUpdate.js';
+import Touch from '../../modules/touch.js';
 
 const Settings = (() => {
     const icon = AppIcons.get('settings');
@@ -32,7 +33,8 @@ const Settings = (() => {
         notifications: { name: 'Notifications', icon: '🔔' },
         power: { name: 'Power & battery', icon: '🔋' },
         storage: { name: 'Storage', icon: '💾' },
-        multitasking: { name: 'Multitasking', icon: '🪟' }
+        multitasking: { name: 'Multitasking', icon: '🪟' },
+        touchpad: { name: 'Touchpad', icon: '👆' }
     };
 
     function getContent() {
@@ -99,6 +101,7 @@ const Settings = (() => {
                 ${systemCard('🔋', 'Power & battery', 'Sleep, battery usage', 'power')}
                 ${systemCard('💾', 'Storage', 'Storage space, drives', 'storage')}
                 ${systemCard('🪟', 'Multitasking', 'Snap windows, desktops', 'multitasking')}
+                ${systemCard('👆', 'Touchpad', 'Virtual touchpad, gestures', 'touchpad')}
             </div>
         `;
 
@@ -128,6 +131,7 @@ const Settings = (() => {
             case 'power': renderPowerSettings(el); break;
             case 'storage': renderStorageSettings(el); break;
             case 'multitasking': renderMultitaskingSettings(el); break;
+            case 'touchpad': renderTouchpadSettings(el); break;
         }
     }
 
@@ -591,6 +595,81 @@ const Settings = (() => {
         el.querySelector('.snap-auto-toggle').addEventListener('change', (e) => {
             SystemConfig.set('snapAuto', e.target.checked);
         });
+    }
+
+    function renderTouchpadSettings(el) {
+        const config = SystemConfig.getAll();
+        const enabled = !!config.virtualTouchpadEnabled;
+        const sensitivity = parseFloat(config.touchpadSensitivity) || 1.6;
+        const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+        const gestures = [
+            ['↔️', 'Swipe with one finger', 'Move the virtual mouse'],
+            ['👆', 'Single tap', 'Left click'],
+            ['👆👆', 'Double tap', 'Double click'],
+            ['✊', 'Tap, then touch & drag', 'Drag windows / select text'],
+            ['✌️', 'Two-finger tap', 'Right click'],
+            ['↕️', 'Two-finger swipe', 'Scroll'],
+            ['⏱️', 'Touch & hold', 'Right click (alternative)']
+        ];
+
+        el.innerHTML += `
+            <div style="display:flex;flex-direction:column;gap:16px;">
+                <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div style="font-size:14px;font-weight:500;">Virtual touchpad</div>
+                            <div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">${hasTouch ? 'Touch screen detected — swipe moves a virtual mouse.' : 'No touch screen detected — you can still enable it for testing.'}</div>
+                        </div>
+                        <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;">
+                            <input type="checkbox" class="touchpad-enable-toggle" ${enabled ? 'checked' : ''} style="opacity:0;width:0;height:0;">
+                            <span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--accent-color);border-radius:12px;transition:0.3s;"></span>
+                        </label>
+                    </div>
+                </div>
+                <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;opacity:${enabled ? '1' : '0.5'};pointer-events:${enabled ? 'auto' : 'none'};">
+                    <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Cursor speed</div>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <span style="font-size:16px;">🐢</span>
+                        <input type="range" class="touchpad-sensitivity-slider" min="0.4" max="4" step="0.1" value="${sensitivity}" style="flex:1;accent-color:var(--accent-color);">
+                        <span style="font-size:16px;">🐇</span>
+                        <span class="touchpad-sensitivity-value" style="min-width:36px;text-align:right;font-size:13px;">${sensitivity.toFixed(1)}x</span>
+                    </div>
+                </div>
+                <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
+                    <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Gestures</div>
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        ${gestures.map(([icon, name, desc]) => `
+                            <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--window-border);">
+                                <div style="font-size:18px;min-width:40px;text-align:center;">${icon}</div>
+                                <div style="flex:1;">
+                                    <div style="font-size:13px;font-weight:500;">${name}</div>
+                                    <div style="font-size:12px;color:var(--text-secondary);">${desc}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div style="font-size:12px;color:var(--text-secondary);">Tip: while touchpad mode is on, the whole screen acts as a trackpad. Use two-finger swipe to scroll windows and Settings pages.</div>
+            </div>
+        `;
+
+        el.querySelector('.touchpad-enable-toggle').addEventListener('change', (e) => {
+            SystemConfig.set('virtualTouchpadEnabled', e.target.checked);
+            try { Touch.refreshTouchpad(true); } catch (err) {}
+            renderTouchpadSettings(el);
+        });
+
+        const slider = el.querySelector('.touchpad-sensitivity-slider');
+        if (slider) {
+            const val = el.querySelector('.touchpad-sensitivity-value');
+            slider.addEventListener('input', () => {
+                if (val) val.textContent = `${parseFloat(slider.value).toFixed(1)}x`;
+            });
+            slider.addEventListener('change', () => {
+                SystemConfig.set('touchpadSensitivity', parseFloat(slider.value));
+            });
+        }
     }
 
     function renderPersonalization(el) {
