@@ -1,4 +1,5 @@
 import WindowManager from './modules/windowManager.js';
+import UIIcons from './modules/uiIcons.js';
 import { Taskbar } from './modules/taskbar.js';
 import StartMenu from './modules/startMenu.js';
 import ContextMenu from './modules/contextMenu.js';
@@ -44,7 +45,12 @@ document.addEventListener('DOMContentLoaded', () => {
     Search.init();
     Notifications.init();
 
-    window._modules = { ContextMenu, Cursor };
+    // ShellIcons: the system icon library (our shell32.dll) — every app can
+    // use these via `import UIIcons from '../modules/uiIcons.js'` or the
+    // global `window.ShellIcons` (same object).
+    window.ShellIcons = UIIcons;
+    window.UIIcons = UIIcons;
+    window._modules = { ContextMenu, Cursor, UIIcons, ShellIcons: UIIcons };
 
     WindowManager.setOnFocusChanged((appId) => {
         if (appId) {
@@ -116,15 +122,15 @@ function setupDesktopContextMenu() {
         if (e.target.closest('.app-window') || e.target.closest('.desktop-icon')) return;
         e.preventDefault();
         ContextMenu.show(e.clientX, e.clientY, [
-            { label: 'View', icon: '👁', disabled: true },
-            { label: 'Sort by', icon: '↕', disabled: true },
-            { label: 'Refresh', icon: '🔄', action: () => { DesktopIcons.render(); } },
+            { label: 'View', icon: UIIcons.action('view'), disabled: true },
+            { label: 'Sort by', icon: UIIcons.action('sort'), disabled: true },
+            { label: 'Refresh', icon: UIIcons.action('refresh'), action: () => { DesktopIcons.render(); } },
             'separator',
-            { label: 'New folder', icon: '📁', action: () => { DesktopIcons.createNewFolder(); } },
-            { label: 'New text file', icon: '📄', action: () => { DesktopIcons.createNewFile(); } },
+            { label: 'New folder', icon: UIIcons.action('newFolder'), action: () => { DesktopIcons.createNewFolder(); } },
+            { label: 'New text file', icon: UIIcons.action('newFile'), action: () => { DesktopIcons.createNewFile(); } },
             'separator',
-            { label: 'Display settings', icon: '🖥', action: () => { Taskbar.openApp('settings', { page: 'system', subPage: 'display' }); } },
-            { label: 'Personalize', icon: '🎨', action: () => { Taskbar.openApp('settings', { page: 'personalization' }); } }
+            { label: 'Display settings', icon: UIIcons.action('display'), action: () => { Taskbar.openApp('settings', { page: 'system', subPage: 'display' }); } },
+            { label: 'Personalize', icon: UIIcons.action('personalize'), action: () => { Taskbar.openApp('settings', { page: 'personalization' }); } }
         ]);
     });
 }
@@ -135,9 +141,9 @@ function setupTaskbarContextMenu() {
         if (e.target.closest('.app-btn')) return;
         e.preventDefault();
         ContextMenu.show(e.clientX, e.clientY, [
-            { label: 'Task Manager', icon: '📊', action: () => { Taskbar.openApp('taskManager'); } },
+            { label: 'Task Manager', icon: UIIcons.action('taskManager'), action: () => { Taskbar.openApp('taskManager'); } },
             'separator',
-            { label: 'Taskbar settings', icon: '⚙', action: () => { Taskbar.openApp('settings', { page: 'personalization' }); } }
+            { label: 'Taskbar settings', icon: UIIcons.action('taskbarSettings'), action: () => { Taskbar.openApp('settings', { page: 'personalization' }); } }
         ]);
     });
 }
@@ -151,13 +157,13 @@ function setupWindowTitleBarContextMenu() {
         const win = header.closest('.app-window');
         const winId = win.id;
         ContextMenu.show(e.clientX, e.clientY, [
-            { label: 'Restore', icon: '↗', action: () => WindowManager.toggleMaximize(WindowManager._getWindow(winId)) },
-            { label: 'Move', icon: '✋', disabled: true },
-            { label: 'Size', icon: '↔', disabled: true },
-            { label: 'Minimize', icon: '➖', action: () => { win.style.display = 'none'; Taskbar.updateRunningState(); } },
-            { label: 'Maximize', icon: '⬜', action: () => WindowManager.toggleMaximize(WindowManager._getWindow(winId)) },
+            { label: 'Restore', icon: UIIcons.action('restore'), action: () => WindowManager.toggleMaximize(WindowManager._getWindow(winId)) },
+            { label: 'Move', icon: UIIcons.action('move'), disabled: true },
+            { label: 'Size', icon: UIIcons.action('size'), disabled: true },
+            { label: 'Minimize', icon: UIIcons.action('minimize'), action: () => { win.style.display = 'none'; Taskbar.updateRunningState(); } },
+            { label: 'Maximize', icon: UIIcons.action('maximize'), action: () => WindowManager.toggleMaximize(WindowManager._getWindow(winId)) },
             'separator',
-            { label: 'Close', icon: '✕', action: () => WindowManager.closeWindow(winId) }
+            { label: 'Close', icon: UIIcons.action('close'), action: () => WindowManager.closeWindow(winId) }
         ]);
     });
 }
@@ -222,7 +228,7 @@ function setupScreenshotCapture() {
 function showScreenshotToast(fileName, saved) {
     const toast = document.createElement('div');
     toast.style.cssText = 'position:fixed;bottom:60px;right:20px;background:var(--window-bg);border:1px solid var(--window-border);border-radius:8px;padding:12px 20px;font-size:13px;color:var(--text-primary);box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:99999;display:flex;align-items:center;gap:10px;animation:windowOpen 0.2s ease-out;';
-    toast.innerHTML = `<span style="font-size:18px;">📸</span><div><div style="font-weight:500;">${saved ? 'Screenshot saved' : 'Screenshot failed (disk full)'}</div><div style="font-size:11px;color:var(--text-secondary);">Pictures/${fileName}</div></div>`;
+    toast.innerHTML = `<span style="width:20px;height:20px;display:inline-flex;flex-shrink:0;">${UIIcons.action('camera', 20)}</span><div><div style="font-weight:500;">${saved ? 'Screenshot saved' : 'Screenshot failed (disk full)'}</div><div style="font-size:11px;color:var(--text-secondary);">Pictures/${fileName}</div></div>`;
     document.body.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 2500);
 }

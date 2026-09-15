@@ -155,7 +155,7 @@ const Search = (() => {
                 const icon = UserActivity.getFileIcon(f.name);
                 html += `
                     <div class="search-result-item" data-file="${esc(f.path.join('/'))}">
-                        <div class="search-result-icon"><span style="font-size:20px">${icon}</span></div>
+                        <div class="search-result-icon"><span style="display:inline-flex;">${icon}</span></div>
                         <div class="search-result-info">
                             <span class="search-result-name">${esc(f.name)}</span>
                             <span class="search-result-type">${esc(f.path.slice(0, -1).join('/'))}</span>

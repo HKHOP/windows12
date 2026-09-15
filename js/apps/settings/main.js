@@ -1,4 +1,5 @@
 import AppIcons from '../../modules/appIcons.js';
+import UIIcons from '../../modules/uiIcons.js';
 import WindowManager from '../../modules/windowManager.js';
 import SystemConfig from '../../modules/systemConfig.js';
 import FileSystem from '../../modules/fileSystem.js';
@@ -19,24 +20,24 @@ const Settings = (() => {
     let win = null;
 
     const pages = {
-        system: { name: 'System', icon: '💻' },
-        personalization: { name: 'Personalization', icon: '🎨' },
-        apps: { name: 'Apps', icon: '📦' },
-        accounts: { name: 'Accounts', icon: '👤' },
-        time: { name: 'Time & language', icon: '🕐' },
-        privacy: { name: 'Privacy & security', icon: '🔒' },
-        update: { name: 'Windows Update', icon: '🔄' },
-        about: { name: 'About', icon: 'ℹ️' }
+        system: { name: 'System', icon: UIIcons.setting('system', 20) },
+        personalization: { name: 'Personalization', icon: UIIcons.setting('personalization', 20) },
+        apps: { name: 'Apps', icon: UIIcons.setting('apps', 20) },
+        accounts: { name: 'Accounts', icon: UIIcons.setting('accounts', 20) },
+        time: { name: 'Time & language', icon: UIIcons.setting('time', 20) },
+        privacy: { name: 'Privacy & security', icon: UIIcons.setting('privacy', 20) },
+        update: { name: 'Windows Update', icon: UIIcons.setting('update', 20) },
+        about: { name: 'About', icon: UIIcons.setting('about', 20) }
     };
 
     const systemSubPages = {
-        display: { name: 'Display', icon: '🖥️' },
-        sound: { name: 'Sound', icon: '🔊' },
-        notifications: { name: 'Notifications', icon: '🔔' },
-        power: { name: 'Power & battery', icon: '🔋' },
-        storage: { name: 'Storage', icon: '💾' },
-        multitasking: { name: 'Multitasking', icon: '🪟' },
-        touchpad: { name: 'Touchpad', icon: '👆' }
+        display: { name: 'Display', icon: UIIcons.setting('display', 20) },
+        sound: { name: 'Sound', icon: UIIcons.setting('sound', 20) },
+        notifications: { name: 'Notifications', icon: UIIcons.setting('notifications', 20) },
+        power: { name: 'Power & battery', icon: UIIcons.setting('power', 20) },
+        storage: { name: 'Storage', icon: UIIcons.setting('storage', 20) },
+        multitasking: { name: 'Multitasking', icon: UIIcons.setting('multitasking', 20) },
+        touchpad: { name: 'Touchpad', icon: UIIcons.setting('touchpad', 20) }
     };
 
     function getContent() {
@@ -60,7 +61,7 @@ const Settings = (() => {
     function buildNav() {
         return Object.entries(pages).map(([id, page]) => `
             <div class="settings-nav-item" data-page="${id}" style="padding:10px 16px;border-radius:6px;cursor:pointer;font-size:14px;${currentPage === id ? 'background:rgba(255,255,255,0.08);' : ''}transition:background 0.15s;display:flex;align-items:center;gap:10px;">
-                <span>${page.icon}</span>${page.name}
+                <span style="width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${page.icon}</span>${page.name}
             </div>
         `).join('');
     }
@@ -97,13 +98,13 @@ const Settings = (() => {
         el.innerHTML = `
             <h2 style="font-size:28px;font-weight:600;margin-bottom:24px;">System</h2>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                ${systemCard('🖥️', 'Display', 'Brightness, night light, display profile', 'display')}
-                ${systemCard('🔊', 'Sound', 'Volume levels, output, input', 'sound')}
-                ${systemCard('🔔', 'Notifications', 'Alerts from apps and system', 'notifications')}
-                ${systemCard('🔋', 'Power & battery', 'Sleep, battery usage', 'power')}
-                ${systemCard('💾', 'Storage', 'Storage space, drives', 'storage')}
-                ${systemCard('🪟', 'Multitasking', 'Snap windows, desktops', 'multitasking')}
-                ${systemCard('👆', 'Touchpad', 'Virtual touchpad, gestures', 'touchpad')}
+                ${systemCard(UIIcons.setting('display', 22), 'Display', 'Brightness, night light, display profile', 'display')}
+                ${systemCard(UIIcons.setting('sound', 22), 'Sound', 'Volume levels, output, input', 'sound')}
+                ${systemCard(UIIcons.setting('notifications', 22), 'Notifications', 'Alerts from apps and system', 'notifications')}
+                ${systemCard(UIIcons.setting('power', 22), 'Power & battery', 'Sleep, battery usage', 'power')}
+                ${systemCard(UIIcons.setting('storage', 22), 'Storage', 'Storage space, drives', 'storage')}
+                ${systemCard(UIIcons.setting('multitasking', 22), 'Multitasking', 'Snap windows, desktops', 'multitasking')}
+                ${systemCard(UIIcons.setting('touchpad', 22), 'Touchpad', 'Virtual touchpad, gestures', 'touchpad')}
             </div>
         `;
 
@@ -158,9 +159,9 @@ const Settings = (() => {
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Brightness</div>
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <span style="font-size:16px;">🔅</span>
+                        <span style="width:18px;height:18px;display:inline-flex;flex-shrink:0;">${UIIcons.setting('brightnessLow', 18)}</span>
                         <input type="range" class="brightness-slider" min="20" max="100" value="${config.brightness}" style="flex:1;accent-color:var(--accent-color);">
-                        <span style="font-size:16px;">🔆</span>
+                        <span style="width:18px;height:18px;display:inline-flex;flex-shrink:0;">${UIIcons.setting('brightnessHigh', 18)}</span>
                     </div>
                 </div>
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
@@ -240,7 +241,7 @@ const Settings = (() => {
 
             overlay.innerHTML = `
                 <div style="display:flex;align-items:center;gap:10px;">
-                    <span style="font-size:18px;">🖥️</span>
+                    <span style="width:20px;height:20px;display:inline-flex;flex-shrink:0;">${UIIcons.setting('display', 20)}</span>
                     <div style="flex:1;">
                         <div style="font-weight:500;">Resolution changed</div>
                         <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Reverting in <span class="res-countdown">${remaining}</span>s unless you keep changes.</div>
@@ -312,7 +313,7 @@ const Settings = (() => {
 
             overlay.innerHTML = `
                 <div style="display:flex;align-items:center;gap:10px;">
-                    <span style="font-size:18px;">🖥️</span>
+                    <span style="width:20px;height:20px;display:inline-flex;flex-shrink:0;">${UIIcons.setting('display', 20)}</span>
                     <div style="flex:1;">
                         <div style="font-weight:500;">Display scaling changed</div>
                         <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Reverting in <span class="scaling-countdown">${remaining}</span>s unless you keep changes.</div>
@@ -367,9 +368,9 @@ const Settings = (() => {
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Master Volume</div>
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <span style="font-size:16px;">🔇</span>
+                        <span style="width:18px;height:18px;display:inline-flex;flex-shrink:0;">${UIIcons.setting('soundMute', 18)}</span>
                         <input type="range" class="volume-slider" min="0" max="100" value="${config.masterVolume}" style="flex:1;accent-color:var(--accent-color);">
-                        <span style="font-size:16px;">🔊</span>
+                        <span style="width:18px;height:18px;display:inline-flex;flex-shrink:0;">${UIIcons.setting('sound', 18)}</span>
                         <span class="volume-value" style="min-width:35px;text-align:right;font-size:13px;">${config.masterVolume}%</span>
                     </div>
                 </div>
@@ -489,7 +490,7 @@ const Settings = (() => {
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Battery</div>
                     <div style="display:flex;align-items:center;gap:16px;">
-                        <div style="font-size:40px;">🔋</div>
+                        <div style="width:42px;height:42px;display:flex;align-items:center;flex-shrink:0;">${UIIcons.setting('battery', 42)}</div>
                         <div style="flex:1;">
                             <div style="font-size:24px;font-weight:600;margin-bottom:4px;">85%</div>
                             <div style="height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;">
@@ -664,13 +665,13 @@ const Settings = (() => {
         const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
         const gestures = [
-            ['↔️', 'Swipe with one finger', 'Move the virtual mouse'],
-            ['👆', 'Single tap', 'Left click'],
-            ['👆👆', 'Double tap', 'Double click'],
-            ['✊', 'Tap, then touch & drag', 'Drag windows / select text'],
-            ['✌️', 'Two-finger tap', 'Right click'],
-            ['↕️', 'Two-finger swipe', 'Scroll'],
-            ['⏱️', 'Touch & hold', 'Right click (alternative)']
+            [UIIcons.setting('swipe', 20), 'Swipe with one finger', 'Move the virtual mouse'],
+            [UIIcons.setting('tap', 20), 'Single tap', 'Left click'],
+            [UIIcons.setting('doubleTap', 20), 'Double tap', 'Double click'],
+            [UIIcons.setting('drag', 20), 'Tap, then touch & drag', 'Drag windows / select text'],
+            [UIIcons.setting('twoFingerTap', 20), 'Two-finger tap', 'Right click'],
+            [UIIcons.setting('twoFingerSwipe', 20), 'Two-finger swipe', 'Scroll'],
+            [UIIcons.setting('hold', 20), 'Touch & hold', 'Right click (alternative)']
         ];
 
         el.innerHTML += `
@@ -690,9 +691,9 @@ const Settings = (() => {
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;opacity:${enabled ? '1' : '0.5'};pointer-events:${enabled ? 'auto' : 'none'};">
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Cursor speed</div>
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <span style="font-size:16px;">🐢</span>
+                        <span style="width:18px;height:18px;display:inline-flex;flex-shrink:0;">${UIIcons.setting('slow', 18)}</span>
                         <input type="range" class="touchpad-sensitivity-slider" min="0.4" max="4" step="0.1" value="${sensitivity}" style="flex:1;accent-color:var(--accent-color);">
-                        <span style="font-size:16px;">🐇</span>
+                        <span style="width:18px;height:18px;display:inline-flex;flex-shrink:0;">${UIIcons.setting('fast', 18)}</span>
                         <span class="touchpad-sensitivity-value" style="min-width:36px;text-align:right;font-size:13px;">${sensitivity.toFixed(1)}x</span>
                     </div>
                 </div>
@@ -701,7 +702,7 @@ const Settings = (() => {
                     <div style="display:flex;flex-direction:column;gap:8px;">
                         ${gestures.map(([icon, name, desc]) => `
                             <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--window-border);">
-                                <div style="font-size:18px;min-width:40px;text-align:center;">${icon}</div>
+                                <div style="min-width:40px;display:flex;align-items:center;justify-content:center;">${icon}</div>
                                 <div style="flex:1;">
                                     <div style="font-size:13px;font-weight:500;">${name}</div>
                                     <div style="font-size:12px;color:var(--text-secondary);">${desc}</div>
@@ -744,11 +745,11 @@ const Settings = (() => {
                 <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Theme</h3>
                 <div style="display:flex;gap:12px;">
                     <div class="theme-option" data-theme="dark" style="flex:1;padding:16px;border-radius:8px;cursor:pointer;text-align:center;background:${config.darkMode ? 'var(--accent-color)' : 'rgba(255,255,255,0.04)'};border:1px solid ${config.darkMode ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'};">
-                        <div style="font-size:28px;margin-bottom:4px;">🌙</div>
+                        <div style="display:flex;justify-content:center;margin-bottom:4px;">${UIIcons.setting('moon', 28)}</div>
                         <div style="font-size:13px;">Dark</div>
                     </div>
                     <div class="theme-option" data-theme="light" style="flex:1;padding:16px;border-radius:8px;cursor:pointer;text-align:center;background:${!config.darkMode ? 'var(--accent-color)' : 'rgba(255,255,255,0.04)'};border:1px solid ${!config.darkMode ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'};">
-                        <div style="font-size:28px;margin-bottom:4px;">☀️</div>
+                        <div style="display:flex;justify-content:center;margin-bottom:4px;">${UIIcons.setting('sun', 28)}</div>
                         <div style="font-size:13px;">Light</div>
                     </div>
                 </div>
@@ -905,7 +906,7 @@ const Settings = (() => {
         el.innerHTML = `
             <h2 style="font-size:28px;font-weight:600;margin-bottom:24px;">Windows Update</h2>
             <div style="background:${hasUpdate ? 'rgba(255,152,0,0.15)' : 'rgba(0,150,0,0.15)'};border:1px solid ${hasUpdate ? 'rgba(255,152,0,0.3)' : 'rgba(0,150,0,0.3)'};border-radius:8px;padding:16px;display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-                <span style="font-size:24px;">${hasUpdate ? '⬆' : '✓'}</span>
+                <span style="width:26px;height:26px;display:inline-flex;flex-shrink:0;">${hasUpdate ? UIIcons.action('arrowUp', 26) : UIIcons.action('check', 26)}</span>
                 <div>
                     <div style="font-weight:500;">${hasUpdate ? 'Update available' : 'You\'re up to date'}</div>
                     <div style="font-size:13px;color:#888;">${hasUpdate ? `Version ${latestVersion} is available` : `Current version: ${currentVersion}`}</div>
@@ -994,7 +995,7 @@ const Settings = (() => {
 
     function systemCard(icon, title, desc, subPage) {
         return `<div class="system-sub-card" data-subpage="${subPage}" style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;cursor:pointer;transition:background 0.15s;">
-            <div style="font-size:20px;margin-bottom:8px;">${icon}</div>
+            <div style="width:22px;height:22px;margin-bottom:8px;display:flex;align-items:center;">${icon}</div>
             <div style="font-size:14px;font-weight:500;margin-bottom:4px;">${title}</div>
             <div style="font-size:12px;color:#888;">${desc}</div>
         </div>`;

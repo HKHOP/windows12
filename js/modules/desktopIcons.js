@@ -1,4 +1,5 @@
 import FileSystem from './fileSystem.js';
+import UIIcons from './uiIcons.js';
 import ContextMenu from './contextMenu.js';
 import WindowManager from './windowManager.js';
 import UserActivity from './userActivity.js';
@@ -381,7 +382,7 @@ const DesktopIcons = (() => {
             const icon = isDir ? getFolderIcon(entry.name) : getFileIcon(entry.ext);
 
             el.innerHTML = `
-                <div style="font-size:32px;margin-bottom:4px;">${icon}</div>
+                <div style="display:flex;justify-content:center;margin-bottom:4px;">${icon}</div>
                 <div style="font-size:12px;word-break:break-all;line-height:1.3;color:white;text-shadow:0 1px 4px rgba(0,0,0,0.9),0 0px 8px rgba(0,0,0,0.5);">${entry.name}</div>
             `;
 
@@ -449,25 +450,24 @@ const DesktopIcons = (() => {
         const multi = count > 1 && selected.has(entry.name);
         const itemPath = [...DESKTOP_PATH, entry.name];
         if (multi) {
-            const isDir = entry.type === 'folder';
             ContextMenu.show(x, y, [
-                { label: `Open (${count} items)`, icon: isDir ? '📂' : '📄', action: () => openSelected() },
+                { label: `Open (${count} items)`, icon: UIIcons.action('open'), action: () => openSelected() },
                 'separator',
-                { label: `Delete (${count} items)`, icon: '🗑', action: () => deleteSelected() }
+                { label: `Delete (${count} items)`, icon: UIIcons.action('delete'), action: () => deleteSelected() }
             ]);
             return;
         }
         const isDir = entry.type === 'folder';
         const items = isDir ? [
-            { label: 'Open', icon: '📂', action: () => openFolderInExplorer(itemPath) },
+            { label: 'Open', icon: UIIcons.action('open'), action: () => openFolderInExplorer(itemPath) },
             'separator',
-            { label: 'Rename', icon: '✏', action: () => renameItem(itemPath) },
-            { label: 'Delete', icon: '🗑', action: () => deleteItem(itemPath) }
+            { label: 'Rename', icon: UIIcons.action('rename'), action: () => renameItem(itemPath) },
+            { label: 'Delete', icon: UIIcons.action('delete'), action: () => deleteItem(itemPath) }
         ] : [
-            { label: 'Open', icon: '📄', action: () => openFile(itemPath) },
+            { label: 'Open', icon: UIIcons.action('open'), action: () => openFile(itemPath) },
             'separator',
-            { label: 'Rename', icon: '✏', action: () => renameItem(itemPath) },
-            { label: 'Delete', icon: '🗑', action: () => deleteItem(itemPath) }
+            { label: 'Rename', icon: UIIcons.action('rename'), action: () => renameItem(itemPath) },
+            { label: 'Delete', icon: UIIcons.action('delete'), action: () => deleteItem(itemPath) }
         ];
         ContextMenu.show(x, y, items);
     }
@@ -684,7 +684,7 @@ const DesktopIcons = (() => {
         const isEmpty = items.length === 0;
 
         el.innerHTML = `
-            <div style="font-size:32px;margin-bottom:4px;">${isEmpty ? RECYCLE_BIN_ICON : RECYCLE_BIN_ICON.replace('#888', '#FF6B6B')}</div>
+            <div style="display:flex;justify-content:center;margin-bottom:4px;">${isEmpty ? UIIcons.places.recycle(36) : UIIcons.places.recycleFull(36)}</div>
             <div style="font-size:12px;word-break:break-all;line-height:1.3;color:white;text-shadow:0 1px 4px rgba(0,0,0,0.9),0 0px 8px rgba(0,0,0,0.5);">Recycle Bin</div>
         `;
 
@@ -726,9 +726,9 @@ const DesktopIcons = (() => {
             refreshSelection();
 
             const items = [
-                { label: 'Open', icon: '📂', action: () => openRecycleBin() },
+                { label: 'Open', icon: UIIcons.action('open'), action: () => openRecycleBin() },
                 'separator',
-                { label: 'Empty Recycle Bin', icon: '🗑', action: () => emptyRecycleBin() }
+                { label: 'Empty Recycle Bin', icon: UIIcons.action('empty'), action: () => emptyRecycleBin() }
             ];
             ContextMenu.show(e.clientX, e.clientY, items);
         });
@@ -751,7 +751,7 @@ const DesktopIcons = (() => {
                 <div style="max-height:350px;overflow-y:auto;">
                     ${items.map(item => `
                         <div class="rb-item" data-key="${item.recycleKey}" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:4px;cursor:default;transition:background 0.12s;">
-                            <span style="font-size:20px;">${item.type === 'folder' ? '📁' : '📄'}</span>
+                            <span style="width:22px;height:22px;display:inline-flex;flex-shrink:0;">${item.type === 'folder' ? UIIcons.folder(item.name, 22) : UIIcons.file(item.name.split('.').pop(), item.name, 22)}</span>
                             <div style="flex:1;min-width:0;">
                                 <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
                                 <div style="font-size:11px;color:var(--text-secondary);">${new Date(item.modified).toLocaleDateString()}</div>
@@ -803,19 +803,11 @@ const DesktopIcons = (() => {
     }
 
     function getFolderIcon(name) {
-        const icons = {
-            'New Folder': '📁', 'Projects': '📂', 'Desktop': '🖥️',
-            'Documents': '📄', 'Downloads': '⬇️', 'Pictures': '🖼️'
-        };
-        return icons[name] || '📁';
+        return UIIcons.folder(name, 36);
     }
 
     function getFileIcon(ext) {
-        const icons = {
-            txt: '📝', md: '📋', json: '⚙️', js: '📜',
-            html: '🌐', css: '🎨', png: '🖼️', jpg: '🖼️'
-        };
-        return icons[ext] || '📄';
+        return UIIcons.file(ext, '', 36);
     }
 
     function openFolderInExplorer(path) {

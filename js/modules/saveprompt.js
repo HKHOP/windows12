@@ -1,21 +1,22 @@
 import WindowManager from './windowManager.js';
 import FileSystem from './fileSystem.js';
+import UIIcons from './uiIcons.js';
 import Popup from './popup.js';
 
 const SavePrompt = (() => {
     function buildSidebar() {
         const items = [
-            { name: 'Home', icon: '🏠', path: ['/', 'users', 'default'] },
-            { name: 'Desktop', icon: '🖥️', path: ['/', 'users', 'default', 'Desktop'] },
-            { name: 'Documents', icon: '📄', path: ['/', 'users', 'default', 'Documents'] },
-            { name: 'Downloads', icon: '⬇️', path: ['/', 'users', 'default', 'Downloads'] },
-            { name: 'Pictures', icon: '🖼️', path: ['/', 'users', 'default', 'Pictures'] },
-            { name: 'Music', icon: '🎵', path: ['/', 'users', 'default', 'Music'] },
-            { name: 'Videos', icon: '🎬', path: ['/', 'users', 'default', 'Videos'] }
+            { name: 'Home', path: ['/', 'users', 'default'] },
+            { name: 'Desktop', path: ['/', 'users', 'default', 'Desktop'] },
+            { name: 'Documents', path: ['/', 'users', 'default', 'Documents'] },
+            { name: 'Downloads', path: ['/', 'users', 'default', 'Downloads'] },
+            { name: 'Pictures', path: ['/', 'users', 'default', 'Pictures'] },
+            { name: 'Music', path: ['/', 'users', 'default', 'Music'] },
+            { name: 'Videos', path: ['/', 'users', 'default', 'Videos'] }
         ];
         return items.map(i => `
             <div class="save-sidebar-item" data-path='${JSON.stringify(i.path)}' style="padding:5px 8px;border-radius:4px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px;transition:background 0.12s;">
-                <span style="font-size:13px;">${i.icon}</span>${i.name}
+                <span style="width:14px;height:14px;display:inline-flex;flex-shrink:0;">${UIIcons.sidebar(i.name, 14)}</span>${i.name}
             </div>
         `).join('');
     }
@@ -61,7 +62,7 @@ const SavePrompt = (() => {
             </div>
         `;
 
-        const saveWin = WindowManager.createWindow(parentApp, 'Save As', '💾', dialogContent, { width: 550, height: 400, minWidth: 400, minHeight: 300 });
+        const saveWin = WindowManager.createWindow(parentApp, 'Save As', UIIcons.action('save', 16), dialogContent, { width: 550, height: 400, minWidth: 400, minHeight: 300 });
         const el = saveWin.element;
 
         const maxBtn = el.querySelector('.maximize-btn');
@@ -122,28 +123,13 @@ const SavePrompt = (() => {
 
             contentEl.innerHTML = '';
 
-            const specialFolders = {
-                'Desktop': '🖥️', 'Documents': '📄', 'Downloads': '⬇️',
-                'Pictures': '🖼️', 'Music': '🎵', 'Videos': '🎬'
-            };
-
-            const fileIcons = {
-                'txt': '📝', 'md': '📝', 'js': '📜', 'html': '📜', 'css': '📜', 'json': '📜',
-                'png': '🖼️', 'jpg': '🖼️', 'jpeg': '🖼️', 'gif': '🖼️', 'webp': '🖼️', 'bmp': '🖼️', 'svg': '🖼️',
-                'mp3': '🎵', 'wav': '🎵', 'ogg': '🎵',
-                'mp4': '🎬', 'webm': '🎬',
-                'pdf': '📄', 'doc': '📄', 'docx': '📄',
-                'zip': '📦', 'rar': '📦',
-                'exe': '⚙️'
-            };
-
             entries.forEach(entry => {
                 const item = document.createElement('div');
                 item.style.cssText = 'width:72px;padding:6px;border-radius:4px;cursor:pointer;text-align:center;transition:background 0.1s;font-size:11px;';
 
                 if (entry.type === 'folder') {
                     item.innerHTML = `
-                        <div style="font-size:28px;margin-bottom:2px;">${specialFolders[entry.name] || '📁'}</div>
+                        <div style="display:flex;justify-content:center;margin-bottom:2px;">${UIIcons.folder(entry.name, 30)}</div>
                         <div style="word-break:break-all;line-height:1.2;color:var(--text-primary);">${entry.name}</div>
                     `;
                     item.addEventListener('dblclick', () => navigateTo([...currentPath, entry.name]));
@@ -153,9 +139,9 @@ const SavePrompt = (() => {
                         if (entryExt !== currentExt) return;
                     }
                     const ext = entry.name.split('.').pop().toLowerCase();
-                    const icon = fileIcons[ext] || '📄';
+                    const icon = UIIcons.file(ext, entry.name, 30);
                     item.innerHTML = `
-                        <div style="font-size:28px;margin-bottom:2px;">${icon}</div>
+                        <div style="display:flex;justify-content:center;margin-bottom:2px;">${icon}</div>
                         <div style="word-break:break-all;line-height:1.2;color:var(--text-primary);">${entry.name}</div>
                     `;
                     item.addEventListener('click', () => {

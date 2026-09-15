@@ -1,6 +1,7 @@
 import WindowManager from './windowManager.js';
 import FileSystem from './fileSystem.js';
 import AppIcons from './appIcons.js';
+import UIIcons from './uiIcons.js';
 import Search from './search.js';
 
 const AppRegistry = (() => {
@@ -212,20 +213,20 @@ const Taskbar = (() => {
                 ];
 
                 if (isRunning) {
-                    items.push({ label: 'Close window', icon: '✕', action: () => {
+                    items.push({ label: 'Close window', icon: UIIcons.action('close'), action: () => {
                         const wins = WindowManager.getWindowsByApp(appId);
                         wins.forEach(w => WindowManager.closeWindow(w.id));
                     }});
                 } else {
-                    items.push({ label: 'Open', icon: '🚀', action: () => { openApp(appId); }});
+                    items.push({ label: 'Open', icon: UIIcons.action('open'), action: () => { openApp(appId); }});
                 }
 
                 items.push('separator');
 
                 if (pinned) {
-                    items.push({ label: 'Unpin from taskbar', icon: '📌', action: () => unpinApp(appId) });
+                    items.push({ label: 'Unpin from taskbar', icon: UIIcons.action('unpin'), action: () => unpinApp(appId) });
                 } else {
-                    items.push({ label: 'Pin to taskbar', icon: '📍', action: () => pinApp(appId) });
+                    items.push({ label: 'Pin to taskbar', icon: UIIcons.action('pin'), action: () => pinApp(appId) });
                 }
 
                 const { ContextMenu } = window._modules || {};

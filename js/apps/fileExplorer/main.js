@@ -1,4 +1,5 @@
 import AppIcons from '../../modules/appIcons.js';
+import UIIcons from '../../modules/uiIcons.js';
 import WindowManager from '../../modules/windowManager.js';
 import ContextMenu from '../../modules/contextMenu.js';
 import FileSystem from '../../modules/fileSystem.js';
@@ -42,22 +43,22 @@ const FileExplorer = (() => {
 
     function buildSidebar() {
         const items = [
-            { name: 'Home', icon: '🏠', path: ['/', 'users', 'default'] },
-            { name: 'Desktop', icon: '🖥️', path: ['/', 'users', 'default', 'Desktop'] },
-            { name: 'Documents', icon: '📄', path: ['/', 'users', 'default', 'Documents'] },
-            { name: 'Downloads', icon: '⬇️', path: ['/', 'users', 'default', 'Downloads'] },
-            { name: 'Pictures', icon: '🖼️', path: ['/', 'users', 'default', 'Pictures'] },
-            { name: 'Music', icon: '🎵', path: ['/', 'users', 'default', 'Music'] },
-            { name: 'Videos', icon: '🎬', path: ['/', 'users', 'default', 'Videos'] },
-            { name: 'Recycle Bin', icon: '🗑️', path: ['/', 'system', '$Recycle.Bin'] },
+            { name: 'Home', path: ['/', 'users', 'default'] },
+            { name: 'Desktop', path: ['/', 'users', 'default', 'Desktop'] },
+            { name: 'Documents', path: ['/', 'users', 'default', 'Documents'] },
+            { name: 'Downloads', path: ['/', 'users', 'default', 'Downloads'] },
+            { name: 'Pictures', path: ['/', 'users', 'default', 'Pictures'] },
+            { name: 'Music', path: ['/', 'users', 'default', 'Music'] },
+            { name: 'Videos', path: ['/', 'users', 'default', 'Videos'] },
+            { name: 'Recycle Bin', path: ['/', 'system', '$Recycle.Bin'] },
             'separator',
-            { name: 'This PC', icon: '💻', path: ['__thispc__'] }
+            { name: 'This PC', path: ['__thispc__'] }
         ];
         return items.map(i => {
             if (i === 'separator') return '<div style="height:1px;background:var(--window-border);margin:6px 0;"></div>';
             return `
                 <div class="fe-sidebar-item" style="padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background 0.12s;" data-path='${JSON.stringify(i.path)}'>
-                    <span style="font-size:14px;">${i.icon}</span>${i.name}
+                    <span style="width:16px;height:16px;display:inline-flex;flex-shrink:0;">${UIIcons.sidebar(i.name, 16)}</span>${i.name}
                 </div>
             `;
         }).join('');
@@ -105,7 +106,7 @@ const FileExplorer = (() => {
                 <div style="width:100%;padding:16px;">
                     <div style="font-size:14px;font-weight:600;margin-bottom:16px;color:var(--text-primary);">Devices and drives</div>
                     <div class="drive-item" style="display:flex;align-items:center;gap:16px;padding:16px;border:1px solid var(--window-border);border-radius:8px;cursor:pointer;transition:background 0.12s;max-width:320px;">
-                        <div style="font-size:40px;">💿</div>
+                        <div style="width:42px;height:42px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${UIIcons.places.drive(42)}</div>
                         <div style="flex:1;min-width:0;">
                             <div style="font-size:13px;font-weight:500;margin-bottom:6px;color:var(--text-primary);">Local Disk (C:)</div>
                             <div style="height:16px;background:rgba(255,255,255,0.06);border-radius:8px;overflow:hidden;margin-bottom:4px;">
@@ -181,7 +182,7 @@ const FileExplorer = (() => {
             item.dataset.ext = entry.ext || '';
             item.style.cssText = 'width:90px;padding:8px;border-radius:6px;cursor:pointer;text-align:center;transition:background 0.12s;position:relative;border:2px solid transparent;';
             item.innerHTML = `
-                <div style="font-size:32px;margin-bottom:4px;">${isDir ? getFolderIcon(entry.name) : getFileIcon(entry.ext, entry.name)}</div>
+                <div style="display:flex;justify-content:center;margin-bottom:4px;">${isDir ? getFolderIcon(entry.name) : getFileIcon(entry.ext, entry.name)}</div>
                 <div style="font-size:12px;word-break:break-all;line-height:1.3;">${entry.name}</div>
             `;
 
@@ -250,26 +251,26 @@ const FileExplorer = (() => {
                 const itemPath = [...path, entry.name];
                 const multiLabel = selCount > 1 ? ` (${selCount} items)` : '';
                 const menuItems = isDir ? [
-                    { label: 'Open', icon: '📂', action: () => navigate(win, itemPath, true, state) },
+                    { label: 'Open', icon: UIIcons.action('open'), action: () => navigate(win, itemPath, true, state) },
                     'separator',
-                    { label: `Cut${multiLabel}`, icon: '✂', action: () => cutSelected(win, state) },
-                    { label: `Copy${multiLabel}`, icon: '📋', action: () => copySelected(win, state) },
+                    { label: `Cut${multiLabel}`, icon: UIIcons.action('cut'), action: () => cutSelected(win, state) },
+                    { label: `Copy${multiLabel}`, icon: UIIcons.action('copy'), action: () => copySelected(win, state) },
                     'separator',
-                    { label: 'Rename', icon: '✏', action: () => { if (selCount === 1) renameItem(win, itemPath); } },
-                    { label: `Delete${multiLabel}`, icon: '🗑', action: () => deleteSelected(win, state) },
+                    { label: 'Rename', icon: UIIcons.action('rename'), action: () => { if (selCount === 1) renameItem(win, itemPath); } },
+                    { label: `Delete${multiLabel}`, icon: UIIcons.action('delete'), action: () => deleteSelected(win, state) },
                     'separator',
-                    { label: 'Properties', icon: 'ℹ', action: () => showProperties(entry, itemPath) }
+                    { label: 'Properties', icon: UIIcons.action('properties'), action: () => showProperties(entry, itemPath) }
                 ] : [
-                    { label: 'Open', icon: '📝', action: () => openFileWithDefaultApp(itemPath, entry) },
-                    { label: 'Open With...', icon: '📂', action: () => showOpenWithMenu(itemPath, entry) },
+                    { label: 'Open', icon: UIIcons.action('open'), action: () => openFileWithDefaultApp(itemPath, entry) },
+                    { label: 'Open With...', icon: UIIcons.action('openWith'), action: () => showOpenWithMenu(itemPath, entry) },
                     'separator',
-                    { label: `Cut${multiLabel}`, icon: '✂', action: () => cutSelected(win, state) },
-                    { label: `Copy${multiLabel}`, icon: '📋', action: () => copySelected(win, state) },
+                    { label: `Cut${multiLabel}`, icon: UIIcons.action('cut'), action: () => cutSelected(win, state) },
+                    { label: `Copy${multiLabel}`, icon: UIIcons.action('copy'), action: () => copySelected(win, state) },
                     'separator',
-                    { label: 'Rename', icon: '✏', action: () => { if (selCount === 1) renameItem(win, itemPath); } },
-                    { label: `Delete${multiLabel}`, icon: '🗑', action: () => deleteSelected(win, state) },
+                    { label: 'Rename', icon: UIIcons.action('rename'), action: () => { if (selCount === 1) renameItem(win, itemPath); } },
+                    { label: `Delete${multiLabel}`, icon: UIIcons.action('delete'), action: () => deleteSelected(win, state) },
                     'separator',
-                    { label: 'Properties', icon: 'ℹ', action: () => showProperties(entry, itemPath) }
+                    { label: 'Properties', icon: UIIcons.action('properties'), action: () => showProperties(entry, itemPath) }
                 ];
                 ContextMenu.show(e.clientX, e.clientY, menuItems);
             });
@@ -364,7 +365,7 @@ const FileExplorer = (() => {
 
         const items = all.map(app => ({
             label: app.name,
-            icon: app.exts.includes(ext) ? '✓' : '',
+            icon: app.exts.includes(ext) ? UIIcons.action('check') : '',
             action: () => openFileWithApp(itemPath, app.id)
         }));
 
@@ -440,7 +441,7 @@ const FileExplorer = (() => {
             </div>
         `;
 
-        WindowManager.createWindow('photos', `${name} - Photos`, '🖼️', viewerContent, { width: 700, height: 500 });
+        WindowManager.createWindow('photos', `${name} - Photos`, UIIcons.files.image(16), viewerContent, { width: 700, height: 500 });
     }
 
     function openFileWithApp(itemPath, appId) {
@@ -461,15 +462,7 @@ const FileExplorer = (() => {
     }
 
     function getFolderIcon(name) {
-        const icons = {
-            'Desktop': '🖥️', 'Documents': '📄', 'Downloads': '⬇️',
-            'Pictures': '🖼️', 'Music': '🎵', 'Videos': '🎬',
-            'Projects': '📂', 'New Folder': '📁',
-            'system': '⚙️', 'users': '👤', 'default': '👤',
-            'programs data': '📦', 'Wallpapers': '🖼️', 'Screenshots': '📸',
-            '$Recycle.Bin': '🗑️', 'C:': '💿'
-        };
-        return icons[name] || '📁';
+        return UIIcons.folder(name, 36);
     }
 
     function formatPath(path) {
@@ -487,23 +480,7 @@ const FileExplorer = (() => {
     }
 
     function getFileIcon(ext, name) {
-        const icons = {
-            'txt': '📝', 'md': '📋', 'json': '⚙️', 'js': '📜',
-            'html': '🌐', 'css': '🎨', 'png': '🖼️', 'jpg': '🖼️',
-            'jpeg': '🖼️', 'gif': '🖼️', 'bmp': '🖼️', 'svg': '🖼️',
-            'mp3': '🎵', 'wav': '🎵', 'ogg': '🎵',
-            'mp4': '🎬', 'avi': '🎬', 'mkv': '🎬',
-            'pdf': '📕', 'doc': '📘', 'docx': '📘',
-            'xls': '📗', 'xlsx': '📗', 'ppt': '📙',
-            'zip': '📦', 'rar': '📦', '7z': '📦',
-            'exe': '⚡', 'msi': '⚡',
-            'bat': '⬛', 'cmd': '⬛',
-            'vbs': '🟪', 'vbe': '🟪',
-            'log': '📄', 'cfg': '⚙️', 'ini': '⚙️',
-            'xml': '📄', 'csv': '📊', 'yml': '📄', 'yaml': '📄'
-        };
-        if (name === 'config.json') return '⚙️';
-        return icons[ext] || '📄';
+        return UIIcons.file(ext, name, 36);
     }
 
     function refreshIfDesktop(path) {
@@ -653,7 +630,7 @@ const FileExplorer = (() => {
         const content = `
             <div style="padding:20px;">
                 <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
-                    <div style="font-size:48px;">${isDir ? '📁' : getFileIcon(entry.ext, entry.name)}</div>
+                    <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${isDir ? UIIcons.folder(entry.name, 48) : UIIcons.file(entry.ext, entry.name, 48)}</div>
                     <div>
                         <div style="font-size:16px;font-weight:600;">${entry.name}</div>
                         <div style="font-size:13px;color:var(--text-secondary);">${isDir ? 'File folder' : `File (${entry.ext || 'unknown'})`}</div>
@@ -667,7 +644,7 @@ const FileExplorer = (() => {
                 </div>
             </div>
         `;
-        WindowManager.createWindow('properties', entry.name, 'ℹ', content, { width: 420, height: 320 });
+        WindowManager.createWindow('properties', entry.name, UIIcons.action('properties', 16), content, { width: 420, height: 320 });
     }
 
     function openFileWithNotepad(itemPath) {
@@ -913,14 +890,14 @@ const FileExplorer = (() => {
             e.preventDefault();
             const currentPath = JSON.parse(win.element.dataset.currentPath || '["/"]');
             const menuItems = [
-                { label: 'New folder', icon: '📁', action: () => createNewFolder(win, currentPath, state) },
-                { label: 'New text file', icon: '📄', action: () => createNewFile(win, currentPath, state) },
+                { label: 'New folder', icon: UIIcons.action('newFolder'), action: () => createNewFolder(win, currentPath, state) },
+                { label: 'New text file', icon: UIIcons.action('newFile'), action: () => createNewFile(win, currentPath, state) },
                 'separator'
             ];
             if (state.clipboard && state.clipboard.length > 0) {
                 const count = state.clipboard.length;
                 const label = count > 1 ? ` (${count} items)` : '';
-                menuItems.push({ label: `Paste${label}`, icon: '📋', action: () => pasteItems(win, currentPath, state) });
+                menuItems.push({ label: `Paste${label}`, icon: UIIcons.action('paste'), action: () => pasteItems(win, currentPath, state) });
             }
             ContextMenu.show(e.clientX, e.clientY, menuItems);
         });

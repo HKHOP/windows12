@@ -1,4 +1,5 @@
 import AppIcons from './appIcons.js';
+import UIIcons from './uiIcons.js';
 import { AppMetadata } from './taskbar.js';
 
 const UserActivity = (() => {
@@ -104,11 +105,7 @@ const UserActivity = (() => {
 
     function getFileIcon(name) {
         const ext = name.split('.').pop().toLowerCase();
-        const icons = {
-            txt: '📝', md: '📋', json: '⚙️', js: '📜',
-            html: '🌐', css: '🎨', png: '🖼️', jpg: '🖼️'
-        };
-        return icons[ext] || '📄';
+        return UIIcons.file(ext, name, 24);
     }
 
     function timeAgo(ts) {

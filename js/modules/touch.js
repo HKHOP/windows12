@@ -1,6 +1,7 @@
 import SystemConfig from './systemConfig.js';
 import Cursor from './cursor.js';
 import IframePointer from './iframePointer.js';
+import UIIcons from './uiIcons.js';
 
 const Touch = (() => {
     const LONG_PRESS_MS = 500;
@@ -613,13 +614,13 @@ const Touch = (() => {
             const ctxMenu = window._modules && window._modules.ContextMenu;
             if (ctxMenu) {
                 ctxMenu.show(x, y, [
-                    { label: 'Open', icon: '📂', action: () => synthesizeMouse('dblclick', target, x, y) },
+                    { label: 'Open', icon: UIIcons.action('open'), action: () => synthesizeMouse('dblclick', target, x, y) },
                     'separator',
-                    { label: 'Cut', icon: '✂', disabled: true },
-                    { label: 'Copy', icon: '📋', disabled: true },
-                    { label: 'Paste', icon: '📄', disabled: true },
+                    { label: 'Cut', icon: UIIcons.action('cut'), disabled: true },
+                    { label: 'Copy', icon: UIIcons.action('copy'), disabled: true },
+                    { label: 'Paste', icon: UIIcons.action('paste'), disabled: true },
                     'separator',
-                    { label: 'Select all', icon: '☐', disabled: true }
+                    { label: 'Select all', icon: UIIcons.action('selectAll'), disabled: true }
                 ]);
             }
         }, LONG_PRESS_MS);

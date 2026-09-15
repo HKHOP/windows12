@@ -1,4 +1,5 @@
 import WindowManager from './windowManager.js';
+import UIIcons from './uiIcons.js';
 import { Taskbar, AppRegistry, AppMetadata } from './taskbar.js';
 import UserActivity from './userActivity.js';
 import FileSystem from './fileSystem.js';
@@ -149,10 +150,10 @@ const StartMenu = (() => {
         `;
 
         const options = [
-            { label: 'Switch user', icon: '👤', action: () => switchUser() },
-            { label: 'Logout', icon: '🚪', action: () => logout() },
-            { label: 'Restart', icon: '🔄', action: () => restart() },
-            { label: 'Shutdown', icon: '⏻', action: () => shutdown() }
+            { label: 'Switch user', icon: UIIcons.action('switchUser'), action: () => switchUser() },
+            { label: 'Logout', icon: UIIcons.action('logout'), action: () => logout() },
+            { label: 'Restart', icon: UIIcons.action('restart'), action: () => restart() },
+            { label: 'Shutdown', icon: UIIcons.action('shutdown'), action: () => shutdown() }
         ];
 
         options.forEach(opt => {
@@ -162,7 +163,7 @@ const StartMenu = (() => {
                 border:none;background:transparent;color:var(--text-primary);
                 cursor:pointer;font-size:13px;text-align:left;transition:background 0.12s;
             `;
-            btn.innerHTML = `<span style="font-size:14px;width:20px;text-align:center;">${opt.icon}</span>${opt.label}`;
+            btn.innerHTML = `<span style="width:20px;display:inline-flex;justify-content:center;flex-shrink:0;">${opt.icon}</span>${opt.label}`;
             btn.addEventListener('mouseenter', () => btn.style.background = 'var(--hover-bg)');
             btn.addEventListener('mouseleave', () => btn.style.background = 'transparent');
             btn.addEventListener('click', (e) => {
@@ -380,14 +381,14 @@ const StartMenu = (() => {
                         { label: app.name, icon: '', disabled: true },
                         'separator',
                         pinned
-                            ? { label: 'Unpin from Start', icon: '📌', action: () => { unpinApp(app.id); showAllApps(); } }
-                            : { label: 'Pin to Start', icon: '📍', action: () => { pinApp(app.id); showAllApps(); } },
+                            ? { label: 'Unpin from Start', icon: UIIcons.action('unpin'), action: () => { unpinApp(app.id); showAllApps(); } }
+                            : { label: 'Pin to Start', icon: UIIcons.action('pin'), action: () => { pinApp(app.id); showAllApps(); } },
                         taskbarPinned
-                            ? { label: 'Unpin from taskbar', icon: '📌', action: () => Taskbar.unpinApp(app.id) }
-                            : { label: 'Pin to taskbar', icon: '📍', action: () => Taskbar.pinApp(app.id) },
+                            ? { label: 'Unpin from taskbar', icon: UIIcons.action('unpin'), action: () => Taskbar.unpinApp(app.id) }
+                            : { label: 'Pin to taskbar', icon: UIIcons.action('pin'), action: () => Taskbar.pinApp(app.id) },
                         ...(isUserApp ? [
                             'separator',
-                            { label: 'Uninstall', icon: '🗑️', action: () => { AppSystem.uninstallApp(app.id); showAllApps(); } }
+                            { label: 'Uninstall', icon: UIIcons.action('uninstall'), action: () => { AppSystem.uninstallApp(app.id); showAllApps(); } }
                         ] : [])
                     ];
                     if (window._modules && window._modules.ContextMenu) {
@@ -451,17 +452,17 @@ const StartMenu = (() => {
                 const items = [
                     { label: meta.name, icon: '', disabled: true },
                     'separator',
-                    { label: 'Unpin from Start', icon: '📌', action: () => unpinApp(appId) },
+                    { label: 'Unpin from Start', icon: UIIcons.action('unpin'), action: () => unpinApp(appId) },
                     taskbarPinned
-                        ? { label: 'Unpin from taskbar', icon: '📌', action: () => Taskbar.unpinApp(appId) }
-                        : { label: 'Pin to taskbar', icon: '📍', action: () => Taskbar.pinApp(appId) },
-                    { label: 'Open', icon: '🚀', action: () => {
+                        ? { label: 'Unpin from taskbar', icon: UIIcons.action('unpin'), action: () => Taskbar.unpinApp(appId) }
+                        : { label: 'Pin to taskbar', icon: UIIcons.action('pin'), action: () => Taskbar.pinApp(appId) },
+                    { label: 'Open', icon: UIIcons.action('open'), action: () => {
                         document.getElementById('start-menu').classList.add('hidden');
                         launchApp(appId);
                     }},
                     ...(isUserApp ? [
                         'separator',
-                        { label: 'Uninstall', icon: '🗑️', action: () => AppSystem.uninstallApp(appId) }
+                        { label: 'Uninstall', icon: UIIcons.action('uninstall'), action: () => AppSystem.uninstallApp(appId) }
                     ] : [])
                 ];
                 if (window._modules && window._modules.ContextMenu) {
@@ -529,7 +530,7 @@ const StartMenu = (() => {
             }
 
             el.innerHTML = `
-                <div class="item-icon" style="font-size:24px;display:flex;align-items:center;justify-content:center;">${icon}</div>
+                <div class="item-icon" style="display:flex;align-items:center;justify-content:center;">${icon}</div>
                 <div class="item-info">
                     <span class="item-name">${name}</span>
                     <span class="item-detail">${detail}</span>

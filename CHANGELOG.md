@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4913] - 2026-09-15
+
+### Added
+- ShellIcons system icon library (`js/modules/uiIcons.js`, the OS's shell32.dll): centralized custom SVG set with `action`, `folder`, `file`, `sidebar`, `setting`, and `get` helpers, usable by any app via `import UIIcons from '../../modules/uiIcons.js'` or the `window.ShellIcons` / `window.UIIcons` globals; documented in APP_DEVELOPMENT_GUIDE §15 (later sections renumbered)
+
+### Changed
+- Replaced every emoji icon across Settings (sidebar nav, System cards, Display/Sound/Power/Touchpad/Theme/Update pages, toasts), Desktop (context menus, icon grid, Recycle Bin), and File Explorer (sidebar, file/folder grid, context menus, Properties, photo viewer) with custom ShellIcons SVGs, including shared surfaces (taskbar/Start/touch context menus, Start power menu, search results, Save dialog, recommended items)
+
 ## [12.0.4912] - 2026-09-15
 
 ### Changed

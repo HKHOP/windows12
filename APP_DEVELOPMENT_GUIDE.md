@@ -353,7 +353,7 @@ Popup.forum('Settings', [
 ```js
 {
     label: string,       // display text
-    icon: string,        // emoji or icon (optional)
+    icon: string,        // SVG string — use ShellIcons (§15), never emoji (optional)
     shortcut: string,    // shortcut text (optional)
     action: () => void,  // click handler (optional)
     disabled: boolean    // grayed out (optional)
@@ -362,13 +362,15 @@ Popup.forum('Settings', [
 
 **Example:**
 ```js
+import UIIcons from '../../modules/uiIcons.js';
+
 el.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     ContextMenu.show(e.clientX, e.clientY, [
-        { label: 'Open', icon: '📂', action: () => open() },
-        { label: 'Copy', icon: '📋', shortcut: 'Ctrl+C', action: () => copy() },
+        { label: 'Open', icon: UIIcons.action('open'), action: () => open() },
+        { label: 'Copy', icon: UIIcons.action('copy'), shortcut: 'Ctrl+C', action: () => copy() },
         'separator',
-        { label: 'Delete', icon: '🗑', action: () => del() }
+        { label: 'Delete', icon: UIIcons.action('delete'), action: () => del() }
     ]);
 });
 ```
@@ -438,7 +440,7 @@ el.addEventListener('contextmenu', (e) => {
 | `UserActivity.trackFileOpen(path, name)` | Record a file open event |
 | `UserActivity.trackAppOpen(appId)` | Record an app open event |
 | `UserActivity.getRecommended()` | Get recent items (up to 6) |
-| `UserActivity.getFileIcon(name)` | Get emoji icon for file extension |
+| `UserActivity.getFileIcon(name)` | Get ShellIcons SVG string for a file name |
 
 ---
 
@@ -546,7 +548,59 @@ Known IDs: `fileExplorer`, `settings`, `notepad`, `calendar`, `taskManager`, `ph
 
 ---
 
-## 15. CSS Classes Reference
+## 15. Shell Icons (System Icon Library)
+
+**Import:** `import UIIcons from '../../modules/uiIcons.js';`
+**Global:** `window.ShellIcons` (the same object — handy in the console or dynamic code)
+
+Think of this module as the OS's `shell32.dll` / `imageres.dll`: one centralized library of custom SVG icons for everything that *isn't* an app tile — folders, files, context-menu actions, Settings glyphs, and sidebar places. Every method returns an **SVG string** you can drop into `innerHTML` or pass as a ContextMenu `icon` / `createWindow` icon. Never use emojis for UI chrome — pull a glyph from here instead.
+
+### `UIIcons.action(name, size?)` → `string`
+Outline glyphs (they inherit `currentColor`) for menus, buttons, and dialogs. `size` defaults to `16` (context-menu size).
+
+Names: `open`, `openWith`, `cut`, `copy`, `paste`, `rename`, `delete`, `properties`, `newFolder`, `newFile`, `refresh`, `view`, `sort`, `display`, `personalize`, `taskManager`, `taskbarSettings`, `close`, `pin`, `unpin`, `restore`, `move`, `size`, `minimize`, `maximize`, `empty`, `check`, `selectAll`, `camera`, `arrowUp`, `arrowDown`, `power`, `logout`, `restart`, `shutdown`, `switchUser`, `uninstall`, `save`, `info`, `search`.
+
+### `UIIcons.folder(name, size?)` → `string`
+Colored Fluent-style folder for a known special-folder name (`'Desktop'`, `'Documents'`, `'Downloads'`, `'Pictures'`, `'Music'`, `'Videos'`, `'Projects'`, `'New Folder'`, `'Home'`, `'This PC'`, `'C:'`, `'$Recycle.Bin'`, `'system'`, `'users'`, `'programs data'`, `'Wallpapers'`, `'Screenshots'`, …). Unknown names fall back to the generic yellow folder. `size` defaults to `32`.
+
+### `UIIcons.file(ext, name?, size?)` → `string`
+Colored document icon resolved from the file extension (`txt`, `md`, `json`, `js`, `html`, `css`, images, audio, video, `pdf`, Office docs, archives, executables, scripts, …). Pass the file name too — `config.json` gets the gear variant. Unknown extensions fall back to a generic page. `size` defaults to `32`.
+
+### `UIIcons.sidebar(name, size?)` → `string`
+Compact place icons for navigation sidebars (`'Home'`, `'Desktop'`, `'Documents'`, `'Downloads'`, `'Pictures'`, `'Music'`, `'Videos'`, `'Recycle Bin'`, `'This PC'`). `size` defaults to `16`.
+
+### `UIIcons.setting(name, size?)` → `string`
+Outline glyphs for Settings-style navigation and cards (`system`, `personalization`, `apps`, `accounts`, `time`, `privacy`, `update`, `about`, `display`, `sound`, `soundMute`, `notifications`, `power`, `storage`, `multitasking`, `touchpad`, `moon`, `sun`, `battery`, `brightnessLow`, `brightnessHigh`, gestures: `swipe`, `tap`, `doubleTap`, `drag`, `twoFingerTap`, `twoFingerSwipe`, `hold`, `slow`, `fast`). `size` defaults to `20`.
+
+### `UIIcons.get(name, size?)` → `string`
+Lookup across all groups by bare name. The raw per-icon functions are also exposed as `UIIcons.actions`, `UIIcons.settings`, `UIIcons.places`, and `UIIcons.files`.
+
+**Examples:**
+```js
+import UIIcons from '../../modules/uiIcons.js';
+
+// Context menu (16px outline glyphs)
+ContextMenu.show(e.clientX, e.clientY, [
+    { label: 'Open', icon: UIIcons.action('open'), action: () => open() },
+    { label: 'Rename', icon: UIIcons.action('rename'), action: () => rename() },
+    'separator',
+    { label: 'Delete', icon: UIIcons.action('delete'), action: () => del() }
+]);
+
+// File grid (colored 36px icons)
+el.innerHTML = isDir
+    ? UIIcons.folder(entry.name, 36)
+    : UIIcons.file(entry.ext, entry.name, 36);
+
+// Sidebar row
+row.innerHTML = `<span style="width:16px;height:16px;display:inline-flex;">${UIIcons.sidebar('Documents', 16)}</span>Documents`;
+```
+
+> **Rule:** UI chrome must use ShellIcons SVGs — never emojis. (App tile icons still come from `AppIcons`, §14.)
+
+---
+
+## 16. CSS Classes Reference
 
 ### Window
 ```
@@ -586,7 +640,7 @@ Known IDs: `fileExplorer`, `settings`, `notepad`, `calendar`, `taskManager`, `ph
 
 ---
 
-## 16. All Available Imports
+## 17. All Available Imports
 
 ```js
 import WindowManager from '../../modules/windowManager.js';
@@ -600,6 +654,7 @@ import UserActivity from '../../modules/userActivity.js';
 import Sounds from '../../modules/sounds.js';
 import AppSystem from '../../modules/appSystem.js';
 import AppIcons from '../../modules/appIcons.js';
+import UIIcons from '../../modules/uiIcons.js';
 import SavePrompt from '../../modules/saveprompt.js';
 import FileAssociations from '../../modules/fileAssociations.js';
 import Notifications from '../../modules/notifications.js';
@@ -608,7 +663,7 @@ import Cursor from '../../modules/cursor.js';
 
 ---
 
-## 17. Cursor API
+## 18. Cursor API
 
 **Import:** `import Cursor from '../../modules/cursor.js';`
 
@@ -641,11 +696,12 @@ Cursor.set('none');      // hide both cursors (e.g. kiosk / presentation mode)
 
 ---
 
-## 18. Complete Example: Reddit-Style App
+## 19. Complete Example: Reddit-Style App
 
 ```js
 import WindowManager from '../../modules/windowManager.js';
 import AppIcons from '../../modules/appIcons.js';
+import UIIcons from '../../modules/uiIcons.js';
 import Popup from '../../modules/popup.js';
 import FileSystem from '../../modules/fileSystem.js';
 import ContextMenu from '../../modules/contextMenu.js';
@@ -701,10 +757,10 @@ const MyReddit = (() => {
                 e.preventDefault();
                 const id = parseInt(el.dataset.id);
                 ContextMenu.show(e.clientX, e.clientY, [
-                    { label: 'Upvote', icon: '⬆', action: () => { /* ... */ } },
-                    { label: 'Downvote', icon: '⬇', action: () => { /* ... */ } },
+                    { label: 'Upvote', icon: UIIcons.action('arrowUp'), action: () => { /* ... */ } },
+                    { label: 'Downvote', icon: UIIcons.action('arrowDown'), action: () => { /* ... */ } },
                     'separator',
-                    { label: 'Delete', icon: '🗑', action: () => { /* ... */ } }
+                    { label: 'Delete', icon: UIIcons.action('delete'), action: () => { /* ... */ } }
                 ]);
             });
         });
@@ -755,13 +811,13 @@ export default MyReddit;
 
 ---
 
-## 19. Gotchas & Rules
+## 20. Gotchas & Rules
 
 1. **Never use native `alert()`, `confirm()`, `prompt()`** — use Popup API
 2. **Never use `localStorage` directly** — use FileSystem for persistence
 3. **Store app data under `/system/programs data/<appId>/`**
 4. **All imports use ES modules** (`import`/`export`)
-5. **Icons must be inline SVGs** — no external files or emoji in SVGs
+5. **Icons must be inline SVGs** — no external files or emojis. App tiles use `AppIcons` (§14); all other UI chrome uses ShellIcons `UIIcons` (§15)
 6. **The module must return `{ launch }`** — this is the contract
 7. **Use `win.element` to query within your window** — not `document.querySelector`
 8. **Clean up intervals/listeners when your window closes** — listen for close button or check `win.element.isConnected`
@@ -770,7 +826,7 @@ export default MyReddit;
 
 ---
 
-## 20. Notifications API
+## 21. Notifications API
 
 **Import:** `import Notifications from '../../modules/notifications.js';`
 
