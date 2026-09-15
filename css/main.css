@@ -95,6 +95,22 @@ html[data-taskbar="right"] #desktop {
     position: relative;
 }
 
+/* Desktop multi-select: blue rubber-band box + selected icon highlight. */
+#desktop-selection-rect {
+    position: absolute;
+    border: 1px solid #0078D4;
+    background: rgba(0, 120, 212, 0.15);
+    z-index: 5000;
+    pointer-events: none;
+    display: none;
+}
+
+.desktop-icon.selected {
+    background: rgba(0, 120, 212, 0.3) !important;
+    outline: 1px dotted rgba(255, 255, 255, 0.5);
+    outline-offset: -1px;
+}
+
 .hidden {
     display: none !important;
 }

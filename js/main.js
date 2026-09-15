@@ -71,11 +71,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setupWindowTitleBarContextMenu();
     setupScreenshotCapture();
 
-    document.getElementById('desktop').addEventListener('click', (e) => {
-        if (e.target === document.getElementById('desktop') || e.target === document.getElementById('windows-container')) {
-            document.querySelectorAll('.desktop-icon').forEach(d => d.style.background = 'transparent');
-        }
-    });
+    // Empty-desktop click clearing is handled by DesktopIcons (it owns the
+    // multi-selection set and the marquee suppress flag).
 
     const desktop = document.getElementById('desktop');
     const taskbar = document.getElementById('taskbar');

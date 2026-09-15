@@ -19,6 +19,11 @@ const DesktopIcons = (() => {
     let container;
     let positions = {};
     let resizeTimer = null;
+    // Multi-select state: names of selected icons ('$Recycle.Bin' included).
+    let selected = new Set();
+    let lastClicked = null;
+    let marqueeEl = null;
+    let suppressDesktopClick = false;
 
     const RECYCLE_BIN_ICON = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none">
         <path d="M4 6H20" stroke="#888" stroke-width="1.5" stroke-linecap="round"/>
@@ -32,6 +37,8 @@ const DesktopIcons = (() => {
         container = document.getElementById('desktop');
         loadPositions();
         render();
+        setupMarquee();
+        setupKeyboard();
         // Self-heal the grid when the viewport changes (resize, zoom,
         // resolution/scale switches): re-snap, clamp and de-overlap icons.
         window.addEventListener('resize', () => {
@@ -40,6 +47,201 @@ const DesktopIcons = (() => {
                 resizeTimer = null;
                 try { render(); } catch (e) { /* noop */ }
             }, 200);
+        });
+    }
+
+    // ---------- Multi-select helpers ----------
+    function orderedNames() {
+        let entries = [];
+        try { entries = FileSystem.getChildren(DESKTOP_PATH) || []; } catch (e) { entries = []; }
+        return ['$Recycle.Bin', ...sortedEntries(entries).map(e => e.name)];
+    }
+
+    function refreshSelection() {
+        if (!container) return;
+        container.querySelectorAll('.desktop-icon').forEach(el => {
+            if (selected.has(el.dataset.name)) {
+                el.classList.add('selected');
+                el.style.background = 'rgba(0,120,212,0.3)';
+            } else {
+                el.classList.remove('selected');
+                el.style.background = 'transparent';
+            }
+        });
+    }
+
+    function clearSelection() {
+        if (selected.size === 0) return;
+        selected.clear();
+        lastClicked = null;
+        refreshSelection();
+    }
+
+    function selectAll() {
+        selected = new Set(orderedNames());
+        lastClicked = null;
+        refreshSelection();
+    }
+
+    function getSelected() {
+        return [...selected];
+    }
+
+    function isSelected(name) {
+        return selected.has(name);
+    }
+
+    function handleIconClick(name, e) {
+        const multi = e.ctrlKey || e.metaKey;
+        const range = e.shiftKey;
+        if (multi) {
+            if (selected.has(name)) selected.delete(name);
+            else selected.add(name);
+            lastClicked = name;
+        } else if (range && lastClicked && lastClicked !== name) {
+            const order = orderedNames();
+            const a = order.indexOf(lastClicked);
+            const b = order.indexOf(name);
+            if (a !== -1 && b !== -1) {
+                const [from, to] = a < b ? [a, b] : [b, a];
+                for (let i = from; i <= to; i++) selected.add(order[i]);
+            } else {
+                selected.clear();
+                selected.add(name);
+                lastClicked = name;
+            }
+        } else {
+            selected.clear();
+            selected.add(name);
+            lastClicked = name;
+        }
+        refreshSelection();
+    }
+
+    function setupKeyboard() {
+        document.addEventListener('keydown', (e) => {
+            const tag = (document.activeElement && document.activeElement.tagName) || '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || (document.activeElement && document.activeElement.isContentEditable)) return;
+            // Only act when no app window has focus (desktop scope).
+            const focusedWin = document.activeElement && document.activeElement.closest
+                ? document.activeElement.closest('.app-window') : null;
+            if (focusedWin) return;
+            if (selected.size === 0) return;
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
+                e.preventDefault();
+                selectAll();
+            } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                e.preventDefault();
+                deleteSelected();
+            } else if (e.key === 'Escape') {
+                clearSelection();
+            }
+        });
+    }
+
+    // ---------- Blue rubber-band (marquee) selection ----------
+    function toDesktopPoint(clientX, clientY) {
+        const s = Scaling.getScale() || 1;
+        const rect = container.getBoundingClientRect();
+        return {
+            x: (clientX - rect.left) / s,
+            y: (clientY - rect.top) / s
+        };
+    }
+
+    function rectsIntersect(a, b) {
+        return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    }
+
+    function setupMarquee() {
+        marqueeEl = document.createElement('div');
+        marqueeEl.id = 'desktop-selection-rect';
+        marqueeEl.style.display = 'none';
+        container.appendChild(marqueeEl);
+
+        // Empty-space click clears (Ctrl+click preserves). Marquee drags
+        // set suppressDesktopClick so the trailing click doesn't wipe the box.
+        container.addEventListener('click', (e) => {
+            if (suppressDesktopClick) {
+                suppressDesktopClick = false;
+                return;
+            }
+            if (e.target.closest('.desktop-icon') || e.target.closest('.app-window')) return;
+            if (e.ctrlKey || e.metaKey) return;
+            clearSelection();
+        });
+
+        container.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            if (e.target.closest('.desktop-icon')) return;
+            if (e.target.closest('.app-window')) return;
+            if (e.target.closest('#context-menu')) return;
+
+            const s = Scaling.getScale() || 1;
+            const rect = container.getBoundingClientRect();
+            const startClientX = e.clientX;
+            const startClientY = e.clientY;
+            const startPt = toDesktopPoint(startClientX, startClientY);
+            const additive = e.ctrlKey || e.metaKey;
+            const anchor = additive ? new Set(selected) : new Set();
+            let active = false;
+
+            function onMove(me) {
+                const dxScreen = me.clientX - startClientX;
+                const dyScreen = me.clientY - startClientY;
+                if (!active && Math.hypot(dxScreen, dyScreen) < 4) return;
+                active = true;
+
+                const cur = toDesktopPoint(me.clientX, me.clientY);
+                const x = Math.min(startPt.x, cur.x);
+                const y = Math.min(startPt.y, cur.y);
+                const w = Math.abs(cur.x - startPt.x);
+                const h = Math.abs(cur.y - startPt.y);
+                // Clamp into desktop bounds.
+                const maxW = container.scrollWidth || (window.innerWidth / s);
+                const maxH = container.scrollHeight || (window.innerHeight / s);
+                const cx = Math.max(0, x);
+                const cy = Math.max(0, y);
+
+                marqueeEl.style.display = 'block';
+                marqueeEl.style.left = cx + 'px';
+                marqueeEl.style.top = cy + 'px';
+                marqueeEl.style.width = w + 'px';
+                marqueeEl.style.height = h + 'px';
+
+                const box = { x: cx, y: cy, w, h };
+                const next = new Set(anchor);
+                container.querySelectorAll('.desktop-icon').forEach(el => {
+                    const r = {
+                        x: el.offsetLeft,
+                        y: el.offsetTop,
+                        w: el.offsetWidth,
+                        h: el.offsetHeight
+                    };
+                    if (rectsIntersect(box, r)) next.add(el.dataset.name);
+                });
+                selected = next;
+                refreshSelection();
+            }
+
+            function onUp() {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+                marqueeEl.style.display = 'none';
+                if (active) {
+                    // A real box drag was made: keep the result and swallow
+                    // the click event the browser fires right after mouseup.
+                    suppressDesktopClick = true;
+                    if (selected.size > 0) lastClicked = [...selected].pop();
+                    else lastClicked = null;
+                    e.preventDefault();
+                } else if (!additive) {
+                    clearSelection();
+                }
+            }
+
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
         });
     }
 
@@ -149,11 +351,18 @@ const DesktopIcons = (() => {
     }
 
     function render() {
+        // Marquee element is a child of the container — re-append keeps it
+        // on top after icons are rebuilt.
+        if (marqueeEl && marqueeEl.parentNode === container) marqueeEl.remove();
         container.querySelectorAll('.desktop-icon').forEach(el => el.remove());
+
+        const entries = sortedEntries(normalizeLayout());
 
         renderRecycleBin();
 
-        const entries = sortedEntries(normalizeLayout());
+        // Drop selection for icons that no longer exist.
+        const valid = new Set(['$Recycle.Bin', ...entries.map(e => e.name)]);
+        [...selected].forEach(n => { if (!valid.has(n)) selected.delete(n); });
 
         entries.forEach((entry) => {
             // normalizeLayout() guarantees a valid, collision-free slot.
@@ -178,49 +387,145 @@ const DesktopIcons = (() => {
 
             makeDraggable(el, entry.name);
 
+            el.addEventListener('mouseenter', () => {
+                if (!selected.has(entry.name)) el.style.background = 'rgba(255,255,255,0.1)';
+            });
+            el.addEventListener('mouseleave', () => {
+                if (!selected.has(entry.name)) el.style.background = 'transparent';
+            });
+
             el.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
-                if (isDir) {
-                    openFolderInExplorer([...DESKTOP_PATH, entry.name]);
-                } else {
-                    openFile([...DESKTOP_PATH, entry.name]);
-                }
+                // Double-clicking one icon of a multi-selection opens everything
+                // selected (Windows parity); single selection opens just it.
+                const names = (selected.size > 1 && selected.has(entry.name))
+                    ? [...selected].filter(n => n !== '$Recycle.Bin')
+                    : [entry.name];
+                names.forEach(n => {
+                    let ent = entries.find(x => x.name === n);
+                    if (!ent && n === entry.name) ent = entry;
+                    if (!ent) return;
+                    if (ent.type === 'folder') openFolderInExplorer([...DESKTOP_PATH, n]);
+                    else openFile([...DESKTOP_PATH, n]);
+                });
             });
 
             el.addEventListener('click', (e) => {
                 e.stopPropagation();
-                container.querySelectorAll('.desktop-icon').forEach(d => d.style.background = 'transparent');
-                el.style.background = 'rgba(255,255,255,0.1)';
+                // A drag that just moved icons must not collapse the selection.
+                // Ctrl+mousedown already added the icon — skip the toggle.
+                if (el._ctrlAdded) {
+                    el._ctrlAdded = false;
+                    el._dragMoved = false;
+                    return;
+                }
+                if (el._dragMoved) {
+                    el._dragMoved = false;
+                    return;
+                }
+                handleIconClick(entry.name, e);
             });
 
             el.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                container.querySelectorAll('.desktop-icon').forEach(d => d.style.background = 'transparent');
-                el.style.background = 'rgba(255,255,255,0.1)';
-
-                const itemPath = [...DESKTOP_PATH, entry.name];
-                const items = isDir ? [
-                    { label: 'Open', icon: '📂', action: () => openFolderInExplorer(itemPath) },
-                    'separator',
-                    { label: 'Rename', icon: '✏', action: () => renameItem(itemPath) },
-                    { label: 'Delete', icon: '🗑', action: () => deleteItem(itemPath) }
-                ] : [
-                    { label: 'Open', icon: '📄', action: () => openFile(itemPath) },
-                    'separator',
-                    { label: 'Rename', icon: '✏', action: () => renameItem(itemPath) },
-                    { label: 'Delete', icon: '🗑', action: () => deleteItem(itemPath) }
-                ];
-                ContextMenu.show(e.clientX, e.clientY, items);
+                if (!selected.has(entry.name)) {
+                    selected.clear();
+                    selected.add(entry.name);
+                    lastClicked = entry.name;
+                }
+                refreshSelection();
+                showIconContextMenu(e.clientX, e.clientY, entry, entries);
             });
 
             container.appendChild(el);
         });
+        if (marqueeEl) container.appendChild(marqueeEl);
+        refreshSelection();
+    }
+
+    function showIconContextMenu(x, y, entry, entries) {
+        const count = [...selected].filter(n => n !== '$Recycle.Bin').length;
+        const multi = count > 1 && selected.has(entry.name);
+        const itemPath = [...DESKTOP_PATH, entry.name];
+        if (multi) {
+            const isDir = entry.type === 'folder';
+            ContextMenu.show(x, y, [
+                { label: `Open (${count} items)`, icon: isDir ? '📂' : '📄', action: () => openSelected() },
+                'separator',
+                { label: `Delete (${count} items)`, icon: '🗑', action: () => deleteSelected() }
+            ]);
+            return;
+        }
+        const isDir = entry.type === 'folder';
+        const items = isDir ? [
+            { label: 'Open', icon: '📂', action: () => openFolderInExplorer(itemPath) },
+            'separator',
+            { label: 'Rename', icon: '✏', action: () => renameItem(itemPath) },
+            { label: 'Delete', icon: '🗑', action: () => deleteItem(itemPath) }
+        ] : [
+            { label: 'Open', icon: '📄', action: () => openFile(itemPath) },
+            'separator',
+            { label: 'Rename', icon: '✏', action: () => renameItem(itemPath) },
+            { label: 'Delete', icon: '🗑', action: () => deleteItem(itemPath) }
+        ];
+        ContextMenu.show(x, y, items);
+    }
+
+    function openSelected() {
+        let entries = [];
+        try { entries = FileSystem.getChildren(DESKTOP_PATH) || []; } catch (e) { entries = []; }
+        const byName = new Map(entries.map(e => [e.name, e]));
+        [...selected].filter(n => n !== '$Recycle.Bin').forEach(n => {
+            const ent = byName.get(n);
+            if (!ent) return;
+            if (ent.type === 'folder') openFolderInExplorer([...DESKTOP_PATH, n]);
+            else openFile([...DESKTOP_PATH, n]);
+        });
+    }
+
+    function deleteSelected() {
+        const names = [...selected].filter(n => n !== '$Recycle.Bin');
+        if (names.length === 0) return;
+        const label = names.length === 1 ? `"${names[0]}"` : `${names.length} items`;
+        Popup.confirm('Delete', `Delete ${label}?`).then(ok => {
+            if (!ok) return;
+            names.forEach(n => {
+                try { FileSystem.deleteItem([...DESKTOP_PATH, n]); } catch (e) { /* noop */ }
+                delete positions[n];
+            });
+            selected.clear();
+            lastClicked = null;
+            savePositions();
+            render();
+        });
+    }
+
+    function snapPosition(name, rawX, rawY, occupied) {
+        const m = getGridMetrics();
+        const dropped = posToCell(rawX, rawY);
+        const clamped = clampCell(dropped.col, dropped.row, m);
+        const free = claimFreeCell(clamped, m, occupied);
+        return cellToPos(free.col, free.row);
+    }
+
+    function occupyAllExcept(except) {
+        const m = getGridMetrics();
+        const occupied = new Set();
+        const skip = new Set(except);
+        Object.entries(positions).forEach(([other, p]) => {
+            if (skip.has(other)) return;
+            const c = posToCell(p.x, p.y);
+            const cc = clampCell(c.col, c.row, m);
+            occupied.add(cc.col + ':' + cc.row);
+        });
+        return occupied;
     }
 
     function makeDraggable(el, name) {
         let isDragging = false;
         let startX, startY, origX, origY;
+        let group = null;
 
         function onMouseMove(e) {
             if (!isDragging) return;
@@ -228,12 +533,26 @@ const DesktopIcons = (() => {
             const s = Scaling.getScale();
             const dx = (e.clientX - startX) / s;
             const dy = (e.clientY - startY) / s;
+            if (Math.hypot(e.clientX - startX, e.clientY - startY) > 3) {
+                el._dragMoved = true;
+                if (group) group.forEach(g => { g.el._dragMoved = true; });
+            }
 
             const newX = Math.max(0, Math.min(window.innerWidth / s - ICON_W, origX + dx));
             const newY = Math.max(0, Math.min(window.innerHeight / s - 100, origY + dy));
 
             el.style.left = newX + 'px';
             el.style.top = newY + 'px';
+
+            // Drag the rest of the multi-selection along with the grabbed icon.
+            if (group) {
+                group.forEach(g => {
+                    const gx = Math.max(0, Math.min(window.innerWidth / s - ICON_W, g.origX + dx));
+                    const gy = Math.max(0, Math.min(window.innerHeight / s - 100, g.origY + dy));
+                    g.el.style.left = gx + 'px';
+                    g.el.style.top = gy + 'px';
+                });
+            }
         }
 
         function onMouseUp() {
@@ -246,39 +565,93 @@ const DesktopIcons = (() => {
             el.style.transition = 'background 0.12s';
             el.style.zIndex = '';
             el.style.opacity = '';
+            if (group) group.forEach(g => {
+                g.el.style.transition = 'background 0.12s';
+                g.el.style.zIndex = '';
+                g.el.style.opacity = '';
+            });
 
+            const moved = el._dragMoved;
+            // Snap the dragged icon, then snap grouped icons near their drop
+            // points so the whole block lands on free cells without stacking.
+            const occupied = occupyAllExcept(group ? [name, ...group.map(g => g.name)] : [name]);
             const rawX = parseInt(el.style.left);
             const rawY = parseInt(el.style.top);
+            const pos = snapPosition(name, rawX, rawY, occupied);
+            el.style.left = pos.x + 'px';
+            el.style.top = pos.y + 'px';
+            positions[name] = { x: pos.x, y: pos.y };
 
-            // Snap with the same grid model as placement, then dodge icons
-            // that already own a cell so drops never stack.
-            const m = getGridMetrics();
-            const dropped = posToCell(rawX, rawY);
-            const clamped = clampCell(dropped.col, dropped.row, m);
-            const occupied = new Set();
-            Object.entries(positions).forEach(([other, p]) => {
-                if (other === name) return;
-                const c = posToCell(p.x, p.y);
-                const cc = clampCell(c.col, c.row, m);
-                occupied.add(cc.col + ':' + cc.row);
-            });
-            const free = claimFreeCell(clamped, m, occupied);
-            const pos = cellToPos(free.col, free.row);
-            const x = pos.x;
-            const y = pos.y;
-
-            el.style.left = x + 'px';
-            el.style.top = y + 'px';
-
-            positions[name] = { x, y };
+            if (group) {
+                group.forEach(g => {
+                    const gx = parseInt(g.el.style.left);
+                    const gy = parseInt(g.el.style.top);
+                    const gp = snapPosition(g.name, gx, gy, occupied);
+                    g.el.style.left = gp.x + 'px';
+                    g.el.style.top = gp.y + 'px';
+                    positions[g.name] = { x: gp.x, y: gp.y };
+                });
+            }
             savePositions();
+            if (group) group.forEach(g => { g.el._dragMoved = false; g.el._ctrlAdded = false; });
+            group = null;
+            // Let the click handler know a real drag happened so it doesn't
+            // collapse the multi-selection. The flag is cleared on click.
+            if (!moved) el._dragMoved = false;
         }
 
         el.addEventListener('mousedown', (e) => {
             if (e.button !== 0) return;
             if (e.target.closest('button')) return;
 
+            // Pre-select on press so drags start with the right set:
+            // - plain press on an unselected icon selects it alone,
+            // - Ctrl press on an unselected icon adds it (click skips toggle),
+            // - pressing an already-selected icon keeps the group for group-drag
+            //   (Ctrl+click toggles off only if it was a real click, no drag).
+            const additive = e.ctrlKey || e.metaKey;
+            if (!selected.has(name)) {
+                if (additive) {
+                    selected.add(name);
+                    lastClicked = name;
+                    refreshSelection();
+                    el._ctrlAdded = true;
+                } else if (!e.shiftKey) {
+                    selected.clear();
+                    selected.add(name);
+                    lastClicked = name;
+                    refreshSelection();
+                } else {
+                    handleIconClick(name, e);
+                }
+            }
+            e.stopPropagation();
+
+            // Build the drag group from the current multi-selection.
+            group = null;
+            if (selected.size > 1 && selected.has(name) && !e.shiftKey) {
+                group = [];
+                selected.forEach(other => {
+                    if (other === name) return;
+                    const otherEl = container.querySelector(`.desktop-icon[data-name="${CSS.escape(other)}"]`);
+                    if (!otherEl) return;
+                    group.push({
+                        name: other,
+                        el: otherEl,
+                        origX: parseInt(otherEl.style.left) || 0,
+                        origY: parseInt(otherEl.style.top) || 0
+                    });
+                });
+                group.forEach(g => {
+                    g.el.style.transition = 'none';
+                    g.el.style.zIndex = '9998';
+                    g.el.style.opacity = '0.85';
+                });
+                if (group.length === 0) group = null;
+            }
+
             isDragging = true;
+            el._dragMoved = false;
             startX = e.clientX;
             startY = e.clientY;
             origX = parseInt(el.style.left) || 0;
@@ -300,7 +673,7 @@ const DesktopIcons = (() => {
         el.className = 'desktop-icon';
         el.dataset.name = '$Recycle.Bin';
 
-        const pos = positions['$Recycle.Bin'] || getDefaultPosition('$Recycle.Bin', 0);
+        const pos = positions['$Recycle.Bin'] || cellToPos(0, 0);
         el.style.cssText = `
             position:absolute;left:${pos.x}px;top:${pos.y}px;width:80px;
             padding:8px;border-radius:6px;cursor:pointer;text-align:center;
@@ -317,8 +690,12 @@ const DesktopIcons = (() => {
 
         makeDraggable(el, '$Recycle.Bin');
 
-        el.addEventListener('mouseenter', () => el.style.background = 'rgba(255,255,255,0.1)');
-        el.addEventListener('mouseleave', () => el.style.background = 'transparent');
+        el.addEventListener('mouseenter', () => {
+            if (!selected.has('$Recycle.Bin')) el.style.background = 'rgba(255,255,255,0.1)';
+        });
+        el.addEventListener('mouseleave', () => {
+            if (!selected.has('$Recycle.Bin')) el.style.background = 'transparent';
+        });
 
         el.addEventListener('dblclick', (e) => {
             e.stopPropagation();
@@ -327,15 +704,26 @@ const DesktopIcons = (() => {
 
         el.addEventListener('click', (e) => {
             e.stopPropagation();
-            container.querySelectorAll('.desktop-icon').forEach(d => d.style.background = 'transparent');
-            el.style.background = 'rgba(255,255,255,0.1)';
+            if (el._ctrlAdded) {
+                el._ctrlAdded = false;
+                el._dragMoved = false;
+                return;
+            }
+            if (el._dragMoved) {
+                el._dragMoved = false;
+                return;
+            }
+            handleIconClick('$Recycle.Bin', e);
         });
 
         el.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            container.querySelectorAll('.desktop-icon').forEach(d => d.style.background = 'transparent');
-            el.style.background = 'rgba(255,255,255,0.1)';
+            // Recycle Bin has its own actions — select only it on right-click.
+            selected.clear();
+            selected.add('$Recycle.Bin');
+            lastClicked = '$Recycle.Bin';
+            refreshSelection();
 
             const items = [
                 { label: 'Open', icon: '📂', action: () => openRecycleBin() },
@@ -510,6 +898,7 @@ const DesktopIcons = (() => {
             if (ok) {
                 FileSystem.deleteItem(path);
                 delete positions[name];
+                selected.delete(name);
                 savePositions();
                 render();
             }
@@ -554,7 +943,7 @@ const DesktopIcons = (() => {
         render();
     }
 
-    return { init, render, createNewFolder, createNewFile };
+    return { init, render, createNewFolder, createNewFile, clearSelection, selectAll, getSelected, isSelected, deleteSelected, openSelected };
 })();
 
 export default DesktopIcons;
