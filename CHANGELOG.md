@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4904] - 2026-09-15
+
+### Changed
+- Pointer packs rebuilt from the requested cursor set (credits kept in code per license: Radhika Paghdal CC-BY arrow, halfmage/majesticons MIT hand, UXAspects Apache arrow, Denali MIT hand filled in): Default gets the outline arrow (filled for dark-background visibility) and proper link hand, Classic gets the notched arrow and gloved hand with hourglass busy, Hands uses the hand pointer everywhere; new Working state (arrow/hand plus a small spinning ring, wired to the `progress` cursor) and themed hotspots throughout, all verified in screenshots at 200px and real 22px. Note: the SVGRepo illustration pick was tested but renders as an unreadable blob at cursor size, so Hands uses the Denali hand instead
+
 ## [12.0.4903] - 2026-09-15
 
 ### Changed
