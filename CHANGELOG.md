@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4899] - 2026-09-15
+
+### Added
+- Repositionable taskbar: Bottom (default), Top, Left, or Right via Settings > Personalization > Taskbar Position, persisted in SystemConfig and applied at boot. Side taskbars stack buttons vertically with a scrollable app column, tray and clock docked at the far end, and running/active indicators moved to the desktop-facing edge; desktop area, Start menu, search panel, new-window centering, and window snap zones all follow the taskbar edge
+
 ## [12.0.4898] - 2026-09-15
 
 ### Fixed

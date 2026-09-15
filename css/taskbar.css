@@ -38,6 +38,15 @@
     transform: translateX(-50%);
 }
 
+/* Separators between taskbar groups (dimensions flip on side taskbars). */
+.taskbar-separator {
+    width: 1px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+
 .taskbar-btn {
     width: 40px;
     height: 40px;
@@ -136,4 +145,116 @@
 
 #clock:hover {
     background: var(--hover-bg);
+}
+
+/* ================= Taskbar positions =================
+   Edge is driven by html[data-taskbar] (see SystemConfig).
+   Bottom is the default (base rules above). */
+
+html[data-taskbar="top"] #taskbar {
+    top: 0;
+    bottom: auto;
+    border-top: none;
+    border-bottom: 1px solid var(--window-border);
+}
+
+html[data-taskbar="left"] #taskbar,
+html[data-taskbar="right"] #taskbar {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: auto;
+    width: var(--taskbar-height);
+    height: auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 12px 0;
+    border-top: none;
+    border-right: 1px solid var(--window-border);
+}
+
+html[data-taskbar="right"] #taskbar {
+    left: auto;
+    right: 0;
+    border-right: none;
+    border-left: 1px solid var(--window-border);
+}
+
+html[data-taskbar="left"] #taskbar-center,
+html[data-taskbar="right"] #taskbar-center {
+    position: static;
+    transform: none;
+    flex-direction: column;
+    align-items: center;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+}
+
+html[data-taskbar="left"] #taskbar-center::-webkit-scrollbar,
+html[data-taskbar="right"] #taskbar-center::-webkit-scrollbar {
+    width: 0;
+}
+
+html[data-taskbar="left"] .taskbar-separator,
+html[data-taskbar="right"] .taskbar-separator {
+    width: 24px;
+    height: 1px;
+    margin: 4px 0;
+}
+
+html[data-taskbar="left"] #taskbar-tray,
+html[data-taskbar="right"] #taskbar-tray {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-left: 0;
+    margin-top: auto;
+    padding-top: 8px;
+}
+
+html[data-taskbar="left"] #tray-icons,
+html[data-taskbar="right"] #tray-icons {
+    flex-direction: column;
+    gap: 4px;
+}
+
+html[data-taskbar="left"] #clock,
+html[data-taskbar="right"] #clock {
+    text-align: center;
+    font-size: 11px;
+    padding: 4px 2px;
+}
+
+/* Running/active indicators move to the desktop-facing edge. */
+html[data-taskbar="left"] .taskbar-btn.active::after,
+html[data-taskbar="left"] .taskbar-btn.running::after {
+    bottom: auto;
+    left: auto;
+    right: 1px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 16px;
+}
+
+html[data-taskbar="left"] .taskbar-btn.running::after {
+    height: 8px;
+}
+
+html[data-taskbar="right"] .taskbar-btn.active::after,
+html[data-taskbar="right"] .taskbar-btn.running::after {
+    bottom: auto;
+    right: auto;
+    left: 1px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 16px;
+}
+
+html[data-taskbar="right"] .taskbar-btn.running::after {
+    height: 8px;
 }

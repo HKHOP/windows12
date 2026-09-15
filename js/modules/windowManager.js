@@ -41,20 +41,31 @@ const WindowManager = (() => {
         if (snapIndicator) snapIndicator.style.display = 'none';
     }
 
+    // Usable desktop origin/size in the same coordinate space the existing
+    // snap math uses. Accounts for the taskbar edge (48px taskbar-height).
+    function getDesktopArea() {
+        const s = scale;
+        const pos = (document.documentElement.dataset.taskbar) || 'bottom';
+        const tb = 48;
+        const ox = pos === 'left' ? tb : 0;
+        const oy = pos === 'top' ? tb : 0;
+        const w = window.innerWidth / s - ((pos === 'left' || pos === 'right') ? tb : 0);
+        const h = window.innerHeight / s - ((pos === 'top' || pos === 'bottom') ? tb : 0);
+        return { ox, oy, w, h };
+    }
+
     function getSnapZone(clientX, clientY) {
         const threshold = 20;
-        const s = scale;
-        const w = window.innerWidth / s;
-        const h = window.innerHeight / s - 48;
-        const left = clientX <= threshold;
-        const right = clientX >= w - threshold;
-        const top = clientY <= threshold;
+        const { ox, oy, w, h } = getDesktopArea();
+        const left = clientX <= ox + threshold;
+        const right = clientX >= ox + w - threshold;
+        const top = clientY <= oy + threshold;
 
-        if (top && left) return { zone: 'top-left', x: 0, y: 0, width: w / 2, height: h / 2 };
-        if (top && right) return { zone: 'top-right', x: w / 2, y: 0, width: w / 2, height: h / 2 };
-        if (top) return { zone: 'top', x: 0, y: 0, width: w, height: h };
-        if (left) return { zone: 'left', x: 0, y: 0, width: w / 2, height: h };
-        if (right) return { zone: 'right', x: w / 2, y: 0, width: w / 2, height: h };
+        if (top && left) return { zone: 'top-left', x: ox, y: oy, width: w / 2, height: h / 2 };
+        if (top && right) return { zone: 'top-right', x: ox + w / 2, y: oy, width: w / 2, height: h / 2 };
+        if (top) return { zone: 'top', x: ox, y: oy, width: w, height: h };
+        if (left) return { zone: 'left', x: ox, y: oy, width: w / 2, height: h };
+        if (right) return { zone: 'right', x: ox + w / 2, y: oy, width: w / 2, height: h };
 
         return null;
     }
@@ -137,8 +148,9 @@ const WindowManager = (() => {
             height = savedState.height;
             isMaximized = savedState.maximized || false;
         } else {
-            x = Math.max(50, (window.innerWidth / s - opts.width) / 2 + Math.random() * 60 - 30);
-            y = Math.max(30, (window.innerHeight / s - opts.height - 48) / 2 + Math.random() * 40 - 20);
+            const area = getDesktopArea();
+            x = Math.max(area.ox, area.ox + (area.w - opts.width) / 2 + Math.random() * 60 - 30);
+            y = Math.max(area.oy, area.oy + (area.h - opts.height) / 2 + Math.random() * 40 - 20);
             width = opts.width;
             height = opts.height;
         }

@@ -811,6 +811,13 @@ const Settings = (() => {
             </div>
 
             <div class="settings-section" style="margin-bottom:24px;">
+                <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Taskbar Position</h3>
+                <div style="display:flex;gap:8px;">
+                    ${TASKBAR_POSITIONS.map(p => taskbarPositionOption(p, config.taskbarPosition)).join('')}
+                </div>
+            </div>
+
+            <div class="settings-section" style="margin-bottom:24px;">
                 <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">User Name</h3>
                 <div style="display:flex;gap:8px;">
                     <input type="text" class="username-input" value="${config.userName}" style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;padding:8px 12px;color:var(--text-primary);font-size:14px;flex:1;max-width:300px;outline:none;">
@@ -1029,6 +1036,32 @@ const Settings = (() => {
         </div>`;
     }
 
+    const TASKBAR_POSITIONS = [
+        { id: 'bottom', name: 'Bottom' },
+        { id: 'top', name: 'Top' },
+        { id: 'left', name: 'Left' },
+        { id: 'right', name: 'Right' }
+    ];
+
+    function taskbarPositionPreview(pos) {
+        // Mini screen mock with the taskbar bar on the given edge.
+        const bar = {
+            bottom: 'position:absolute;left:3px;right:3px;bottom:2px;height:5px;',
+            top: 'position:absolute;left:3px;right:3px;top:2px;height:5px;',
+            left: 'position:absolute;left:2px;top:3px;bottom:3px;width:5px;',
+            right: 'position:absolute;right:2px;top:3px;bottom:3px;width:5px;'
+        }[pos];
+        return `<div style="width:44px;height:30px;border-radius:5px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);position:relative;margin:0 auto;"><div style="${bar}background:var(--accent-color);border-radius:2px;"></div></div>`;
+    }
+
+    function taskbarPositionOption(p, activeId) {
+        const active = (activeId || 'bottom') === p.id;
+        return `<div class="taskbar-pos-option" data-pos="${p.id}" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid ${active ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'};border-radius:8px;padding:10px 8px;cursor:pointer;text-align:center;transition:border-color 0.15s;">
+            ${taskbarPositionPreview(p.id)}
+            <div style="font-size:11px;font-weight:${active ? '600' : '400'};margin-top:6px;">${p.name}</div>
+        </div>`;
+    }
+
     function setupPersonalizationEvents() {
         win.element.querySelectorAll('.theme-option').forEach(opt => {
             opt.addEventListener('click', () => {
@@ -1078,6 +1111,13 @@ const Settings = (() => {
                 SystemConfig.set('taskbarOpacity', parseInt(slider.value));
             });
         }
+
+        win.element.querySelectorAll('.taskbar-pos-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                SystemConfig.set('taskbarPosition', opt.dataset.pos);
+                renderPersonalization(win.element.querySelector('.settings-content'));
+            });
+        });
 
         const usernameInput = win.element.querySelector('.username-input');
         const usernameSave = win.element.querySelector('.username-save');

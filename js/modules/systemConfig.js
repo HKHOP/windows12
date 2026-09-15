@@ -6,6 +6,7 @@ const SystemConfig = (() => {
         backgroundStyle: 'gradient',
         wallpaper: 'gradient',
         taskbarOpacity: 85,
+        taskbarPosition: 'bottom',
         windowAnimation: true,
         showSeconds: false,
         userName: 'User',
@@ -149,6 +150,14 @@ const SystemConfig = (() => {
                 ? `rgba(32, 32, 32, ${opacity})`
                 : `rgba(240, 240, 240, ${opacity})`;
         }
+
+        // Taskbar edge: bottom (default), top, left, right. Exposed as
+        // html[data-taskbar] — all layout adapts via CSS attribute selectors.
+        const validPositions = ['bottom', 'top', 'left', 'right'];
+        const taskbarPosition = validPositions.includes(config.taskbarPosition)
+            ? config.taskbarPosition
+            : 'bottom';
+        root.setAttribute('data-taskbar', taskbarPosition);
 
         if (config.brightness !== undefined) {
             document.body.style.filter = `brightness(${config.brightness / 100})`;

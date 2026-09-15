@@ -4,6 +4,9 @@
     left: 50%;
     transform: translateX(-50%);
     width: 600px;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - var(--taskbar-height) - 24px);
+    overflow-y: auto;
     background: var(--start-menu-bg);
     backdrop-filter: blur(40px);
     -webkit-backdrop-filter: blur(40px);
@@ -11,8 +14,65 @@
     border: 1px solid var(--window-border);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     z-index: 10000;
-    overflow: hidden;
     animation: startMenuIn 0.2s ease-out;
+}
+
+/* Start menu follows the taskbar edge. */
+html[data-taskbar="top"] #start-menu {
+    top: calc(var(--taskbar-height) + 12px);
+    bottom: auto;
+    animation-name: startMenuInTop;
+}
+
+html[data-taskbar="left"] #start-menu {
+    left: calc(var(--taskbar-height) + 12px);
+    right: auto;
+    top: 12px;
+    bottom: auto;
+    transform: none;
+    animation-name: startMenuInLeft;
+}
+
+html[data-taskbar="right"] #start-menu {
+    left: auto;
+    right: calc(var(--taskbar-height) + 12px);
+    top: 12px;
+    bottom: auto;
+    transform: none;
+    animation-name: startMenuInRight;
+}
+
+@keyframes startMenuInTop {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+@keyframes startMenuInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes startMenuInRight {
+    from {
+        opacity: 0;
+        transform: translateX(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 @keyframes startMenuIn {

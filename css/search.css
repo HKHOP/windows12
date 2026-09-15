@@ -4,7 +4,8 @@
     left: 50%;
     transform: translateX(-50%);
     width: 620px;
-    max-height: 560px;
+    max-width: calc(100vw - 24px);
+    max-height: min(560px, calc(100vh - var(--taskbar-height) - 24px));
     background: var(--start-menu-bg);
     backdrop-filter: blur(40px);
     -webkit-backdrop-filter: blur(40px);
@@ -16,6 +17,46 @@
     display: flex;
     flex-direction: column;
     animation: searchPanelIn 0.2s ease-out;
+}
+
+/* Search panel follows the taskbar edge. */
+html[data-taskbar="top"] #search-panel {
+    top: calc(var(--taskbar-height) + 12px);
+    bottom: auto;
+    animation-name: searchPanelInTop;
+}
+
+html[data-taskbar="left"] #search-panel {
+    left: calc(var(--taskbar-height) + 12px);
+    right: auto;
+    top: 12px;
+    bottom: auto;
+    transform: none;
+    animation-name: searchPanelInLeft;
+}
+
+html[data-taskbar="right"] #search-panel {
+    left: auto;
+    right: calc(var(--taskbar-height) + 12px);
+    top: 12px;
+    bottom: auto;
+    transform: none;
+    animation-name: searchPanelInRight;
+}
+
+@keyframes searchPanelInTop {
+    from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes searchPanelInLeft {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes searchPanelInRight {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: translateX(0); }
 }
 
 #search-panel.hidden {

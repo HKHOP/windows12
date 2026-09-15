@@ -146,7 +146,7 @@ const Taskbar = (() => {
         center.appendChild(searchBtn);
 
         const separator = document.createElement('div');
-        separator.style.cssText = 'width:1px;height:24px;background:rgba(255,255,255,0.1);margin:0 4px;';
+        separator.className = 'taskbar-separator';
         center.appendChild(separator);
 
         pinnedApps.forEach(appId => {
@@ -156,8 +156,8 @@ const Taskbar = (() => {
         });
 
         const runningSeparator = document.createElement('div');
-        runningSeparator.className = 'taskbar-running-separator';
-        runningSeparator.style.cssText = 'width:1px;height:24px;background:rgba(255,255,255,0.1);margin:0 4px;display:none;';
+        runningSeparator.className = 'taskbar-separator taskbar-running-separator';
+        runningSeparator.style.display = 'none';
         center.appendChild(runningSeparator);
 
         const nonPinnedRunning = [];

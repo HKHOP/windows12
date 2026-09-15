@@ -72,6 +72,23 @@ body {
     overflow: hidden;
 }
 
+/* Desktop yields space to the taskbar edge. */
+html[data-taskbar="top"] #desktop {
+    margin-top: var(--taskbar-height);
+}
+
+html[data-taskbar="left"] #desktop {
+    width: calc(100% - var(--taskbar-height));
+    height: 100%;
+    margin-left: var(--taskbar-height);
+}
+
+html[data-taskbar="right"] #desktop {
+    width: calc(100% - var(--taskbar-height));
+    height: 100%;
+    margin-right: var(--taskbar-height);
+}
+
 #windows-container {
     width: 100%;
     height: 100%;
