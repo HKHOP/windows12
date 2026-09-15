@@ -199,7 +199,7 @@ const Touch = (() => {
             positionCursorEl();
             cursorEl.classList.add('visible');
             if (showHintOnEnable) {
-                showHint('Touchpad mode: swipe to move • tap = click • 2-finger tap = right-click');
+                showHint('Touchpad mode: swipe to move • tap = click • double-tap-hold + drag to hold/drag • 2-finger tap = right-click');
             }
         } else {
             cursorEl.classList.remove('visible');
@@ -314,6 +314,7 @@ const Touch = (() => {
             if (pad && pad.dragging) {
                 dispatchAtCursor('mouseup', 0);
                 pad.dragging = false;
+                lastTap = { time: 0, x: 0, y: 0 };
             }
             const a = e.touches[0];
             const b = e.touches[1];
@@ -336,8 +337,13 @@ const Touch = (() => {
         if (e.touches.length !== 1) return true;
 
         const t = e.touches[0];
-        const distToLastTap = Math.hypot(t.clientX - lastTap.x, t.clientY - lastTap.y);
-        const pendingDoubleDrag = (now - lastTap.time) < DOUBLE_TAP_MAX_MS && distToLastTap < 60;
+        // Double-tap-hold detection is time + *cursor* based, NOT finger-position
+        // based: in touchpad mode the whole screen is a relative trackpad, so the
+        // finger can land anywhere. Only reject when the cursor itself moved
+        // (e.g. a swipe happened) between the two taps.
+        const sinceLastTap = now - lastTap.time;
+        const cursorDistToLastTap = Math.hypot(cursorX - lastTap.x, cursorY - lastTap.y);
+        const pendingDoubleDrag = sinceLastTap < DOUBLE_TAP_MAX_MS && cursorDistToLastTap < DOUBLE_TAP_MAX_DIST;
 
         pad = {
             mode: 'one',
@@ -354,11 +360,22 @@ const Touch = (() => {
             pendingDoubleDrag
         };
 
-        pad.longPressTimer = setTimeout(() => {
-            if (!pad || pad.mode !== 'one' || pad.moved || pad.dragging) return;
-            pad.longPressFired = true;
-            rightClick();
-        }, LONG_PRESS_MS);
+        if (pendingDoubleDrag) {
+            // Second tap of a double-tap: hold the left button down immediately.
+            // This makes both "hold click" (no move) and "drag" (move) work, and
+            // it must suppress the long-press right-click timer.
+            pad.dragging = true;
+            pad.pendingDoubleDrag = false;
+            dispatchAtCursor('mousemove', 0, { buttons: 0 });
+            dispatchAtCursor('mousedown', 0);
+            pulseCursor('left');
+        } else {
+            pad.longPressTimer = setTimeout(() => {
+                if (!pad || pad.mode !== 'one' || pad.moved || pad.dragging) return;
+                pad.longPressFired = true;
+                rightClick();
+            }, LONG_PRESS_MS);
+        }
 
         if (e.cancelable) e.preventDefault();
         return true;
@@ -405,14 +422,10 @@ const Touch = (() => {
                 clearTimeout(pad.longPressTimer);
                 pad.longPressTimer = null;
             }
-            // Tap-then-hold-drag: second touch of a double-tap becomes a drag.
-            if (pad.pendingDoubleDrag && !pad.dragging && !pad.longPressFired) {
-                pad.dragging = true;
-                dispatchAtCursor('mousedown', 0);
-            }
         }
 
         if (pad.moved) {
+            // Normal swipe, or an active hold-drag: move with button state.
             moveCursorBy(dx, dy);
             hoverMove(pad.dragging ? 1 : 0);
         }
@@ -452,7 +465,27 @@ const Touch = (() => {
             pad = null;
             lastTap = { time: 0, x: 0, y: 0 };
         } else if (pad.dragging) {
-            dispatchAtCursor('mouseup', 0);
+            // Double-tap-hold release. mousedown was sent at touchstart.
+            if (pad.moved) {
+                // Dragged: drop (also ends window drags, selections, sliders).
+                dispatchAtCursor('mouseup', 0);
+                pulseCursor('left');
+            } else if (duration < DOUBLE_TAP_MAX_MS) {
+                // Quick second-tap release: finish a double-click.
+                // (First tap already sent click; this completes click + dblclick.)
+                dispatchAtCursor('mouseup', 0);
+                const target = dispatchAtCursor('click', 0);
+                dispatchAtCursor('dblclick', 0);
+                focusIfEditable(target);
+                pulseCursor('left');
+            } else {
+                // Held without moving (hold-click): release with a click so
+                // buttons / press-and-hold targets still activate.
+                dispatchAtCursor('mouseup', 0);
+                const target = dispatchAtCursor('click', 0);
+                focusIfEditable(target);
+                pulseCursor('left');
+            }
             pad = null;
             lastTap = { time: 0, x: 0, y: 0 };
         } else if (!pad.moved && duration < 2000) {
@@ -580,7 +613,10 @@ const Touch = (() => {
     function handleTouchCancel() {
         if (isTouchpadEnabled()) {
             if (pad && pad.longPressTimer) clearTimeout(pad.longPressTimer);
-            if (pad && pad.dragging) dispatchAtCursor('mouseup', 0);
+            if (pad && pad.dragging) {
+                dispatchAtCursor('mouseup', 0);
+                lastTap = { time: 0, x: 0, y: 0 };
+            }
             pad = null;
             return;
         }

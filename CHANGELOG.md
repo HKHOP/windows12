@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4890] - 2026-09-15
+
+### Fixed
+- Virtual touchpad double-tap-hold to hold click and drag: the second tap now presses the left button down immediately (time + cursor based, so the finger can land anywhere), movement drags with the button held for moving windows / selecting text, quick release completes a double-click, and long hold without moving releases with a click; long-press right-click no longer fires during a hold-drag
+
 ## [12.0.4889] - 2026-09-15
 
 ### Added
