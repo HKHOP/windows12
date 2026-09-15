@@ -26,6 +26,8 @@ const AppIcons = (() => {
 
         sampleApp: `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="5" fill="#6a11cb"/><path d="M8 8h3v8H8zM13 8h3v5h-3z" fill="white" fill-opacity="0.9"/></svg>`,
 
+        subwaySurfers: `<svg viewBox="0 0 24 24" fill="none"><circle cx="6" cy="12" r="4" stroke="#0078D4" stroke-width="2"/><circle cx="18" cy="12" r="4" stroke="#0078D4" stroke-width="2"/><path d="M6 12h12" stroke="#0078D4" stroke-width="2" stroke-linecap="round"/></svg>`,
+
         vscode: `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="3" fill="#007ACC"/><path d="M16 5l-8 7 8 7" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M7 5l-3.5 7L7 19" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`,
 
         export: `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="3" fill="#0078D4"/><path d="M12 5v10" stroke="white" stroke-width="1.8" stroke-linecap="round"/><path d="M8 9l4-4 4 4" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 17v1a1 1 0 001 1h10a1 1 0 001-1v-1" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>`,
