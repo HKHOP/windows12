@@ -81,26 +81,24 @@ const Minesweeper = (() => {
 
     function getInitialHTML(cfg) {
         return `
-            <div class="ms-app" style="display:flex;flex-direction:column;height:100%;background:#202020;color:white;font-family:'Segoe UI',sans-serif;user-select:none;overflow:auto;">
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#2d2d2d;border-bottom:1px solid #3d3d3d;">
+            <div class="ms-app" style="display:flex;flex-direction:column;height:100%;background:#202020;color:white;font-family:'Segoe UI',sans-serif;user-select:none;overflow:hidden;">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:#2d2d2d;border-bottom:1px solid #3d3d3d;">
                     <div style="display:flex;gap:8px;">
-                        <button class="ms-menu-btn" style="padding:4px 10px;background:#3d3d3d;border:none;border-radius:4px;color:white;cursor:pointer;font-size:12px;">Game</button>
-                        <button class="ms-scores-btn" style="padding:4px 10px;background:#3d3d3d;border:none;border-radius:4px;color:white;cursor:pointer;font-size:12px;">High Scores</button>
+                        <button class="ms-menu-btn" style="padding:4px 12px;background:#3d3d3d;border:1px solid #555;border-radius:4px;color:white;cursor:pointer;font-size:12px;">Game</button>
+                        <button class="ms-scores-btn" style="padding:4px 12px;background:#3d3d3d;border:1px solid #555;border-radius:4px;color:white;cursor:pointer;font-size:12px;">High Scores</button>
                     </div>
-                    <div style="font-size:13px;font-weight:600;color:#aaa;" class="ms-diff-label">${cfg.name} (${cfg.cols}x${cfg.rows}, ${cfg.mines} mines)</div>
+                    <div style="font-size:13px;font-weight:500;color:#aaa;" class="ms-diff-label">${cfg.name} — ${cfg.cols}×${cfg.rows} (${cfg.mines} mines)</div>
                 </div>
 
-                <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;">
-                    <div style="background:#2d2d2d;border:2px solid #3d3d3d;border-radius:8px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,0.4);display:flex;flex-direction:column;align-items:center;gap:12px;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;width:100%;background:#1e1e1e;padding:8px 12px;border-radius:6px;border:1px solid #3d3d3d;">
-                            <div class="ms-mine-count" style="font-family:monospace;font-size:20px;font-weight:bold;color:#ff5555;background:#000;padding:2px 8px;border-radius:4px;min-width:48px;text-align:center;">0${cfg.mines}</div>
-                            <button class="ms-face-btn" style="width:36px;height:36px;border-radius:50%;background:#3d3d3d;border:1px solid #555;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.1s;">😊</button>
-                            <div class="ms-timer" style="font-family:monospace;font-size:20px;font-weight:bold;color:#55ff55;background:#000;padding:2px 8px;border-radius:4px;min-width:48px;text-align:center;">000</div>
-                        </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#1e1e1e;border-bottom:1px solid #333;">
+                    <div class="ms-mine-count" style="font-family:monospace;font-size:22px;font-weight:bold;color:#ff5555;background:#000;padding:4px 12px;border-radius:4px;border:1px inset #444;min-width:60px;text-align:center;">0${cfg.mines}</div>
+                    <button class="ms-face-btn" style="width:38px;height:38px;border-radius:50%;background:#3d3d3d;border:1px solid #666;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.1s;">😊</button>
+                    <div class="ms-timer" style="font-family:monospace;font-size:22px;font-weight:bold;color:#55ff55;background:#000;padding:4px 12px;border-radius:4px;border:1px inset #444;min-width:60px;text-align:center;">000</div>
+                </div>
 
-                        <div class="ms-board-wrap" style="background:#1a1a1a;border:2px inset #3d3d3d;padding:4px;border-radius:4px;overflow:auto;max-width:100%;max-height:65vh;">
-                            <div class="ms-board" style="display:grid;grid-template-columns:repeat(${cfg.cols}, 26px);grid-template-rows:repeat(${cfg.rows}, 26px);gap:1px;background:#333;"></div>
-                        </div>
+                <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto;background:#181818;">
+                    <div class="ms-board-wrap" style="background:#181818;border:2px inset #444;padding:4px;border-radius:4px;overflow:auto;max-width:100%;max-height:100%;">
+                        <div class="ms-board" style="display:grid;grid-template-columns:repeat(${cfg.cols}, 26px);grid-template-rows:repeat(${cfg.rows}, 26px);gap:1px;background:#333;"></div>
                     </div>
                 </div>
             </div>

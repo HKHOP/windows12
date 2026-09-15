@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4908] - 2026-09-15
+
+### Changed
+- Minesweeper UI redesign: removed the inner window card wrapper so the game layout fills the app window natively and cleanly; redesigned the app icon to a classic textured tile with a mine and red indicator
+
 ## [12.0.4907] - 2026-09-15
 
 ### Added
