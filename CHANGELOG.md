@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4906] - 2026-09-15
+
+### Added
+- Desktop multi-select: drag a blue rubber-band box over empty desktop to select icons by intersection, Ctrl+click to toggle, Shift+click for range select, Ctrl+A to select all, Delete to delete the selection, Esc to clear; dragging one icon of a multi-selection moves the whole group, double-clicking or right-clicking a multi-selection opens/deletes all of them
+
 ## [12.0.4905] - 2026-09-15
 
 ### Fixed
