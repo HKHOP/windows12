@@ -16,6 +16,7 @@ import * as app_musicSpark from './musicSpark/main.js';
 import * as app_notepad from './notepad/main.js';
 import * as app_paint from './paint/main.js';
 import * as app_photos from './photos/main.js';
+import * as app_riftboundRunner from './riftboundRunner/main.js';
 import * as app_sampleApp from './sampleApp/main.js';
 import * as app_settings from './settings/main.js';
 import * as app_sledgePoint from './sledgePoint/main.js';
@@ -41,6 +42,7 @@ const APP_MODULES = {
     "notepad": app_notepad.default || app_notepad,
     "paint": app_paint.default || app_paint,
     "photos": app_photos.default || app_photos,
+    "riftboundRunner": app_riftboundRunner.default || app_riftboundRunner,
     "sampleApp": app_sampleApp.default || app_sampleApp,
     "settings": app_settings.default || app_settings,
     "sledgePoint": app_sledgePoint.default || app_sledgePoint,
@@ -67,6 +69,7 @@ const APP_MANIFESTS = [
     {"id":"notepad","uuid":"7d1fd060-41db-47b6-ab6a-d307b0e3a130","name":"Notepad","version":"1.0.0","distribution":"builtin","associations":[]},
     {"id":"paint","uuid":"5e32e6ab-113e-4041-9739-6b08ea85533e","name":"Paint","version":"1.0.0","distribution":"builtin","associations":[]},
     {"id":"photos","uuid":"d747123a-6cae-4b35-a0da-123d300d9e20","name":"Photos","version":"1.0.0","distribution":"builtin","associations":[]},
+    {"id":"riftboundRunner","uuid":"8b7d3f5a-1e8c-4d3a-9b6f-2c7a1e5d4f90","name":"Riftbound Runner","version":"1.0.0","distribution":"store","associations":[],"store":{"developer":"Northstar Arcade","category":"Games","rating":4.8,"reviews":127,"description":"A precision 2D platformer built around movement, timing, and compact environmental puzzles. Four strange worlds. Twenty-eight handcrafted levels. One unstable rift.","features":["28 handcrafted skill-based levels","4 distinct worlds with unique mechanics","Precision platforming and enemy encounters","Switch, gate, laser, moving-platform, and physics puzzles","Checkpoint system and persistent progress","Keyboard and on-screen touch controls","Speedrun-friendly level timer and death counter"],"screenshots":[{"bg":"linear-gradient(135deg, #081719, #123c3a)","text":"Glasswild Canopy"},{"bg":"linear-gradient(135deg, #1d0d0b, #5b2418)","text":"Emberworks Forge"},{"bg":"linear-gradient(135deg, #0b0d21, #252c63)","text":"Moonfall Orbit"}],"size":"18 MB","ageRating":"7+"}},
     {"id":"sampleApp","uuid":"6912d871-6e9f-4b34-a236-bc72d9abac5d","name":"Sample App","version":"1.0.0","distribution":"store","associations":[],"store":{"developer":"Windows 12","category":"Productivity","rating":"4.5","reviews":"1,234","description":"Interactive sample app that demonstrates full system installation, uninstallation, and launching. Perfect for testing the app ecosystem.","features":["Easy installation","Full system integration","Interactive UI","Settings persistence"],"screenshots":[{"bg":"linear-gradient(135deg, #6a11cb, #2575fc)","text":"Sample Interface"},{"bg":"linear-gradient(135deg, #2575fc, #6a11cb)","text":"Features"}],"size":"2 MB","ageRating":"3+"}},
     {"id":"settings","uuid":"260fcb62-19fe-45ad-9ba3-cfe3dbf91ebd","name":"Settings","version":"1.0.0","distribution":"builtin","associations":[]},
     {"id":"sledgePoint","uuid":"b5b3c1dd-be43-4c3f-a136-74a9978078b6","name":"Sledge Point","version":"1.0.0","distribution":"store","associations":["sledge","sledgepoint"],"store":{"developer":"Windows 12","category":"Productivity","rating":"4.6","reviews":"2,180","description":"Create stunning presentations with Sledge Point. Features a ribbon UI, slide transitions, drawing tools, and export to HTML, PDF, and more.","features":["Ribbon-style toolbar","Slide transitions (fade, slide, zoom)","Text, shapes, images, and tables","Freehand drawing tools","Presentation mode with slideshow","Export to HTML, PDF, SVG, and JSON"],"screenshots":[{"bg":"linear-gradient(135deg, #D83B01, #ff6b35)","text":"Slide Editor"},{"bg":"linear-gradient(135deg, #ff6b35, #D83B01)","text":"Presentation Mode"}],"size":"3 MB","ageRating":"3+"}},

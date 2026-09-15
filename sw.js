@@ -44,6 +44,7 @@ const urlsToCache = [
     './js/apps/notepad/main.js',
     './js/apps/paint/main.js',
     './js/apps/photos/main.js',
+    './js/apps/riftboundRunner/main.js',
     './js/apps/sampleApp/main.js',
     './js/apps/settings/main.js',
     './js/apps/sledgePoint/main.js',

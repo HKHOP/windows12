@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4910] - 2026-09-15
+
+### Added
+- RiftboundRunner game wired up to be downloadable from the Microsoft Store (store metadata, screenshots, registry integration, and service worker precache)
+
 ## [12.0.4909] - 2026-09-15
 
 ### Fixed
