@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4903] - 2026-09-15
+
+### Changed
+- Cursor set restyled toward the Windows 11 concept look (white/black with blue accents): new side-profile pointing hand with real finger separation (tall index, curled-finger mass, branching thumb), blue segmented tail busy ring that spins on the virtual cursor, and a red ring-and-slash unavailable cursor; applied across all pointer packs, both mice, and the Settings previews, with hotspots on the true fingertip — all artwork hand-drawn originals, verified in headless screenshots
+
 ## [12.0.4902] - 2026-09-15
 
 ### Fixed

@@ -397,6 +397,15 @@ input[type="number"], input[type="search"], input[type="url"], textarea {
     filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
 }
 
+/* Segmented tail busy ring (spins around its own center). */
+#virtual-cursor .vc-busy-ring {
+    animation: vcRotate 1.1s linear infinite;
+}
+
+@keyframes vcRotate {
+    to { transform: rotate(360deg); }
+}
+
 @keyframes vcSpin {
     to { transform: rotate(360deg); }
 }
