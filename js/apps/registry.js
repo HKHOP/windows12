@@ -11,6 +11,7 @@ import * as app_copilotButBetter from './copilotButBetter/main.js';
 import * as app_export from './export/main.js';
 import * as app_fileExplorer from './fileExplorer/main.js';
 import * as app_mediaPlayer from './mediaPlayer/main.js';
+import * as app_minesweeper from './minesweeper/main.js';
 import * as app_musicSpark from './musicSpark/main.js';
 import * as app_notepad from './notepad/main.js';
 import * as app_paint from './paint/main.js';
@@ -35,6 +36,7 @@ const APP_MODULES = {
     "export": app_export.default || app_export,
     "fileExplorer": app_fileExplorer.default || app_fileExplorer,
     "mediaPlayer": app_mediaPlayer.default || app_mediaPlayer,
+    "minesweeper": app_minesweeper.default || app_minesweeper,
     "musicSpark": app_musicSpark.default || app_musicSpark,
     "notepad": app_notepad.default || app_notepad,
     "paint": app_paint.default || app_paint,
@@ -60,6 +62,7 @@ const APP_MANIFESTS = [
     {"id":"export","uuid":"0e5fc68f-7379-4027-bb52-67ff7a23b4f2","name":"Ex/port","version":"1.0.0","distribution":"store","associations":[],"store":{"developer":"Windows 12","category":"Utilities","rating":"4.7","reviews":"892","description":"Import files from your device to the filesystem, or export files to download. Supports all file types with drag-and-drop functionality.","features":["Drag-and-drop import","File browser export","Multiple destination folders","File type detection","Batch operations"],"screenshots":[{"bg":"linear-gradient(135deg, #0078D4, #00BCF2)","text":"Import Files"},{"bg":"linear-gradient(135deg, #00BCF2, #0078D4)","text":"Export Files"}],"size":"1 MB","ageRating":"3+"}},
     {"id":"fileExplorer","uuid":"7547fd06-5d94-48c3-84bf-061f09a5a717","name":"File Explorer","version":"1.0.0","distribution":"builtin","associations":[]},
     {"id":"mediaPlayer","uuid":"23917c1e-2117-4404-b620-82cedd12a70e","name":"Media Player","version":"1.0.0","distribution":"builtin","associations":["mp3","wav","ogg","oga","m4a","mp4","webm"]},
+    {"id":"minesweeper","uuid":"8f3b2c1a-4d5e-4f7a-8b9c-0d1e2f3a4b5c","name":"Minesweeper","version":"1.0.0","distribution":"store","associations":[],"store":{"developer":"Windows 12","category":"Games","rating":"4.8","reviews":"1,280","description":"The classic Windows puzzle game reimagined in Windows 11 style. Clear the mines without detonating them using logic and deduction.","features":["Beginner, Intermediate, Expert, and Custom difficulties","First-click guarantee (never hit a mine on your first move)","Flagging support and mine counter","Persistent high scores and statistics","Sound effects and classic smiley face interface"],"screenshots":[{"bg":"linear-gradient(135deg, #1f2833, #0b0c10)","text":"Minesweeper Board"},{"bg":"linear-gradient(135deg, #0b0c10, #1f2833)","text":"Victory & High Scores"}],"size":"2.5 MB","ageRating":"3+"}},
     {"id":"musicSpark","uuid":"3a17e9c1-d05a-4798-ad50-5b4d322f8293","name":"Music Spark","version":"1.0.0","distribution":"store","associations":["mspark"],"store":{"developer":"Windows 12","category":"Music & Audio","rating":"4.9","reviews":"3,412","description":"A full beat-making studio in the style of FL Studio. Step sequencer, piano roll with 808 bass, song arranger, mixer, FX rack, 4 drum kits, and WAV export.","features":["8-track step sequencer with per-step velocity","Piano roll: lead synth + glide 808 bass with note lengths","Song arranger with pattern chaining + full-song export","4 drum kits (Studio, TR-808, Lo-Fi, Acoustic)","FX rack: tempo echo, convolution reverb, filters","Mixer with mute/solo, BPM, swing, metronome","Presets, randomizer, pattern copy/paste/clone, .mspark projects"],"screenshots":[{"bg":"linear-gradient(135deg, #1DB954, #0b2e16)","text":"Step Sequencer"},{"bg":"linear-gradient(135deg, #0b2e16, #1DB954)","text":"Piano Roll + Mixer"}],"size":"3 MB","ageRating":"3+"}},
     {"id":"notepad","uuid":"7d1fd060-41db-47b6-ab6a-d307b0e3a130","name":"Notepad","version":"1.0.0","distribution":"builtin","associations":[]},
     {"id":"paint","uuid":"5e32e6ab-113e-4041-9739-6b08ea85533e","name":"Paint","version":"1.0.0","distribution":"builtin","associations":[]},

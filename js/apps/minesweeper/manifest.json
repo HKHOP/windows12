@@ -1,0 +1,36 @@
+{
+    "manifestVersion": 1,
+    "id": "minesweeper",
+    "uuid": "8f3b2c1a-4d5e-4f7a-8b9c-0d1e2f3a4b5c",
+    "name": "Minesweeper",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Games",
+        "rating": "4.8",
+        "reviews": "1,280",
+        "description": "The classic Windows puzzle game reimagined in Windows 11 style. Clear the mines without detonating them using logic and deduction.",
+        "features": [
+            "Beginner, Intermediate, Expert, and Custom difficulties",
+            "First-click guarantee (never hit a mine on your first move)",
+            "Flagging support and mine counter",
+            "Persistent high scores and statistics",
+            "Sound effects and classic smiley face interface"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #1f2833, #0b0c10)",
+                "text": "Minesweeper Board"
+            },
+            {
+                "bg": "linear-gradient(135deg, #0b0c10, #1f2833)",
+                "text": "Victory & High Scores"
+            }
+        ],
+        "size": "2.5 MB",
+        "ageRating": "3+"
+    }
+}
