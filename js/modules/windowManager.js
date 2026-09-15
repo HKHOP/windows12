@@ -54,6 +54,67 @@ const WindowManager = (() => {
         return { ox, oy, w, h };
     }
 
+    // Centered fallback geometry for the current viewport, used when no
+    // trustworthy restore bounds exist (e.g. pre-v2 maximized saves).
+    function defaultRestoreBounds() {
+        const area = getDesktopArea();
+        const width = Math.min(700, area.w);
+        const height = Math.min(500, area.h);
+        return {
+            left: Math.max(area.ox, area.ox + (area.w - width) / 2),
+            top: Math.max(area.oy, area.oy + (area.h - height) / 2),
+            width,
+            height
+        };
+    }
+
+    // Fits saved normal bounds into the live viewport so a window saved on a
+    // bigger screen never restores off-screen or oversized. Sanitizes NaN.
+    function clampRestoreBounds(saved) {
+        const area = getDesktopArea();
+        const w = Number.isFinite(saved.width) ? saved.width : 700;
+        const h = Number.isFinite(saved.height) ? saved.height : 500;
+        const width = Math.max(Math.min(w, area.w), Math.min(200, area.w));
+        const height = Math.max(Math.min(h, area.h), Math.min(150, area.h));
+        const x0 = Number.isFinite(saved.x) ? saved.x : area.ox;
+        const y0 = Number.isFinite(saved.y) ? saved.y : area.oy;
+        return {
+            x: Math.min(Math.max(x0, area.ox), Math.max(area.ox + area.w - width, area.ox)),
+            y: Math.min(Math.max(y0, area.oy), Math.max(area.oy + area.h - height, area.oy)),
+            width,
+            height
+        };
+    }
+
+    // Single choke point for persistence. A maximized window fills whatever
+    // viewport exists at restore time, so what gets saved is always the
+    // restorable (pre-maximize) geometry + the maximized flag — never the
+    // maximized pixel rect, which would freeze a stale viewport size.
+    function persistState(data) {
+        if (!data || !data.saveState) return;
+        if (data.isMaximized) {
+            const b = data.prevBounds || defaultRestoreBounds();
+            WindowState.saveWindowState(data.appId, {
+                x: Number.isFinite(b.left) ? b.left : (b.x ?? 0),
+                y: Number.isFinite(b.top) ? b.top : (b.y ?? 0),
+                width: b.width,
+                height: b.height,
+                maximized: true,
+                v: 2
+            });
+        } else {
+            const rect = data.element.getBoundingClientRect();
+            WindowState.saveWindowState(data.appId, {
+                x: rect.left,
+                y: rect.top,
+                width: rect.width,
+                height: rect.height,
+                maximized: false,
+                v: 2
+            });
+        }
+    }
+
     function getSnapZone(clientX, clientY) {
         const threshold = 20;
         const { ox, oy, w, h } = getDesktopArea();
@@ -139,14 +200,27 @@ const WindowManager = (() => {
         const opts = { ...defaults, ...options };
 
         let x, y, width, height, isMaximized = false;
+        let restoreBounds = null;
         const savedState = opts.saveState ? WindowState.getWindowState(appId) : null;
 
         if (savedState) {
-            x = savedState.x;
-            y = savedState.y;
-            width = savedState.width;
-            height = savedState.height;
             isMaximized = savedState.maximized || false;
+            if (isMaximized) {
+                // The maximized fill comes from the live viewport below; stale
+                // saved pixels are never applied. Seed the pre-maximize
+                // geometry so un-maximize always has somewhere valid to go.
+                if (savedState.v === 2) {
+                    const c = clampRestoreBounds(savedState);
+                    restoreBounds = { left: c.x, top: c.y, width: c.width, height: c.height };
+                } else {
+                    restoreBounds = defaultRestoreBounds();
+                }
+                const area = getDesktopArea();
+                x = area.ox; y = area.oy; width = area.w; height = area.h;
+            } else {
+                const c = clampRestoreBounds(savedState);
+                x = c.x; y = c.y; width = c.width; height = c.height;
+            }
         } else {
             const area = getDesktopArea();
             x = Math.max(area.ox, area.ox + (area.w - opts.width) / 2 + Math.random() * 60 - 30);
@@ -198,12 +272,18 @@ const WindowManager = (() => {
             icon,
             element: win,
             isMaximized: isMaximized,
-            prevBounds: null,
+            prevBounds: restoreBounds,
             saveState: opts.saveState
         };
 
         if (isMaximized) {
             win.classList.add('maximized');
+            // Fill the live viewport; the seeded prevBounds above is what a
+            // later un-maximize restores.
+            win.style.left = '0';
+            win.style.top = '0';
+            win.style.width = '100%';
+            win.style.height = '100%';
         }
 
         windows.set(id, windowData);
@@ -303,16 +383,7 @@ const WindowManager = (() => {
                 }
                 hideSnapIndicator();
 
-                if (data.saveState) {
-                    const rect = win.getBoundingClientRect();
-                    WindowState.saveWindowState(data.appId, {
-                        x: rect.left,
-                        y: rect.top,
-                        width: rect.width,
-                        height: rect.height,
-                        maximized: data.isMaximized
-                    });
-                }
+                persistState(data);
             }
         });
 
@@ -374,16 +445,7 @@ const WindowManager = (() => {
         });
 
         document.addEventListener('mouseup', () => {
-            if (isResizing && data.saveState) {
-                const rect = win.getBoundingClientRect();
-                WindowState.saveWindowState(data.appId, {
-                    x: rect.left,
-                    y: rect.top,
-                    width: rect.width,
-                    height: rect.height,
-                    maximized: data.isMaximized
-                });
-            }
+            if (isResizing) persistState(data);
             isResizing = false;
             currentHandle = null;
         });
@@ -408,7 +470,8 @@ const WindowManager = (() => {
         const win = data.element;
         if (data.isMaximized) {
             win.classList.remove('maximized');
-            const b = data.prevBounds;
+            const b = data.prevBounds || defaultRestoreBounds();
+            data.prevBounds = b;
             win.style.left = `${b.left}px`;
             win.style.top = `${b.top}px`;
             win.style.width = `${b.width}px`;
@@ -429,32 +492,14 @@ const WindowManager = (() => {
             data.isMaximized = true;
         }
 
-        if (data.saveState) {
-            const rect = win.getBoundingClientRect();
-            WindowState.saveWindowState(data.appId, {
-                x: rect.left,
-                y: rect.top,
-                width: rect.width,
-                height: rect.height,
-                maximized: data.isMaximized
-            });
-        }
+        persistState(data);
     }
 
     function closeWindow(id) {
         const data = windows.get(id);
         if (!data) return;
 
-        if (data.saveState) {
-            const rect = data.element.getBoundingClientRect();
-            WindowState.saveWindowState(data.appId, {
-                x: rect.left,
-                y: rect.top,
-                width: rect.width,
-                height: rect.height,
-                maximized: data.isMaximized
-            });
-        }
+        persistState(data);
 
         data.element.remove();
         const appId = data.appId;

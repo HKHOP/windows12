@@ -53,6 +53,9 @@ const WindowState = (() => {
             width: Math.round(bounds.width),
             height: Math.round(bounds.height),
             maximized: bounds.maximized || false,
+            // v2: x/y/width/height are ALWAYS the restorable (un-maximized)
+            // bounds; maximized windows fill the live viewport at restore.
+            ...(bounds.v ? { v: bounds.v } : {}),
             timestamp: Date.now()
         };
         scheduleSave();
