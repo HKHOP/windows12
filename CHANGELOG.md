@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4902] - 2026-09-15
+
+### Fixed
+- Pointer hand still looking off: replaced the single-path glove with a Windows 10/11-style hand composited from separate finger shapes — tall index finger, middle finger peeking behind it with a real gap, angled thumb, rounded palm whose top edge forms the knuckle line — shared by all packs, both mice, and the Settings preview, with the hotspot on the true fingertip; iterated in headless Edge screenshots until clean
+
 ## [12.0.4901] - 2026-09-15
 
 ### Fixed

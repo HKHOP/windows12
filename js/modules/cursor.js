@@ -49,13 +49,19 @@ const Cursor = (() => {
         return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none"><path d="M5 3l14 7-6.5 1.5L9 18 5 3z" fill="${t.fill}" stroke="${t.stroke}" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
     }
 
-    // Pointing glove drawn as one clean silhouette: extended index finger,
-    // two knuckle scallops, thumb branching left, rounded wrist. Fingertip
-    // at (11,3) in viewBox units (see HOTSPOTS).
-    const GLOVE_PATH = 'M11 3Q9.5 3 9.5 4.6L9.5 9.8Q8.6 10.8 8.2 12.8L5.8 13.6Q4.9 13.9 5.1 14.8L8.4 16.6L8.8 20.2Q8.9 21 9.7 21L13.3 21Q14.1 21 14.2 20.2L14.9 18Q15.9 17.1 16.4 15.2Q18 13.8 16.2 12.2Q16 9.4 12.5 10L12.5 4.6Q12.5 3 11 3Z';
+    // Pointing glove composited from separate finger shapes (Windows-style):
+    // middle finger behind, index on top, thumb left, palm drawn last so its
+    // top edge forms the knuckle line. Fingertip at (11,2.2) — see HOTSPOTS.
+    function gloveShapes(t, cuff) {
+        return `<rect x="12.7" y="6.2" width="2.7" height="6.6" rx="1.35" fill="${t.fill}" stroke="${t.stroke}" stroke-width="1.3"/>` +
+            `<rect x="9.6" y="2.2" width="2.9" height="9.2" rx="1.45" fill="${t.fill}" stroke="${t.stroke}" stroke-width="1.3"/>` +
+            `<rect x="3.9" y="12.3" width="5.6" height="2.7" rx="1.35" transform="rotate(-24 6.7 13.65)" fill="${t.fill}" stroke="${t.stroke}" stroke-width="1.3"/>` +
+            `<rect x="8.6" y="10.6" width="7.6" height="10" rx="3.4" fill="${t.fill}" stroke="${t.stroke}" stroke-width="1.3"/>` +
+            (cuff ? `<rect x="8.3" y="17.2" width="8.2" height="3.6" rx="1.1" fill="${t.accent}" stroke="${t.stroke}" stroke-width="1.1"/>` : ``);
+    }
 
     function handSvg(t, px) {
-        return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none"><path d="${GLOVE_PATH}" fill="${t.fill}" stroke="${t.stroke}" stroke-width="1.3" stroke-linejoin="round"/></svg>`;
+        return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none">${gloveShapes(t, false)}</svg>`;
     }
 
     function textSvg(t, px) {
@@ -88,7 +94,7 @@ const Cursor = (() => {
     // Pointing glove with a cuff (classic Windows link hand). Fingertip at
     // the same point as the plain hand so hotspots stay shared.
     function cuffHandSvg(t, px) {
-        return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none"><path d="${GLOVE_PATH}" fill="${t.fill}" stroke="${t.stroke}" stroke-width="1.3" stroke-linejoin="round"/><rect x="8.2" y="17.6" width="6.6" height="3.8" rx="1.1" fill="${t.accent}" stroke="${t.stroke}" stroke-width="1.1"/></svg>`;
+        return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none">${gloveShapes(t, true)}</svg>`;
     }
 
     // Classic hourglass (Classic pack's busy cursor).
@@ -151,7 +157,7 @@ const Cursor = (() => {
     const HOTSPOTS = {
         modern: {
             arrow: { x: 5, y: 3 },
-            hand: { x: 11, y: 3 },
+            hand: { x: 11, y: 2.2 },
             text: { x: 12, y: 12 },
             wait: { x: 12, y: 12 },
             cross: { x: 12, y: 12 },
@@ -161,7 +167,7 @@ const Cursor = (() => {
         },
         classic: {
             arrow: { x: 6.5, y: 3.5 },
-            hand: { x: 11, y: 3 },
+            hand: { x: 11, y: 2.2 },
             text: { x: 12, y: 12 },
             wait: { x: 12, y: 12 },
             cross: { x: 12, y: 12 },
@@ -170,8 +176,8 @@ const Cursor = (() => {
             none: { x: 0, y: 0 }
         },
         hands: {
-            arrow: { x: 11, y: 3 },
-            hand: { x: 11, y: 3 },
+            arrow: { x: 11, y: 2.2 },
+            hand: { x: 11, y: 2.2 },
             text: { x: 12, y: 12 },
             wait: { x: 12, y: 12 },
             cross: { x: 12, y: 12 },
@@ -193,7 +199,7 @@ const Cursor = (() => {
     // external code referencing them keeps working.
     const SHAPES = {
         arrow: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 3l14 7-6.5 1.5L9 18 5 3z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>`,
-        hand: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M11 3Q9.5 3 9.5 4.6L9.5 9.8Q8.6 10.8 8.2 12.8L5.8 13.6Q4.9 13.9 5.1 14.8L8.4 16.6L8.8 20.2Q8.9 21 9.7 21L13.3 21Q14.1 21 14.2 20.2L14.9 18Q15.9 17.1 16.4 15.2Q18 13.8 16.2 12.2Q16 9.4 12.5 10L12.5 4.6Q12.5 3 11 3Z" fill="#fff" stroke="#111" stroke-width="1.3" stroke-linejoin="round"/></svg>`,
+        hand: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="12.7" y="6.2" width="2.7" height="6.6" rx="1.35" fill="#fff" stroke="#111" stroke-width="1.3"/><rect x="9.6" y="2.2" width="2.9" height="9.2" rx="1.45" fill="#fff" stroke="#111" stroke-width="1.3"/><rect x="3.9" y="12.3" width="5.6" height="2.7" rx="1.35" transform="rotate(-24 6.7 13.65)" fill="#fff" stroke="#111" stroke-width="1.3"/><rect x="8.6" y="10.6" width="7.6" height="10" rx="3.4" fill="#fff" stroke="#111" stroke-width="1.3"/></svg>`,
         text: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M11 4h2v16h-2V4zM7 4h10v2.4H7V4zM7 17.6h10V20H7v-2.4z" fill="#fff" stroke="#111" stroke-width="1" stroke-linejoin="round"/></svg>`,
         wait: `<div class="vc-spinner"></div>`,
         cross: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="6.5" stroke="#fff" stroke-width="1.6"/><circle cx="12" cy="12" r="6.5" stroke="#111" stroke-width="0.6"/><path d="M12 1v6M12 17v6M1 12h6M17 12h6" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>`,
@@ -393,11 +399,11 @@ const Cursor = (() => {
     }
 
     function realCuffHandSvg(t, px) {
-        return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 24 24"><path d="${GLOVE_PATH}" fill="${t.fill}" stroke="${t.stroke}" stroke-width="1.3" stroke-linejoin="round"/><rect x="8.2" y="17.6" width="6.6" height="3.8" rx="1.1" fill="${t.accent}" stroke="${t.stroke}" stroke-width="1.1"/></svg>`;
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 24 24">${gloveShapes(t, true)}</svg>`;
     }
 
     function realHandSvg(t, px) {
-        return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 24 24"><path d="${GLOVE_PATH}" fill="${t.fill}" stroke="${t.stroke}" stroke-width="1.3" stroke-linejoin="round"/></svg>`;
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 24 24">${gloveShapes(t, false)}</svg>`;
     }
 
     function realTextSvg(t, px) {
@@ -447,7 +453,7 @@ const Cursor = (() => {
         const axPx = Math.max(1, Math.round(ax * scale));
         const ayPx = Math.max(1, Math.round(ay * scale));
         const hx = Math.max(1, Math.round(11 * scale));
-        const hy = Math.max(1, Math.round(3 * scale));
+        const hy = Math.max(1, Math.round(2.2 * scale));
         const tx = Math.max(1, Math.round(px / 2));
         const ty = Math.max(1, Math.round(px / 2));
 
