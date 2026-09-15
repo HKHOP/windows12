@@ -4,6 +4,17 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4914] - 2026-09-15
+
+### Added
+- Microsoft Store Library tab: lists every installed Store app with Open and Uninstall actions plus an empty state; detail pages and cards now show Open for installed apps
+- Microsoft Store search: typing in the search box and pressing Enter shows a results view across names, categories, and descriptions
+
+### Changed
+- Microsoft Store Apps tab now lists only non-game apps with All/Category filter chips; Gaming tab lists only games behind its own featured-game banner
+- Microsoft Store Home rebuilt around a big featured-app hero banner (top-rated, with Get/Open and Details actions), Popular Apps and Popular Games rows sorted by rating, and a Browse-by-category tile grid that deep-links into filtered listings; sidebar tabs now actually switch views instead of always resetting to Home
+- Store detail back button returns to the tab you came from, ratings use an SVG star instead of an emoji, and installing re-renders the current view so states stay in sync
+
 ## [12.0.4913] - 2026-09-15
 
 ### Added
