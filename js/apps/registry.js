@@ -21,6 +21,7 @@ import * as app_sampleApp from './sampleApp/main.js';
 import * as app_settings from './settings/main.js';
 import * as app_sledgePoint from './sledgePoint/main.js';
 import * as app_solarSpacer from './solarSpacer/main.js';
+import * as app_subwaySurfers from './subwaySurfers/main.js';
 import * as app_taskManager from './taskManager/main.js';
 import * as app_terminal from './terminal/main.js';
 import * as app_vscode from './vscode/main.js';
@@ -47,6 +48,7 @@ const APP_MODULES = {
     "settings": app_settings.default || app_settings,
     "sledgePoint": app_sledgePoint.default || app_sledgePoint,
     "solarSpacer": app_solarSpacer.default || app_solarSpacer,
+    "subwaySurfers": app_subwaySurfers.default || app_subwaySurfers,
     "taskManager": app_taskManager.default || app_taskManager,
     "terminal": app_terminal.default || app_terminal,
     "vscode": app_vscode.default || app_vscode,
@@ -74,6 +76,7 @@ const APP_MANIFESTS = [
     {"id":"settings","uuid":"260fcb62-19fe-45ad-9ba3-cfe3dbf91ebd","name":"Settings","version":"1.0.0","distribution":"builtin","associations":[]},
     {"id":"sledgePoint","uuid":"b5b3c1dd-be43-4c3f-a136-74a9978078b6","name":"Sledge Point","version":"1.0.0","distribution":"store","associations":["sledge","sledgepoint"],"store":{"developer":"Windows 12","category":"Productivity","rating":"4.6","reviews":"2,180","description":"Create stunning presentations with Sledge Point. Features a ribbon UI, slide transitions, drawing tools, and export to HTML, PDF, and more.","features":["Ribbon-style toolbar","Slide transitions (fade, slide, zoom)","Text, shapes, images, and tables","Freehand drawing tools","Presentation mode with slideshow","Export to HTML, PDF, SVG, and JSON"],"screenshots":[{"bg":"linear-gradient(135deg, #D83B01, #ff6b35)","text":"Slide Editor"},{"bg":"linear-gradient(135deg, #ff6b35, #D83B01)","text":"Presentation Mode"}],"size":"3 MB","ageRating":"3+"}},
     {"id":"solarSpacer","uuid":"7f9b3c21-8a4e-4d12-9c10-2f8a3e7b1a6c","name":"Solar Spacer","version":"1.0.0","distribution":"store","associations":[],"store":{"developer":"Windows 12","category":"Education","rating":"4.8","reviews":"412","description":"An interactive orbital gravity and planet simulation sandbox. Learn how gravity, velocity, and mass shape planetary orbits and solar systems.","features":["Interactive gravitational N-body simulation sandbox","Real-time orbit tracing and velocity vectors","Presets for inner planets, solar system, and binary stars","Educational guide on gravity, Kepler's laws, and orbital mechanics"],"screenshots":[{"bg":"linear-gradient(135deg, #0b0c10, #1f2833)","text":"Orbital Sandbox"},{"bg":"linear-gradient(135deg, #1f2833, #0b0c10)","text":"Gravity Dynamics"}],"size":"4.5 MB","ageRating":"3+"}},
+    {"id":"subwaySurfers","uuid":"c8a6b7d2-3e1f-4a2b-9c6d-5f1a2b3c4d5e","name":"Subway Surfers","version":"1.0.0","distribution":"store","associations":[],"store":{"developer":"Kiloo & Sybo","category":"Games","rating":4.5,"reviews":12845,"description":"Endless runner game where you dodge obstacles, collect coins, and unlock characters.","features":["Endless running","Colorful graphics","Unlockable characters","Leaderboards"],"screenshots":[{"bg":"#ffeb3b","text":"Surf the subway"},{"bg":"#4caf50","text":"Collect coins"}],"size":"45 MB","ageRating":"7+"}},
     {"id":"taskManager","uuid":"788ae49a-c9b9-40aa-b135-910a7753f41f","name":"Task Manager","version":"1.0.0","distribution":"builtin","associations":[]},
     {"id":"terminal","uuid":"36af75b0-71fa-4447-ab76-ddfc61d35c21","name":"Terminal","version":"1.0.0","distribution":"builtin","associations":[]},
     {"id":"vscode","uuid":"0c03acaf-f006-4c90-8590-763a7cca643a","name":"Visual Studio Code","version":"1.0.0","distribution":"store","associations":[],"store":{"developer":"Microsoft Corporation","category":"Developer Tools","rating":"4.8","reviews":"12,543","description":"Code editing. Redefined. Visual Studio Code is a lightweight but powerful source code editor which runs on your desktop and is available for Windows, macOS and Linux.","features":["Integrated terminal","Syntax highlighting","File explorer","Extensions marketplace","Git integration"],"screenshots":[{"bg":"linear-gradient(135deg, #1e1e1e, #2d2d2d)","text":"Code Editor"},{"bg":"linear-gradient(135deg, #007ACC, #1e90ff)","text":"Integrated Terminal"}],"size":"95 MB","ageRating":"3+"}},

@@ -1,0 +1,35 @@
+{
+  "manifestVersion": 1,
+  "id": "subwaySurfers",
+  "uuid": "c8a6b7d2-3e1f-4a2b-9c6d-5f1a2b3c4d5e",
+  "name": "Subway Surfers",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "store": {
+    "developer": "Kiloo & Sybo",
+    "category": "Games",
+    "rating": 4.5,
+    "reviews": 12845,
+    "description": "Endless runner game where you dodge obstacles, collect coins, and unlock characters.",
+    "features": [
+      "Endless running",
+      "Colorful graphics",
+      "Unlockable characters",
+      "Leaderboards"
+    ],
+    "screenshots": [
+      {
+        "bg": "#ffeb3b",
+        "text": "Surf the subway"
+      },
+      {
+        "bg": "#4caf50",
+        "text": "Collect coins"
+      }
+    ],
+    "size": "45 MB",
+    "ageRating": "7+"
+  }
+}
