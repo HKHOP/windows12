@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4915] - 2026-09-15
+
+### Added
+- Animated close for the Start menu and Search panel (0.15s fade-and-slide matching each panel's open direction, including all taskbar positions) via a new dependency-free Flyout helper (`js/modules/flyout.js`); StartMenu also gains a public show/hide/toggle/isOpen API
+
+### Changed
+- Start menu and Search are now mutually exclusive: opening Search closes the Start menu and opening the Start menu closes Search; clicking the Start button mid-close reopens instead of swallowing the click
+
 ## [12.0.4914] - 2026-09-15
 
 ### Added

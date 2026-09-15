@@ -1,5 +1,7 @@
 import WindowManager from './windowManager.js';
 import UIIcons from './uiIcons.js';
+import Flyout from './flyout.js';
+import Search from './search.js';
 import { Taskbar, AppRegistry, AppMetadata } from './taskbar.js';
 import UserActivity from './userActivity.js';
 import FileSystem from './fileSystem.js';
@@ -182,7 +184,7 @@ const StartMenu = (() => {
     }
 
     function shutdown() {
-        document.getElementById('start-menu').classList.add('hidden');
+        hide();
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:99999;opacity:0;transition:opacity 0.5s;display:flex;align-items:center;justify-content:center;';
         overlay.innerHTML = '<div style="color:white;font-size:14px;">Shutting down...</div>';
@@ -192,7 +194,7 @@ const StartMenu = (() => {
     }
 
     function restart() {
-        document.getElementById('start-menu').classList.add('hidden');
+        hide();
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:99999;opacity:0;transition:opacity 0.5s;display:flex;align-items:center;justify-content:center;';
         overlay.innerHTML = '<div style="color:white;font-size:14px;">Restarting...</div>';
@@ -202,12 +204,12 @@ const StartMenu = (() => {
     }
 
     function logout() {
-        document.getElementById('start-menu').classList.add('hidden');
+        hide();
         showLoginScreen(false);
     }
 
     function switchUser() {
-        document.getElementById('start-menu').classList.add('hidden');
+        hide();
         showLoginScreen(false);
     }
 
@@ -364,7 +366,7 @@ const StartMenu = (() => {
                 el.addEventListener('mouseenter', () => el.style.background = 'var(--hover-bg)');
                 el.addEventListener('mouseleave', () => el.style.background = 'transparent');
                 el.addEventListener('click', () => {
-                    document.getElementById('start-menu').classList.add('hidden');
+                    hide();
                     UserActivity.trackAppOpen(app.id);
                     launchApp(app.id);
                     renderRecommended();
@@ -438,7 +440,7 @@ const StartMenu = (() => {
                 <span class="app-name">${meta.name}</span>
             `;
             el.addEventListener('click', () => {
-                document.getElementById('start-menu').classList.add('hidden');
+                hide();
                 UserActivity.trackAppOpen(appId);
                 launchApp(appId);
                 renderRecommended();
@@ -457,7 +459,7 @@ const StartMenu = (() => {
                         ? { label: 'Unpin from taskbar', icon: UIIcons.action('unpin'), action: () => Taskbar.unpinApp(appId) }
                         : { label: 'Pin to taskbar', icon: UIIcons.action('pin'), action: () => Taskbar.pinApp(appId) },
                     { label: 'Open', icon: UIIcons.action('open'), action: () => {
-                        document.getElementById('start-menu').classList.add('hidden');
+                        hide();
                         launchApp(appId);
                     }},
                     ...(isUserApp ? [
@@ -512,7 +514,7 @@ const StartMenu = (() => {
                 name = item.name;
                 detail = item.detail;
                 el.addEventListener('click', () => {
-                    document.getElementById('start-menu').classList.add('hidden');
+                    hide();
                     UserActivity.trackFileOpen(item.path.split('/').filter(p => p), item.name);
                     openFile(item.path);
                     renderRecommended();
@@ -522,7 +524,7 @@ const StartMenu = (() => {
                 name = item.name;
                 detail = item.detail;
                 el.addEventListener('click', () => {
-                    document.getElementById('start-menu').classList.add('hidden');
+                    hide();
                     UserActivity.trackAppOpen(item.id);
                     launchApp(item.id);
                     renderRecommended();
@@ -582,7 +584,7 @@ const StartMenu = (() => {
         searchInput.addEventListener('input', (e) => {
             const query = e.target.value;
             if (query.length > 0) {
-                document.getElementById('start-menu').classList.add('hidden');
+                hide();
                 window.dispatchEvent(new CustomEvent('open-search', { detail: { query } }));
                 searchInput.value = '';
             }
@@ -593,7 +595,31 @@ const StartMenu = (() => {
         renderRecommended();
     }
 
-    return { init, refresh, pinApp, unpinApp, isPinned };
+    function getMenu() {
+        return document.getElementById('start-menu');
+    }
+
+    function show() {
+        // Start and Search are mutually exclusive: opening one closes the other.
+        Search.close();
+        Flyout.show(getMenu());
+    }
+
+    function hide() {
+        Flyout.hide(getMenu());
+    }
+
+    function toggle() {
+        const menu = getMenu();
+        if (Flyout.isOpen(menu) && !menu.classList.contains('closing')) hide();
+        else show();
+    }
+
+    function isOpen() {
+        return Flyout.isOpen(getMenu());
+    }
+
+    return { init, refresh, pinApp, unpinApp, isPinned, show, hide, toggle, isOpen };
 })();
 
 export default StartMenu;

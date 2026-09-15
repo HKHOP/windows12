@@ -2,6 +2,7 @@ import { AppRegistry, AppMetadata } from './taskbar.js';
 import UserActivity from './userActivity.js';
 import FileSystem from './fileSystem.js';
 import AppIcons from './appIcons.js';
+import Flyout from './flyout.js';
 
 const Search = (() => {
     let panel = null;
@@ -241,8 +242,11 @@ const Search = (() => {
 
     function open(query = '') {
         if (!panel) return;
+        // Start and Search are mutually exclusive: opening one closes the other.
+        // Direct DOM access avoids a startMenu import cycle.
+        Flyout.hide(document.getElementById('start-menu'));
         isOpen = true;
-        panel.classList.remove('hidden');
+        Flyout.show(panel);
         searchInput.value = query;
         render(query);
         setTimeout(() => searchInput.focus(), 50);
@@ -251,10 +255,10 @@ const Search = (() => {
     function close() {
         if (!panel) return;
         isOpen = false;
-        panel.classList.add('hidden');
+        Flyout.hide(panel);
     }
 
-    return { init, toggle, open, close };
+    return { init, toggle, open, close, isOpen: () => isOpen };
 })();
 
 export default Search;

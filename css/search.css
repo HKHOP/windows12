@@ -68,6 +68,43 @@ html[data-taskbar="right"] #search-panel {
     to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
+/* Animated close (applied via .closing by the Flyout helper). */
+#search-panel.closing {
+    animation: searchPanelOut 0.15s ease-in forwards;
+}
+
+html[data-taskbar="top"] #search-panel.closing {
+    animation-name: searchPanelOutTop;
+}
+
+html[data-taskbar="left"] #search-panel.closing {
+    animation-name: searchPanelOutLeft;
+}
+
+html[data-taskbar="right"] #search-panel.closing {
+    animation-name: searchPanelOutRight;
+}
+
+@keyframes searchPanelOut {
+    from { opacity: 1; transform: translateX(-50%) translateY(0); }
+    to { opacity: 0; transform: translateX(-50%) translateY(10px); }
+}
+
+@keyframes searchPanelOutTop {
+    from { opacity: 1; transform: translateX(-50%) translateY(0); }
+    to { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+}
+
+@keyframes searchPanelOutLeft {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(-10px); }
+}
+
+@keyframes searchPanelOutRight {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(10px); }
+}
+
 .search-header {
     padding: 16px 20px 12px;
     display: flex;

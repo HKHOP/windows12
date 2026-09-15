@@ -86,6 +86,67 @@ html[data-taskbar="right"] #start-menu {
     }
 }
 
+/* Animated close (applied via .closing by the Flyout helper). */
+#start-menu.closing {
+    animation: startMenuOut 0.15s ease-in forwards;
+}
+
+html[data-taskbar="top"] #start-menu.closing {
+    animation-name: startMenuOutTop;
+}
+
+html[data-taskbar="left"] #start-menu.closing {
+    animation-name: startMenuOutLeft;
+}
+
+html[data-taskbar="right"] #start-menu.closing {
+    animation-name: startMenuOutRight;
+}
+
+@keyframes startMenuOut {
+    from {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-50%) translateY(10px);
+    }
+}
+
+@keyframes startMenuOutTop {
+    from {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-10px);
+    }
+}
+
+@keyframes startMenuOutLeft {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+}
+
+@keyframes startMenuOutRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(10px);
+    }
+}
+
 .start-menu-search {
     padding: 16px 20px 8px;
     display: flex;

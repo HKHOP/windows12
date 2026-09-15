@@ -2,6 +2,7 @@ import WindowManager from './windowManager.js';
 import FileSystem from './fileSystem.js';
 import AppIcons from './appIcons.js';
 import UIIcons from './uiIcons.js';
+import Flyout from './flyout.js';
 import Search from './search.js';
 
 const AppRegistry = (() => {
@@ -251,12 +252,12 @@ const Taskbar = (() => {
         startBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             Search.close();
-            startMenu.classList.toggle('hidden');
+            Flyout.toggle(startMenu);
         });
 
         document.addEventListener('click', (e) => {
             if (!startMenu.contains(e.target) && !startBtn.contains(e.target)) {
-                startMenu.classList.add('hidden');
+                Flyout.hide(startMenu);
             }
         });
     }
@@ -283,7 +284,7 @@ const Taskbar = (() => {
         } else {
             launchApp(appId, options);
         }
-        document.getElementById('start-menu').classList.add('hidden');
+        Flyout.hide(document.getElementById('start-menu'));
     }
 
     function launchApp(appId, options = {}) {
