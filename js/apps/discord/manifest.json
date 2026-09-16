@@ -1,0 +1,35 @@
+{
+  "manifestVersion": 1,
+  "id": "discord",
+  "uuid": "3b064e73-6aef-4f41-9180-784cefdc8fff",
+  "name": "Discord",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "store": {
+    "developer": "Discord Inc.",
+    "category": "Social",
+    "rating": 4.6,
+    "reviews": 15230,
+    "description": "Discord web client for Windows 12. Chat, voice channels, and communities in your real Discord account. Note: Discord blocks embedded logins in some browsers — if the view stays blank, use Open in Browser or the unblocking extension from the Browser menu.",
+    "features": [
+      "Real Discord account login",
+      "Servers, DMs and voice channels",
+      "Open in Browser fallback",
+      "Embed-block helper notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#5865F2",
+        "text": "Chat with your servers"
+      },
+      {
+        "bg": "#313338",
+        "text": "Voice and DMs"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  }
+}

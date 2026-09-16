@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4920] - 2026-09-16
+
+### Added
+- Discord Store app: real-account Discord web client (chat, DMs, voice) embedded via discord.com with Reload and Open in Browser actions plus a dismissible notice explaining the embed block and its fallbacks
+
 ## [12.0.4919] - 2026-09-16
 
 ### Added
