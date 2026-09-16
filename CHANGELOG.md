@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4918] - 2026-09-16
+
+### Fixed
+- Cursor size setting now resizes the virtual touchpad cursor too: the virtual renderer fell back to 22px for custom slider values (16–64px) instead of resolving them like the real mouse
+- Hover hand cursor now appears over the whole button, not just its edges: the cursor theme stylesheet only matched interactive elements themselves, so icons/labels inside them showed an arrow — it now covers descendants as well
+- Browser and local HTML previews no longer show big white gaps around pages on iPad Safari (WebKit): the page frame fills via flex layout instead of nested percentage heights, the 100% zoom state clears its compositing transform, and the window-body clipping no longer depends on `:has()` support
+- Maximized and snapped windows now sit flush against the taskbar on every taskbar edge: window geometry is computed in desktop-container space (origin 0,0) with pointer coordinates mapped through the live desktop rect and body zoom, instead of mixing viewport offsets into style positions; drag/resize deltas are zoom-corrected and saved bounds use container coordinates
+
 ## [12.0.4917] - 2026-09-15
 
 ### Fixed

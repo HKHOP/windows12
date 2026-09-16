@@ -306,9 +306,10 @@ const Cursor = (() => {
         if (!(shape in SHAPES)) shape = 'arrow';
         if (shape === currentShape) {
             // Still ensure content exists (element may have been recreated)
-            // or the theme/size/style changed under us.
+            // or the theme/size/style changed under us. Dataset values are
+            // strings, so compare stringified (custom numeric sizes).
             const el = getCursorEl();
-            if (el && (!el.dataset.shape || el.dataset.theme !== currentTheme || el.dataset.size !== currentSize || el.dataset.style !== currentStyle)) {
+            if (el && (!el.dataset.shape || el.dataset.theme !== String(currentTheme) || el.dataset.size !== String(currentSize) || el.dataset.style !== String(currentStyle))) {
                 applyShape(el, shape);
             }
             return;
@@ -324,7 +325,9 @@ const Cursor = (() => {
         el.dataset.theme = currentTheme;
         el.dataset.size = currentSize;
         el.dataset.style = currentStyle;
-        const px = (SIZES[currentSize] || SIZES[DEFAULT_SIZE]).px;
+        // Named presets and custom numeric sizes alike — getSizeObj resolves
+        // both (a bare SIZES[] lookup drops slider values back to 22px).
+        const px = getSizeObj(currentSize).px;
         el.style.width = px + 'px';
         el.style.height = px + 'px';
         // The box size changed, so the tip offset changed too — tell the
@@ -401,7 +404,7 @@ const Cursor = (() => {
     function refreshVirtual() {
         const el = getCursorEl();
         if (!el) return;
-        if (el.dataset.shape !== currentShape || el.dataset.theme !== currentTheme || el.dataset.size !== currentSize || el.dataset.style !== currentStyle) {
+        if (el.dataset.shape !== String(currentShape) || el.dataset.theme !== String(currentTheme) || el.dataset.size !== String(currentSize) || el.dataset.style !== String(currentStyle)) {
             applyShape(el, currentShape);
         }
     }
@@ -535,8 +538,18 @@ const Cursor = (() => {
         const text = `${svgUrl(textSvg)} ${txPx} ${tyPx}, ${textFallback}`;
 
         const root = `html[data-cursor-theme="${currentTheme}"]:not(.os-cursor-override)`;
-        const handSel = HAND_SELECTORS.map(s => `${root} ${s}:not(.resize-handle)`).join(',\n');
-        const textSel = TEXT_SELECTORS.map(s => `${root} ${s}:not(.resize-handle)`).join(',\n');
+        // Both the interactive element itself AND its descendants (icons,
+        // labels and other inner markup): elementFromPoint returns the
+        // deepest node, so without the `*` variant the hand only appears on
+        // the element's bare padding/edges while its content shows an arrow.
+        const handSel = HAND_SELECTORS.flatMap(s => [
+            `${root} ${s}:not(.resize-handle)`,
+            `${root} ${s}:not(.resize-handle) *:not(.resize-handle)`
+        ]).join(',\n');
+        const textSel = TEXT_SELECTORS.flatMap(s => [
+            `${root} ${s}:not(.resize-handle)`,
+            `${root} ${s}:not(.resize-handle) *:not(.resize-handle)`
+        ]).join(',\n');
 
         const el = ensureThemeStyleEl();
         el.textContent =

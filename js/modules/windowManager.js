@@ -25,44 +25,81 @@ const WindowManager = (() => {
         snapIndicator = document.createElement('div');
         snapIndicator.id = 'snap-indicator';
         snapIndicator.style.cssText = 'position:fixed;display:none;border:2px solid var(--accent-color);background:rgba(0,120,212,0.15);border-radius:8px;z-index:99999;pointer-events:none;transition:all 0.15s ease-out;';
-        document.body.appendChild(snapIndicator);
+        // Outside the zoomed <body> so position:fixed maps 1:1 to viewport
+        // pixels (same reason the touch overlays live on documentElement).
+        document.documentElement.appendChild(snapIndicator);
+    }
+
+    // Visual (viewport) px per container layout px. The OS scales <body> via
+    // CSS zoom, so mouse client deltas must be divided by this before being
+    // applied to style/offset geometry (which lives in layout px).
+    function effectiveZoom() {
+        try {
+            if (container && container.clientWidth > 0) {
+                const rect = container.getBoundingClientRect();
+                if (rect.width > 0) return rect.width / container.clientWidth;
+            }
+        } catch (e) { /* fall through */ }
+        return scale || 1;
     }
 
     function showSnapIndicator(x, y, w, h) {
         if (!snapIndicator) return;
+        // Snap geometry is container layout px; the indicator is fixed in
+        // viewport space — map across using the live desktop rect + zoom.
+        let vx = x, vy = y, vw = w, vh = h;
+        try {
+            if (container) {
+                const z = effectiveZoom();
+                const r = container.getBoundingClientRect();
+                vx = r.left + x * z;
+                vy = r.top + y * z;
+                vw = w * z;
+                vh = h * z;
+            }
+        } catch (e) { /* fall back to raw values */ }
         snapIndicator.style.display = 'block';
-        snapIndicator.style.left = x + 'px';
-        snapIndicator.style.top = y + 'px';
-        snapIndicator.style.width = w + 'px';
-        snapIndicator.style.height = h + 'px';
+        snapIndicator.style.left = vx + 'px';
+        snapIndicator.style.top = vy + 'px';
+        snapIndicator.style.width = vw + 'px';
+        snapIndicator.style.height = vh + 'px';
     }
 
     function hideSnapIndicator() {
         if (snapIndicator) snapIndicator.style.display = 'none';
     }
 
-    // Usable desktop origin/size in the same coordinate space the existing
-    // snap math uses. Accounts for the taskbar edge (48px taskbar-height).
+    // Usable desktop origin/size in WINDOW geometry space: windows live
+    // inside #windows-container, which the CSS already shrinks/offsets for
+    // the taskbar edge (margins on #desktop), so the origin is always (0,0)
+    // and only the usable width/height matter here. Viewport (mouse client)
+    // coordinates are converted into this space before comparison.
     function getDesktopArea() {
         const s = scale;
         const pos = (document.documentElement.dataset.taskbar) || 'bottom';
         const tb = 48;
-        const ox = pos === 'left' ? tb : 0;
-        const oy = pos === 'top' ? tb : 0;
+        if (container) {
+            try {
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                if (w > 0 && h > 0) return { ox: 0, oy: 0, w, h };
+            } catch (e) { /* fall through to viewport math */ }
+        }
         const w = window.innerWidth / s - ((pos === 'left' || pos === 'right') ? tb : 0);
         const h = window.innerHeight / s - ((pos === 'top' || pos === 'bottom') ? tb : 0);
-        return { ox, oy, w, h };
+        return { ox: 0, oy: 0, w, h };
     }
 
     // Centered fallback geometry for the current viewport, used when no
     // trustworthy restore bounds exist (e.g. pre-v2 maximized saves).
+    // Container-relative (origin 0,0 — the desktop's top-left corner).
     function defaultRestoreBounds() {
         const area = getDesktopArea();
         const width = Math.min(700, area.w);
         const height = Math.min(500, area.h);
         return {
-            left: Math.max(area.ox, area.ox + (area.w - width) / 2),
-            top: Math.max(area.oy, area.oy + (area.h - height) / 2),
+            left: Math.max(0, (area.w - width) / 2),
+            top: Math.max(0, (area.h - height) / 2),
             width,
             height
         };
@@ -70,17 +107,18 @@ const WindowManager = (() => {
 
     // Fits saved normal bounds into the live viewport so a window saved on a
     // bigger screen never restores off-screen or oversized. Sanitizes NaN.
+    // Bounds are container-relative (origin 0,0 — see getDesktopArea).
     function clampRestoreBounds(saved) {
         const area = getDesktopArea();
         const w = Number.isFinite(saved.width) ? saved.width : 700;
         const h = Number.isFinite(saved.height) ? saved.height : 500;
         const width = Math.max(Math.min(w, area.w), Math.min(200, area.w));
         const height = Math.max(Math.min(h, area.h), Math.min(150, area.h));
-        const x0 = Number.isFinite(saved.x) ? saved.x : area.ox;
-        const y0 = Number.isFinite(saved.y) ? saved.y : area.oy;
+        const x0 = Number.isFinite(saved.x) ? saved.x : 0;
+        const y0 = Number.isFinite(saved.y) ? saved.y : 0;
         return {
-            x: Math.min(Math.max(x0, area.ox), Math.max(area.ox + area.w - width, area.ox)),
-            y: Math.min(Math.max(y0, area.oy), Math.max(area.oy + area.h - height, area.oy)),
+            x: Math.min(Math.max(x0, 0), Math.max(area.w - width, 0)),
+            y: Math.min(Math.max(y0, 0), Math.max(area.h - height, 0)),
             width,
             height
         };
@@ -103,30 +141,52 @@ const WindowManager = (() => {
                 v: 2
             });
         } else {
-            const rect = data.element.getBoundingClientRect();
+            // Container-relative geometry (offset*/client space), matching how
+            // bounds are restored via style left/top — never viewport rects,
+            // which include the taskbar offset and body zoom.
             WindowState.saveWindowState(data.appId, {
-                x: rect.left,
-                y: rect.top,
-                width: rect.width,
-                height: rect.height,
+                x: data.element.offsetLeft,
+                y: data.element.offsetTop,
+                width: data.element.offsetWidth,
+                height: data.element.offsetHeight,
                 maximized: false,
                 v: 2
             });
         }
     }
 
+    // Snap edges are tested in container layout px: the pointer's viewport
+    // position is mapped into #windows-container space (subtracting the live
+    // desktop rect, dividing out body zoom) so every taskbar edge and scale
+    // behaves the same. Returned x/y/width/height are container-space, ready
+    // to apply as window style geometry — (0,0) is the desktop's top-left
+    // corner no matter which edge the taskbar sits on.
     function getSnapZone(clientX, clientY) {
         const threshold = 20;
-        const { ox, oy, w, h } = getDesktopArea();
-        const left = clientX <= ox + threshold;
-        const right = clientX >= ox + w - threshold;
-        const top = clientY <= oy + threshold;
+        const { w, h } = getDesktopArea();
+        let lx = clientX;
+        let ly = clientY;
+        try {
+            if (container) {
+                const z = effectiveZoom();
+                const r = container.getBoundingClientRect();
+                lx = (clientX - r.left) / z;
+                ly = (clientY - r.top) / z;
+            } else {
+                const s = scale || 1;
+                lx = clientX / s;
+                ly = clientY / s;
+            }
+        } catch (e) { /* fall back to raw client coords */ }
+        const left = lx <= threshold;
+        const right = lx >= w - threshold;
+        const top = ly <= threshold;
 
-        if (top && left) return { zone: 'top-left', x: ox, y: oy, width: w / 2, height: h / 2 };
-        if (top && right) return { zone: 'top-right', x: ox + w / 2, y: oy, width: w / 2, height: h / 2 };
-        if (top) return { zone: 'top', x: ox, y: oy, width: w, height: h };
-        if (left) return { zone: 'left', x: ox, y: oy, width: w / 2, height: h };
-        if (right) return { zone: 'right', x: ox + w / 2, y: oy, width: w / 2, height: h };
+        if (top && left) return { zone: 'top-left', x: 0, y: 0, width: w / 2, height: h / 2 };
+        if (top && right) return { zone: 'top-right', x: w / 2, y: 0, width: w / 2, height: h / 2 };
+        if (top) return { zone: 'top', x: 0, y: 0, width: w, height: h };
+        if (left) return { zone: 'left', x: 0, y: 0, width: w / 2, height: h };
+        if (right) return { zone: 'right', x: w / 2, y: 0, width: w / 2, height: h };
 
         return null;
     }
@@ -216,15 +276,15 @@ const WindowManager = (() => {
                     restoreBounds = defaultRestoreBounds();
                 }
                 const area = getDesktopArea();
-                x = area.ox; y = area.oy; width = area.w; height = area.h;
+                x = 0; y = 0; width = area.w; height = area.h;
             } else {
                 const c = clampRestoreBounds(savedState);
                 x = c.x; y = c.y; width = c.width; height = c.height;
             }
         } else {
             const area = getDesktopArea();
-            x = Math.max(area.ox, area.ox + (area.w - opts.width) / 2 + Math.random() * 60 - 30);
-            y = Math.max(area.oy, area.oy + (area.h - opts.height) / 2 + Math.random() * 40 - 20);
+            x = Math.max(0, (area.w - opts.width) / 2 + Math.random() * 60 - 30);
+            y = Math.max(0, (area.h - opts.height) / 2 + Math.random() * 40 - 20);
             width = opts.width;
             height = opts.height;
         }
@@ -319,7 +379,18 @@ const WindowManager = (() => {
         header.addEventListener('mousedown', (e) => {
             if (e.target.closest('.window-controls')) return;
             if (data.isMaximized) {
-                const ratio = e.clientX / window.innerWidth;
+                const area = getDesktopArea();
+                const z = effectiveZoom();
+                let lx = e.clientX;
+                let ly = e.clientY;
+                try {
+                    if (container) {
+                        const r = container.getBoundingClientRect();
+                        lx = (e.clientX - r.left) / z;
+                        ly = (e.clientY - r.top) / z;
+                    }
+                } catch (err) { /* fall back to raw client coords */ }
+                const ratio = area.w > 0 ? Math.min(Math.max(lx / area.w, 0), 1) : (e.clientX / window.innerWidth);
                 data.prevBounds = null;
                 data.isMaximized = false;
                 win.classList.remove('maximized');
@@ -327,8 +398,8 @@ const WindowManager = (() => {
                 const newH = 500;
                 win.style.width = newW + 'px';
                 win.style.height = newH + 'px';
-                win.style.left = (e.clientX - newW * ratio) + 'px';
-                win.style.top = Math.max(0, e.clientY - 18) + 'px';
+                win.style.left = (lx - newW * ratio) + 'px';
+                win.style.top = Math.max(0, ly - 18) + 'px';
             }
 
             isDragging = true;
@@ -342,8 +413,10 @@ const WindowManager = (() => {
 
         document.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
+            // Client deltas are viewport px — scale into container layout px.
+            const z = effectiveZoom() || 1;
+            const dx = (e.clientX - startX) / z;
+            const dy = (e.clientY - startY) / z;
             win.style.left = `${startLeft + dx}px`;
             win.style.top = `${Math.max(0, startTop + dy)}px`;
 
@@ -417,8 +490,10 @@ const WindowManager = (() => {
 
         document.addEventListener('mousemove', (e) => {
             if (!isResizing) return;
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
+            // Client deltas are viewport px — scale into container layout px.
+            const z = effectiveZoom() || 1;
+            const dx = (e.clientX - startX) / z;
+            const dy = (e.clientY - startY) / z;
             const classList = currentHandle.classList;
 
             let newW = startW, newH = startH, newL = startL, newT = startT;

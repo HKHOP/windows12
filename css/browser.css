@@ -16,6 +16,21 @@
     overflow: hidden;
 }
 
+/* Class-based twin of the :has rule above (same effect, no :has support
+   needed for older WebKit). Browser.launch() tags its window body with it.
+   The container is absolutely filled instead of height:100% so WebKit never
+   has to resolve nested percentage heights inside flex layout (which it
+   gets wrong, leaving big white strips around pages). */
+.window-body.browser-window-body {
+    overflow: hidden;
+}
+
+.window-body.browser-window-body > .browser-container {
+    position: absolute;
+    inset: 0;
+    height: auto;
+}
+
 /* Tab Bar */
 .browser-tabs {
     display: flex;
@@ -193,6 +208,8 @@
     min-width: 0;
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
     background: #1a1a1a;
     user-select: text;
     -webkit-user-select: text;
@@ -200,8 +217,12 @@
 
 .browser-content iframe {
     display: block;
+    /* Flex fill (not percentage heights) so WebKit sizes the frame exactly
+       to the content box — percentage heights inside nested flex resolve
+       unreliably there and leave white strips around the page. */
+    flex: 1 1 auto;
     width: 100%;
-    height: 100%;
+    height: auto;
     min-width: 0;
     min-height: 0;
     max-width: 100%;

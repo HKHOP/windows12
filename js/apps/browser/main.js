@@ -274,6 +274,12 @@ const Browser = (() => {
 
         const win = WindowManager.createWindow('browser', 'Browser', icon, getTabHtml(), { width: 900, height: 600 });
         const el = win.element;
+        // Class-based overflow:hidden + absolute fill (see browser.css) — the
+        // :has() stylesheet rule alone doesn't exist on older WebKit, which
+        // then shows outer scrollbars/blank gutters around the page.
+        try {
+            el.querySelector('.window-body').classList.add('browser-window-body');
+        } catch (e) { /* layout still works via the :has rule where supported */ }
         const contentEl = el.querySelector('.browser-content');
         const tabsList = el.querySelector('.browser-tabs-list');
         const urlInput = el.querySelector('.browser-url-input');
@@ -315,14 +321,20 @@ const Browser = (() => {
 
         function applyZoom(tab) {
             if (!tab || !tab.iframeEl) return;
-            tab.iframeEl.style.transform = `scale(${tab.zoom})`;
-            tab.iframeEl.style.transformOrigin = '0 0';
-            if (tab.zoom !== 1) {
+            // At 100% the frame must be entirely untransformed: even a no-op
+            // scale(1) promotes the iframe to a compositing layer, which
+            // WebKit rounds/composites with white edge strips. Clear every
+            // override so the flex fill from browser.css sizes it exactly.
+            if (Math.abs(tab.zoom - 1) < 0.001) {
+                tab.iframeEl.style.transform = '';
+                tab.iframeEl.style.transformOrigin = '';
+                tab.iframeEl.style.width = '';
+                tab.iframeEl.style.height = '';
+            } else {
+                tab.iframeEl.style.transform = `scale(${tab.zoom})`;
+                tab.iframeEl.style.transformOrigin = '0 0';
                 tab.iframeEl.style.width = `${100 / tab.zoom}%`;
                 tab.iframeEl.style.height = `${100 / tab.zoom}%`;
-            } else {
-                tab.iframeEl.style.width = '100%';
-                tab.iframeEl.style.height = '100%';
             }
             updateZoomDisplay();
         }
@@ -588,7 +600,7 @@ const Browser = (() => {
 
             if (!tab.iframeEl) {
                 const iframe = document.createElement('iframe');
-                iframe.style.cssText = 'width:100%;height:100%;min-width:0;min-height:0;max-width:100%;max-height:100%;display:block;flex-shrink:0;border:none;background:#ffffff;';
+                iframe.style.cssText = 'flex:1 1 auto;width:100%;height:100%;min-width:0;min-height:0;max-width:100%;max-height:100%;display:block;flex-shrink:0;border:none;background:#ffffff;';
                 iframe.setAttribute('scrolling', 'auto');
                 iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox';
                 tab.iframeEl = iframe;
