@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4919] - 2026-09-16
+
+### Added
+- Browser touchpad cover pane: on touch devices with virtual touchpad mode on, a transparent pane sits over same-origin pages (local HTML, same-origin sites) so every finger touch becomes a trackpad gesture for the virtual cursor and no native taps reach the page; cross-origin sites stay uncovered so direct finger taps keep working where the virtual cursor cannot click
+
+### Fixed
+- Virtual-cursor dispatch and hover-shape detection now pierce the Browser touchpad pane and land on the page beneath it instead of the pane itself
+
 ## [12.0.4918] - 2026-09-16
 
 ### Fixed

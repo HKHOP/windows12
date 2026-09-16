@@ -349,7 +349,9 @@ const Cursor = (() => {
     }
 
     // Walk up from the deepest element: 'auto' inherits, so the first
-    // non-auto cursor found is what the real mouse shows.
+    // non-auto cursor found is what the real mouse shows. Pierces the
+    // Browser's touchpad pane so the virtual cursor mirrors the page
+    // beneath it instead of the pane's own default arrow.
     function detectAt(x, y) {
         // Same-origin pages inside iframes expose their own cursor styles —
         // mirror those (hand over links, I-beam over text) for the virtual
@@ -360,7 +362,7 @@ const Cursor = (() => {
         } catch (e) { /* fall through to outer detection */ }
         let el = null;
         try {
-            el = document.elementFromPoint(x, y);
+            el = IframePointer.piercePoint(x, y);
         } catch (e) {
             return 'arrow';
         }

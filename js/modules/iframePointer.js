@@ -20,6 +20,40 @@ const IframePointer = (() => {
         return !!el && el.tagName === 'IFRAME';
     }
 
+    // The Browser's touchpad pane (a transparent cover over same-origin
+    // pages that turns every finger touch into a trackpad gesture). It must
+    // be invisible to synthetic dispatch + cursor detection: the virtual
+    // cursor interacts with the page *beneath* it.
+    const PANE_CLASS = 'browser-touchpad-pane';
+
+    function isPane(el) {
+        try {
+            return !!el && el.classList && el.classList.contains(PANE_CLASS);
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // Topmost element at a point that is NOT a touchpad pane (falls back to
+    // a single elementFromPoint where elementsFromPoint is unavailable).
+    function piercePoint(x, y) {
+        try {
+            if (typeof document.elementsFromPoint === 'function') {
+                const stack = document.elementsFromPoint(x, y) || [];
+                for (const el of stack) {
+                    if (!isPane(el)) return el;
+                }
+                return null;
+            }
+        } catch (e) { /* fall through */ }
+        try {
+            const el = document.elementFromPoint(x, y);
+            return isPane(el) ? null : el;
+        } catch (e) {
+            return null;
+        }
+    }
+
     // Returns the frame's document, or null when cross-origin / not loaded.
     function frameDoc(iframe) {
         try {
@@ -63,12 +97,9 @@ const IframePointer = (() => {
     //  { kind:'outer', target }                     — normal outer dispatch
     //  { kind:'blocked', iframe }                   — cross-origin frame
     function routePoint(x, y) {
-        let el = null;
-        try {
-            el = document.elementFromPoint(x, y);
-        } catch (e) {
-            return { kind: 'outer', target: null };
-        }
+        // Pierce any touchpad pane: synthetic virtual-cursor events must
+        // land on the page beneath it, never on the pane itself.
+        const el = piercePoint(x, y);
         if (!el) return { kind: 'outer', target: null };
 
         if (!isIframe(el)) {
@@ -247,12 +278,9 @@ const IframePointer = (() => {
     // frames. Returns a cursor keyword string, or null when outer handling
     // should apply (including cross-origin frames).
     function cursorValueAt(x, y) {
-        let el = null;
-        try {
-            el = document.elementFromPoint(x, y);
-        } catch (e) {
-            return null;
-        }
+        // Pierce the touchpad pane so the virtual cursor still mirrors the
+        // page's own cursor (hand over links, I-beam over text) under it.
+        const el = piercePoint(x, y);
         if (!el || !isIframe(el)) return null;
         const doc = frameDoc(el);
         const win = frameWin(el);
@@ -281,6 +309,10 @@ const IframePointer = (() => {
     }
 
     // True when outer client (x, y) sits over any visible iframe.
+    // NOTE: deliberately top-element only — it must NOT pierce the touchpad
+    // pane. A finger landing on the pane has to stay in trackpad mode
+    // (returns false here); piercing would misreport the page beneath as a
+    // direct touch and re-enable native tap passthrough through the pane.
     function pointOverIframe(x, y) {
         let el = null;
         try {
@@ -291,7 +323,7 @@ const IframePointer = (() => {
         return isIframe(el);
     }
 
-    return { routePoint, dispatch, focusTarget, focusBlocked, cursorValueAt, pointOverIframe, isIframe };
+    return { routePoint, dispatch, focusTarget, focusBlocked, cursorValueAt, pointOverIframe, isIframe, isPane, piercePoint };
 })();
 
 export default IframePointer;

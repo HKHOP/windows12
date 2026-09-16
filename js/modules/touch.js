@@ -92,8 +92,12 @@ const Touch = (() => {
     }
 
     function getTarget(x, y) {
-        const el = document.elementFromPoint(x, y);
-        return el;
+        // Pierce the Browser's touchpad pane (matches synthetic dispatch).
+        try {
+            return IframePointer.piercePoint(x, y);
+        } catch (e) {
+            return document.elementFromPoint(x, y);
+        }
     }
 
     function synthesizeMouse(type, target, x, y, button) {
@@ -217,6 +221,11 @@ const Touch = (() => {
             if (hintEl) hintEl.classList.remove('visible');
             pad = null;
         }
+        // Lets overlays (e.g. the Browser's touchpad pane) follow the mode
+        // without polling SystemConfig.
+        try {
+            window.dispatchEvent(new CustomEvent('touchpad-change', { detail: { enabled } }));
+        } catch (e) { /* noop */ }
         return enabled;
     }
 

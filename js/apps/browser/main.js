@@ -2,6 +2,7 @@ import WindowManager from '../../modules/windowManager.js';
 import ContextMenu from '../../modules/contextMenu.js';
 import FileSystem from '../../modules/fileSystem.js';
 import AppIcons from '../../modules/appIcons.js';
+import Touch from '../../modules/touch.js';
 
 const Browser = (() => {
     const icon = AppIcons.get('browser');
@@ -76,6 +77,7 @@ const Browser = (() => {
                 </div>
                 <div class="browser-content">
                     <div class="browser-newtab"></div>
+                    <div class="browser-touchpad-pane"></div>
                 </div>
                 <div class="browser-status">
                     <div class="browser-status-left">
@@ -281,6 +283,7 @@ const Browser = (() => {
             el.querySelector('.window-body').classList.add('browser-window-body');
         } catch (e) { /* layout still works via the :has rule where supported */ }
         const contentEl = el.querySelector('.browser-content');
+        const paneEl = el.querySelector('.browser-touchpad-pane');
         const tabsList = el.querySelector('.browser-tabs-list');
         const urlInput = el.querySelector('.browser-url-input');
         const urlIcon = el.querySelector('.browser-url-icon');
@@ -301,6 +304,51 @@ const Browser = (() => {
         const dlBtn = el.querySelector('.browser-dl-btn');
 
         let clockInterval = null;
+
+        // ---------- Virtual-touchpad cover pane ----------
+        // On touch devices with touchpad mode on, a transparent pane sits
+        // over SAME-ORIGIN pages (local HTML, same-origin sites) so every
+        // finger touch becomes a trackpad gesture for the virtual cursor —
+        // no native taps reach the page. Cross-origin pages stay uncovered:
+        // the browser seals them, so the virtual cursor can never click
+        // inside and direct finger taps remain the only way to use them.
+        function isCoarsePointer() {
+            try {
+                return !!window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function isSameOriginFrame(iframe) {
+            try {
+                const doc = iframe && iframe.contentDocument;
+                if (!doc) return false;
+                void doc.documentElement;
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function syncPane() {
+            if (!paneEl) return;
+            // Self-cleanup if the window was closed without the close path.
+            if (!el.isConnected) {
+                window.removeEventListener('touchpad-change', onTouchpadChange);
+                return;
+            }
+            const tab = tabState.tabs.get(tabState.activeTabId);
+            const show = isCoarsePointer()
+                && Touch.isTouchpadEnabled()
+                && !!tab && !!tab.url && !!tab.iframeEl
+                && isSameOriginFrame(tab.iframeEl);
+            paneEl.classList.toggle('visible', show);
+        }
+
+        function onTouchpadChange() {
+            syncPane();
+        }
 
         function updateClock() {
             const clockEl = contentEl.querySelector('.browser-newtab-clock');
@@ -437,6 +485,7 @@ const Browser = (() => {
             } else {
                 showIframe(tab);
             }
+            syncPane();
         }
 
         function closeTab(tabId) {
@@ -524,6 +573,7 @@ const Browser = (() => {
                     link.addEventListener('click', () => navigateTo(link.dataset.url));
                 });
             }
+            syncPane();
         }
 
         function getNewTabContentHtml() {
@@ -561,6 +611,7 @@ const Browser = (() => {
             }
             statusDot.className = 'browser-status-dot';
             statusText.textContent = tab.isLoading ? 'Loading...' : 'Done';
+            syncPane();
         }
 
         function navigateTo(url) {
@@ -612,10 +663,12 @@ const Browser = (() => {
             tab.iframeEl.style.display = '';
             applyZoom(tab);
             tab.iframeEl.src = url;
+            syncPane();
         }
 
         function onIframeLoad(tab) {
             if (tab.id !== tabState.activeTabId) return;
+            syncPane();
 
             statusDot.className = 'browser-status-dot';
             statusText.textContent = 'Done';
@@ -892,6 +945,11 @@ const Browser = (() => {
 
         renderTabs();
         showNewTab();
+
+        // Follow touchpad mode without polling; syncPane self-removes this
+        // listener once the window is gone.
+        window.addEventListener('touchpad-change', onTouchpadChange);
+        syncPane();
 
         if (!isExtNoticeDismissed()) {
             setTimeout(() => showExtNotice(), 600);

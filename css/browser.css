@@ -232,6 +232,28 @@
     background: #fff;
 }
 
+/* Virtual-touchpad cover pane: a transparent sheet over same-origin pages
+   (touch devices, touchpad mode on) that turns every finger touch into a
+   trackpad gesture for the virtual cursor — no native taps reach the page.
+   Synthetic virtual-cursor events pierce it (see iframePointer); the pane
+   itself never shows for cross-origin pages or the new-tab page. */
+.browser-touchpad-pane {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    display: none;
+    touch-action: none;
+    cursor: default;
+    background: transparent;
+}
+
+.browser-touchpad-pane.visible {
+    display: block;
+}
+
 /* New Tab Page */
 .browser-newtab {
     display: flex;
