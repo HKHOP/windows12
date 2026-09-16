@@ -4,6 +4,13 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4924] - 2026-09-16
+
+### Added
+- Clock and Calendar can now run in the background (`background` manifest flag): Clock keeps timers/stopwatch running windowless and fires a finish toast, both offer a Background button, and both resume headless at boot
+- Task Manager Startup tab now lists real boot entries for every background-capable app with working Enable/Disable toggles (disabling stops a running headless app at once and excludes it from boot)
+- BackgroundApps autostart API: `isAutostartEnabled`, `setAutostartEnabled`, `getStartupEntries`; boot honors per-app disables
+
 ## [12.0.4923] - 2026-09-16
 
 ### Added

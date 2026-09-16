@@ -30,6 +30,8 @@ const BackgroundApps = (() => {
 
     // App ids currently running headless (no windows).
     let running = new Set();
+    // App ids the user disabled for boot (Task Manager > Startup).
+    let disabled = new Set();
 
     function statePath() {
         return [...STATE_DIR, STATE_NAME];
@@ -49,18 +51,19 @@ const BackgroundApps = (() => {
     function loadPersisted() {
         try {
             const raw = FileSystem.readFile(statePath());
-            if (!raw) return [];
+            if (!raw) return { background: [], disabled: [] };
             const parsed = JSON.parse(raw);
-            return Array.isArray(parsed.background) ? parsed.background.filter(id => typeof id === 'string') : [];
+            const strList = (v) => Array.isArray(v) ? v.filter(id => typeof id === 'string') : [];
+            return { background: strList(parsed.background), disabled: strList(parsed.disabled) };
         } catch (e) {
-            return [];
+            return { background: [], disabled: [] };
         }
     }
 
     function persist() {
         try {
             ensureDir();
-            const json = JSON.stringify({ background: [...running] });
+            const json = JSON.stringify({ background: [...running], disabled: [...disabled] });
             if (FileSystem.itemExists(statePath())) {
                 FileSystem.writeFile(statePath(), json);
             } else {
@@ -122,6 +125,62 @@ const BackgroundApps = (() => {
 
     function getBackgroundApps() {
         return [...running];
+    }
+
+    // ---- Boot (Task Manager > Startup) control ----
+
+    function isAutostartEnabled(id) {
+        return !disabled.has(id);
+    }
+
+    // Disabling stops a running headless app immediately and excludes it
+    // from boot; enabling un-excludes it and starts it now when possible.
+    async function setAutostartEnabled(id, enabled) {
+        if (typeof id !== 'string' || !id) return false;
+        if (!canRunBackground(id)) return false;
+        if (enabled) {
+            if (disabled.has(id)) {
+                disabled.delete(id);
+                persist();
+            }
+            if (!running.has(id) && isAvailable(id)) {
+                let hasWindows = false;
+                try {
+                    hasWindows = WindowManager.getWindowsByApp(id).length > 0;
+                } catch (e) { /* fall through */ }
+                if (!hasWindows) await enterBackground(id);
+                else emit();
+            }
+            return true;
+        }
+        disabled.add(id);
+        if (running.has(id)) {
+            await callLifecycle(id, 'onShutdown');
+            running.delete(id);
+        }
+        persist();
+        emit();
+        return true;
+    }
+
+    // Every background-capable, available app: the Startup tab rows.
+    function getStartupEntries() {
+        let manifests = [];
+        try {
+            manifests = AppLoader.getAll();
+        } catch (e) {
+            return [];
+        }
+        return manifests
+            .filter(m => (m.background === true || m.service === true) && isAvailable(m.id))
+            .map(m => ({
+                id: m.id,
+                name: m.name || m.id,
+                service: m.service === true,
+                running: running.has(m.id),
+                enabled: !disabled.has(m.id)
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
     }
 
     // ---- Transitions ----
@@ -187,11 +246,12 @@ const BackgroundApps = (() => {
         return true;
     }
 
-    // Drop headless entries that are no longer installed/capable (uninstall).
+    // Drop headless entries that are no longer installed/capable (uninstall)
+    // or were disabled for boot while running.
     async function reconcile() {
         let changed = false;
         for (const id of [...running]) {
-            if (!canRunBackground(id) || !isAvailable(id)) {
+            if (!canRunBackground(id) || !isAvailable(id) || disabled.has(id)) {
                 await callLifecycle(id, 'onShutdown');
                 running.delete(id);
                 changed = true;
@@ -204,15 +264,18 @@ const BackgroundApps = (() => {
         return changed;
     }
 
-    // Boot: revive persisted headless apps + always start builtin services.
+    // Boot: revive persisted headless apps + always start builtin services,
+    // minus anything the user disabled in Task Manager > Startup.
     async function init() {
+        const saved = loadPersisted();
+        disabled = new Set(saved.disabled);
         const wanted = new Set();
-        for (const id of loadPersisted()) {
-            if (canRunBackground(id) && isAvailable(id)) wanted.add(id);
+        for (const id of saved.background) {
+            if (canRunBackground(id) && isAvailable(id) && !disabled.has(id)) wanted.add(id);
         }
         try {
             for (const m of AppLoader.getBuiltins()) {
-                if (m.service === true) wanted.add(m.id);
+                if (m.service === true && !disabled.has(m.id)) wanted.add(m.id);
             }
         } catch (e) { /* manifests unreadable — start nothing */ }
         for (const id of wanted) {
@@ -233,7 +296,8 @@ const BackgroundApps = (() => {
     return {
         init,
         canRunBackground, isService, isBackground, getBackgroundApps,
-        requestBackground, bringToForeground, startService, stopService
+        requestBackground, bringToForeground, startService, stopService,
+        isAutostartEnabled, setAutostartEnabled, getStartupEntries
     };
 })();
 

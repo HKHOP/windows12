@@ -1,5 +1,6 @@
 import WindowManager from '../../modules/windowManager.js';
 import AppIcons from '../../modules/appIcons.js';
+import BackgroundApps from '../../modules/backgroundApps.js';
 
 const Calendar = (() => {
     const icon = AppIcons.get('calendar');
@@ -219,6 +220,7 @@ const Calendar = (() => {
                             <option value="hebrew">Hebrew (Jewish)</option>
                             <option value="persian">Persian (Solar Hijri)</option>
                         </select>
+                        <button class="cal-bg-btn" title="Keep running with no window (background)" style="background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.25);color:var(--text-secondary);padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;flex-shrink:0;">Background</button>
                     </div>
                     <div class="cal-header" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;"></div>
                     <div class="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;"></div>
@@ -429,6 +431,10 @@ const Calendar = (() => {
         const nextBtn = win.element.querySelector('.cal-next');
         const sidebar = win.element.querySelector('.cal-sidebar');
         const systemSelect = win.element.querySelector('.cal-system-select');
+
+        win.element.querySelector('.cal-bg-btn').addEventListener('click', () => {
+            BackgroundApps.requestBackground('calendar');
+        });
 
         renderDayHeaders(header);
 

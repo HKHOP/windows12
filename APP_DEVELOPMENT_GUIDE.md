@@ -907,6 +907,9 @@ Apps can run **headless** (no window) via the BackgroundApps module. Two flavors
 | `isBackground(appId)` → `boolean` | Currently headless? |
 | `getBackgroundApps()` → `string[]` | All headless app ids. |
 | `canRunBackground(appId)` / `isService(appId)` | Manifest capability checks. |
+| `isAutostartEnabled(appId)` → `boolean` | Boot-start allowed (Task Manager > Startup toggle state)? |
+| `setAutostartEnabled(appId, enabled)` → `Promise<boolean>` | Disabling stops a running headless app at once and excludes it from boot; enabling starts it now when possible. |
+| `getStartupEntries()` → `Array<{id, name, service, running, enabled}>` | Every background-capable installed/builtin app for Startup UIs. |
 
 **App lifecycle hooks** (export any of these from `main.js`, sync or async):
 

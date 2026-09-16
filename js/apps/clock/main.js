@@ -1,5 +1,7 @@
 import WindowManager from '../../modules/windowManager.js';
 import AppIcons from '../../modules/appIcons.js';
+import Notifications from '../../modules/notifications.js';
+import BackgroundApps from '../../modules/backgroundApps.js';
 
 const Clock = (() => {
     const icon = AppIcons.get('clock');
@@ -17,10 +19,11 @@ const Clock = (() => {
     function getContent() {
         return `
             <div style="display:flex;flex-direction:column;height:100%;">
-                <div style="display:flex;gap:2px;padding:4px 8px;background:rgba(128,128,128,0.12);border-bottom:1px solid var(--window-border);">
+                <div style="display:flex;gap:2px;padding:4px 8px;background:rgba(128,128,128,0.12);border-bottom:1px solid var(--window-border);align-items:center;">
                     <button class="clock-tab-btn" data-tab="clock" style="background:${activeTab==='clock'?'rgba(128,128,128,0.2)':'none'};border:none;color:${activeTab==='clock'?'var(--text-primary)':'var(--text-secondary)'};padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">Clock</button>
                     <button class="clock-tab-btn" data-tab="timer" style="background:${activeTab==='timer'?'rgba(128,128,128,0.2)':'none'};border:none;color:${activeTab==='timer'?'var(--text-primary)':'var(--text-secondary)'};padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">Timer</button>
                     <button class="clock-tab-btn" data-tab="stopwatch" style="background:${activeTab==='stopwatch'?'rgba(128,128,128,0.2)':'none'};border:none;color:${activeTab==='stopwatch'?'var(--text-primary)':'var(--text-secondary)'};padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">Stopwatch</button>
+                    <button class="clock-bg-btn" title="Keep running with no window (background)" style="margin-left:auto;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.25);color:var(--text-secondary);padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;">Background</button>
                 </div>
                 <div class="clock-content" style="flex:1;display:flex;align-items:center;justify-content:center;overflow-y:auto;padding:20px;"></div>
             </div>
@@ -28,7 +31,11 @@ const Clock = (() => {
     }
 
     function renderTab() {
+        // Headless-safe: with no window open there is nothing to paint
+        // (timer/stopwatch intervals keep running underneath).
+        if (!win || !win.element) return;
         const contentEl = win.element.querySelector('.clock-content');
+        if (!contentEl) return;
         const tabs = win.element.querySelectorAll('.clock-tab-btn');
         tabs.forEach(t => {
             t.style.background = t.dataset.tab === activeTab ? 'rgba(128,128,128,0.2)' : 'none';
@@ -169,16 +176,28 @@ const Clock = (() => {
         if (total <= 0) return;
         timerState.remaining = total;
         timerState.running = true;
+        if (timerState.interval) clearInterval(timerState.interval);
         timerState.interval = setInterval(() => {
             timerState.remaining--;
             if (timerState.remaining <= 0) {
-                clearInterval(timerState.interval);
-                timerState.running = false;
-                timerState.remaining = 0;
-                timerState.interval = null;
+                finishTimer();
+                return;
             }
             renderTab();
         }, 1000);
+        renderTab();
+    }
+
+    // Timer hit zero — works windowless too (this is the headless payoff:
+    // the toast fires even after "Background" closed the window).
+    function finishTimer() {
+        if (timerState.interval) clearInterval(timerState.interval);
+        timerState.running = false;
+        timerState.remaining = 0;
+        timerState.interval = null;
+        try {
+            Notifications.info('Timer finished', 'Your countdown reached zero.', { appId: 'clock' });
+        } catch (e) { /* toast unavailable — state already reset */ }
         renderTab();
     }
 
@@ -192,13 +211,12 @@ const Clock = (() => {
     function resumeTimer() {
         if (timerState.remaining <= 0) return;
         timerState.running = true;
+        if (timerState.interval) clearInterval(timerState.interval);
         timerState.interval = setInterval(() => {
             timerState.remaining--;
             if (timerState.remaining <= 0) {
-                clearInterval(timerState.interval);
-                timerState.running = false;
-                timerState.remaining = 0;
-                timerState.interval = null;
+                finishTimer();
+                return;
             }
             renderTab();
         }, 1000);
@@ -297,13 +315,38 @@ const Clock = (() => {
             });
         });
 
+        win.element.querySelector('.clock-bg-btn').addEventListener('click', () => {
+            BackgroundApps.requestBackground('clock');
+        });
+
         renderTab();
 
         if (clockInterval) clearInterval(clockInterval);
         clockInterval = setInterval(updateClock, 1000);
     }
 
-    return { launch };
+    // ---- Background lifecycle (manifest "background": true) ----
+    // Intervals belong to the module, not the window, so a running timer or
+    // stopwatch survives the window closing and the finish toast still fires.
+
+    function onBackground() {
+        // Nothing to tear down: keep counting. UI repaint is a no-op here.
+    }
+
+    function onForeground() {
+        renderTab();
+    }
+
+    function onShutdown() {
+        if (timerState.interval) clearInterval(timerState.interval);
+        timerState.interval = null;
+        timerState.running = false;
+        if (swState.interval) clearInterval(swState.interval);
+        swState.interval = null;
+        swState.running = false;
+    }
+
+    return { launch, onBackground, onForeground, onShutdown };
 })();
 
 export default Clock;

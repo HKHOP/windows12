@@ -46,8 +46,20 @@ const TaskManager = (() => {
                     clearInterval(updateInterval);
                     updateInterval = null;
                 }
+                window.removeEventListener('background-apps-changed', onBgChanged);
             });
         }
+
+        function onBgChanged() {
+            if (!win.element.isConnected) {
+                window.removeEventListener('background-apps-changed', onBgChanged);
+                return;
+            }
+            if (tmState.dialogOpen) return;
+            const activeTab = win.element.querySelector('.tm-tab-active')?.dataset.tab;
+            if (activeTab === 'startup') showStartup(win);
+        }
+        window.addEventListener('background-apps-changed', onBgChanged);
     }
 
     function setupTabs(win) {
@@ -357,10 +369,17 @@ const TaskManager = (() => {
         endBtn.disabled = true;
 
         const startupItems = [
-            { name: 'System Config', status: 'Enabled', publisher: 'Windows 12', impact: 'High' },
-            { name: 'User Activity Tracker', status: 'Enabled', publisher: 'Windows 12', impact: 'Low' },
-            { name: 'Desktop Icons Service', status: 'Enabled', publisher: 'Windows 12', impact: 'Low' }
+            { name: 'System Config', status: 'Enabled', publisher: 'Windows 12', impact: 'High', fixed: true },
+            { name: 'User Activity Tracker', status: 'Enabled', publisher: 'Windows 12', impact: 'Low', fixed: true },
+            { name: 'Desktop Icons Service', status: 'Enabled', publisher: 'Windows 12', impact: 'Low', fixed: true }
         ];
+
+        // Real boot entries: every background-capable app. Toggling writes
+        // the autostart list (disable also stops a running headless app).
+        let bgEntries = [];
+        try {
+            bgEntries = BackgroundApps.getStartupEntries();
+        } catch (e) { /* background list unavailable — system rows only */ }
 
         content.innerHTML = `
             <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -381,11 +400,33 @@ const TaskManager = (() => {
                             <td style="padding:8px 12px;color:var(--text-secondary);">${item.impact}</td>
                         </tr>
                     `).join('')}
+                    ${bgEntries.map(e => `
+                        <tr style="border-bottom:1px solid var(--window-border);">
+                            <td style="padding:8px 12px;">${e.name}${e.service ? ' <span style="font-size:10px;color:var(--text-secondary);border:1px solid var(--window-border);border-radius:8px;padding:1px 7px;margin-left:6px;">SERVICE</span>' : ''}${e.running ? ' <span style="font-size:10px;color:#00b894;margin-left:6px;">● running</span>' : ''}</td>
+                            <td style="padding:8px 12px;color:var(--text-secondary);">Windows 12</td>
+                            <td style="padding:8px 12px;">
+                                <button class="tm-startup-toggle" data-app="${e.id}" data-enabled="${e.enabled}" style="background:${e.enabled ? 'rgba(0,184,148,0.15)' : 'rgba(255,255,255,0.06)'};border:1px solid ${e.enabled ? 'rgba(0,184,148,0.4)' : 'var(--window-border)'};color:${e.enabled ? '#00b894' : 'var(--text-secondary)'};border-radius:12px;padding:2px 12px;cursor:pointer;font-size:11px;font-weight:600;">${e.enabled ? 'Enabled' : 'Disabled'}</button>
+                            </td>
+                            <td style="padding:8px 12px;color:var(--text-secondary);">Low</td>
+                        </tr>
+                    `).join('')}
                 </tbody>
             </table>
         `;
 
-        status.textContent = `${startupItems.length} startup items`;
+        content.querySelectorAll('.tm-startup-toggle').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const appId = btn.dataset.app;
+                const enable = btn.dataset.enabled !== 'true';
+                btn.disabled = true;
+                try {
+                    await BackgroundApps.setAutostartEnabled(appId, enable);
+                } catch (e) { /* noop */ }
+                if (win.element.isConnected) showStartup(win);
+            });
+        });
+
+        status.textContent = `${startupItems.length + bgEntries.length} startup items`;
     }
 
     function getUptime() {
