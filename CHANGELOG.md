@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4922] - 2026-09-16
+
+### Removed
+- Discord app toolbar and status footer: the window is now just the client view with the embed-block notice (which keeps its own Open in Browser action)
+
 ## [12.0.4921] - 2026-09-16
 
 ### Changed

@@ -6,7 +6,6 @@
 // Rule: never call AppLoader/AppRegistry at module scope — only in launch().
 import WindowManager from '../../modules/windowManager.js';
 import AppIcons from '../../modules/appIcons.js';
-import UIIcons from '../../modules/uiIcons.js';
 import FileSystem from '../../modules/fileSystem.js';
 
 const Discord = (() => {
@@ -51,20 +50,7 @@ const Discord = (() => {
                     <button class="discord-notice-open" style="background:#5865F2;border:none;color:#fff;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;flex-shrink:0;">Open in Browser</button>
                     <button class="discord-notice-hide" title="Dismiss" style="background:none;border:none;color:#c7cdfb;cursor:pointer;font-size:14px;padding:2px 6px;flex-shrink:0;">×</button>
                 </div>
-                <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:#2b2d31;border-bottom:1px solid #1f2124;flex-shrink:0;">
-                    <span style="font-size:13px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Discord</span>
-                    <button class="discord-refresh" title="Reload" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#dbdee1;border-radius:6px;cursor:pointer;padding:5px 9px;font-size:12px;display:flex;align-items:center;gap:6px;">
-                        <span style="width:14px;height:14px;display:inline-flex;">${UIIcons.action('refresh', 14)}</span>Reload
-                    </button>
-                    <button class="discord-open" title="Open discord.com in your real browser" style="background:#5865F2;border:none;color:#fff;border-radius:6px;cursor:pointer;padding:6px 12px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;">
-                        <span style="width:14px;height:14px;display:inline-flex;">${UIIcons.action('open', 14)}</span>Open in Browser
-                    </button>
-                </div>
                 <iframe class="discord-frame" title="Discord" allow="microphone; camera; display-capture; autoplay; fullscreen; clipboard-write" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals" style="flex:1 1 auto;width:100%;height:auto;min-height:0;min-width:0;display:block;flex-shrink:0;border:none;background:#313338;" src="${APP_URL}"></iframe>
-                <div style="padding:3px 12px;border-top:1px solid #1f2124;background:#2b2d31;display:flex;justify-content:space-between;font-size:11px;color:#949ba4;flex-shrink:0;">
-                    <span>discord.com embedded</span>
-                    <span>Real account</span>
-                </div>
             </div>
         `;
     }
@@ -74,7 +60,6 @@ const Discord = (() => {
             width: 1000, height: 650, minWidth: 480, minHeight: 360
         });
         const el = win.element;
-        const frame = el.querySelector('.discord-frame');
         const notice = el.querySelector('.discord-notice');
 
         const openExternal = () => {
@@ -83,14 +68,7 @@ const Discord = (() => {
             } catch (e) { /* popup blocked — user can copy the URL */ }
         };
 
-        el.querySelector('.discord-open').addEventListener('click', openExternal);
         el.querySelector('.discord-notice-open').addEventListener('click', openExternal);
-        el.querySelector('.discord-refresh').addEventListener('click', () => {
-            try {
-                // Re-navigating the src works cross-origin (reload() would throw).
-                frame.src = APP_URL;
-            } catch (e) { /* noop */ }
-        });
         el.querySelector('.discord-notice-hide').addEventListener('click', () => {
             notice.style.display = 'none';
             setNoticeDismissed(true);
