@@ -99,6 +99,9 @@ const StartMenu = (() => {
     }
 
     function pinApp(appId) {
+        try {
+            if (AppLoader.isService(appId)) return;
+        } catch (e) { /* fall through */ }
         if (!pinnedApps.includes(appId)) {
             pinnedApps.push(appId);
             savePinnedApps();
@@ -337,6 +340,10 @@ const StartMenu = (() => {
 
         const installed = AppSystem.getInstalledApps();
         const filteredApps = allApps.filter(app => {
+            // Services are uninstall-only: never listed in any launcher.
+            try {
+                if (AppLoader.isService(app.id)) return false;
+            } catch (e) { /* manifest unreadable — fall through */ }
             if (isStoreApp(app.id)) return installed.includes(app.id);
             return true;
         });
@@ -427,6 +434,9 @@ const StartMenu = (() => {
         const installed = AppSystem.getInstalledApps();
 
         const activePinned = pinnedApps.filter(appId => {
+            try {
+                if (AppLoader.isService(appId)) return false;
+            } catch (e) { /* fall through */ }
             if (isStoreApp(appId)) return installed.includes(appId);
             return true;
         });
@@ -477,6 +487,9 @@ const StartMenu = (() => {
     }
 
     function launchApp(appId) {
+        try {
+            if (AppLoader.isService(appId)) return;
+        } catch (e) { /* manifest unreadable — fall through */ }
         const existing = WindowManager.getWindowsByApp(appId);
         if (existing.length > 0) {
             const win = existing[0];

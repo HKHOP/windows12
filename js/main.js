@@ -14,6 +14,7 @@ import WindowsUpdate from './modules/windowsUpdate.js';
 import Search from './modules/search.js';
 import Notifications from './modules/notifications.js';
 import Cursor from './modules/cursor.js';
+import BackgroundApps from './modules/backgroundApps.js';
 
 AppSystem.init();
 
@@ -44,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     WindowsUpdate.init();
     Search.init();
     Notifications.init();
+    BackgroundApps.init();
 
     // ShellIcons: the system icon library (our shell32.dll) — every app can
     // use these via `import UIIcons from '../modules/uiIcons.js'` or the

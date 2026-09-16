@@ -4,6 +4,7 @@ import AppIcons from './appIcons.js';
 import UIIcons from './uiIcons.js';
 import Flyout from './flyout.js';
 import Search from './search.js';
+import AppLoader from './appLoader.js';
 
 const AppRegistry = (() => {
     const apps = {};
@@ -111,6 +112,10 @@ const Taskbar = (() => {
     }
 
     function pinApp(appId) {
+        // Services are uninstall-only: never pinnable or launchable.
+        try {
+            if (AppLoader.isService(appId)) return;
+        } catch (e) { /* manifest unreadable — fall through */ }
         if (!pinnedApps.includes(appId)) {
             pinnedApps.push(appId);
             savePinnedApps();
@@ -152,6 +157,9 @@ const Taskbar = (() => {
         center.appendChild(separator);
 
         pinnedApps.forEach(appId => {
+            try {
+                if (AppLoader.isService(appId)) return;
+            } catch (e) { /* fall through */ }
             const meta = AppMetadata.get(appId);
             const btn = createAppButton(appId, meta);
             center.appendChild(btn);
@@ -263,6 +271,9 @@ const Taskbar = (() => {
     }
 
     function openApp(appId, options = {}) {
+        try {
+            if (AppLoader.isService(appId)) return false;
+        } catch (e) { /* manifest unreadable — fall through */ }
         const existing = WindowManager.getWindowsByApp(appId);
         if (existing.length > 0) {
             const win = existing[0];
@@ -285,13 +296,19 @@ const Taskbar = (() => {
             launchApp(appId, options);
         }
         Flyout.hide(document.getElementById('start-menu'));
+        return true;
     }
 
     function launchApp(appId, options = {}) {
+        try {
+            if (AppLoader.isService(appId)) return false;
+        } catch (e) { /* manifest unreadable — fall through */ }
         const app = AppRegistry.get(appId);
         if (app) {
             app.launch(options);
+            return true;
         }
+        return false;
     }
 
     function addRunningApp(appId, windowData) {

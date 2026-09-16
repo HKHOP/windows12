@@ -876,3 +876,50 @@ Notifications.action('Restart needed', 'Apply the update now?', {
 ```
 
 Respects Settings > Notifications (master toggle + per-app toggles) automatically.
+
+---
+
+## 22. Background Apps & Services
+
+Apps can run **headless** (no window) via the BackgroundApps module. Two flavors, declared in `manifest.json`:
+
+```json
+{
+    "id": "myApp",
+    "background": true,
+    "service": false
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `background` | `boolean` | `false` | App may run headless via the BackgroundApps API |
+| `service` | `boolean` | `false` | Background-**only**: hidden from Start, Search and taskbar (no launch, no pin); install/uninstall via Store or Settings; implies `background` |
+
+**Import:** `import BackgroundApps from '../../modules/backgroundApps.js';`
+
+| Method | Description |
+|--------|-------------|
+| `requestBackground(appId)` → `Promise<boolean>` | Close the app's windows (through close handlers — a veto aborts) and run headless. `false` when the manifest doesn't declare it. |
+| `bringToForeground(appId, opts?)` → `boolean` | Stop headless mode and open a window. Always `false` for services. |
+| `startService(appId)` → `Promise<boolean>` | Start headless without ever opening a window. `false` when windows are open. |
+| `stopService(appId)` → `Promise<boolean>` | Stop headless execution. |
+| `isBackground(appId)` → `boolean` | Currently headless? |
+| `getBackgroundApps()` → `string[]` | All headless app ids. |
+| `canRunBackground(appId)` / `isService(appId)` | Manifest capability checks. |
+
+**App lifecycle hooks** (export any of these from `main.js`, sync or async):
+
+```js
+return {
+    launch,
+    onBackground,  // entered headless mode: start timers/listeners, open NO windows
+    onForeground,  // about to return to a window
+    onShutdown     // headless execution stopping: clear timers/listeners
+};
+```
+
+**Rules:**
+- Headless state persists: backgrounded apps resume at boot, and builtin services always auto-start. Listen for `window` event `background-apps-changed` (`{ detail: { running: [...] } }`) to track it.
+- `onBackground` must never create windows or dialogs — there is no visible context.
+- End users stop headless apps from Task Manager (listed as `<Name> (Background)`); services are uninstalled from Settings > Apps or the Store library.

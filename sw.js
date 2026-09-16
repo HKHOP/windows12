@@ -28,6 +28,7 @@ const urlsToCache = [
     './js/modules/saveprompt.js',
     './js/modules/appSystem.js',
     './js/modules/appLoader.js',
+    './js/modules/backgroundApps.js',
     './js/modules/notifications.js',
     './js/apps/appStore/main.js',
     './js/apps/browser/main.js',

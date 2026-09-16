@@ -28,6 +28,20 @@ const AppStore = (() => {
         return AppSystem.getInstalledApps();
     }
 
+    // Services are uninstall-only: installable, but never launchable, so no
+    // Open button anywhere — Uninstall instead.
+    function isService(id) {
+        try {
+            return AppLoader.isService(id);
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function uninstallBtnHtml(id, wide) {
+        return `<button class="store-uninstall-btn" data-app="${id}" style="background:transparent;border:1px solid #4d4d4d;color:#ccc;${wide ? 'padding:10px 32px;border-radius:6px;font-size:13px;' : 'padding:6px;border-radius:4px;font-size:12px;width:100%;'}font-weight:600;cursor:pointer;transition:background 0.2s;">Uninstall</button>`;
+    }
+
     function isGame(id) {
         return (appDetails[id]?.category || '') === 'Games';
     }
@@ -86,6 +100,7 @@ const AppStore = (() => {
     function installBtnHtml(id) {
         const installed = getInstalled().includes(id);
         if (installed) {
+            if (isService(id)) return uninstallBtnHtml(id, false);
             return `<button class="store-open-btn" data-app="${id}" style="background:rgba(255,255,255,0.1);border:none;color:white;padding:6px;border-radius:4px;font-weight:600;cursor:pointer;font-size:12px;width:100%;transition:background 0.2s;">Open</button>`;
         }
         return `<button class="store-install-btn" data-app="${id}" style="background:#0078D4;border:none;color:white;padding:6px;border-radius:4px;font-weight:600;cursor:pointer;font-size:12px;width:100%;transition:background 0.2s;">Install</button>`;
@@ -133,7 +148,9 @@ const AppStore = (() => {
                 <p style="color:#eee;font-size:14px;max-width:480px;margin:0 0 20px 0;">${(d.description || '').slice(0, 140)}...</p>
                 <div style="display:flex;gap:12px;">
                     ${installed
-                        ? `<button class="store-open-btn" data-app="${id}" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:white;padding:10px 36px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;">Open</button>`
+                        ? (isService(id)
+                            ? uninstallBtnHtml(id, true)
+                            : `<button class="store-open-btn" data-app="${id}" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:white;padding:10px 36px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;">Open</button>`)
                         : `<button class="store-install-btn" data-app="${id}" style="background:#0078D4;border:none;color:white;padding:10px 36px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;">Get</button>`}
                     <button class="store-details-btn" data-app="${id}" style="background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.2);color:white;padding:10px 24px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;">Details</button>
                 </div>
@@ -280,7 +297,7 @@ const AppStore = (() => {
                                 <div style="font-size:14px;font-weight:600;">${d.name}</div>
                                 <div style="font-size:12px;color:#888;">${d.category || ''}${d.size ? ` • ${d.size}` : ''}</div>
                             </div>
-                            <button class="store-open-btn" data-app="${id}" style="background:rgba(255,255,255,0.1);border:none;color:white;padding:8px 24px;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px;">Open</button>
+                            ${isService(id) ? '' : `<button class="store-open-btn" data-app="${id}" style="background:rgba(255,255,255,0.1);border:none;color:white;padding:8px 24px;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px;">Open</button>`}
                             <button class="store-uninstall-btn" data-app="${id}" style="background:transparent;border:1px solid #4d4d4d;color:#ccc;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:12px;">Uninstall</button>
                         </div>`;
                     }).join('')}
@@ -335,7 +352,9 @@ const AppStore = (() => {
                                         ${ratingHtml(appId)}
                                     </div>
                                     ${isInstalled
-                                        ? `<button class="store-open-btn" data-app="${appId}" style="background:rgba(255,255,255,0.1);border:none;color:white;padding:10px 32px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;transition:background 0.2s;">Open</button>`
+                                        ? (isService(appId)
+                                            ? uninstallBtnHtml(appId, true)
+                                            : `<button class="store-open-btn" data-app="${appId}" style="background:rgba(255,255,255,0.1);border:none;color:white;padding:10px 32px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;transition:background 0.2s;">Open</button>`)
                                         : `<button class="store-install-btn" data-app="${appId}" style="background:#0078D4;border:none;color:white;padding:10px 32px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;transition:background 0.2s;">Get</button>`}
                                 </div>
                             </div>
@@ -433,6 +452,7 @@ const AppStore = (() => {
         }
 
         function openAppById(appId) {
+            if (isService(appId)) return;
             const mod = AppRegistry.get(appId);
             if (mod && typeof mod.launch === 'function') mod.launch();
         }
@@ -534,6 +554,15 @@ const AppStore = (() => {
                     e.stopPropagation();
                     const appId = btn.getAttribute('data-app');
                     if (appId) openAppById(appId);
+                });
+            });
+            container.querySelectorAll('.store-uninstall-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const appId = btn.getAttribute('data-app');
+                    if (!appId) return;
+                    AppSystem.uninstallApp(appId);
+                    showAppDetail(appId);
                 });
             });
             container.querySelectorAll('.store-discover-card').forEach(card => {

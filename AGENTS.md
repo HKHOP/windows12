@@ -11,6 +11,7 @@ A web-based OS simulation built with vanilla HTML, CSS, and JavaScript modules. 
 - `js/modules/taskbar.js` - Taskbar logic, clock, start menu toggle, app launching
 - `js/modules/startMenu.js` - Start menu with pinned apps, search, recommended items
 - `js/modules/popup.js` - Popup/dialog API (info, warn, error, confirm, pick, textbox, forum)
+- `js/modules/backgroundApps.js` - Headless execution: background apps + launchable-nowhere services (manifest `background`/`service`), autostart, `background-apps-changed` event
 
 ### Apps (folder-based — see APP_DEVELOPMENT_GUIDE.md)
 - Each app lives in `js/apps/<id>/` with `manifest.json` (id, uuid, name, distribution, associations, store info), `main.js` (wired entry), `scripts/` (extra modules), `assets/` (static files)

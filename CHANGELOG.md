@@ -4,6 +4,15 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4923] - 2026-09-16
+
+### Added
+- Background apps API (`js/modules/backgroundApps.js`): manifest-declared (`background`/`service`) headless execution with `requestBackground`, `bringToForeground`, `startService`, `stopService`, optional `onBackground`/`onForeground`/`onShutdown` app hooks, persisted auto-start at boot (builtin services always start), and a `background-apps-changed` event; Task Manager lists headless apps as `<Name> (Background)` with working End task
+- Services: manifest `"service": true` apps are hidden from Start, Search and taskbar (no launch or pin) and can only be installed/uninstalled via the Store or Settings > Apps; Store shows Uninstall instead of Open for them
+
+### Changed
+- `build-registry.js` validates and publishes the new `background`/`service` manifest flags (`service` implies `background`)
+
 ## [12.0.4922] - 2026-09-16
 
 ### Removed

@@ -45,6 +45,13 @@ function loadManifests() {
         for (const ext of m.associations) {
             if (typeof ext !== 'string' || !EXT_RE.test(ext)) fail(`js/apps/${id}/manifest.json: bad association "${ext}"`);
         }
+        // Background execution: "background" lets the app run headless via the
+        // BackgroundApps API; "service" additionally hides it from every
+        // launcher (Start/Search/taskbar) so it can only be uninstalled.
+        // Services imply background capability.
+        for (const k of ['background', 'service']) {
+            if (m[k] !== undefined && typeof m[k] !== 'boolean') fail(`js/apps/${id}/manifest.json: "${k}" must be a boolean when present`);
+        }
         if (m.distribution === 'store') {
             const s = m.store || {};
             for (const k of ['developer', 'category', 'description', 'size']) {
@@ -87,6 +94,12 @@ function emitRegistry(manifests) {
             distribution: m.distribution,
             associations: m.associations || []
         };
+        if (m.background) pub.background = true;
+        if (m.service) {
+            // Services are always background-capable, never launchable.
+            pub.service = true;
+            pub.background = true;
+        }
         if (m.store) pub.store = m.store;
         lines.push(`    ${JSON.stringify(pub)},`);
     }

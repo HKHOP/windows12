@@ -3,6 +3,7 @@ import UserActivity from './userActivity.js';
 import FileSystem from './fileSystem.js';
 import AppIcons from './appIcons.js';
 import Flyout from './flyout.js';
+import AppLoader from './appLoader.js';
 
 const Search = (() => {
     let panel = null;
@@ -28,11 +29,20 @@ const Search = (() => {
 
     function getAllApps() {
         const all = AppRegistry.getAll();
-        return Object.entries(all).map(([id, app]) => ({
-            id,
-            name: AppMetadata.get(id).name,
-            icon: AppIcons.get(id)
-        }));
+        return Object.entries(all)
+            .filter(([id]) => {
+                // Services are uninstall-only: never searchable/launchable.
+                try {
+                    return !AppLoader.isService(id);
+                } catch (e) {
+                    return true;
+                }
+            })
+            .map(([id, app]) => ({
+                id,
+                name: AppMetadata.get(id).name,
+                icon: AppIcons.get(id)
+            }));
     }
 
     function getRecentApps() {

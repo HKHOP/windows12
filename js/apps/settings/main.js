@@ -851,8 +851,9 @@ const Settings = (() => {
                 ${Object.entries(allMeta).map(([id, meta]) => {
                     const man = AppLoader.getManifest(id);
                     if (!man) return '';
-                    if (man.distribution === 'builtin') return appRow(meta.name, 'Built-in', false);
-                    if (installed.includes(id)) return appRow(meta.name, 'Installed from Store', true, id);
+                    const svc = AppLoader.isService(id);
+                    if (man.distribution === 'builtin') return appRow(meta.name, svc ? 'Built-in service' : 'Built-in', false);
+                    if (installed.includes(id)) return appRow(meta.name, svc ? 'Service • Installed from Store' : 'Installed from Store', true, id);
                     return '';
                 }).join('')}
             </div>

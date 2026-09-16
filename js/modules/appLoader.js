@@ -122,6 +122,18 @@ const AppLoader = (() => {
         return ids;
     }
 
+    // Background execution capability (see js/modules/backgroundApps.js).
+    // "service" apps additionally never appear in any launcher.
+    function isService(id) {
+        const man = getManifest(id);
+        return !!man && man.service === true;
+    }
+
+    function canRunBackground(id) {
+        const man = getManifest(id);
+        return !!man && (man.background === true || man.service === true);
+    }
+
     function init() {
         migrateIfNeeded();
         AppMetadata.setNames(Object.fromEntries(APP_MANIFESTS.map(m => [m.id, m.name])));
@@ -154,7 +166,8 @@ const AppLoader = (() => {
     return {
         init, install, uninstall,
         getManifest, getByUuid, getAll, getBuiltins, getStoreApps,
-        getModule, registerApp, getInstalledUuids, getInstalledIds
+        getModule, registerApp, getInstalledUuids, getInstalledIds,
+        isService, canRunBackground
     };
 })();
 

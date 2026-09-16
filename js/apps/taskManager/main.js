@@ -1,6 +1,8 @@
 import WindowManager from '../../modules/windowManager.js';
 import AppIcons from '../../modules/appIcons.js';
 import ContextMenu from '../../modules/contextMenu.js';
+import BackgroundApps from '../../modules/backgroundApps.js';
+import { AppMetadata } from '../../modules/taskbar.js';
 
 const TaskManager = (() => {
     const icon = AppIcons.get('taskManager');
@@ -130,6 +132,27 @@ const TaskManager = (() => {
             isSystem: true
         });
 
+        // Headless apps + services (no windows). Ending one stops its
+        // background execution via the BackgroundApps API.
+        try {
+            for (const appId of BackgroundApps.getBackgroundApps()) {
+                if (WindowManager.getWindowsByApp(appId).length > 0) continue;
+                const meta = AppMetadata.get(appId);
+                processes.push({
+                    id: `bg:${appId}`,
+                    name: `${meta.name || appId} (Background)`,
+                    appId,
+                    cpu: (Math.random() * 2 + 0.1).toFixed(1),
+                    memory: (Math.random() * 20 + 2).toFixed(0),
+                    disk: '0.0',
+                    network: '0.00',
+                    pid: Math.floor(Math.random() * 9000 + 1000),
+                    isSystem: false,
+                    isBackground: true
+                });
+            }
+        } catch (e) { /* background list unavailable — skip */ }
+
         return processes;
     }
 
@@ -252,7 +275,13 @@ const TaskManager = (() => {
             overlay.remove();
         });
         overlay.querySelector('.tm-confirm-end').addEventListener('click', () => {
-            WindowManager.closeWindow(processId);
+            if (String(processId).startsWith('bg:')) {
+                try {
+                    BackgroundApps.stopService(String(processId).slice(3));
+                } catch (e) { /* noop */ }
+            } else {
+                WindowManager.closeWindow(processId);
+            }
             tmState.selectedId = null;
             tmState.dialogOpen = false;
             overlay.remove();
