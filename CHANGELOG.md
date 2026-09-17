@@ -4,6 +4,15 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4931] - 2026-09-17
+
+### Added
+- Real Open With UX in `fileAssociations.js`: two-tier candidates (manifest handlers authoritative, built-in Notepad/Photos/Terminal/Browser viewers as fallbacks), persisted per-extension defaults ("Always use this app" under `/system/programs data/fileAssociations/`), and the full dialog — recommended/default badges, More-apps expander, single/double-click, OK/Cancel; `openDefault`/`openWith`/`getCandidates`/`setDefault` API documented in §13
+- File Explorer registers its viewers at boot, double-click/Open route through the resolved default, and Open With… opens the dialog (recents tracked on success)
+
+### Fixed
+- Open With… no longer relies on the fragile `window.event` hack or a hardcoded app list — candidates, names, and icons resolve live from registrations and app metadata
+
 ## [12.0.4930] - 2026-09-17
 
 ### Added

@@ -372,61 +372,19 @@ const FileExplorer = (() => {
     }
 
     function showOpenWithMenu(itemPath, entry) {
-        const ext = entry.ext || '';
-        const apps = [
-            { name: 'Notepad', id: 'notepad', exts: ['txt', 'md', 'json', 'js', 'html', 'css', 'log', 'cfg'] },
-            { name: 'Browser', id: 'browser', exts: ['html'] },
-            { name: 'Terminal', id: 'terminal', exts: ['bat', 'cmd', 'vbs', 'vbe'] },
-            { name: 'Paint', id: 'paint', exts: ['png', 'jpg', 'jpeg', 'gif', 'bmp'] },
-            { name: 'Photos', id: 'photos', exts: ['png', 'jpg', 'jpeg', 'gif'] }
-        ];
-
-        const matched = apps.filter(a => a.exts.includes(ext));
-        const all = [...matched, ...apps.filter(a => !matched.includes(a))];
-
-        const items = all.map(app => ({
-            label: app.name,
-            icon: app.exts.includes(ext) ? UIIcons.action('check') : '',
-            action: () => openFileWithApp(itemPath, app.id)
-        }));
-
-        ContextMenu.show(window.event.clientX, window.event.clientY, items);
+        FileAssociations.openWithDialog(itemPath, (appId) => {
+            UserActivity.trackFileOpen(itemPath, entry.name);
+        });
     }
 
     function openFileWithDefaultApp(itemPath, entry) {
-        const ext = entry.ext || '';
-        if (ext && FileAssociations.getHandler(ext)) {
-            // Blob-backed files (audio/video/large media) resolve to an
-            // object URL; small files pass their stored content through.
-            if (FileSystem.isBlobFile(itemPath)) {
-                FileSystem.readFileBlob(itemPath).then(blob => {
-                    if (!blob) {
-                        Popup.error('Open failed', `Could not read "${entry.name}". The file data may be missing.`);
-                        return;
-                    }
-                    FileAssociations.getHandler(ext).openFn(itemPath, URL.createObjectURL(blob));
-                    UserActivity.trackFileOpen(itemPath, entry.name);
-                });
-                return;
-            }
-            const content = FileSystem.readFile(itemPath);
-            if (content !== null) {
-                FileAssociations.getHandler(ext).openFn(itemPath, content);
-                UserActivity.trackFileOpen(itemPath, entry.name);
-                return;
-            }
-        }
-        const textExts = ['txt', 'md', 'json', 'js', 'html', 'css', 'log', 'cfg', 'xml', 'yml', 'yaml', 'csv'];
-        const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'];
-        const batchExts = ['bat', 'cmd'];
-        const vbsExts = ['vbs', 'vbe'];
-        if (batchExts.includes(ext) || vbsExts.includes(ext)) {
-            openFileWithTerminal(itemPath, entry);
-        } else if (imageExts.includes(ext)) {
-            openFileWithPhotos(itemPath, entry);
-        } else {
-            openFileWithNotepad(itemPath);
-        }
+        const opened = FileAssociations.openDefault(itemPath, (appId) => {
+            UserActivity.trackFileOpen(itemPath, entry.name);
+        });
+        if (opened) return;
+        // No handler or viewer claims it — fall back to Notepad, which
+        // renders anything as text.
+        openFileWithNotepad(itemPath);
     }
 
     function openFileWithPhotos(itemPath, entry) {
@@ -463,23 +421,6 @@ const FileExplorer = (() => {
         `;
 
         WindowManager.createWindow('photos', `${name} - Photos`, UIIcons.files.image(16), viewerContent, { width: 700, height: 500 });
-    }
-
-    function openFileWithApp(itemPath, appId) {
-        if (appId === 'notepad') {
-            openFileWithNotepad(itemPath);
-        } else if (appId === 'browser') {
-            openFileWithBrowser(itemPath);
-        } else if (appId === 'terminal') {
-            const entry = { name: itemPath[itemPath.length - 1], ext: itemPath[itemPath.length - 1].split('.').pop() };
-            openFileWithTerminal(itemPath, entry);
-        } else if (appId === 'photos') {
-            const entry = { name: itemPath[itemPath.length - 1], ext: itemPath[itemPath.length - 1].split('.').pop() };
-            openFileWithPhotos(itemPath, entry);
-        } else {
-            const app = window._modules?.AppRegistry?.get(appId);
-            if (app?.launch) app.launch();
-        }
     }
 
     function getFolderIcon(name) {
@@ -917,7 +858,32 @@ const FileExplorer = (() => {
         state.lastClicked = null;
     }
 
+    // Built-in file viewers (fallbacks behind manifest handlers). Registered
+    // once — the Map overwrites make repeat launches harmless.
+    let viewersRegistered = false;
+    function registerViewers() {
+        if (viewersRegistered) return;
+        viewersRegistered = true;
+        const entryFrom = (p) => {
+            const name = p[p.length - 1];
+            return { name, ext: (name.split('.').pop() || '').toLowerCase() };
+        };
+        FileAssociations.registerViewer('notepad',
+            ['txt', 'md', 'json', 'js', 'html', 'css', 'log', 'cfg', 'xml', 'yml', 'yaml', 'csv'],
+            (p) => openFileWithNotepad(p));
+        FileAssociations.registerViewer('photos',
+            ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'],
+            (p) => openFileWithPhotos(p, entryFrom(p)));
+        FileAssociations.registerViewer('terminal',
+            ['bat', 'cmd', 'vbs', 'vbe'],
+            (p) => openFileWithTerminal(p, entryFrom(p)));
+        FileAssociations.registerViewer('browser',
+            ['html', 'htm'],
+            (p) => openFileWithBrowser(p));
+    }
+
     function launch(options = {}) {
+        registerViewers();
         const state = {
             pathHistory: [['/']],
             historyIndex: 0,

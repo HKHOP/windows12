@@ -5,6 +5,7 @@ import UIIcons from './uiIcons.js';
 import Flyout from './flyout.js';
 import Search from './search.js';
 import AppLoader from './appLoader.js';
+import FileAssociations from './fileAssociations.js';
 
 const AppRegistry = (() => {
     const apps = {};
@@ -93,6 +94,14 @@ const Taskbar = (() => {
         loadPinnedApps();
         updateClock();
         clockInterval = setInterval(updateClock, 1000);
+        // Open With dialog names/icons resolve through app metadata.
+        FileAssociations.setAppInfoProvider((id) => {
+            try {
+                return AppMetadata.get(id);
+            } catch (e) {
+                return { name: id, icon: '' };
+            }
+        });
         renderTaskbarButtons();
         window.addEventListener('open-search', (e) => {
             Search.open(e.detail.query);

@@ -516,6 +516,20 @@ Get the handler for an extension.
 ### `openFile(path)` → `boolean`
 Open a file by reading it from the filesystem and dispatching to the registered handler. Returns `true` if a handler was found, `false` otherwise.
 
+### Viewers, defaults, and the Open With dialog
+
+Manifest handlers are authoritative, but built-in fallbacks (Notepad, Photos, Terminal, Browser preview — registered by File Explorer) fill the gaps. Resolution order everywhere is **user default → manifest handler → matching viewer**.
+
+| Method | Description |
+|--------|-------------|
+| `registerViewer(appId, extensions, openFn)` | Register a built-in fallback viewer. `openFn(path, content)` matches the handler signature (viewers that read the file themselves may ignore `content`). |
+| `getCandidates(ext)` | Ordered `[{ appId, kind: 'handler' \| 'viewer', openFn }]` for an extension. |
+| `getAllCapable()` | Every app id that can open anything (dialog "More apps" list). |
+| `getDefault(ext)` / `setDefault(ext, appId)` / `clearDefault(ext)` | The persisted "Always use this app" choice (`/system/programs data/fileAssociations/defaults.json`). `setDefault` rejects unknown app ids; stale defaults (uninstalled apps) read back as absent. |
+| `openDefault(path, onOpened?)` | Open via the resolved default (blob-aware: object URLs for media). `onOpened(appId)` fires on success for recents tracking. Returns `true` when something was (or is being) opened. |
+| `openWith(path, appId, onOpened?)` | Open via one specific capable app (falls back to any of its registrations when it doesn't match this extension). |
+| `openWithDialog(path, onOpened?)` | The full UX: recommended apps (handler badged Recommended, current choice badged Default), More-apps expander, single/double-click, OK/Cancel, and the Always checkbox that persists the default. |
+
 ### `getSupportedExtensions()` → `string[]`
 Returns all registered extensions.
 
