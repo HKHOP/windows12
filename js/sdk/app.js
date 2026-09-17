@@ -13,6 +13,7 @@
 //   }
 //   export default { launch };
 import { WindowManager } from './windowManager.js';
+import { Media } from './media.js';
 import { FileSystem as RawFiles } from './filesystem.js';
 import { Notifications } from './notifications.js';
 import { Dialogs } from './dialogs.js';
@@ -252,7 +253,7 @@ function createApp(def) {
     const window = {
         /**
          * Create a window owned by this app (appId prefilled).
-         * @param {object} options { title, icon, content, width, height, minWidth, minHeight, saveState }
+         * @param {object} options { title, icon, content, width, height, minWidth, minHeight, resizable, saveState }
          */
         create(options) {
             const opts = requireOptions(options, 'options');
@@ -260,9 +261,33 @@ function createApp(def) {
         },
         byId: (windowId) => WindowManager.get(windowId),
         focus: (windowId) => WindowManager.focus(windowId),
+        isFocused: (windowId) => WindowManager.isFocused(windowId),
+        focused: () => WindowManager.getFocused(),
         minimize: (windowId) => WindowManager.minimize(windowId),
         restore: (windowId) => WindowManager.restore(windowId),
+        isMinimized: (windowId) => WindowManager.isMinimized(windowId),
         toggleMaximize: (windowId) => WindowManager.toggleMaximize(windowId),
+        maximize: (windowId) => WindowManager.maximize(windowId),
+        unmaximize: (windowId) => WindowManager.unmaximize(windowId),
+        isMaximized: (windowId) => WindowManager.isMaximized(windowId),
+        bounds: (windowId) => WindowManager.getBounds(windowId),
+        getBounds: (windowId) => WindowManager.getBounds(windowId),
+        setBounds: (windowId, bounds) => WindowManager.setBounds(windowId, bounds),
+        position: (windowId) => WindowManager.getPosition(windowId),
+        move: (windowId, x, y) => WindowManager.setPosition(windowId, x, y),
+        size: (windowId) => WindowManager.getSize(windowId),
+        resize: (windowId, w, h) => WindowManager.setSize(windowId, w, h),
+        center: (windowId) => WindowManager.center(windowId),
+        desktopArea: () => WindowManager.getDesktopArea(),
+        isResizable: (windowId) => WindowManager.isResizable(windowId),
+        setResizable: (windowId, resizable) => WindowManager.setResizable(windowId, resizable),
+        isDragging: (windowId) => WindowManager.isDragging(windowId),
+        isResizing: (windowId) => WindowManager.isResizing(windowId),
+        onDragState: (cb) => WindowManager.onDragState(cb),
+        onResizeState: (cb) => WindowManager.onResizeState(cb),
+        onBoundsChanged: (cb) => WindowManager.onBoundsChanged(cb),
+        setTitle: (windowId, title) => WindowManager.setTitle(windowId, title),
+        setMinSize: (windowId, w, h) => WindowManager.setMinSize(windowId, w, h),
         close: (windowId) => WindowManager.close(windowId),
         requestClose: (windowId) => WindowManager.requestClose(windowId),
         closeAll: () => WindowManager.closeAll(id),
@@ -308,6 +333,23 @@ function createApp(def) {
         bringToForeground: () => Background.bringToForeground(id)
     };
 
+    const media = {
+        /**
+         * Open a microphone MediaStream (OS grant checked first).
+         * @param {object} [constraints] extra audio constraints
+         * @returns {Promise<MediaStream>}
+         */
+        microphone: (constraints) => Media.requestMicrophone(id, constraints),
+        /**
+         * Open a camera MediaStream (OS grant checked first).
+         * @param {object} [constraints] extra video constraints
+         * @returns {Promise<MediaStream>}
+         */
+        camera: (constraints) => Media.requestCamera(id, constraints),
+        /** getUserMedia present on this device? */
+        supported: () => Media.supported()
+    };
+
     return {
         id,
         name,
@@ -327,7 +369,8 @@ function createApp(def) {
         system: System,
         events: Events,
         lifecycle,
-        background
+        background,
+        media
     };
 }
 

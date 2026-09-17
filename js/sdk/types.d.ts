@@ -1,9 +1,17 @@
 // Windows 12 SDK — TypeScript declarations (reference only; the runtime
-// stays dependency-free vanilla JS). SDK contract version 1.0.0.
+// stays dependency-free vanilla JS). SDK contract version 1.1.0.
 declare module '../../sdk/index.js' {
     export const SDK_VERSION: string;
     export function createApp(def: { id: string; name?: string }): BoundApp;
 
+    export interface WindowBounds {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        maximized: boolean;
+        minimized: boolean;
+    }
     export interface WindowHandle {
         id: string;
         appId: string;
@@ -12,6 +20,9 @@ declare module '../../sdk/index.js' {
         element: HTMLElement;
         isMaximized: boolean;
         minimized: boolean;
+        resizable: boolean;
+        dragging: boolean;
+        resizing: boolean;
     }
     export interface CreateWindowOptions {
         appId: string;
@@ -22,6 +33,7 @@ declare module '../../sdk/index.js' {
         height?: number;
         minWidth?: number;
         minHeight?: number;
+        resizable?: boolean;
         saveState?: boolean;
     }
     export interface FileEntry {
@@ -69,9 +81,33 @@ declare module '../../sdk/index.js' {
             create(options: Omit<CreateWindowOptions, 'appId'>): WindowHandle;
             byId(id: string): WindowHandle | null;
             focus(id: string): boolean;
+            isFocused(id: string): boolean;
+            focused(): WindowHandle | null;
             minimize(id: string): boolean;
             restore(id: string): boolean;
+            isMinimized(id: string): boolean;
             toggleMaximize(id: string): boolean;
+            maximize(id: string): boolean;
+            unmaximize(id: string): boolean;
+            isMaximized(id: string): boolean;
+            bounds(id: string): WindowBounds | null;
+            getBounds(id: string): WindowBounds | null;
+            setBounds(id: string, bounds: Partial<Pick<WindowBounds, 'x' | 'y' | 'width' | 'height'>>): boolean;
+            position(id: string): { x: number; y: number } | null;
+            move(id: string, x: number, y: number): boolean;
+            size(id: string): { width: number; height: number } | null;
+            resize(id: string, width: number, height: number): boolean;
+            center(id: string): boolean;
+            desktopArea(): { ox: number; oy: number; w: number; h: number };
+            isResizable(id: string): boolean;
+            setResizable(id: string, resizable: boolean): boolean;
+            isDragging(id: string): boolean;
+            isResizing(id: string): boolean;
+            onDragState(cb: (id: string, dragging: boolean) => void): () => void;
+            onResizeState(cb: (id: string, resizing: boolean) => void): () => void;
+            onBoundsChanged(cb: (id: string, bounds: WindowBounds) => void): () => void;
+            setTitle(id: string, title: string): boolean;
+            setMinSize(id: string, minWidth: number, minHeight: number): boolean;
             close(id: string): void;
             requestClose(id: string): Promise<boolean>;
             closeAll(): void;
@@ -119,6 +155,11 @@ declare module '../../sdk/index.js' {
             goBackground(): Promise<boolean>;
             bringToForeground(): boolean;
         };
+        media: {
+            microphone(constraints?: object): Promise<MediaStream>;
+            camera(constraints?: object): Promise<MediaStream>;
+            supported(): boolean;
+        };
         dialogs: typeof Dialogs;
         clipboard: typeof Clipboard;
         apps: typeof Apps;
@@ -134,10 +175,32 @@ declare module '../../sdk/index.js' {
         createWindow(appId: string, title: string, icon: string, content: string, options?: object): WindowHandle;
         get(id: string): WindowHandle | null;
         focus(id: string): boolean;
+        isFocused(id: string): boolean;
+        getFocused(): WindowHandle | null;
         minimize(id: string): boolean;
         restore(id: string): boolean;
         isMinimized(id: string): boolean;
         toggleMaximize(id: string): boolean;
+        maximize(id: string): boolean;
+        unmaximize(id: string): boolean;
+        isMaximized(id: string): boolean;
+        getBounds(id: string): WindowBounds | null;
+        setBounds(id: string, bounds: Partial<Pick<WindowBounds, 'x' | 'y' | 'width' | 'height'>>): boolean;
+        getPosition(id: string): { x: number; y: number } | null;
+        setPosition(id: string, x: number, y: number): boolean;
+        getSize(id: string): { width: number; height: number } | null;
+        setSize(id: string, width: number, height: number): boolean;
+        center(id: string): boolean;
+        getDesktopArea(): { ox: number; oy: number; w: number; h: number };
+        isResizable(id: string): boolean;
+        setResizable(id: string, resizable: boolean): boolean;
+        isDragging(id: string): boolean;
+        isResizing(id: string): boolean;
+        onDragState(cb: (id: string, dragging: boolean) => void): () => void;
+        onResizeState(cb: (id: string, resizing: boolean) => void): () => void;
+        onBoundsChanged(cb: (id: string, bounds: WindowBounds) => void): () => void;
+        setTitle(id: string, title: string): boolean;
+        setMinSize(id: string, minWidth: number, minHeight: number): boolean;
         close(id: string): void;
         requestClose(id: string): Promise<boolean>;
         closeAll(appId: string): void;
@@ -318,6 +381,14 @@ declare module '../../sdk/index.js' {
         startService(appId: string): Promise<boolean>;
         stopService(appId: string): Promise<boolean>;
     };
+    export const Media: {
+        supported(): boolean;
+        isSupported(): boolean;
+        requestMicrophone(appId: string, constraints?: object): Promise<MediaStream>;
+        microphone(appId: string, constraints?: object): Promise<MediaStream>;
+        requestCamera(appId: string, constraints?: object): Promise<MediaStream>;
+        camera(appId: string, constraints?: object): Promise<MediaStream>;
+    };
     export class SDKError extends Error {
         code: string;
         details: unknown;
@@ -345,6 +416,7 @@ declare module '../../sdk/index.js' {
         Permissions: typeof Permissions;
         Lifecycle: typeof Lifecycle;
         Background: typeof Background;
+        Media: typeof Media;
         SDKError: typeof SDKError;
         ErrorCodes: Record<string, string>;
     };

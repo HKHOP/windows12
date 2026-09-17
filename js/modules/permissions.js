@@ -17,6 +17,8 @@
 //   background    headless execution via BackgroundApps ("Run in background").
 //                 Declaring it equals the "background": true flag —
 //                 build-registry materializes either into manifest.background.
+//   microphone    getUserMedia audio ("Use your microphone")
+//   camera        getUserMedia video ("Use your camera")
 //
 // Trust model (honest): builtins are first-party and always granted.
 // Undeclared capabilities fail open (legacy back-compat). Only a DECLARED
@@ -33,6 +35,8 @@ const Permissions = (() => {
     const GRANTS_PATH = [...DATA_DIR, 'grants.json'];
 
     const GLOBE_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3z"/></svg>';
+    const MIC_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg>';
+    const CAMERA_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="6" width="13" height="12" rx="2"/><path d="M15 10l7-3v10l-7-3" stroke-linejoin="round"/></svg>';
 
     const CATALOG = {
         filesystem: {
@@ -59,6 +63,16 @@ const Permissions = (() => {
             label: 'Run in background',
             description: 'Keep running headless with no window open',
             icon: () => UIIcons.setting('power', 16)
+        },
+        microphone: {
+            label: 'Use your microphone',
+            description: 'Record audio and voice memos',
+            icon: () => MIC_SVG
+        },
+        camera: {
+            label: 'Use your camera',
+            description: 'Take pictures and scan codes',
+            icon: () => CAMERA_SVG
         }
     };
 

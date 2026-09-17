@@ -129,3 +129,7 @@
 .resize-handle.top-right { top: -3px; right: -3px; width: 10px; height: 10px; cursor: ne-resize; }
 .resize-handle.bottom-left { bottom: -3px; left: -3px; width: 10px; height: 10px; cursor: sw-resize; }
 .resize-handle.bottom-right { bottom: -3px; right: -3px; width: 10px; height: 10px; cursor: se-resize; }
+
+/* Non-resizable windows (WindowManager.setResizable(id, false)): gestures
+   are rejected in setupResize and the handles are hidden here. */
+.app-window.locked .resize-handle { display: none; }

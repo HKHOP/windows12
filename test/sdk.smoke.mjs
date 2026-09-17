@@ -134,7 +134,7 @@ console.log('import ok\n');
 console.log('[surface]');
 for (const name of ['WindowManager', 'FileSystem', 'Files', 'Notifications', 'Dialogs', 'Keyboard',
     'Clipboard', 'Apps', 'Settings', 'Shell', 'FileAssociations', 'System', 'Events',
-    'Permissions', 'Lifecycle', 'Background', 'SDKError', 'ErrorCodes', 'createApp']) {
+    'Permissions', 'Lifecycle', 'Background', 'Media', 'SDKError', 'ErrorCodes', 'createApp']) {
     check(`exports ${name}`, SDK[name] !== undefined && Windows12[name] !== undefined);
 }
 check('SDK_VERSION is semver', /^\d+\.\d+\.\d+$/.test(SDK.SDK_VERSION), SDK.SDK_VERSION);
@@ -233,6 +233,9 @@ const AppLoaderMod = await import('../js/modules/appLoader.js');
 AppLoaderMod.default.init();
 check('discord declares network', SDK.Permissions.getDeclared('discord').includes('network'));
 check('copilot declares 4 permissions', SDK.Permissions.getDeclared('copilotButBetter').length === 4);
+check('catalog knows microphone + camera', SDK.Permissions.known().includes('microphone') && SDK.Permissions.known().includes('camera'));
+check('voiceRecorder declares microphone', SDK.Permissions.getDeclared('voiceRecorder').includes('microphone'));
+check('qrStudio declares camera', SDK.Permissions.getDeclared('qrStudio').includes('camera'));
 check('notepad metadata resolves', SDK.Apps.getMetadata('notepad').name === 'Notepad');
 check('builtin counts as installed', SDK.Apps.isInstalled('notepad') === true);
 check('store list non-empty', SDK.Apps.getAll().filter(m => m.distribution === 'store').length > 5);
@@ -257,6 +260,96 @@ check('WindowManager.create builds a window against stubs', (() => {
         return false;
     }
 })());
+
+console.log('[window geometry + state]');
+check('resizable:false windows report locked', (() => {
+    const w = SDK.WindowManager.create({ appId: 'sdkSmoke', title: 'Locked', content: '', resizable: false });
+    const locked = SDK.WindowManager.isResizable(w.id) === false;
+    SDK.WindowManager.setResizable(w.id, true);
+    const ok = locked && SDK.WindowManager.isResizable(w.id) === true;
+    SDK.WindowManager.close(w.id);
+    return ok;
+})());
+check('getBounds shape + setBounds roundtrip + validation', (() => {
+    const w = SDK.WindowManager.create({ appId: 'sdkSmoke', title: 'Geo', content: '' });
+    const b = SDK.WindowManager.getBounds(w.id);
+    const shape = b && ['x', 'y', 'width', 'height', 'maximized', 'minimized'].every(k => k in b);
+    const moved = SDK.WindowManager.setBounds(w.id, { x: 10, y: 20, width: 500, height: 400 });
+    let invalid = false;
+    try { SDK.WindowManager.setBounds(w.id, { width: NaN }); } catch (e) { invalid = e.code === 'INVALID_ARGS'; }
+    const missing = SDK.WindowManager.getBounds('window-nope') === null && SDK.WindowManager.setBounds('window-nope', { x: 1 }) === false;
+    SDK.WindowManager.close(w.id);
+    return shape && moved && invalid && missing;
+})());
+check('position/size/center/desktop helpers', (() => {
+    const w = SDK.WindowManager.create({ appId: 'sdkSmoke', title: 'PSC', content: '' });
+    const pos = SDK.WindowManager.getPosition(w.id);
+    const size = SDK.WindowManager.getSize(w.id);
+    const area = SDK.WindowManager.getDesktopArea();
+    const ok = pos && typeof pos.x === 'number' && size && typeof size.width === 'number'
+        && area && area.w === 1280 && area.h === 752
+        && SDK.WindowManager.setPosition(w.id, 5, 5) && SDK.WindowManager.setSize(w.id, 320, 240)
+        && SDK.WindowManager.center(w.id);
+    SDK.WindowManager.close(w.id);
+    return ok;
+})());
+check('maximize/unmaximize/isMaximized + setTitle/setMinSize', (() => {
+    const w = SDK.WindowManager.create({ appId: 'sdkSmoke', title: 'Max', content: '' });
+    const start = SDK.WindowManager.isMaximized(w.id) === false;
+    SDK.WindowManager.maximize(w.id);
+    const maxed = SDK.WindowManager.isMaximized(w.id) === true;
+    SDK.WindowManager.unmaximize(w.id);
+    const back = SDK.WindowManager.isMaximized(w.id) === false;
+    const renamed = SDK.WindowManager.setTitle(w.id, 'Renamed') && SDK.WindowManager.get(w.id).title === 'Renamed';
+    const mins = SDK.WindowManager.setMinSize(w.id, 200, 150);
+    SDK.WindowManager.close(w.id);
+    return start && maxed && back && renamed && mins;
+})());
+check('minimize/restore/isMinimized', (() => {
+    const w = SDK.WindowManager.create({ appId: 'sdkSmoke', title: 'Min', content: '' });
+    SDK.WindowManager.minimize(w.id);
+    const min = SDK.WindowManager.isMinimized(w.id) === true;
+    SDK.WindowManager.restore(w.id);
+    const ok = min && SDK.WindowManager.isMinimized(w.id) === false;
+    SDK.WindowManager.close(w.id);
+    return ok;
+})());
+check('drag/resize state reads + subscriptions', (() => {
+    const w = SDK.WindowManager.create({ appId: 'sdkSmoke', title: 'Drag', content: '' });
+    const idle = SDK.WindowManager.isDragging(w.id) === false && SDK.WindowManager.isResizing(w.id) === false;
+    let hits = 0;
+    const offD = SDK.WindowManager.onDragState(() => { hits++; });
+    const offR = SDK.WindowManager.onResizeState(() => { hits++; });
+    const offB = SDK.WindowManager.onBoundsChanged(() => { hits++; });
+    let bad = false;
+    try { SDK.WindowManager.onDragState('x'); } catch (e) { bad = e.code === 'INVALID_ARGS'; }
+    offD(); offR(); offB();
+    SDK.WindowManager.close(w.id);
+    return idle && bad && typeof offD === 'function';
+})());
+check('onBoundsChanged fires on setBounds', (() => {
+    const w = SDK.WindowManager.create({ appId: 'sdkSmoke', title: 'BC', content: '' });
+    let seen = null;
+    const off = SDK.WindowManager.onBoundsChanged((id, bounds) => { seen = { id, bounds }; });
+    SDK.WindowManager.setBounds(w.id, { x: 1, y: 2 });
+    off();
+    SDK.WindowManager.close(w.id);
+    return seen && seen.id === w.id && seen.bounds && typeof seen.bounds.x === 'number';
+})());
+check('bound app.window mirrors new methods + app.media shape', (() => {
+    const w2 = ['isMinimized', 'bounds', 'setBounds', 'move', 'resize', 'center', 'isMaximized', 'maximize',
+        'unmaximize', 'isResizable', 'setResizable', 'isDragging', 'isResizing', 'onDragState', 'onBoundsChanged',
+        'setTitle', 'setMinSize', 'isFocused', 'desktopArea'].every(k => typeof app.window[k] === 'function');
+    const m = typeof app.media.microphone === 'function' && typeof app.media.camera === 'function'
+        && typeof app.media.supported === 'function' && app.media.supported() === false;
+    return w2 && m;
+})());
+
+console.log('[media honesty]');
+check('requestMicrophone without device API → UNSUPPORTED',
+    await (async () => { try { await SDK.Media.requestMicrophone('sdkSmoke'); return false; } catch (e) { return e.code === 'UNSUPPORTED'; } })());
+check('requestCamera without device API → UNSUPPORTED',
+    await (async () => { try { await SDK.Media.requestCamera('sdkSmoke'); return false; } catch (e) { return e.code === 'UNSUPPORTED'; } })());
 
 console.log('\n----------------------------------------');
 console.log(`passed ${passed}, failed ${failures.length}`);

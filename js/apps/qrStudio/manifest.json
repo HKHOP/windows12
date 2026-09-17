@@ -7,7 +7,7 @@
     "distribution": "store",
     "entry": "main.js",
     "associations": [],
-    "permissions": ["filesystem", "clipboard", "network"],
+    "permissions": ["filesystem", "clipboard", "network", "camera"],
     "store": {
         "developer": "Windows 12",
         "category": "Utilities",

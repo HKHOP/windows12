@@ -81,9 +81,13 @@ function launch() {
 
     async function startRec() {
         try {
-            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        } catch {
-            await app.dialogs.alert('Microphone blocked', 'Allow microphone access to record.');
+            stream = await app.media.microphone();
+        } catch (e) {
+            if (e && e.code === 'PERMISSION_DENIED') {
+                await app.dialogs.alert('Microphone blocked', 'Voice Recorder needs the microphone permission (revoked?) and the browser device prompt. Check Settings > Apps, then allow the mic and try again.');
+            } else {
+                await app.dialogs.alert('Microphone unavailable', 'No microphone capture API on this device.');
+            }
             return;
         }
         chunks = [];

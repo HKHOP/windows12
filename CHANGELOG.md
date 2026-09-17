@@ -4,6 +4,13 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4936] - 2026-09-17
+
+### Added
+- Windows 12 SDK v1.1.0: full window geometry/state surface — `getBounds`/`setBounds` (+`getPosition`/`setPosition`, `getSize`/`setSize`, `center`, `getDesktopArea`), `isMaximized`/`maximize`/`unmaximize`, `isFocused`/`getFocused`, `isResizable`/`setResizable` (with `resizable` create option and `.locked` handle-hiding CSS), `isDragging`/`isResizing` plus `onDragState`/`onResizeState`/`onBoundsChanged` subscriptions, `setTitle`/`setMinSize`; every method mirrored on the bound `app.window` context (which also gains the previously missing `isMinimized`)
+- New `microphone` + `camera` permissions (catalog, consent, revocation, `build-registry.js` validation) and new `Media` namespace (`app.media.microphone()/camera()/supported()` — OS grant checked before the browser prompt, honest `PERMISSION_DENIED`/`UNSUPPORTED` errors); Voice Recorder and QR Studio declare and use them
+- `test/sdk.smoke.mjs` grows 58 → 72 checks covering the new surface (all passing); `types.d.ts` and §26 updated for v1.1.0
+
 ## [12.0.4935] - 2026-09-17
 
 ### Added

@@ -15,7 +15,7 @@ const EXT_RE = /^[a-z0-9]+$/;
 // Declarative capabilities (see js/modules/permissions.js). The
 // "background" permission equals the "background" flag — either one grants
 // headless execution; "service" additionally hides the app from launchers.
-const PERMISSIONS = ['filesystem', 'notifications', 'network', 'clipboard', 'background'];
+const PERMISSIONS = ['filesystem', 'notifications', 'network', 'clipboard', 'background', 'microphone', 'camera'];
 
 function fail(msg) {
     console.error('build-registry: ERROR: ' + msg);

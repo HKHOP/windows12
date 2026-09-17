@@ -7,7 +7,7 @@
     "distribution": "store",
     "entry": "main.js",
     "associations": ["m4a", "weba"],
-    "permissions": ["filesystem"],
+    "permissions": ["filesystem", "microphone"],
     "store": {
         "developer": "Windows 12",
         "category": "Music & Audio",

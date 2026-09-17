@@ -8,6 +8,9 @@ const WindowManager = (() => {
     let onWindowCreated = null;
     let onWindowClosed = null;
     let onWindowMinimized = null;
+    let onDragStateChanged = null;
+    let onResizeStateChanged = null;
+    let onBoundsChanged = null;
     let snapIndicator = null;
     let scale = 1;
     const closeHandlers = new Map();
@@ -213,6 +216,24 @@ const WindowManager = (() => {
         onWindowMinimized = cb;
     }
 
+    function setOnDragStateChanged(cb) {
+        onDragStateChanged = cb;
+    }
+
+    function setOnResizeStateChanged(cb) {
+        onResizeStateChanged = cb;
+    }
+
+    function setOnBoundsChanged(cb) {
+        onBoundsChanged = cb;
+    }
+
+    function fireBoundsChanged(id) {
+        if (onBoundsChanged) {
+            try { onBoundsChanged(id, getBounds(id)); } catch (e) { /* listener must not break WM */ }
+        }
+    }
+
     function setCloseHandler(appId, handler) {
         closeHandlers.set(appId, handler);
     }
@@ -264,6 +285,9 @@ const WindowManager = (() => {
             saveState: true
         };
         const opts = { ...defaults, ...options };
+        const resizable = opts.resizable !== false;
+        const minWidth = Number.isFinite(opts.minWidth) ? opts.minWidth : defaults.minWidth;
+        const minHeight = Number.isFinite(opts.minHeight) ? opts.minHeight : defaults.minHeight;
 
         let x, y, width, height, isMaximized = false;
         let restoreBounds = null;
@@ -345,8 +369,18 @@ const WindowManager = (() => {
             desktopId: (opts.desktopId
                 || (desktopProvider && typeof desktopProvider.getActiveId === 'function' && desktopProvider.getActiveId())
                 || 'desktop-1'),
-            minimized: false
+            minimized: false,
+            // Geometry contracts for the SDK: resizable windows show the 8
+            // edge/corner handles (CSS hides them under .locked); dragging
+            // and resizing flags are live during pointer gestures.
+            resizable,
+            minWidth,
+            minHeight,
+            dragging: false,
+            resizing: false
         };
+
+        if (!resizable) win.classList.add('locked');
 
         if (isMaximized) {
             win.classList.add('maximized');
@@ -360,7 +394,7 @@ const WindowManager = (() => {
 
         windows.set(id, windowData);
         setupDrag(win, windowData);
-        setupResize(win, windowData, opts.minWidth, opts.minHeight);
+        setupResize(win, windowData);
         setupControls(win, windowData);
 
         win.addEventListener('mousedown', () => focusWindow(id));
@@ -415,6 +449,8 @@ const WindowManager = (() => {
             }
 
             isDragging = true;
+            data.dragging = true;
+            if (onDragStateChanged) { try { onDragStateChanged(data.id, true); } catch (err) { /* ignore */ } }
             startX = e.clientX;
             startY = e.clientY;
             startLeft = win.offsetLeft;
@@ -445,6 +481,8 @@ const WindowManager = (() => {
         document.addEventListener('mouseup', () => {
             if (isDragging) {
                 isDragging = false;
+                data.dragging = false;
+                if (onDragStateChanged) { try { onDragStateChanged(data.id, false); } catch (err) { /* ignore */ } }
                 header.classList.remove('dragging');
 
                 if (currentSnap) {
@@ -469,6 +507,7 @@ const WindowManager = (() => {
                 hideSnapIndicator();
 
                 persistState(data);
+                fireBoundsChanged(data.id);
             }
         });
 
@@ -478,7 +517,7 @@ const WindowManager = (() => {
         });
     }
 
-    function setupResize(win, data, minW, minH) {
+    function setupResize(win, data) {
         const handles = win.querySelectorAll('.resize-handle');
         let isResizing = false;
         let currentHandle;
@@ -486,8 +525,10 @@ const WindowManager = (() => {
 
         handles.forEach(handle => {
             handle.addEventListener('mousedown', (e) => {
-                if (data.isMaximized) return;
+                if (data.isMaximized || data.resizable === false) return;
                 isResizing = true;
+                data.resizing = true;
+                if (onResizeStateChanged) { try { onResizeStateChanged(data.id, true); } catch (err) { /* ignore */ } }
                 currentHandle = handle;
                 startX = e.clientX;
                 startY = e.clientY;
@@ -507,6 +548,8 @@ const WindowManager = (() => {
             const dx = (e.clientX - startX) / z;
             const dy = (e.clientY - startY) / z;
             const classList = currentHandle.classList;
+            const minW = data.minWidth;
+            const minH = data.minHeight;
 
             let newW = startW, newH = startH, newL = startL, newT = startT;
 
@@ -532,8 +575,13 @@ const WindowManager = (() => {
         });
 
         document.addEventListener('mouseup', () => {
-            if (isResizing) persistState(data);
-            isResizing = false;
+            if (isResizing) {
+                isResizing = false;
+                data.resizing = false;
+                if (onResizeStateChanged) { try { onResizeStateChanged(data.id, false); } catch (err) { /* ignore */ } }
+                persistState(data);
+                fireBoundsChanged(data.id);
+            }
             currentHandle = null;
         });
     }
@@ -580,6 +628,7 @@ const WindowManager = (() => {
         }
 
         persistState(data);
+        fireBoundsChanged(data.id);
     }
 
     function closeWindow(id) {
@@ -631,11 +680,133 @@ const WindowManager = (() => {
         return windows.get(id);
     }
 
+    // ---------- geometry + state contracts (SDK surface) ----------
+
+    // Current box in container layout px, plus live state flags.
+    // Maximized windows report the live desktop fill.
+    function getBounds(id) {
+        const data = windows.get(id);
+        if (!data) return null;
+        const el = data.element;
+        return {
+            x: el.offsetLeft || 0,
+            y: el.offsetTop || 0,
+            width: el.offsetWidth || 0,
+            height: el.offsetHeight || 0,
+            maximized: !!data.isMaximized,
+            minimized: !!data.minimized
+        };
+    }
+
+    function applyBounds(data, bounds) {
+        const el = data.element;
+        const minW = data.minWidth || 200;
+        const minH = data.minHeight || 150;
+        if (Number.isFinite(bounds.width)) el.style.width = Math.max(minW, bounds.width) + 'px';
+        if (Number.isFinite(bounds.height)) el.style.height = Math.max(minH, bounds.height) + 'px';
+        if (Number.isFinite(bounds.x)) el.style.left = Math.max(0, bounds.x) + 'px';
+        if (Number.isFinite(bounds.y)) el.style.top = Math.max(0, bounds.y) + 'px';
+    }
+
+    // Programmatic move/resize. Un-maximizes first so the box you set is
+    // the box you get; persists + notifies like a manual gesture.
+    function setBounds(id, bounds) {
+        const data = windows.get(id);
+        if (!data || !bounds) return false;
+        if (data.isMaximized) toggleMaximize(data);
+        applyBounds(data, bounds);
+        persistState(data);
+        fireBoundsChanged(id);
+        return true;
+    }
+
+    function center(id) {
+        const data = windows.get(id);
+        if (!data) return false;
+        const area = getDesktopArea();
+        const w = data.element.offsetWidth || data.minWidth || 400;
+        const h = data.element.offsetHeight || data.minHeight || 300;
+        return setBounds(id, {
+            x: Math.max(0, (area.w - w) / 2),
+            y: Math.max(0, (area.h - h) / 2)
+        });
+    }
+
+    function setResizable(id, resizable) {
+        const data = windows.get(id);
+        if (!data) return false;
+        data.resizable = resizable !== false;
+        if (data.element.classList) data.element.classList.toggle('locked', !data.resizable);
+        return true;
+    }
+
+    function isResizable(id) {
+        const data = windows.get(id);
+        return !!(data && data.resizable !== false);
+    }
+
+    function isDragging(id) {
+        const data = windows.get(id);
+        return !!(data && data.dragging);
+    }
+
+    function isResizing(id) {
+        const data = windows.get(id);
+        return !!(data && data.resizing);
+    }
+
+    function isMaximized(id) {
+        const data = windows.get(id);
+        return !!(data && data.isMaximized);
+    }
+
+    function setMaximized(id, maximized) {
+        const data = windows.get(id);
+        if (!data) return false;
+        if (!!maximized === !!data.isMaximized) return true;
+        toggleMaximize(data);
+        return true;
+    }
+
+    function isFocused(id) {
+        const data = windows.get(id);
+        return !!(data && data.element.classList && data.element.classList.contains('focused'));
+    }
+
+    function getFocused() {
+        let top = null;
+        let topZ = -Infinity;
+        windows.forEach((data) => {
+            if (data.element.classList && data.element.classList.contains('focused')) {
+                const z = parseInt(data.element.style.zIndex, 10);
+                if (Number.isFinite(z) ? z >= topZ : true) { top = data; topZ = z; }
+            }
+        });
+        return top;
+    }
+
+    function setTitle(id, title) {
+        const data = windows.get(id);
+        if (!data || typeof title !== 'string') return false;
+        data.title = title;
+        const el = data.element.querySelector && data.element.querySelector('.window-title');
+        if (el) el.textContent = title;
+        return true;
+    }
+
+    function setMinSize(id, minWidth, minHeight) {
+        const data = windows.get(id);
+        if (!data) return false;
+        if (Number.isFinite(minWidth) && minWidth > 0) data.minWidth = minWidth;
+        if (Number.isFinite(minHeight) && minHeight > 0) data.minHeight = minHeight;
+        return true;
+    }
+
     function getAllWindows() {
         return Array.from(windows.values());
     }
 
-    return { init, setScale, getScale, setDesktopProvider, setMinimized, isMinimized, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, setOnWindowMinimized, setCloseHandler, removeCloseHandler, requestClose, closeAllWindows, requestCloseAllWindows, createWindow, focusWindow, closeWindow, getWindowsByApp, getAllWindows, minimizeAll, toggleMaximize, _getWindow };
+    return { init, setScale, getScale, getDesktopArea, setDesktopProvider, setMinimized, isMinimized, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, setOnWindowMinimized, setOnDragStateChanged, setOnResizeStateChanged, setOnBoundsChanged, setCloseHandler, removeCloseHandler, requestClose, closeAllWindows, requestCloseAllWindows, createWindow, focusWindow, closeWindow, getWindowsByApp, getAllWindows, getFocused, minimizeAll, toggleMaximize, setMaximized, isMaximized, isFocused, getBounds, setBounds, center, setResizable, isResizable, isDragging, isResizing, setTitle, setMinSize, _getWindow };
 })();
 
 export default WindowManager;

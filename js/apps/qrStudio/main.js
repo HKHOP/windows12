@@ -101,8 +101,13 @@ function launch() {
                 body.querySelector('.qr-cam').textContent = 'Camera scan';
                 return;
             }
-            try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); }
-            catch { out.textContent = 'Camera blocked.'; return; }
+            try { stream = await app.media.camera({ video: { facingMode: 'environment' } }); }
+            catch (e) {
+                out.textContent = e && e.code === 'PERMISSION_DENIED'
+                    ? 'Camera blocked (OS permission or browser prompt).'
+                    : 'Camera unavailable on this device.';
+                return;
+            }
             video.srcObject = stream;
             await video.play();
             video.style.display = 'block';

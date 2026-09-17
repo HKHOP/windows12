@@ -42,7 +42,7 @@ Minimal `manifest.json` for a builtin app:
 }
 ```
 
-Known permissions: `filesystem` (virtual files), `notifications` (toasts + panel), `network` (fetch + remote embeds), `clipboard` (read copies), `background` (headless execution — equals the `"background": true` flag, so declare one or the other). `build-registry.js` rejects unknown names.
+Known permissions: `filesystem` (virtual files), `notifications` (toasts + panel), `network` (fetch + remote embeds), `clipboard` (read copies), `background` (headless execution — equals the `"background": true` flag, so declare one or the other), `microphone` (audio capture via `app.media`), `camera` (video capture via `app.media`). `build-registry.js` rejects unknown names.
 
 Store apps show their permissions on the Store page, install asks for consent, and users can revoke per app in Settings > Apps (a revoked `notifications` permission blocks that app's toasts). Builtins are first-party and always granted. Check at runtime with `Permissions.isGranted(appId, perm)` (see §24).
 
@@ -1030,7 +1030,7 @@ Rules of the road:
 
 **Why it exists.** Apps used to import OS internals directly (`../../modules/windowManager.js`, ...), coupling every app to file paths that may move. The SDK (`js/sdk/`) is the stable public contract: one entry point, validated arguments, coherent errors, and a bound per-app context. Internals keep evolving underneath; SDK apps keep working.
 
-**Status: stable/public** (contract v1.0.0, `SDK_VERSION`). Experimental: nothing in v1 -- every namespace below is stable. Internal: everything under `js/modules/` remains internal; use it only when the SDK genuinely lacks something, and expect it to move.
+**Status: stable/public** (contract v1.1.0, `SDK_VERSION`). Experimental: nothing in v1 -- every namespace below is stable. Internal: everything under `js/modules/` remains internal; use it only when the SDK genuinely lacks something, and expect it to move.
 
 ### Import (primary style: one bound context)
 
@@ -1065,19 +1065,20 @@ Each `js/sdk/*.js` file is a thin facade over one internal module -- no logic is
 
 | Namespace | What | Key methods |
 |-----------|------|-------------|
-| `app.window` / `WindowManager` | windows | `create({appId,title,icon,content,width,height})`, `get/focus/minimize/restore/toggleMaximize/close/requestClose/closeAll/getByApp/getAllWindows`, `Lifecycle.onClose` vetoes |
+| `app.window` / `WindowManager` | windows | `create({appId,title,icon,content,width,height,resizable})`, `get/focus/isFocused/getFocused/minimize/restore/isMinimized/maximize/unmaximize/isMaximized/toggleMaximize`, `getBounds/setBounds/getPosition/setPosition/getSize/setSize/center/getDesktopArea`, `isResizable/setResizable/setMinSize`, `isDragging/isResizing/onDragState/onResizeState/onBoundsChanged`, `setTitle/close/requestClose/closeAll/getByApp/getAllWindows`, `Lifecycle.onClose` vetoes |
 | `app.files` / `FileSystem` | virtual FS | scoped `read/write/exists/list/mkdir/remove/rename` + `settings.get/set/all`; raw `readFile/writeFile/createFile/createFolder/delete (remove recycles)/destroy/rename/move/exists/isFolder/list/blobs/pickSave` |
 | `app.notify` / `Notifications` | toasts + panel | `info/action/form`, `dismiss/clearAll/getAll/open/close/toggle`, Focus Assist; sends are permission-gated automatically |
 | `app.dialogs` / `Dialogs` | modal dialogs | `alert/confirm/text/select/form` (all Promises; never native `alert()`) |
 | `app.keyboard` / `Keyboard` | shortcuts | `register('CTRL+SHIFT+P', cb, {scope, owner(auto), allowInInputs, description})`, `unregister/unregisterAll/list/isDown`; exact-modifier matching; return `false` to pass through; reserved: PRINTSCREEN, WIN+V, ALT+F4, layered ESCAPE |
 | `app.clipboard` / `Clipboard` | clipboard | `writeText/readText` (reject cleanly without browser permission), `sync/show/hide/toggle/getHistory/clearHistory` |
+| `app.media` / `Media` | mic + camera | `microphone()/camera()` (OS grant checked first: revoked → `PERMISSION_DENIED` before any browser prompt; missing device → `UNSUPPORTED`), `supported()`; declare `microphone`/`camera` in manifest.json |
 | `Apps` | app management | `get/getMetadata/getAll/isInstalled/launch`, `install` (permission consent), `uninstall` (always confirms), `getPermissions/hasPermission` |
 | `Settings` | user settings | `get/getAll/set` (privileged display keys throw `PERMISSION_DENIED`), `open/openPage('personalization')` |
 | `app.shell` / `Shell` | chrome | `icons.app/action/file/folder/sidebar/setting`, `contextMenu(x,y,items)`, `files.open/openWith/openWithApp`, `activity.trackFileOpen/trackAppOpen/recommended` |
 | `FileAssociations` | file types | `register/unregister/getCandidates/getAllCapable/getDefault/setDefault/clearDefault` (manifest `"associations"` still preferred) |
 | `System` | OS facts | `info()/theme()/setTheme()/accent()/setAccent()` (appearance writes are user-action only) |
 | `Events` | shared bus | `on/off/names` for `app-installed/uninstalled`, `background-apps-changed`, `app-crashed`, `virtual-desktop-changed` (window-created/closed are single-slot internals -- intentionally absent) |
-| `app.permissions` / `Permissions` | capabilities | `has/require(throws)/getDeclared/catalog/iconFor/request` (grants stay user-owned) |
+| `app.permissions` / `Permissions` | capabilities | `has/require(throws)/getDeclared/catalog/iconFor/request` (grants stay user-owned); known ids: `filesystem`, `notifications`, `network`, `clipboard`, `background`, `microphone`, `camera` |
 | `app.lifecycle` / `Lifecycle` | close veto | `onClose/offClose`; background hooks (`onBackground/onForeground/onShutdown` exports) are manifest-declared |
 | `app.background` / `Background` | headless | `canRun/isService/isBackground/running/goBackground/bringToForeground/startService/stopService` |
 
@@ -1111,8 +1112,8 @@ The SDK is a **stability facade, not a sandbox** -- apps share one JS context, s
 
 ### Versioning
 
-`SDK_VERSION` (`'1.0.0'`) is independent of the OS version. Within major 1, namespaces only gain methods; renames/removals wait for a major bump and a migration note here.
+`SDK_VERSION` (`'1.1.0'`) is independent of the OS version. Within major 1, namespaces only gain methods; renames/removals wait for a major bump and a migration note here. v1.1.0 added: window geometry/state (`getBounds/setBounds`, `isMaximized/maximize/unmaximize`, `isResizable/setResizable`, `isDragging/isResizing` + `onDragState/onResizeState/onBoundsChanged`, `setTitle/setMinSize/center/getDesktopArea/getFocused`), the `microphone` + `camera` permissions, and the `Media` namespace (`app.media`).
 
 ### Test coverage
 
-`node test/sdk.smoke.mjs` (zero dependencies) stubs the browser surface, imports the real SDK + all 26 apps through the real registry, and asserts 58 checks: surface, error codes, shortcut dispatch/passthrough/unregister, events, filesystem roundtrip + recycle, sandbox scoping + traversal rejection, catalogs, clipboard denial honesty, headless window create/close. DOM-painted paths (toast animation, live permission prompts) are exercised in-OS via the sample app.
+`node test/sdk.smoke.mjs` (zero dependencies) stubs the browser surface, imports the real SDK + all 37 apps through the real registry, and asserts 72 checks: surface, error codes, shortcut dispatch/passthrough/unregister, events, filesystem roundtrip + recycle, sandbox scoping + traversal rejection, catalogs (incl. microphone/camera grants), clipboard denial honesty, headless window create/close, window geometry + state (bounds, resizable lock, maximize, minimize, drag/resize subscriptions), media denial honesty. DOM-painted paths (toast animation, live permission prompts) are exercised in-OS via the sample app.

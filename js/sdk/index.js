@@ -1,4 +1,4 @@
-// Windows 12 SDK — stable public entry point (v1.0.0, independent of the
+// Windows 12 SDK — stable public entry point (v1.1.0, independent of the
 // OS version). Facade only: every namespace delegates to the internal
 // modules, so behavior, settings and permissions are identical to the OS.
 //
@@ -28,11 +28,12 @@ import { Events } from './events.js';
 import { Permissions } from './permissions.js';
 import { Lifecycle } from './lifecycle.js';
 import { Background } from './background.js';
+import { Media } from './media.js';
 import { createApp } from './app.js';
 import { SDKError, ErrorCodes } from './errors.js';
 
 /** SDK major contract version (semver, independent of the OS version). */
-const SDK_VERSION = '1.0.0';
+const SDK_VERSION = '1.1.0';
 
 const Windows12 = {
     SDK_VERSION,
@@ -54,6 +55,7 @@ const Windows12 = {
     Permissions,
     Lifecycle,
     Background,
+    Media,
     SDKError,
     ErrorCodes
 };
@@ -76,6 +78,7 @@ export {
     Permissions,
     Lifecycle,
     Background,
+    Media,
     SDKError,
     ErrorCodes
 };
