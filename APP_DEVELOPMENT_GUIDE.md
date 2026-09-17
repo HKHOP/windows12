@@ -1116,4 +1116,23 @@ The SDK is a **stability facade, not a sandbox** -- apps share one JS context, s
 
 ### Test coverage
 
-`node test/sdk.smoke.mjs` (zero dependencies) stubs the browser surface, imports the real SDK + all 37 apps through the real registry, and asserts 72 checks: surface, error codes, shortcut dispatch/passthrough/unregister, events, filesystem roundtrip + recycle, sandbox scoping + traversal rejection, catalogs (incl. microphone/camera grants), clipboard denial honesty, headless window create/close, window geometry + state (bounds, resizable lock, maximize, minimize, drag/resize subscriptions), media denial honesty. DOM-painted paths (toast animation, live permission prompts) are exercised in-OS via the sample app.
+`node test/sdk.smoke.mjs` (zero dependencies) stubs the browser surface, imports the real SDK + all 37 apps through the real registry, and asserts 79 checks: surface, error codes, shortcut dispatch/passthrough/unregister, events, filesystem roundtrip + recycle, sandbox scoping + traversal rejection, catalogs (incl. microphone/camera grants), clipboard denial honesty, headless window create/close, window geometry + state (bounds, resizable lock, maximize, minimize, drag/resize subscriptions), media denial honesty, virtual-keyboard init/gating/layouts/auto-show. DOM-painted paths (toast animation, live permission prompts) are exercised in-OS via the sample app.
+
+---
+
+## 27. Touch keyboard (on-screen keyboard)
+
+`js/modules/virtualKeyboard.js` + `css/virtualKeyboard.css` implement the OS on-screen keyboard that replaces the native iOS/Android keyboard inside Windows 12. It is **not** an app — it is shell chrome, like the taskbar.
+
+**User-facing behavior:**
+
+- Settings > System > Touch keyboard: master enable (*"Use touch keyboard instead of the native OS keyboard"*), *"Show automatically when a text field is focused"*, and *"Taskbar button"* (tray icon summons it at any time). Auto-on for touch devices, off for desktops (both can change it).
+- When enabled, focusing an `input`/`textarea`/`contenteditable` suppresses the native keyboard (`readonly` + `inputmode="none"`, restored on blur) and docks the OSK above the taskbar. Disabling restores native behavior everywhere.
+- Layouts: `abc` (QWERTY, one-shot Shift, double-tap Caps Lock), `123` (numbers, arrows), `#+=` (symbols, Esc). Backspace/Space/arrows repeat on hold. The `⌄` key, the tray button, or focus loss dismisses it.
+
+**What app authors need to know:**
+
+- Key presses are honest input, not DOM hacks: each press dispatches a real bubbling `keydown`/`keyup` (`KeyboardEvent` with `.key` set — the central shortcut registry and games see touch input) and then edits via `setRangeText` + `InputEvent('input')`. If your `keydown` handler calls `preventDefault()`, the insertion is vetoed.
+- `Enter` in a single-line field inside a `<form>` submits the form (unless the keydown was vetoed); in a `textarea` it inserts a newline.
+- `window` event `touch-keyboard-visibility` (`{ detail: { open } }`) fires on show/hide — use it to shrink scroll regions above the keyboard.
+- Programmatic control (console, system UI): `window._modules.VirtualKeyboard.show()/hide()/toggle()/isOpen()`.

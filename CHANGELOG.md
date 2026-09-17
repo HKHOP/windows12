@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4937] - 2026-09-17
+
+### Added
+- Custom touch keyboard (`js/modules/virtualKeyboard.js` + `css/virtualKeyboard.css`): on-screen QWERTY replacing the native iOS/Android keyboard — `abc`/`123`/`#+=` layouts, one-shot Shift + double-tap Caps Lock, hold-to-repeat Backspace/Space/arrows, Esc key, light/dark themes, compact phone sizing
+- Honest input pipeline: every press dispatches real bubbling `keydown`/`keyup` (central shortcut registry and games see touch input; `preventDefault()` vetoes insertion) then edits via `setRangeText` + `InputEvent`; Enter submits forms / newlines in textareas; `touch-keyboard-visibility` window event for apps
+- Native suppression (`readonly` + `inputmode="none"`, restored on blur), tray summon button any time, Settings > System > Touch keyboard page (master enable, auto-show on textbox focus, tray toggle, live Try-it field) backed by `touchKeyboardEnabled`/`touchKeyboardAutoShow`/`touchKeyboardTrayButton` config (auto-on for touch devices, opt-in for desktops); documented as §27
+- Smoke tests grow 72 → 79 checks (init, gating, layouts, show/hide/toggle, focusin auto-show)
+
 ## [12.0.4936] - 2026-09-17
 
 ### Added

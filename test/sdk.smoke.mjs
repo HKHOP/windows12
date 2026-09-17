@@ -30,7 +30,7 @@ function makeEl(tag) {
     const el = {
         tagName: (tag || 'div').toUpperCase(),
         children: [],
-        style: {},
+        style: { setProperty() {}, removeProperty() {} },
         dataset: {},
         _listeners: {},
         _text: '',
@@ -56,6 +56,7 @@ function makeEl(tag) {
             if (p === 'contains') return () => false;
             if (p === 'getContext') return () => null;
             if (p === 'select' || p === 'focus' || p === 'blur' || p === 'click' || p === 'remove') return () => {};
+            if (p === 'setAttribute' || p === 'removeAttribute') return () => {};
             if (p === 'isConnected') return true;
             if (p === Symbol.toPrimitive) return () => '';
             if (p === 'offsetLeft' || p === 'offsetTop' || p === 'offsetWidth' || p === 'offsetHeight' || p === 'clientWidth' || p === 'clientHeight') return 0;
@@ -350,6 +351,49 @@ check('requestMicrophone without device API → UNSUPPORTED',
     await (async () => { try { await SDK.Media.requestMicrophone('sdkSmoke'); return false; } catch (e) { return e.code === 'UNSUPPORTED'; } })());
 check('requestCamera without device API → UNSUPPORTED',
     await (async () => { try { await SDK.Media.requestCamera('sdkSmoke'); return false; } catch (e) { return e.code === 'UNSUPPORTED'; } })());
+
+console.log('[virtual keyboard]');
+const VKMod = await import('../js/modules/virtualKeyboard.js');
+const VK = VKMod.default;
+const SysConfMod = await import('../js/modules/systemConfig.js');
+const SysConf = SysConfMod.default;
+check('init is safe headless', (() => { try { VK.init(); return true; } catch (e) { return false; } })());
+check('disabled by default in node (no touch)', VK.isEnabled() === false);
+check('show() refuses while disabled', VK.show() === false && VK.isOpen() === false);
+check('layouts expose abc/123/sym with core keys', (() => {
+    const L = VK.getLayouts();
+    const flat = (rows) => rows.flat();
+    return L && Array.isArray(L.abc) && Array.isArray(L['123']) && Array.isArray(L.sym)
+        && flat(L.abc).includes('q') && flat(L.abc).includes('⏎:enter')
+        && flat(L.abc).includes('⇧:shift') && flat(L.abc).includes('⌫:backspace')
+        && flat(L['123']).includes('5') && flat(L.sym).includes('[');
+})());
+check('enable → show/hide/toggle roundtrip', (() => {
+    SysConf.set('touchKeyboardEnabled', true);
+    const shown = VK.show() === true && VK.isOpen() === true;
+    const hid = VK.hide() === true && VK.isOpen() === false;
+    VK.toggle();
+    const re = VK.isOpen() === true;
+    VK.toggle();
+    return shown && hid && re && VK.isOpen() === false;
+})());
+check('focusin on a text field auto-shows', (() => {
+    SysConf.set('touchKeyboardEnabled', true);
+    SysConf.set('touchKeyboardAutoShow', true);
+    const fake = { tagName: 'INPUT', type: 'text', disabled: false, isContentEditable: false, readOnly: false, inputMode: '', dataset: {} };
+    for (const fn of docListeners.focusin || []) fn({ target: fake });
+    const shown = VK.isOpen() === true;
+    for (const fn of docListeners.focusout || []) fn({ target: fake, relatedTarget: null });
+    const hidden = VK.isOpen() === false;
+    SysConf.set('touchKeyboardEnabled', false);
+    return shown && hidden && VK.isOpen() === false;
+})());
+check('focusin ignored while disabled', (() => {
+    SysConf.set('touchKeyboardEnabled', false);
+    const fake = { tagName: 'TEXTAREA', disabled: false, isContentEditable: false, readOnly: false, inputMode: '', dataset: {} };
+    for (const fn of docListeners.focusin || []) fn({ target: fake });
+    return VK.isOpen() === false;
+})());
 
 console.log('\n----------------------------------------');
 console.log(`passed ${passed}, failed ${failures.length}`);

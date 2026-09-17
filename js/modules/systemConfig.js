@@ -1,6 +1,12 @@
 const SystemConfig = (() => {
     const CONFIG_PATH = ['/', 'system', 'config.json'];
 
+    // Touch devices get the on-screen keyboard out of the box (it replaces
+    // the native iOS/Android keyboard); desktops default to off but can
+    // opt in from Settings > System > Touch keyboard.
+    const HAS_TOUCH = (typeof window !== 'undefined') &&
+        (('ontouchstart' in window) || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0));
+
     const defaults = {
         accentColor: '#0078D4',
         backgroundStyle: 'gradient',
@@ -29,6 +35,9 @@ const SystemConfig = (() => {
         snapAuto: true,
         virtualTouchpadEnabled: false,
         touchpadSensitivity: 1.6,
+        touchKeyboardEnabled: HAS_TOUCH,
+        touchKeyboardAutoShow: true,
+        touchKeyboardTrayButton: true,
         cursorTheme: 'default',
         cursorSize: 'normal',
         cursorStyle: 'modern'

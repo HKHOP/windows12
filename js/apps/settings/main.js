@@ -10,6 +10,7 @@ import AppLoader from '../../modules/appLoader.js';
 import { AppMetadata } from '../../modules/taskbar.js';
 import WindowsUpdate from '../../modules/windowsUpdate.js';
 import Touch from '../../modules/touch.js';
+import VirtualKeyboard from '../../modules/virtualKeyboard.js';
 import Cursor from '../../modules/cursor.js';
 import VirtualDesktops from '../../modules/virtualDesktops.js';
 import Permissions from '../../modules/permissions.js';
@@ -20,6 +21,9 @@ const Settings = (() => {
     let currentPage = 'system';
     let currentSubPage = null;
     let win = null;
+
+    // No keyboard glyph in ShellIcons — inline tile icon (same 20px box).
+    const TOUCH_KBD_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6" stroke-linecap="round"/></svg>';
 
     const pages = {
         system: { name: 'System', icon: UIIcons.setting('system', 20) },
@@ -39,7 +43,8 @@ const Settings = (() => {
         power: { name: 'Power & battery', icon: UIIcons.setting('power', 20) },
         storage: { name: 'Storage', icon: UIIcons.setting('storage', 20) },
         multitasking: { name: 'Multitasking', icon: UIIcons.setting('multitasking', 20) },
-        touchpad: { name: 'Touchpad', icon: UIIcons.setting('touchpad', 20) }
+        touchpad: { name: 'Touchpad', icon: UIIcons.setting('touchpad', 20) },
+        touchKeyboard: { name: 'Touch keyboard', icon: TOUCH_KBD_ICON }
     };
 
     function getContent() {
@@ -107,6 +112,7 @@ const Settings = (() => {
                 ${systemCard(UIIcons.setting('storage', 22), 'Storage', 'Storage space, drives', 'storage')}
                 ${systemCard(UIIcons.setting('multitasking', 22), 'Multitasking', 'Snap windows, desktops', 'multitasking')}
                 ${systemCard(UIIcons.setting('touchpad', 22), 'Touchpad', 'Virtual touchpad, gestures', 'touchpad')}
+                ${systemCard(TOUCH_KBD_ICON.replace('width="20" height="20"', 'width="22" height="22"'), 'Touch keyboard', 'On-screen keyboard, auto-show', 'touchKeyboard')}
             </div>
         `;
 
@@ -137,6 +143,7 @@ const Settings = (() => {
             case 'storage': renderStorageSettings(el); break;
             case 'multitasking': renderMultitaskingSettings(el); break;
             case 'touchpad': renderTouchpadSettings(el); break;
+            case 'touchKeyboard': renderTouchKeyboardSettings(el); break;
         }
     }
 
@@ -760,6 +767,76 @@ const Settings = (() => {
                 SystemConfig.set('touchpadSensitivity', parseFloat(slider.value));
             });
         }
+    }
+
+    function renderTouchKeyboardSettings(el) {
+        const config = SystemConfig.getAll();
+        const enabled = !!config.touchKeyboardEnabled;
+        const autoShow = config.touchKeyboardAutoShow !== false;
+        const trayBtn = config.touchKeyboardTrayButton !== false;
+        const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+        const toggleRow = (title, desc, cls, checked, dimmed) => `
+            <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;${dimmed ? 'opacity:0.5;pointer-events:none;' : ''}">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <div style="font-size:14px;font-weight:500;">${title}</div>
+                        <div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">${desc}</div>
+                    </div>
+                    <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;">
+                        <input type="checkbox" class="${cls}" ${checked ? 'checked' : ''} style="opacity:0;width:0;height:0;">
+                        <span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--accent-color);border-radius:12px;transition:0.3s;"></span>
+                    </label>
+                </div>
+            </div>`;
+
+        el.innerHTML += `
+            <div style="display:flex;flex-direction:column;gap:16px;">
+                ${toggleRow('Touch keyboard',
+                    hasTouch
+                        ? 'Use the Windows 12 keyboard instead of the native iOS / Android one.'
+                        : 'No touch screen detected — enable it anyway to type with mouse or touch.',
+                    'tk-enable-toggle', enabled, false)}
+                ${toggleRow('Show automatically',
+                    'Open the keyboard whenever a text field is focused. Turn off to summon it only from the taskbar.',
+                    'tk-auto-toggle', autoShow, !enabled)}
+                ${toggleRow('Taskbar button',
+                    'Show the keyboard button in the taskbar tray so it can be requested at any time.',
+                    'tk-tray-toggle', trayBtn, !enabled)}
+                <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
+                    <div style="font-size:14px;font-weight:500;margin-bottom:4px;">Try it</div>
+                    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Focus this field${enabled && autoShow ? '' : ' (enable + auto-show first)'}:</div>
+                    <input type="text" class="tk-demo-input" placeholder="Type here…" style="width:100%;box-sizing:border-box;background:rgba(0,0,0,0.3);border:1px solid var(--window-border);color:var(--text-primary);border-radius:6px;padding:10px 12px;font-size:14px;outline:none;">
+                    <button class="tk-show-now" style="margin-top:12px;background:var(--accent-color);border:none;color:white;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:500;">Show keyboard now</button>
+                </div>
+                <div style="font-size:12px;color:var(--text-secondary);">Tip: Shift toggles capitals for one letter — double-tap it for Caps Lock. Hold Backspace to delete whole words quickly.</div>
+            </div>
+        `;
+
+        el.querySelector('.tk-enable-toggle').addEventListener('change', (e) => {
+            SystemConfig.set('touchKeyboardEnabled', e.target.checked);
+            try { VirtualKeyboard.refresh(); } catch (err) {}
+            renderPage();
+        });
+        const autoT = el.querySelector('.tk-auto-toggle');
+        if (autoT) autoT.addEventListener('change', (e) => {
+            SystemConfig.set('touchKeyboardAutoShow', e.target.checked);
+            try { VirtualKeyboard.refresh(); } catch (err) {}
+        });
+        const trayT = el.querySelector('.tk-tray-toggle');
+        if (trayT) trayT.addEventListener('change', (e) => {
+            SystemConfig.set('touchKeyboardTrayButton', e.target.checked);
+            try { VirtualKeyboard.refresh(); } catch (err) {}
+        });
+        el.querySelector('.tk-show-now').addEventListener('click', () => {
+            if (!SystemConfig.get('touchKeyboardEnabled')) {
+                SystemConfig.set('touchKeyboardEnabled', true);
+                try { VirtualKeyboard.refresh(); } catch (err) {}
+                renderPage();
+                return;
+            }
+            try { VirtualKeyboard.show(); } catch (err) {}
+        });
     }
 
     function renderPersonalization(el) {
