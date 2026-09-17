@@ -11,9 +11,71 @@ import BatchEngine from '../../modules/batchEngine.js';
 import VBEngine from '../../modules/vbsEngine.js';
 import FileAssociations from '../../modules/fileAssociations.js';
 import Keyboard from '../../modules/keyboard.js';
+import Zip from '../../modules/zip.js';
 
 const FileExplorer = (() => {
     const icon = AppIcons.get('fileExplorer');
+
+    const VIEW_PATH = ['/', 'system', 'programs data', 'fileExplorer', 'view.json'];
+    const view = { sortBy: 'name', sortDir: 'asc', groupBy: 'none' };
+
+    function loadView() {
+        try {
+            const raw = FileSystem.readFile(VIEW_PATH);
+            if (raw) Object.assign(view, JSON.parse(raw));
+        } catch { /* defaults stand */ }
+        if (!['name', 'date', 'size', 'type'].includes(view.sortBy)) view.sortBy = 'name';
+        if (!['asc', 'desc'].includes(view.sortDir)) view.sortDir = 'asc';
+        if (!['none', 'type'].includes(view.groupBy)) view.groupBy = 'none';
+    }
+
+    function saveView() {
+        try {
+            const json = JSON.stringify(view);
+            if (FileSystem.itemExists(VIEW_PATH)) FileSystem.writeFile(VIEW_PATH, json);
+            else {
+                const dir = VIEW_PATH.slice(0, -1);
+                if (!FileSystem.itemExists(dir)) {
+                    FileSystem.createFolder(dir.slice(0, -1), dir[dir.length - 1]);
+                }
+                FileSystem.createFile(dir, 'view.json', json, 'json');
+            }
+        } catch { /* session-only */ }
+    }
+
+    const GROUP_ORDER = ['Folders', 'Documents', 'Images', 'Audio', 'Video', 'Archives', 'Other'];
+    const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'];
+    const AUDIO_EXTS = ['mp3', 'wav', 'ogg', 'oga', 'm4a'];
+    const VIDEO_EXTS = ['mp4', 'webm'];
+    const DOC_EXTS = ['txt', 'md', 'json', 'js', 'html', 'css', 'log', 'cfg', 'xml', 'yml', 'yaml', 'csv', 'cesheet', 'celsheet', 'sledge', 'sledgepoint'];
+
+    function categoryOf(entry) {
+        if (entry.type === 'folder') return 'Folders';
+        const e = (entry.ext || '').toLowerCase();
+        if (IMAGE_EXTS.includes(e)) return 'Images';
+        if (AUDIO_EXTS.includes(e)) return 'Audio';
+        if (VIDEO_EXTS.includes(e)) return 'Video';
+        if (e === 'zip') return 'Archives';
+        if (DOC_EXTS.includes(e)) return 'Documents';
+        return 'Other';
+    }
+
+    function sortEntries(entries) {
+        const dir = view.sortDir === 'desc' ? -1 : 1;
+        const valOf = (e) => {
+            if (view.sortBy === 'date') return e.modified || 0;
+            if (view.sortBy === 'size') return (e.type === 'folder' ? -1 : (e.size || 0));
+            if (view.sortBy === 'type') return e.type === 'folder' ? '0' : ('1' + (e.ext || '').toLowerCase());
+            return e.name.toLowerCase();
+        };
+        return [...entries].sort((a, b) => {
+            if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+            const va = valOf(a), vb = valOf(b);
+            if (va < vb) return -1 * dir;
+            if (va > vb) return 1 * dir;
+            return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1;
+        });
+    }
 
     // Open windows by id -> { win, state }. Pruned lazily via isConnected so
     // no global WindowManager close hook is needed (main.js owns that one).
@@ -41,6 +103,7 @@ const FileExplorer = (() => {
                     <button class="fe-up" style="background:none;border:none;color:var(--text-primary);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:16px;">&#9650;</button>
                     <input type="text" class="fe-path" style="flex:1;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:4px;padding:6px 10px;font-size:13px;color:var(--text-primary);outline:none;" value="This PC" spellcheck="false">
                     <input type="text" class="fe-search" placeholder="Search" style="background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:4px;padding:6px 10px;font-size:13px;color:var(--text-primary);width:160px;outline:none;">
+                    <button class="fe-sort" title="Sort and group" style="background:none;border:none;color:var(--text-secondary);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:15px;">&#8645;</button>
                 </div>
                 <div style="display:flex;flex:1;overflow:hidden;">
                     <div class="fe-sidebar" style="width:200px;background:rgba(128,128,128,0.08);border-right:1px solid var(--window-border);padding:8px;overflow-y:auto;">
@@ -177,11 +240,7 @@ const FileExplorer = (() => {
         }
         upBtn.disabled = path.length <= 1;
 
-        const entries = FileSystem.getChildren(path);
-        entries.sort((a, b) => {
-            if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
-            return a.name.localeCompare(b.name);
-        });
+        const entries = sortEntries(FileSystem.getChildren(path));
 
         contentEl.innerHTML = '';
 
@@ -193,7 +252,7 @@ const FileExplorer = (() => {
 
         const allNames = entries.map(e => e.name);
 
-        entries.forEach(entry => {
+        const appendItem = (entry) => {
             const isDir = entry.type === 'folder';
             const item = document.createElement('div');
             item.className = 'fe-item';
@@ -204,7 +263,7 @@ const FileExplorer = (() => {
             item.style.cssText = 'width:90px;padding:8px;border-radius:6px;cursor:pointer;text-align:center;transition:background 0.12s;position:relative;border:2px solid transparent;';
             item.innerHTML = `
                 <div style="display:flex;justify-content:center;margin-bottom:4px;">${isDir ? getFolderIcon(entry.name) : getFileIcon(entry.ext, entry.name)}</div>
-                <div style="font-size:12px;word-break:break-all;line-height:1.3;">${entry.name}</div>
+                <div class="fe-label" style="font-size:12px;word-break:break-all;line-height:1.3;">${entry.name}</div>
             `;
 
             function updateItemVisual() {
@@ -245,6 +304,8 @@ const FileExplorer = (() => {
             item.addEventListener('dblclick', () => {
                 if (isDir) {
                     navigate(win, [...path, entry.name], true, state);
+                } else if ((entry.ext || '').toLowerCase() === 'zip') {
+                    extractZipFlow(win, [...path, entry.name], state);
                 } else {
                     openFileWithDefaultApp([...path, entry.name], entry);
                 }
@@ -284,6 +345,10 @@ const FileExplorer = (() => {
                 ] : [
                     { label: 'Open', icon: UIIcons.action('open'), action: () => openFileWithDefaultApp(itemPath, entry) },
                     { label: 'Open With...', icon: UIIcons.action('openWith'), action: () => showOpenWithMenu(itemPath, entry) },
+                    ...((selCount === 1 && (entry.ext || '').toLowerCase() === 'zip')
+                        ? [{ label: 'Extract All…', icon: UIIcons.action('open'), action: () => extractZipFlow(win, itemPath, state) }]
+                        : []),
+                    { label: `Compress to ZIP file${selCount > 1 ? ` (${selCount} items)` : ''}`, icon: UIIcons.action('newFile'), action: () => compressSelection(win, path, [...state.selected], state) },
                     'separator',
                     { label: `Cut${multiLabel}`, icon: UIIcons.action('cut'), action: () => cutSelected(win, state) },
                     { label: `Copy${multiLabel}`, icon: UIIcons.action('copy'), action: () => copySelected(win, state) },
@@ -297,7 +362,13 @@ const FileExplorer = (() => {
             });
 
             item.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/plain', JSON.stringify({ path: itemPath, name: entry.name, type: entry.type, ext: entry.ext }));
+                // Drag the whole selection when the dragged item is part of
+                // it, otherwise just the one item. `path`/`name` stay for
+                // legacy consumers (Notepad text drop reads data.path).
+                const names = (state && state.selected.size > 0 && state.selected.has(entry.name))
+                    ? [...state.selected]
+                    : [entry.name];
+                e.dataTransfer.setData('text/plain', JSON.stringify({ names, from: path, path: itemPath, name: entry.name, type: entry.type, ext: entry.ext }));
                 e.dataTransfer.effectAllowed = 'move';
                 item.style.opacity = '0.5';
             });
@@ -317,30 +388,35 @@ const FileExplorer = (() => {
                     item.style.background = 'transparent';
                     item.style.outline = 'none';
                 });
-                item.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    item.style.background = 'transparent';
-                    item.style.outline = 'none';
-                    try {
-                        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-                        if (data.path) {
-                            const destPath = [...path, entry.name];
-                            if (data.path.join('/') === destPath.join('/')) return;
-                            if (destPath.join('/').startsWith(data.path.join('/'))) return;
-                            showProgressBar(win);
-                            setTimeout(() => {
-                                FileSystem.renameItem(data.path, data.name);
-                                navigate(win, path, false, state);
-                                refreshIfDesktop([...path, entry.name]);
-                                hideProgressBar(win);
-                            }, 300);
-                        }
-                    } catch (err) {}
-                });
+            item.addEventListener('drop', (e) => {
+                e.preventDefault();
+                item.style.background = 'transparent';
+                item.style.outline = 'none';
+                try {
+                    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                    if (data && Array.isArray(data.names) && Array.isArray(data.from)) {
+                        moveNamesWithProgress(win, [...path, entry.name], data.from, data.names, path, state);
+                    }
+                } catch (err) {}
+            });
             }
 
             contentEl.appendChild(item);
-        });
+        };
+
+        if (view.groupBy === 'type') {
+            for (const g of GROUP_ORDER) {
+                const members = entries.filter(e => categoryOf(e) === g);
+                if (members.length === 0) continue;
+                const header = document.createElement('div');
+                header.style.cssText = 'width:100%;font-size:12px;font-weight:600;color:var(--text-secondary);padding:10px 4px 2px;';
+                header.textContent = g;
+                contentEl.appendChild(header);
+                members.forEach(appendItem);
+            }
+        } else {
+            entries.forEach(appendItem);
+        }
 
         countEl.textContent = `${entries.length} item${entries.length !== 1 ? 's' : ''}`;
 
@@ -369,6 +445,211 @@ const FileExplorer = (() => {
             win.element.querySelector('.fe-progress-bar').style.display = 'none';
             fill.style.width = '0%';
         }, 400);
+    }
+
+    // Real transfer dialog: determinate progress + Cancel. Handlers update
+    // per file and yield periodically so the UI stays alive.
+    function showTransferDialog(title, total) {
+        const dlg = WindowManager.createWindow('fileExplorer', title, icon, `
+            <div style="display:flex;flex-direction:column;gap:10px;padding:16px;height:100%;box-sizing:border-box;">
+                <div class="fe-t-name" style="font-size:12px;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Starting…</div>
+                <div style="height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;">
+                    <div class="fe-t-fill" style="height:100%;width:0%;background:var(--accent-color);border-radius:4px;transition:width 0.15s;"></div>
+                </div>
+                <div class="fe-t-count" style="font-size:11px;color:var(--text-secondary);">0 of ${total}</div>
+                <div style="display:flex;justify-content:flex-end;margin-top:auto;">
+                    <button class="fe-t-cancel" style="padding:5px 18px;background:rgba(255,255,255,0.08);border:1px solid var(--window-border);border-radius:4px;color:var(--text-primary);cursor:pointer;font-size:12px;">Cancel</button>
+                </div>
+            </div>`, { width: 440, height: 180, minWidth: 360, minHeight: 160, saveState: false });
+        const el = dlg.element;
+        let cancelled = false;
+        el.querySelector('.fe-t-cancel').addEventListener('click', () => {
+            cancelled = true;
+            const btn = el.querySelector('.fe-t-cancel');
+            btn.disabled = true;
+            btn.textContent = 'Cancelling…';
+        });
+        return {
+            update(done, name) {
+                if (!el.isConnected) return;
+                el.querySelector('.fe-t-fill').style.width = total > 0 ? `${Math.round(done / total * 100)}%` : '0%';
+                el.querySelector('.fe-t-count').textContent = `${done} of ${total}`;
+                if (name) el.querySelector('.fe-t-name').textContent = name;
+            },
+            isCancelled: () => cancelled,
+            close: () => WindowManager.closeWindow(dlg.id)
+        };
+    }
+
+    function nextCopyName(destParent, name) {
+        if (!FileSystem.itemExists([...destParent, name])) return name;
+        const dot = name.lastIndexOf('.');
+        const base = dot > 0 ? name.slice(0, dot) : name;
+        const ext = dot > 0 ? name.slice(dot) : '';
+        let candidate = `${base} - Copy${ext}`;
+        let i = 2;
+        while (FileSystem.itemExists([...destParent, candidate])) {
+            candidate = `${base} - Copy (${i++})${ext}`;
+        }
+        return candidate;
+    }
+
+    function ensurePath(root, segs) {
+        let cur = root;
+        for (const s of segs) {
+            if (!FileSystem.itemExists([...cur, s])) FileSystem.createFolder(cur, s);
+            cur = [...cur, s];
+        }
+        return cur;
+    }
+
+    async function copyOneFile(src, destParent, name, ext) {
+        const final = nextCopyName(destParent, name);
+        if (FileSystem.isBlobFile(src)) {
+            try {
+                const blob = await FileSystem.readFileBlob(src);
+                if (!blob) return false;
+                return await FileSystem.writeFileBlob(destParent, final, blob, ext);
+            } catch { return false; }
+        }
+        const content = FileSystem.readFile(src);
+        if (content === null) return false;
+        return FileSystem.createFile(destParent, final, content, ext);
+    }
+
+    async function readAsBytes(p) {
+        if (FileSystem.isBlobFile(p)) {
+            try {
+                const blob = await FileSystem.readFileBlob(p);
+                if (!blob) return null;
+                return new Uint8Array(await blob.arrayBuffer());
+            } catch { return null; }
+        }
+        const text = FileSystem.readFile(p);
+        return text === null ? null : new TextEncoder().encode(text);
+    }
+
+    async function compressSelection(win, folderPath, names, state) {
+        const valid = names.filter(n => FileSystem.itemExists([...folderPath, n]));
+        if (valid.length === 0) return;
+        showProgressBar(win);
+        try {
+            const entries = [];
+            for (const n of valid) {
+                const src = [...folderPath, n];
+                if (FileSystem.isFolder(src)) {
+                    entries.push({ name: `${n}/`, isDir: true });
+                    const stack = [{ src, rel: n }];
+                    while (stack.length > 0) {
+                        const { src: s, rel } = stack.pop();
+                        for (const c of FileSystem.getChildren(s)) {
+                            if (c.type === 'folder') {
+                                entries.push({ name: `${rel}/${c.name}/`, isDir: true });
+                                stack.push({ src: [...s, c.name], rel: `${rel}/${c.name}` });
+                            } else {
+                                const data = await readAsBytes([...s, c.name]);
+                                if (data) entries.push({ name: `${rel}/${c.name}`, data });
+                            }
+                        }
+                    }
+                } else {
+                    const data = await readAsBytes(src);
+                    if (data) entries.push({ name: n, data });
+                }
+            }
+            if (entries.length === 0) {
+                Popup.error('Compress failed', 'None of the selected items could be read.');
+                return;
+            }
+            const zipBytes = await Zip.createZip(entries);
+            const base = valid.length === 1 ? valid[0].replace(/\.[^.]+$/, '') : 'Archive';
+            const zipName = nextCopyName(folderPath, `${base}.zip`);
+            const ok = await FileSystem.writeFileBlob(folderPath, zipName, new Blob([zipBytes], { type: 'application/zip' }), 'zip');
+            if (!ok) {
+                Popup.error('Compress failed', 'Could not write the ZIP file (storage may be full).');
+                return;
+            }
+            navigate(win, folderPath, false, state);
+            refreshIfDesktop(folderPath);
+        } finally {
+            hideProgressBar(win);
+        }
+    }
+
+    async function extractZipFlow(win, zipPath, state) {
+        const destParent = zipPath.slice(0, -1);
+        const base = zipPath[zipPath.length - 1].replace(/\.zip$/i, '') || 'Archive';
+        let bytes = null;
+        if (FileSystem.isBlobFile(zipPath)) {
+            try {
+                const blob = await FileSystem.readFileBlob(zipPath);
+                bytes = blob ? new Uint8Array(await blob.arrayBuffer()) : null;
+            } catch { bytes = null; }
+        } else {
+            const text = FileSystem.readFile(zipPath);
+            bytes = text === null ? null : new TextEncoder().encode(text);
+        }
+        if (!bytes) {
+            Popup.error('Extract failed', 'Could not read the ZIP file.');
+            return;
+        }
+        let entries;
+        try {
+            entries = Zip.readZip(bytes);
+        } catch (err) {
+            Popup.error('Invalid archive', 'This file is not a valid ZIP archive.');
+            return;
+        }
+        const target = nextCopyName(destParent, base);
+        FileSystem.createFolder(destParent, target);
+        const root = [...destParent, target];
+        const dlg = showTransferDialog('Extracting…', Math.max(entries.length, 1));
+        const TEXT_EXTS = new Set(['txt', 'md', 'json', 'js', 'html', 'css', 'log', 'cfg', 'xml', 'yml', 'yaml', 'csv']);
+        let i = 0;
+        let skipped = 0;
+        for (const e of entries) {
+            if (dlg.isCancelled()) break;
+            // Sanitize: no drive letters, no absolute paths, no traversal.
+            const clean = e.name.replace(/\\/g, '/').split('/').filter(seg => seg && seg !== '.' && seg !== '..').join('/');
+            if (!clean) {
+                skipped++;
+                i++;
+                dlg.update(i, e.name);
+                continue;
+            }
+            dlg.update(i, e.name);
+            if (e.isDir) {
+                ensurePath(root, clean.split('/'));
+            } else {
+                let data = null;
+                try {
+                    data = await Zip.extractFile(bytes, e);
+                } catch (err) { data = null; }
+                if (!data) {
+                    skipped++;
+                } else {
+                    const segs = clean.split('/');
+                    const fname = segs.pop();
+                    const parent = ensurePath(root, segs);
+                    const ext = (fname.includes('.') ? fname.split('.').pop() : '').toLowerCase();
+                    const final = nextCopyName(parent, fname);
+                    if (TEXT_EXTS.has(ext)) {
+                        FileSystem.createFile(parent, final, new TextDecoder('utf-8').decode(data), ext);
+                    } else {
+                        await FileSystem.writeFileBlob(parent, final, new Blob([data]), ext);
+                    }
+                }
+            }
+            i++;
+            dlg.update(i, e.name);
+            if (i % 4 === 0) await new Promise(r => setTimeout(r, 0));
+        }
+        dlg.close();
+        navigate(win, root, true, state);
+        refreshIfDesktop(root);
+        if (skipped > 0) {
+            Popup.warn('Extract finished with skips', `${skipped} entr${skipped === 1 ? 'y was' : 'ies were'} skipped (unsupported compression or corrupt data).`);
+        }
     }
 
     function showOpenWithMenu(itemPath, entry) {
@@ -497,6 +778,77 @@ const FileExplorer = (() => {
 
     function renameItem(win, itemPath) {
         const oldName = itemPath[itemPath.length - 1];
+        const parentPath = itemPath.slice(0, -1);
+        // Inline rename: swap the item label for an input in place.
+        const contentEl = win.element.querySelector('.fe-content');
+        const itemEl = contentEl ? contentEl.querySelector(`.fe-item[data-name="${CSS.escape(oldName)}"]`) : null;
+        const labelEl = itemEl ? itemEl.querySelector('.fe-label') : null;
+        if (!itemEl || !labelEl) {
+            renameViaDialog(win, itemPath, oldName);
+            return;
+        }
+        if (itemEl.querySelector('.fe-rename-input')) return;
+        const original = labelEl.textContent;
+        labelEl.innerHTML = '';
+        const input = document.createElement('input');
+        input.className = 'fe-rename-input';
+        input.value = oldName;
+        input.spellcheck = false;
+        input.style.cssText = 'width:100%;box-sizing:border-box;background:rgba(0,0,0,0.4);border:1px solid var(--accent-color);border-radius:3px;padding:1px 3px;font-size:12px;color:var(--text-primary);outline:none;text-align:center;';
+        labelEl.appendChild(input);
+        input.focus();
+        // Select name without extension, Windows-style.
+        const dot = oldName.lastIndexOf('.');
+        try {
+            if (dot > 0) input.setSelectionRange(0, dot);
+            else input.select();
+        } catch { try { input.select(); } catch (e2) {} }
+
+        let done = false;
+        const commit = () => {
+            if (done) return;
+            done = true;
+            const newName = input.value.trim();
+            if (!newName || newName === oldName) {
+                labelEl.textContent = original;
+                return;
+            }
+            if (!FileSystem.renameItem(itemPath, newName)) {
+                Popup.error('Rename failed', `Could not rename to "${newName}". A file with that name may already exist.`);
+                labelEl.textContent = original;
+                return;
+            }
+            const state = findStateFor(win);
+            if (state && state.selected.has(oldName)) {
+                state.selected.delete(oldName);
+                state.selected.add(newName);
+            }
+            itemEl.dataset.name = newName;
+            labelEl.textContent = newName;
+            refreshIfDesktop(itemPath);
+            refreshIfDesktop([...parentPath, newName]);
+        };
+        input.addEventListener('keydown', (e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') commit();
+            else if (e.key === 'Escape') {
+                done = true;
+                labelEl.textContent = original;
+            }
+        });
+        input.addEventListener('blur', commit);
+        input.addEventListener('click', (e) => e.stopPropagation());
+        input.addEventListener('dblclick', (e) => e.stopPropagation());
+    }
+
+    function findStateFor(win) {
+        for (const rec of openWindows.values()) {
+            if (rec.win === win || rec.win.id === win.id) return rec.state;
+        }
+        return null;
+    }
+
+    function renameViaDialog(win, itemPath, oldName) {
         Popup.textbox('Rename', 'Enter new name:', { value: oldName }).then(newName => {
             if (newName && newName !== oldName) {
                 FileSystem.renameItem(itemPath, newName);
@@ -541,51 +893,105 @@ const FileExplorer = (() => {
         });
     }
 
-    function pasteItems(win, destPath, state) {
+    async function pasteItems(win, destPath, state) {
         if (!state || !state.clipboard || state.clipboard.length === 0) return;
-        showProgressBar(win);
-        setTimeout(() => {
-            const moved = [];
-            state.clipboard.forEach(item => {
-                const destExists = FileSystem.itemExists([...destPath, item.name]);
-                if (state.clipboardAction === 'cut') {
-                    const finalName = destExists ? item.name + ' - Copy' : item.name;
-                    if (destExists) {
-                        FileSystem.renameItem(item.path, finalName);
-                        FileSystem.moveItem([...item.path.slice(0, -1), finalName], destPath);
-                    } else {
-                        FileSystem.moveItem(item.path, destPath);
-                    }
-                } else {
-                    if (item.type === 'folder') {
-                        if (!destExists) {
-                            const stack = [[[], item.name]];
-                            while (stack.length) {
-                                const [rel, n] = stack.pop();
-                                const absDest = [...destPath, ...rel];
-                                FileSystem.createFolder(absDest, n);
-                                const srcChildren = FileSystem.getChildren([...item.path, ...rel]);
-                                srcChildren.forEach(c => {
-                                    if (c.type === 'folder') stack.push([[...rel, n], c.name]);
-                                    else {
-                                        const content = FileSystem.readFile([...item.path, ...rel, c.name]) || '';
-                                        FileSystem.createFile([...destPath, ...rel, n], c.name, content, c.ext);
-                                    }
-                                });
-                            }
+        const action = state.clipboardAction;
+        // Expand into per-file ops upfront so progress is honest. Folders
+        // merge into same-named destinations, Windows-style.
+        const ops = [];
+        for (const item of state.clipboard) {
+            if (!FileSystem.itemExists(item.path)) continue;
+            const isDir = FileSystem.isFolder(item.path);
+            if (action === 'cut') {
+                ops.push({ kind: 'move', src: item.path, name: item.name });
+            } else if (isDir) {
+                const root = FileSystem.itemExists([...destPath, item.name])
+                    ? nextCopyName(destPath, item.name)
+                    : item.name;
+                ops.push({ kind: 'mkdir', dir: [root] });
+                const stack = [{ src: item.path, rel: [root] }];
+                while (stack.length > 0) {
+                    const { src, rel } = stack.pop();
+                    for (const c of FileSystem.getChildren(src)) {
+                        if (c.type === 'folder') {
+                            ops.push({ kind: 'mkdir', dir: [...rel, c.name] });
+                            stack.push({ src: [...src, c.name], rel: [...rel, c.name] });
+                        } else {
+                            ops.push({ kind: 'file', dir: rel, src: [...src, c.name], name: c.name, ext: c.ext || '' });
                         }
-                    } else {
-                        const content = FileSystem.readFile(item.path) || '';
-                        const finalName = destExists ? item.name.replace(/(\.[^.]+)?$/, ' - Copy$1') : item.name;
-                        FileSystem.createFile(destPath, finalName, content, item.ext);
                     }
                 }
-                moved.push(item.name);
-            });
-            navigate(win, destPath, false, state);
-            hideProgressBar(win);
-            if (state.clipboardAction === 'cut') state.clipboard = [];
-        }, 300);
+            } else {
+                ops.push({ kind: 'file', dir: [], src: item.path, name: item.name, ext: item.ext || '' });
+            }
+        }
+        if (ops.length === 0) return;
+        const dlg = showTransferDialog(action === 'cut' ? 'Moving…' : 'Copying…', ops.length);
+        const ensureDirChain = (rel) => ensurePath(destPath, rel);
+        let i = 0;
+        for (const op of ops) {
+            if (dlg.isCancelled()) break;
+            if (op.kind === 'mkdir') {
+                ensureDirChain(op.dir);
+            } else if (op.kind === 'file') {
+                dlg.update(i, op.name);
+                const parent = ensureDirChain(op.dir);
+                await copyOneFile(op.src, parent, op.name, op.ext);
+            } else if (op.kind === 'move') {
+                dlg.update(i, op.name);
+                // Never move a folder into itself.
+                if (!destPath.join('/').startsWith(op.src.join('/') + '/')) {
+                    if (FileSystem.itemExists([...destPath, op.name])) {
+                        const final = nextCopyName(destPath, op.name);
+                        if (FileSystem.renameItem(op.src, final)) {
+                            FileSystem.moveItem([...op.src.slice(0, -1), final], destPath);
+                        }
+                    } else {
+                        FileSystem.moveItem(op.src, destPath);
+                    }
+                }
+            }
+            i++;
+            dlg.update(i, op.kind === 'mkdir' ? op.dir[op.dir.length - 1] : op.name);
+            if (i % 8 === 0) await new Promise(r => setTimeout(r, 0));
+        }
+        dlg.close();
+        if (action === 'cut') state.clipboard = [];
+        navigate(win, destPath, false, state);
+        refreshIfDesktop(destPath);
+    }
+
+    async function moveNamesWithProgress(win, destPath, srcDir, names, refreshPath, state) {
+        const ops = names.filter(n => FileSystem.itemExists([...srcDir, n])).filter(n => {
+            const src = [...srcDir, n];
+            // Same folder, or destination inside the source: skip.
+            if (srcDir.join('/') === destPath.join('/')) return false;
+            if (destPath.join('/').startsWith(src.join('/') + '/')) return false;
+            return true;
+        });
+        if (ops.length === 0) return;
+        const dlg = showTransferDialog('Moving…', ops.length);
+        let i = 0;
+        for (const n of ops) {
+            if (dlg.isCancelled()) break;
+            dlg.update(i, n);
+            const src = [...srcDir, n];
+            if (FileSystem.itemExists([...destPath, n])) {
+                const final = nextCopyName(destPath, n);
+                if (FileSystem.renameItem(src, final)) {
+                    FileSystem.moveItem([...srcDir, final], destPath);
+                }
+            } else {
+                FileSystem.moveItem(src, destPath);
+            }
+            i++;
+            dlg.update(i, n);
+            if (i % 8 === 0) await new Promise(r => setTimeout(r, 0));
+        }
+        dlg.close();
+        navigate(win, refreshPath, false, state);
+        refreshIfDesktop(destPath);
+        refreshIfDesktop(srcDir);
     }
 
     function deleteSelected(win, state) {
@@ -883,6 +1289,7 @@ const FileExplorer = (() => {
     }
 
     function launch(options = {}) {
+        loadView();
         registerViewers();
         const state = {
             pathHistory: [['/']],
@@ -919,6 +1326,17 @@ const FileExplorer = (() => {
                 e.preventDefault();
             }
         });
+        contentEl.addEventListener('drop', (e) => {
+            if (e.target !== contentEl) return;
+            e.preventDefault();
+            try {
+                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                const cur = state.currentPath || state.pathHistory[state.historyIndex];
+                if (data && Array.isArray(data.names) && Array.isArray(data.from) && cur) {
+                    moveNamesWithProgress(win, cur, data.from, data.names, cur, state);
+                }
+            } catch (err) {}
+        });
         contentEl.addEventListener('click', (e) => {
             if (e.target === contentEl) {
                 deselectAll(state);
@@ -954,6 +1372,42 @@ const FileExplorer = (() => {
             if (current.length > 1) {
                 navigate(win, current.slice(0, -1), true, state);
             }
+        });
+
+        win.element.querySelector('.fe-sort').addEventListener('click', (e) => {
+            const check = (on) => on ? UIIcons.action('check') : '';
+            const sortNames = { name: 'Name', date: 'Date modified', size: 'Size', type: 'Type' };
+            ContextMenu.show(e.clientX, e.clientY, [
+                ...Object.entries(sortNames).map(([key, label]) => ({
+                    label: `Sort by ${label}`,
+                    icon: check(view.sortBy === key),
+                    action: () => {
+                        view.sortBy = key;
+                        saveView();
+                        navigate(win, state.pathHistory[state.historyIndex], false, state);
+                    }
+                })),
+                'separator',
+                {
+                    label: view.sortDir === 'asc' ? 'Descending' : 'Ascending',
+                    icon: UIIcons.action('sort'),
+                    action: () => {
+                        view.sortDir = view.sortDir === 'asc' ? 'desc' : 'asc';
+                        saveView();
+                        navigate(win, state.pathHistory[state.historyIndex], false, state);
+                    }
+                },
+                'separator',
+                {
+                    label: 'Group by Type',
+                    icon: check(view.groupBy === 'type'),
+                    action: () => {
+                        view.groupBy = view.groupBy === 'type' ? 'none' : 'type';
+                        saveView();
+                        navigate(win, state.pathHistory[state.historyIndex], false, state);
+                    }
+                }
+            ]);
         });
 
         const pathInput = win.element.querySelector('.fe-path');
@@ -1037,6 +1491,15 @@ const FileExplorer = (() => {
             if (state.selected.size === 0) return false;
             deleteSelected(win, state);
         }, { ...kb, description: 'Delete selection' });
+        Keyboard.register('CTRL+SHIFT+N', () => {
+            const cur = state.pathHistory[state.historyIndex];
+            createNewFolder(win, cur, state);
+        }, { ...kb, description: 'New folder' });
+        Keyboard.register('F2', () => {
+            if (state.selected.size !== 1) return false;
+            const cur = state.pathHistory[state.historyIndex];
+            renameItem(win, [...cur, [...state.selected][0]]);
+        }, { ...kb, description: 'Rename' });
     }
 
     // Opens a folder: reuses the most recent Explorer window (focusing and

@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4932] - 2026-09-17
+
+### Added
+- File Explorer file-ops batch, part 1: real transfer dialog (per-file progress + Cancel) driving chunked copy/move paste with folder merge and blob-aware copies; drag-and-drop now really moves (multi-selection, self-drop guards, background drop); inline rename (F2, extension-aware selection, Escape cancels); sort by Name/Date/Size/Type with direction + Group-by-Type headers, persisted; ZIP support via new `js/modules/zip.js` (hand-rolled container, deflate through platform streams, CRC-verified) — Compress to ZIP from any selection, Extract All on double-click or menu with traversal-safe paths; Ctrl+Shift+N new folder
+
+### Fixed
+- Drag-and-drop onto folders silently no-opping (it called rename instead of move); copying blob-backed media producing empty files; drag payload documented for legacy Notepad text-drop consumers
+
 ## [12.0.4931] - 2026-09-17
 
 ### Added
