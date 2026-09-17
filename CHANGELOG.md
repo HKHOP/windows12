@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4939] - 2026-09-17
+
+### Added
+- Global input and textarea focus styling (`css/main.css`): distinct accent-colored border ring (`var(--accent-color)`) and subtle glow when text fields are selected/focused or active via the virtual keyboard (`.vk-focused`)
+
+### Fixed
+- Textboxes failing to show active selection/focus state when typing due to read-only suppression by the virtual keyboard; `.vk-focused` class and global focus rules ensure text fields always glow when selected and active
+
 ## [12.0.4938] - 2026-09-17
 
 ### Added

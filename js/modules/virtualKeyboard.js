@@ -97,9 +97,11 @@ const VirtualKeyboard = (() => {
             if (el.tagName && /^(INPUT|TEXTAREA)$/i.test(el.tagName)) {
                 if (!el.readOnly) { el.readOnly = true; el.dataset.vkRo = '1'; }
                 if (el.inputMode !== 'none') { el.dataset.vkIm = el.inputMode || ''; el.inputMode = 'none'; }
+                el.classList.add('vk-focused');
             } else if (el.isContentEditable) {
                 el.dataset.vkIm = el.inputMode || '';
                 el.inputMode = 'none';
+                el.classList.add('vk-focused');
             } else {
                 return;
             }
@@ -116,6 +118,7 @@ const VirtualKeyboard = (() => {
                 if ('inputMode' in el) el.inputMode = el.dataset.vkIm;
                 delete el.dataset.vkIm;
             }
+            el.classList.remove('vk-focused');
         } catch (e) { /* element may be detached */ }
     }
 

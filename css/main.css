@@ -365,6 +365,42 @@ a[href], a[href] *,
 input[type="text"], input:not([type]), input[type="password"], input[type="email"],
 input[type="number"], input[type="search"], input[type="url"], textarea {
     cursor: text;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+[data-theme="light"] input[type="text"], [data-theme="light"] input:not([type]), [data-theme="light"] input[type="password"], [data-theme="light"] input[type="email"],
+[data-theme="light"] input[type="number"], [data-theme="light"] input[type="search"], [data-theme="light"] input[type="url"], [data-theme="light"] textarea {
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+input[type="text"]:focus, input:not([type]):focus, input[type="password"]:focus, input[type="email"]:focus,
+input[type="number"]:focus, input[type="search"]:focus, input[type="url"]:focus, textarea:focus,
+[contenteditable="true"]:focus,
+input[type="text"].vk-focused, input:not([type]).vk-focused, input[type="password"].vk-focused, input[type="email"].vk-focused,
+input[type="number"].vk-focused, input[type="search"].vk-focused, input[type="url"].vk-focused, textarea.vk-focused,
+[contenteditable="true"].vk-focused {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.35) !important;
+    background: rgba(255, 255, 255, 0.09) !important;
+    outline: none !important;
+}
+
+[data-theme="light"] input[type="text"]:focus, [data-theme="light"] input:not([type]):focus, [data-theme="light"] input[type="password"]:focus, [data-theme="light"] input[type="email"]:focus,
+[data-theme="light"] input[type="number"]:focus, [data-theme="light"] input[type="search"]:focus, [data-theme="light"] input[type="url"]:focus, [data-theme="light"] textarea:focus,
+[data-theme="light"] [contenteditable="true"]:focus,
+[data-theme="light"] input[type="text"].vk-focused, [data-theme="light"] input:not([type]).vk-focused, [data-theme="light"] input[type="password"].vk-focused, [data-theme="light"] input[type="email"].vk-focused,
+[data-theme="light"] input[type="number"].vk-focused, [data-theme="light"] input[type="search"].vk-focused, [data-theme="light"] input[type="url"].vk-focused, [data-theme="light"] textarea.vk-focused,
+[data-theme="light"] [contenteditable="true"].vk-focused {
+    background: rgba(0, 0, 0, 0.06) !important;
 }
 
 #virtual-cursor {
