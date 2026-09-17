@@ -1,3 +1,5 @@
+import Keyboard from './keyboard.js';
+
 const ContextMenu = (() => {
     let menuEl;
     let isVisible = false;
@@ -6,9 +8,12 @@ const ContextMenu = (() => {
     function init() {
         menuEl = document.getElementById('context-menu');
         document.addEventListener('contextmenu', handleGlobalContext);
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') hide();
-        });
+        // Layered Escape: close the menu when open, otherwise pass the key
+        // through so panels/flyouts/apps below can handle it.
+        Keyboard.register('ESCAPE', () => {
+            if (!isVisible) return false;
+            hide();
+        }, { system: true, preventDefault: false, description: 'Close context menu' });
         menuEl.addEventListener('click', (e) => e.stopPropagation());
     }
 
@@ -76,7 +81,11 @@ const ContextMenu = (() => {
         show(x, y, items);
     }
 
-    return { init, show, hide, showForElement };
+    function isOpen() {
+        return isVisible;
+    }
+
+    return { init, show, hide, showForElement, isOpen };
 })();
 
 window._ContextMenu = ContextMenu;

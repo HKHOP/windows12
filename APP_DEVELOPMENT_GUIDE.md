@@ -659,6 +659,7 @@ import SavePrompt from '../../modules/saveprompt.js';
 import FileAssociations from '../../modules/fileAssociations.js';
 import Notifications from '../../modules/notifications.js';
 import Cursor from '../../modules/cursor.js';
+import Keyboard from '../../modules/keyboard.js';
 ```
 
 ---
@@ -926,3 +927,49 @@ return {
 - Headless state persists: backgrounded apps resume at boot, and builtin services always auto-start. Listen for `window` event `background-apps-changed` (`{ detail: { running: [...] } }`) to track it.
 - `onBackground` must never create windows or dialogs — there is no visible context.
 - End users stop headless apps from Task Manager (listed as `<Name> (Background)`); services are uninstalled from Settings > Apps or the Store library.
+
+---
+
+## 23. Keyboard Shortcuts
+
+**Import:** `import Keyboard from '../../modules/keyboard.js';`
+
+Never wire your own `document.addEventListener('keydown', ...)` for shortcuts — declare them through the central registry so focus guards, exact-modifier matching, and conflicts are handled once, OS-wide.
+
+### `Keyboard.register(combo, callback, opts?)` → `unregisterFn` (with `.id`)
+
+| Param | Example | Description |
+|-------|---------|-------------|
+| `combo` | `'CTRL+S'`, `'CTRL+SHIFT+V'`, `'WIN+V'`, `'ALT+F4'`, `'ESCAPE'` | `MOD+...+KEY`. Modifiers: `CTRL`, `SHIFT`, `ALT`, `WIN` (aliases: `CONTROL`, `META`, `SUPER`, `CMD`, `COMMAND`). Keys match `event.key` case-insensitively; aliases: `ESC`, `DEL`, `INS`, `PGUP`, `PGDN`, `UP/DOWN/LEFT/RIGHT`, `SPACE`, `RETURN`, `PRTSC`. `F1`–`F12` work verbatim. |
+| `callback` | `(e) => {...}` | Runs on keydown. **Return `false` to pass through** to the next matching handler (layered Escape-to-close); anything else consumes the combo. |
+
+**Opts (all optional):**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `scope` | `HTMLElement` | global | Fire only when the event target is inside this element (pass your `win.element`). Detached elements auto-unregister — no manual cleanup on close. |
+| `owner` | `string` | — | Tag (usually your appId) for `unregisterAll(owner)` bulk cleanup. |
+| `allowInInputs` | `boolean` | `true` | Set `false` to ignore the combo while typing in inputs/textareas/contenteditables. |
+| `preventDefault` | `boolean` | `true` | Call `preventDefault()` when consumed. |
+| `stopPropagation` | `boolean` | `false` | Also stop propagation when consumed. |
+| `system` | `boolean` | `false` | System handlers dispatch before app handlers. Leave `false` in apps. |
+| `description` | `string` | — | Human label (future Settings > Shortcuts page). |
+
+Modifier matching is **exact**: `'CTRL+S'` does not fire on Ctrl+Shift+S. System shortcuts (`WIN+V`, `ALT+F4`, `PRINTSCREEN`, layered `ESCAPE` for menu/panel/flyout) always win over app shortcuts.
+
+### `Keyboard.unregister(idOrFn)` → `boolean` / `Keyboard.unregisterAll(owner)` → `number` / `Keyboard.list()` → `[{ combo, system, owner, description, scoped }]`
+
+**Example (scoped to one window, self-cleaning on close):**
+```js
+import Keyboard from '../../modules/keyboard.js';
+
+function launch() {
+    const win = WindowManager.createWindow('myApp', 'My App', icon, getContent());
+    const kb = { scope: win.element, owner: 'myApp' };
+    Keyboard.register('CTRL+S', () => save(), { ...kb, description: 'Save' });
+    Keyboard.register('CTRL+F', () => openFind(), { ...kb, description: 'Find' });
+    // No removeEventListener needed — entries die with win.element.
+}
+```
+
+**Which shortcuts already exist (don't re-register these):** `PRINTSCREEN` (screenshot), `WIN+V` / `CTRL+SHIFT+V` (clipboard history), `ALT+F4` (close focused window), layered `ESCAPE` (context menu → notification center → clipboard flyout).

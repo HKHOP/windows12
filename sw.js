@@ -32,6 +32,7 @@ const urlsToCache = [
     './js/modules/backgroundApps.js',
     './js/modules/notifications.js',
     './js/modules/clipboardManager.js',
+    './js/modules/keyboard.js',
     './js/apps/appStore/main.js',
     './js/apps/browser/main.js',
     './js/apps/calculator/main.js',

@@ -4,6 +4,16 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4927] - 2026-09-17
+
+### Added
+- Central keyboard-shortcut registry (`js/modules/keyboard.js`): `Keyboard.register('CTRL+SHIFT+P' | 'WIN+V' | 'ALT+F4', callback)` with exact-modifier matching, global vs window-`scope`, `owner` bulk cleanup (`unregisterAll`), `allowInInputs` guard, pass-through by returning `false` (layered Escape), and `list()` introspection; documented as §23 in APP_DEVELOPMENT_GUIDE.md
+- Built-in `ALT+F4` closes the focused window through close handlers (apps can veto on unsaved changes)
+
+### Changed
+- System shortcuts now run through the registry: PrintScreen screenshot, Win+V / Ctrl+Shift+V clipboard, layered Escape cascade (context menu → notification center → clipboard flyout); `ContextMenu` gains an `isOpen()` export
+- Notepad (Ctrl+S/F/H/A/Z/Y) and File Explorer (Ctrl+C/X/V/A, Delete) migrated to scoped `Keyboard.register` calls — window-close cleanup is automatic, matching is CapsLock-safe
+
 ## [12.0.4926] - 2026-09-17
 
 ### Added

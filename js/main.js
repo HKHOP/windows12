@@ -16,6 +16,7 @@ import Notifications from './modules/notifications.js';
 import Cursor from './modules/cursor.js';
 import BackgroundApps from './modules/backgroundApps.js';
 import ClipboardManager from './modules/clipboardManager.js';
+import Keyboard from './modules/keyboard.js';
 
 AppSystem.init();
 
@@ -80,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTaskbarContextMenu();
     setupWindowTitleBarContextMenu();
     setupScreenshotCapture();
+    setupSystemShortcuts();
 
     // Empty-desktop click clearing is handled by DesktopIcons (it owns the
     // multi-selection set and the marquee suppress flag).
@@ -172,10 +174,20 @@ function setupWindowTitleBarContextMenu() {
     });
 }
 
+function setupSystemShortcuts() {
+    // Alt+F4 closes the focused window (through close handlers, so apps
+    // can veto on unsaved changes). Note: real desktop browsers reserve
+    // Alt+F4 for themselves and may never deliver it — harmless then.
+    Keyboard.register('ALT+F4', () => {
+        const focused = document.querySelector('.app-window.focused');
+        if (!focused) return false;
+        WindowManager.requestClose(focused.id);
+    }, { system: true, description: 'Close focused window' });
+}
+
 function setupScreenshotCapture() {
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'PrintScreen') {
-            e.preventDefault();
+    Keyboard.register('PRINTSCREEN', (e) => {
+        e.preventDefault();
 
             const flash = document.createElement('div');
             flash.style.cssText = 'position:fixed;inset:0;background:white;z-index:999999;opacity:0;transition:opacity 0.08s ease-out;pointer-events:none;';
@@ -225,8 +237,7 @@ function setupScreenshotCapture() {
                 }
                 showScreenshotToast(fileName, saved);
             }, 'image/png');
-        }
-    });
+    }, { system: true, description: 'Take screenshot' });
 }
 
 function showScreenshotToast(fileName, saved) {

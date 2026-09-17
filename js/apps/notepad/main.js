@@ -3,6 +3,7 @@ import FileSystem from '../../modules/fileSystem.js';
 import ContextMenu from '../../modules/contextMenu.js';
 import SavePrompt from '../../modules/saveprompt.js';
 import AppIcons from '../../modules/appIcons.js';
+import Keyboard from '../../modules/keyboard.js';
 
 const Notepad = (() => {
     const icon = AppIcons.get('notepad');
@@ -63,32 +64,18 @@ const Notepad = (() => {
         textarea.addEventListener('click', () => updateStatus(textarea, status));
         textarea.addEventListener('keyup', () => updateStatus(textarea, status));
 
-        textarea.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 's') {
-                e.preventDefault();
-                saveFile(currentFilePath, textarea, titleEl, title, (newPath) => { currentFilePath = newPath; });
-            }
-            if (e.ctrlKey && e.key === 'f') {
-                e.preventDefault();
-                toggleFindBar(win);
-            }
-            if (e.ctrlKey && e.key === 'h') {
-                e.preventDefault();
-                toggleFindBar(win);
-            }
-            if (e.ctrlKey && e.key === 'a') {
-                e.preventDefault();
-                textarea.select();
-            }
-            if (e.ctrlKey && e.key === 'z') {
-                e.preventDefault();
-                document.execCommand('undo');
-            }
-            if (e.ctrlKey && e.key === 'y') {
-                e.preventDefault();
-                document.execCommand('redo');
-            }
-        });
+        // Central shortcut registry (scoped to this window's textarea, so
+        // the combos only fire while editing here — same as the old
+        // textarea keydown listener, minus the hand-rolled guards).
+        const kb = { scope: textarea, owner: 'notepad' };
+        Keyboard.register('CTRL+S', () => {
+            saveFile(currentFilePath, textarea, titleEl, title, (newPath) => { currentFilePath = newPath; });
+        }, { ...kb, description: 'Save file' });
+        Keyboard.register('CTRL+F', () => toggleFindBar(win), { ...kb, description: 'Find' });
+        Keyboard.register('CTRL+H', () => toggleFindBar(win), { ...kb, description: 'Replace' });
+        Keyboard.register('CTRL+A', () => textarea.select(), { ...kb, description: 'Select all' });
+        Keyboard.register('CTRL+Z', () => document.execCommand('undo'), { ...kb, description: 'Undo' });
+        Keyboard.register('CTRL+Y', () => document.execCommand('redo'), { ...kb, description: 'Redo' });
 
         setupMenus(win, textarea, titleEl, title, () => currentFilePath, (v) => { currentFilePath = v; }, () => wordWrap, (v) => { wordWrap = v; }, () => zoomLevel, (v) => { zoomLevel = v; });
         setupFindBar(win, textarea);

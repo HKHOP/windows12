@@ -11,6 +11,7 @@ import FileSystem from './fileSystem.js';
 import UIIcons from './uiIcons.js';
 import Flyout from './flyout.js';
 import Popup from './popup.js';
+import Keyboard from './keyboard.js';
 
 const ClipboardManager = (() => {
     const DATA_DIR = ['/', 'system', 'programs data', 'clipboard'];
@@ -471,23 +472,19 @@ const ClipboardManager = (() => {
         } catch { /* clipboard unreadable */ }
     }
 
-    function onKeydown(e) {
-        const v = e.key === 'v' || e.key === 'V';
-        if (!v) return;
-        // Win+V (Meta) with Ctrl+Shift+V fallback.
-        if (e.metaKey || (e.ctrlKey && e.shiftKey)) {
-            e.preventDefault();
-            e.stopPropagation();
-            toggle();
-        }
-    }
-
     function onPointerDown(e) {
         if (isOpen() && panel && !panel.contains(e.target)) hide();
     }
 
-    function onEscape(e) {
-        if (e.key === 'Escape' && isOpen()) hide();
+    function registerShortcuts() {
+        const openOpts = { system: true, stopPropagation: true, description: 'Open clipboard history' };
+        Keyboard.register('WIN+V', toggle, openOpts);
+        // Fallback: some browsers/OSes swallow the Meta key.
+        Keyboard.register('CTRL+SHIFT+V', toggle, openOpts);
+        Keyboard.register('ESCAPE', () => {
+            if (!isOpen()) return false;
+            hide();
+        }, { system: true, preventDefault: false, description: 'Close clipboard history' });
     }
 
     function addTrayButton() {
@@ -511,9 +508,8 @@ const ClipboardManager = (() => {
         addTrayButton();
         document.addEventListener('copy', onCopyEvent);
         document.addEventListener('cut', onCopyEvent);
-        document.addEventListener('keydown', onKeydown);
+        registerShortcuts();
         document.addEventListener('mousedown', onPointerDown);
-        document.addEventListener('keydown', onEscape);
         refreshPermission().then(() => { if (canPoll) startPolling(); });
         // Re-check permission grants periodically; polling only runs granted.
         setInterval(() => {

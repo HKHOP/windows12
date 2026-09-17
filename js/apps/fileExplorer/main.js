@@ -10,6 +10,7 @@ import DesktopIcons from '../../modules/desktopIcons.js';
 import BatchEngine from '../../modules/batchEngine.js';
 import VBEngine from '../../modules/vbsEngine.js';
 import FileAssociations from '../../modules/fileAssociations.js';
+import Keyboard from '../../modules/keyboard.js';
 
 const FileExplorer = (() => {
     const icon = AppIcons.get('fileExplorer');
@@ -1046,43 +1047,30 @@ const FileExplorer = (() => {
             });
         });
 
-        function handleKeydown(e) {
-            if (!win.element.contains(document.activeElement) && document.activeElement !== document.body) return;
+        // Central shortcut registry, scoped to this window: combos fire only
+        // while focus is inside it, and stale entries self-remove once the
+        // window is closed (replaces the manual add/removeEventListener).
+        const kb = { scope: win.element, owner: 'fileExplorer' };
+        Keyboard.register('CTRL+C', () => copySelected(win, state), { ...kb, description: 'Copy selection' });
+        Keyboard.register('CTRL+X', () => cutSelected(win, state), { ...kb, description: 'Cut selection' });
+        Keyboard.register('CTRL+V', () => {
             const currentPath = state.pathHistory[state.historyIndex];
-            if (e.ctrlKey && e.key === 'c') {
-                e.preventDefault();
-                copySelected(win, state);
-            } else if (e.ctrlKey && e.key === 'x') {
-                e.preventDefault();
-                cutSelected(win, state);
-            } else if (e.ctrlKey && e.key === 'v') {
-                e.preventDefault();
-                if (state.clipboard && state.clipboard.length > 0) pasteItems(win, currentPath, state);
-            } else if (e.ctrlKey && e.key === 'a') {
-                e.preventDefault();
-                const contentEl = win.element.querySelector('.fe-content');
-                contentEl.querySelectorAll('.fe-item').forEach(el => state.selected.add(el.dataset.name));
-                state.lastClicked = null;
-                contentEl.querySelectorAll('.fe-item').forEach(el => {
-                    el.style.background = 'rgba(0,120,212,0.25)';
-                    el.style.borderColor = 'var(--accent-color)';
-                });
-                if (contentEl._updateItemCount) contentEl._updateItemCount();
-            } else if (e.key === 'Delete') {
-                if (state.selected.size > 0) {
-                    e.preventDefault();
-                    deleteSelected(win, state);
-                }
-            }
-        }
-        document.addEventListener('keydown', handleKeydown);
-
-        const closeBtn = win.element.querySelector('.close-btn');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => {
-                document.removeEventListener('keydown', handleKeydown);
+            if (state.clipboard && state.clipboard.length > 0) pasteItems(win, currentPath, state);
+        }, { ...kb, description: 'Paste' });
+        Keyboard.register('CTRL+A', () => {
+            const contentEl = win.element.querySelector('.fe-content');
+            contentEl.querySelectorAll('.fe-item').forEach(el => state.selected.add(el.dataset.name));
+            state.lastClicked = null;
+            contentEl.querySelectorAll('.fe-item').forEach(el => {
+                el.style.background = 'rgba(0,120,212,0.25)';
+                el.style.borderColor = 'var(--accent-color)';
             });
-        }
+            if (contentEl._updateItemCount) contentEl._updateItemCount();
+        }, { ...kb, description: 'Select all' });
+        Keyboard.register('DELETE', () => {
+            if (state.selected.size === 0) return false;
+            deleteSelected(win, state);
+        }, { ...kb, description: 'Delete selection' });
     }
 
     // Opens a folder: reuses the most recent Explorer window (focusing and

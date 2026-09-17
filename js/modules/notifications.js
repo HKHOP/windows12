@@ -2,6 +2,7 @@ import FileSystem from './fileSystem.js';
 import SystemConfig from './systemConfig.js';
 import Sounds from './sounds.js';
 import WindowManager from './windowManager.js';
+import Keyboard from './keyboard.js';
 import { AppMetadata, Taskbar } from './taskbar.js';
 
 // System notification center: Windows 11-style toasts + Action Center panel
@@ -530,9 +531,10 @@ const Notifications = (() => {
                 close();
             }
         });
-        document.addEventListener('keydown', e => {
-            if (e.key === 'Escape' && panelOpen) close();
-        });
+        Keyboard.register('ESCAPE', () => {
+            if (!panelOpen) return false;
+            close();
+        }, { system: true, preventDefault: false, description: 'Close notification center' });
     }
 
     function init() {
