@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4925] - 2026-09-17
+
+### Fixed
+- iPad Safari white letterboxing in Browser, local HTML preview, and Discord: column-flex iframes with `height:auto` fell back to the 300x150 intrinsic ratio on WebKit so pages rendered at iPad aspect with white strips — frames now fill with `flex:1 1 0%` + explicit `100%` width/height, and the Browser's 100% zoom state restores `100%` instead of clearing to the broken fallback
+- Local HTML previews now inject `shrink-to-fit=no` in the viewport meta so iPad Safari doesn't auto-shrink framed pages to the device aspect
+
 ## [12.0.4924] - 2026-09-16
 
 ### Added

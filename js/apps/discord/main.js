@@ -50,7 +50,7 @@ const Discord = (() => {
                     <button class="discord-notice-open" style="background:#5865F2;border:none;color:#fff;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;flex-shrink:0;">Open in Browser</button>
                     <button class="discord-notice-hide" title="Dismiss" style="background:none;border:none;color:#c7cdfb;cursor:pointer;font-size:14px;padding:2px 6px;flex-shrink:0;">×</button>
                 </div>
-                <iframe class="discord-frame" title="Discord" allow="microphone; camera; display-capture; autoplay; fullscreen; clipboard-write" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals" style="flex:1 1 auto;width:100%;height:auto;min-height:0;min-width:0;display:block;flex-shrink:0;border:none;background:#313338;" src="${APP_URL}"></iframe>
+                <iframe class="discord-frame" title="Discord" allow="microphone; camera; display-capture; autoplay; fullscreen; clipboard-write" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals" style="flex:1 1 0%;width:100%;height:100%;min-height:0;min-width:0;display:block;border:none;background:#313338;" src="${APP_URL}"></iframe>
             </div>
         `;
     }

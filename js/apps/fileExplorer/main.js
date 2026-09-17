@@ -784,7 +784,7 @@ const FileExplorer = (() => {
                 <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(128,128,128,0.12);border-bottom:1px solid var(--window-border);flex-shrink:0;">
                     <span style="color:var(--text-secondary);font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${displayPath}">${displayPath}</span>
                 </div>
-                <iframe sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" style="flex:1 1 auto;width:100%;height:auto;max-width:100%;max-height:100%;min-height:0;min-width:0;display:block;flex-shrink:0;border:none;background:white;" srcdoc="${escapeAttr(secureContent)}"></iframe>
+                <iframe sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" style="flex:1 1 0%;width:100%;height:100%;min-height:0;min-width:0;display:block;border:none;background:white;" srcdoc="${escapeAttr(secureContent)}"></iframe>
                 <div style="padding:3px 12px;border-top:1px solid var(--window-border);display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary);flex-shrink:0;">
                     <span>Local file</span>
                     <span>Restricted mode</span>
@@ -858,8 +858,10 @@ const FileExplorer = (() => {
         // default width — the page canvas then overflows the frame and shows
         // as a big white strip on the right (and below short content).
         // Force the layout viewport to match the frame width instead.
+        // shrink-to-fit=no stops iPad Safari from auto-shrinking wide
+        // content to the device aspect inside the frame.
         if (!/<meta\b[^>]*\bname\s*=\s*["']viewport["']/i.test(html)) {
-            const meta = '<meta name="viewport" content="width=device-width, initial-scale=1">';
+            const meta = '<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">';
             if (/<head\b[^>]*>/i.test(html)) {
                 html = html.replace(/<head\b[^>]*>/i, (m) => `${m}${meta}`);
             } else {

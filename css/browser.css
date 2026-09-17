@@ -217,17 +217,16 @@
 
 .browser-content iframe {
     display: block;
-    /* Flex fill (not percentage heights) so WebKit sizes the frame exactly
-       to the content box — percentage heights inside nested flex resolve
-       unreliably there and leave white strips around the page. */
-    flex: 1 1 auto;
+    /* Flex fill with a zero basis + explicit 100% cross/main sizes.
+       height:auto is forbidden here: on iPad Safari a column-flex iframe
+       with height:auto falls back to its 300x150 intrinsic ratio, so the
+       frame ends up letterboxed (page + white strips at iPad aspect)
+       instead of filling the window. */
+    flex: 1 1 0%;
     width: 100%;
-    height: auto;
+    height: 100%;
     min-width: 0;
     min-height: 0;
-    max-width: 100%;
-    max-height: 100%;
-    flex-shrink: 0;
     border: none;
     background: #fff;
 }

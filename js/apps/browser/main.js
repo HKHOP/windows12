@@ -369,15 +369,16 @@ const Browser = (() => {
 
         function applyZoom(tab) {
             if (!tab || !tab.iframeEl) return;
-            // At 100% the frame must be entirely untransformed: even a no-op
-            // scale(1) promotes the iframe to a compositing layer, which
-            // WebKit rounds/composites with white edge strips. Clear every
-            // override so the flex fill from browser.css sizes it exactly.
+            // At 100% the frame must be an exact, untransformed fill:
+            // restore explicit 100% (never clear to '' — the stylesheet
+            // fallback must not be height:auto, which iPad Safari sizes
+            // from the 300x150 intrinsic ratio and letterboxes with
+            // white strips at iPad aspect).
             if (Math.abs(tab.zoom - 1) < 0.001) {
                 tab.iframeEl.style.transform = '';
                 tab.iframeEl.style.transformOrigin = '';
-                tab.iframeEl.style.width = '';
-                tab.iframeEl.style.height = '';
+                tab.iframeEl.style.width = '100%';
+                tab.iframeEl.style.height = '100%';
             } else {
                 tab.iframeEl.style.transform = `scale(${tab.zoom})`;
                 tab.iframeEl.style.transformOrigin = '0 0';
@@ -651,7 +652,7 @@ const Browser = (() => {
 
             if (!tab.iframeEl) {
                 const iframe = document.createElement('iframe');
-                iframe.style.cssText = 'flex:1 1 auto;width:100%;height:100%;min-width:0;min-height:0;max-width:100%;max-height:100%;display:block;flex-shrink:0;border:none;background:#ffffff;';
+                iframe.style.cssText = 'flex:1 1 0%;width:100%;height:100%;min-width:0;min-height:0;display:block;border:none;background:#ffffff;';
                 iframe.setAttribute('scrolling', 'auto');
                 iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox';
                 tab.iframeEl = iframe;
