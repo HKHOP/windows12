@@ -994,3 +994,16 @@ function launch() {
 | `Permissions.setGranted(appId, perm, bool)` | Revoke/restore (Settings > Apps uses this). |
 | `Permissions.requestInstallConsent(appId)` → `Promise<boolean>` | Consent dialog listing declared permissions; resolves `false` when declined. No prompt when nothing is declared. |
 | `Permissions.clearGrants(appId)` | Wipe stored choices (uninstall does this automatically). |
+
+---
+
+## 25. Crash Recovery
+
+You don't need to do anything — and that's the point. Uncaught exceptions (or a `launch()` that throws) in `js/apps/<yourId>/` are attributed to your app automatically: Task Manager shows it as **Not responding** and the user gets a *"<App> stopped responding"* dialog with **Restart** (force-closes your windows and calls `launch()` again), **Close**, and **View details** (message + stack).
+
+Rules of the road:
+
+- Throwing inside `launch()` no longer dies silently — it opens the recovery dialog. Validate early and throw with a clear message rather than half-opening a broken window.
+- The dialog's Restart bypasses your `WindowManager` close handler (a wedged app can't veto its own restart). Keep close handlers quick and total.
+- `CrashMonitor.isCrashed(appId)` / `getCrash(appId)` let you probe health; `restartApp(appId)` / `closeApp(appId)` are the dialog's actions, exposed for Task Manager-style UIs.
+- One dialog per app per 5s (bursts don't stack). System code (`js/modules/`, inline page scripts) is never attributed to an app.

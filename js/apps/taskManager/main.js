@@ -2,6 +2,7 @@ import WindowManager from '../../modules/windowManager.js';
 import AppIcons from '../../modules/appIcons.js';
 import ContextMenu from '../../modules/contextMenu.js';
 import BackgroundApps from '../../modules/backgroundApps.js';
+import CrashMonitor from '../../modules/crashMonitor.js';
 import { AppMetadata } from '../../modules/taskbar.js';
 
 const TaskManager = (() => {
@@ -100,6 +101,7 @@ const TaskManager = (() => {
             id: w.id,
             name: w.title || 'Unknown',
             appId: w.appId,
+            status: CrashMonitor.isCrashed(w.appId) ? 'Not responding' : 'Running',
             cpu: (Math.random() * 15 + 0.5).toFixed(1),
             memory: (Math.random() * 80 + 5).toFixed(0),
             disk: (Math.random() * 2).toFixed(1),
@@ -180,6 +182,7 @@ const TaskManager = (() => {
                 <thead>
                     <tr style="position:sticky;top:0;background:var(--window-bg);border-bottom:1px solid var(--window-border);">
                         <th style="text-align:left;padding:6px 12px;font-weight:500;">Name</th>
+                        <th style="text-align:left;padding:6px 8px;font-weight:500;width:110px;">Status</th>
                         <th style="text-align:right;padding:6px 8px;font-weight:500;width:60px;">CPU</th>
                         <th style="text-align:right;padding:6px 8px;font-weight:500;width:60px;">Memory</th>
                         <th style="text-align:right;padding:6px 8px;font-weight:500;width:50px;">Disk</th>
@@ -190,7 +193,8 @@ const TaskManager = (() => {
                 <tbody>
                     ${processes.map(p => `
                         <tr class="tm-process" data-id="${p.id}" data-system="${p.isSystem}" style="cursor:pointer;transition:background 0.1s;${p.isSystem ? 'opacity:0.6;' : ''}">
-                            <td style="padding:5px 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">${p.name}</td>
+                            <td style="padding:5px 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;">${p.name}</td>
+                            <td style="padding:5px 8px;color:${p.status === 'Not responding' ? '#ff6b6b' : 'var(--text-secondary)'};">${p.status || 'Running'}</td>
                             <td style="text-align:right;padding:5px 8px;color:${parseFloat(p.cpu) > 10 ? '#ff6b6b' : 'inherit'};">${p.cpu}%</td>
                             <td style="text-align:right;padding:5px 8px;">${p.memory} MB</td>
                             <td style="text-align:right;padding:5px 8px;">${p.disk}%</td>
@@ -234,6 +238,17 @@ const TaskManager = (() => {
                 ];
 
                 if (!isSystem) {
+                    // Crashed processes offer Restart straight from here.
+                    let crashedApp = null;
+                    if (!String(processId).startsWith('bg:')) {
+                        try {
+                            const w = WindowManager._getWindow(processId);
+                            if (w && CrashMonitor.isCrashed(w.appId)) crashedApp = w.appId;
+                        } catch (e) { /* gone */ }
+                    }
+                    if (crashedApp) {
+                        items.push({ label: 'Restart', icon: '↻', action: () => { CrashMonitor.restartApp(crashedApp); showProcesses(win); } });
+                    }
                     items.push({ label: 'End task', icon: '✕', action: () => showKillConfirmation(win, processId, processName) });
                 } else {
                     items.push({ label: 'End task', disabled: true });

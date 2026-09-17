@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4930] - 2026-09-17
+
+### Added
+- App crash recovery (`js/modules/crashMonitor.js`): uncaught exceptions and launch failures attributed per app via script filename/stack, classic *"<App> stopped responding"* dialog (Microsoft Windows title, Restart / Close / View-details with message + stack, one dialog per app per 5s), Task Manager Processes gains a Status column (Running / Not responding in red) plus a Restart action for crashed apps, documented as §25 in APP_DEVELOPMENT_GUIDE.md
+
+### Changed
+- Taskbar and Store launch paths wrap `launch()` so a throwing app opens recovery instead of dying silently; recovery Restart force-closes (bypassing close handlers a wedged app can't answer) and relaunches
+
 ## [12.0.4929] - 2026-09-17
 
 ### Added

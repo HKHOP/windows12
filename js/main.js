@@ -17,6 +17,7 @@ import Cursor from './modules/cursor.js';
 import BackgroundApps from './modules/backgroundApps.js';
 import ClipboardManager from './modules/clipboardManager.js';
 import VirtualDesktops from './modules/virtualDesktops.js';
+import CrashMonitor from './modules/crashMonitor.js';
 import Keyboard from './modules/keyboard.js';
 
 AppSystem.init();
@@ -51,13 +52,14 @@ document.addEventListener('DOMContentLoaded', () => {
     BackgroundApps.init();
     ClipboardManager.init();
     VirtualDesktops.init();
+    CrashMonitor.init();
 
     // ShellIcons: the system icon library (our shell32.dll) — every app can
     // use these via `import UIIcons from '../modules/uiIcons.js'` or the
     // global `window.ShellIcons` (same object).
     window.ShellIcons = UIIcons;
     window.UIIcons = UIIcons;
-    window._modules = { ContextMenu, Cursor, UIIcons, ShellIcons: UIIcons, VirtualDesktops };
+    window._modules = { ContextMenu, Cursor, UIIcons, ShellIcons: UIIcons, VirtualDesktops, CrashMonitor };
 
     WindowManager.setOnFocusChanged((appId) => {
         if (appId) {

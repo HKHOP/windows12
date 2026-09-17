@@ -342,7 +342,20 @@ const Taskbar = (() => {
         } catch (e) { /* manifest unreadable — fall through */ }
         const app = AppRegistry.get(appId);
         if (app) {
-            app.launch(options);
+            try {
+                app.launch(options);
+            } catch (err) {
+                // Synchronous launch failure -> crash recovery dialog.
+                // (Lazy access: crashMonitor imports this module, so a
+                // static import here would be a cycle.)
+                try {
+                    window._modules?.CrashMonitor?.reportCrash(appId, {
+                        message: err && err.message ? err.message : String(err),
+                        stack: err && err.stack ? err.stack : '',
+                        source: 'launch'
+                    });
+                } catch (e) { /* recovery UI unavailable */ }
+            }
             return true;
         }
         return false;

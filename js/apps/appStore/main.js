@@ -4,6 +4,7 @@ import AppIcons from '../../modules/appIcons.js';
 import { AppMetadata, AppRegistry } from '../../modules/taskbar.js';
 import AppLoader from '../../modules/appLoader.js';
 import Permissions from '../../modules/permissions.js';
+import CrashMonitor from '../../modules/crashMonitor.js';
 
 const AppStore = (() => {
     const icon = AppIcons.get('appStore');
@@ -473,7 +474,17 @@ const AppStore = (() => {
         function openAppById(appId) {
             if (isService(appId)) return;
             const mod = AppRegistry.get(appId);
-            if (mod && typeof mod.launch === 'function') mod.launch();
+            if (mod && typeof mod.launch === 'function') {
+                try {
+                    mod.launch();
+                } catch (err) {
+                    CrashMonitor.reportCrash(appId, {
+                        message: err && err.message ? err.message : String(err),
+                        stack: err && err.stack ? err.stack : '',
+                        source: 'launch'
+                    });
+                }
+            }
         }
 
         // Install with permission consent: apps declaring permissions show
