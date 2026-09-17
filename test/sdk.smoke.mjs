@@ -394,6 +394,7 @@ check('focusin ignored while disabled', (() => {
     for (const fn of docListeners.focusin || []) fn({ target: fake });
     return VK.isOpen() === false;
 })());
+check('keyboard bounds default to docked (null)', SysConf.get('touchKeyboardBounds') === null);
 
 console.log('\n----------------------------------------');
 console.log(`passed ${passed}, failed ${failures.length}`);

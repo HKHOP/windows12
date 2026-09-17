@@ -809,7 +809,7 @@ const Settings = (() => {
                     <input type="text" class="tk-demo-input" placeholder="Type here…" style="width:100%;box-sizing:border-box;background:rgba(0,0,0,0.3);border:1px solid var(--window-border);color:var(--text-primary);border-radius:6px;padding:10px 12px;font-size:14px;outline:none;">
                     <button class="tk-show-now" style="margin-top:12px;background:var(--accent-color);border:none;color:white;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:500;">Show keyboard now</button>
                 </div>
-                <div style="font-size:12px;color:var(--text-secondary);">Tip: Shift toggles capitals for one letter — double-tap it for Caps Lock. Hold Backspace to delete whole words quickly.</div>
+                <div style="font-size:12px;color:var(--text-secondary);">Tip: Shift toggles capitals for one letter — double-tap it for Caps Lock. Hold Backspace to delete quickly. Drag the keyboard's top bar to move it, pull its corner to resize (double-click the bar to re-dock). Letter keys also drive games with no text field — hold one to keep moving.</div>
             </div>
         `;
 

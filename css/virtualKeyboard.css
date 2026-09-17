@@ -29,6 +29,12 @@
     justify-content: center;
     position: relative;
     padding: 2px 0 6px;
+    cursor: grab;
+    touch-action: none;
+}
+
+.tk-bar:active {
+    cursor: grabbing;
 }
 
 .tk-grip {
@@ -71,7 +77,7 @@
 .tk-key {
     flex: 1 1 0;
     min-width: 0;
-    height: 52px;
+    height: var(--tk-key-h, 52px);
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.07);
     color: var(--text-primary, #fff);
@@ -118,6 +124,19 @@
     color: var(--text-secondary, #999);
 }
 
+/* Corner resize grip (drag to resize, persisted) */
+.tk-resize {
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 22px;
+    height: 22px;
+    cursor: nwse-resize;
+    touch-action: none;
+    background: linear-gradient(135deg, transparent 50%, rgba(255, 255, 255, 0.35) 50%, rgba(255, 255, 255, 0.35) 55%, transparent 55%, transparent 65%, rgba(255, 255, 255, 0.35) 65%, rgba(255, 255, 255, 0.35) 70%, transparent 70%);
+    border-bottom-right-radius: 10px;
+}
+
 #touch-keyboard.tk-caps .tk-key[data-action="char"] {
     text-transform: uppercase;
 }
@@ -134,8 +153,10 @@
 
 /* Compact phones: shorter keys, tighter gaps */
 @media (max-width: 560px) {
+    #touch-keyboard {
+        --tk-key-h: 44px;
+    }
     .tk-key {
-        height: 44px;
         font-size: 15px;
         border-radius: 6px;
     }
@@ -170,4 +191,8 @@ html[data-theme="light"] .tk-key.tk-fn {
 
 html[data-theme="light"] .tk-grip {
     background: rgba(0, 0, 0, 0.25);
+}
+
+html[data-theme="light"] .tk-resize {
+    background: linear-gradient(135deg, transparent 50%, rgba(0, 0, 0, 0.35) 50%, rgba(0, 0, 0, 0.35) 55%, transparent 55%, transparent 65%, rgba(0, 0, 0, 0.35) 65%, rgba(0, 0, 0, 0.35) 70%, transparent 70%);
 }

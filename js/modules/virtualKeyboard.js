@@ -58,6 +58,10 @@ const VirtualKeyboard = (() => {
     let target = null;
     let lastShiftTap = 0;
     const suppressed = new Set();
+    // Custom geometry (null = docked default). Persisted to SystemConfig.
+    let posX = null, posY = null, posW = null, posKeyH = null;
+    let dragState = null;
+    let resizeState = null;
 
     function isEnabled() {
         try { return !!SystemConfig.get('touchKeyboardEnabled'); } catch (e) { return false; }
@@ -117,13 +121,25 @@ const VirtualKeyboard = (() => {
 
     // ---------- honest key events + edits ----------
 
-    function fireKey(type, key, code) {
-        if (!target) return false;
+    // Games have no text field: fall back to the focused element (or body)
+    // so OSK presses still reach window-level game listeners as key events.
+    function eventTarget() {
+        if (target) return target;
+        try {
+            const a = document.activeElement;
+            if (a && a !== document.body && !(kbEl && (a === kbEl || kbEl.contains(a)))) return a;
+        } catch (e) { /* ignore */ }
+        return document.body;
+    }
+
+    function fireKey(type, key) {
+        const t = eventTarget();
+        if (!t) return false;
         try {
             const ev = new KeyboardEvent(type, {
-                key, code: code || key, bubbles: true, cancelable: true
+                key, code: key, bubbles: true, cancelable: true
             });
-            return !target.dispatchEvent(ev);
+            return !t.dispatchEvent(ev);
         } catch (e) {
             return false;
         }
@@ -206,16 +222,17 @@ const VirtualKeyboard = (() => {
         }
     }
 
-    function pressEnter() {
-        if (!target) return;
+    function charFor(label) {
+        const upper = shift || capsLock;
+        return upper ? label.toUpperCase() : label.toLowerCase();
+    }
+
+    function pressEnterDown() {
         if (isTextField() && target.tagName.toLowerCase() === 'textarea') {
             if (!fireKey('keydown', 'Enter')) insertText('\n');
-            fireKey('keyup', 'Enter');
             return;
         }
-        const vetoed = fireKey('keydown', 'Enter');
-        fireKey('keyup', 'Enter');
-        if (!vetoed && isTextField() && target.form) {
+        if (!fireKey('keydown', 'Enter') && isTextField() && target.form) {
             try {
                 if (typeof target.form.requestSubmit === 'function') target.form.requestSubmit();
                 else target.form.submit();
@@ -223,51 +240,40 @@ const VirtualKeyboard = (() => {
         }
     }
 
-    function charFor(label) {
-        const upper = shift || capsLock;
-        return upper ? label.toUpperCase() : label.toLowerCase();
+    function pressEnterUp() {
+        fireKey('keyup', 'Enter');
     }
 
-    function pressKey(def) {
-        click();
-        if (!target) {
-            // No field attached: only view/hide keys make sense.
-            if (def.a === 'view') setView(def.v);
-            else if (def.a === 'hide') hide();
-            return;
-        }
+    // Pointer-down half: dispatches keydown, performs the edit once.
+    // Returns the key name for keyup pairing (null when there is none).
+    function downKey(def, isRepeat) {
+        if (!isRepeat) click();
         switch (def.a) {
             case 'char': {
                 const ch = charFor(def.v || def.l);
-                if (!fireKey('keydown', ch)) insertText(ch);
-                fireKey('keyup', ch);
+                if (!fireKey('keydown', ch) && isTextField()) insertText(ch);
                 if (shift && !capsLock) { shift = false; paint(); }
-                break;
+                return ch;
             }
             case 'space':
-                if (!fireKey('keydown', ' ')) insertText(' ');
-                fireKey('keyup', ' ');
+                if (!fireKey('keydown', ' ')) { if (isTextField()) insertText(' '); }
                 if (shift && !capsLock) { shift = false; paint(); }
-                break;
+                return ' ';
             case 'backspace':
-                if (!fireKey('keydown', 'Backspace')) deleteBackward();
-                fireKey('keyup', 'Backspace');
-                break;
+                if (!fireKey('keydown', 'Backspace')) { if (isTextField()) deleteBackward(); }
+                return 'Backspace';
             case 'enter':
-                pressEnter();
-                break;
+                pressEnterDown();
+                return null; // keyup is emitted inside pressEnterUp on release
             case 'left':
                 if (!fireKey('keydown', 'ArrowLeft')) moveCaret(-1);
-                fireKey('keyup', 'ArrowLeft');
-                break;
+                return 'ArrowLeft';
             case 'right':
                 if (!fireKey('keydown', 'ArrowRight')) moveCaret(1);
-                fireKey('keyup', 'ArrowRight');
-                break;
+                return 'ArrowRight';
             case 'esc':
                 fireKey('keydown', 'Escape');
-                fireKey('keyup', 'Escape');
-                break;
+                return 'Escape';
             case 'shift': {
                 const now = Date.now();
                 if (shift && !capsLock && now - lastShiftTap < 350) { capsLock = true; shift = false; }
@@ -275,15 +281,24 @@ const VirtualKeyboard = (() => {
                 else { shift = !shift; }
                 lastShiftTap = now;
                 paint();
-                break;
+                return null;
             }
             case 'view':
                 setView(def.v);
-                break;
+                return null;
             case 'hide':
                 hide();
-                break;
+                return null;
+            default:
+                return null;
         }
+    }
+
+    // Pointer-up half: single keyup pairs the whole hold, so games see a
+    // sustained press while held (physical-keyboard semantics).
+    function upKey(def, paired) {
+        if (def.a === 'enter') { pressEnterUp(); return; }
+        if (paired) fireKey('keyup', paired);
     }
 
     // ---------- rendering ----------
@@ -325,9 +340,14 @@ const VirtualKeyboard = (() => {
     }
 
     function wireButton(btn, def) {
-        const repeatable = def.a === 'backspace' || def.a === 'space' || def.a === 'left' || def.a === 'right';
+        // Held keys repeat like a physical keyboard: repeated keydowns with
+        // edits, one keyup on release — so games see sustained movement.
+        const repeatable = def.a === 'backspace' || def.a === 'space' || def.a === 'left'
+            || def.a === 'right' || def.a === 'char';
         let repeatTimer = null;
         let repeatInterval = null;
+        let paired = null;
+        let released = true;
         const clear = () => {
             if (repeatTimer) { clearTimeout(repeatTimer); repeatTimer = null; }
             if (repeatInterval) { clearInterval(repeatInterval); repeatInterval = null; }
@@ -336,17 +356,28 @@ const VirtualKeyboard = (() => {
             e.preventDefault();
             try { btn.setPointerCapture(e.pointerId); } catch (err) { /* mouse */ }
             btn.classList.add('tk-pressed');
-            pressKey(def);
-            if (repeatable && target) {
+            released = false;
+            paired = downKey(def, false);
+            if (repeatable) {
                 repeatTimer = setTimeout(() => {
-                    repeatInterval = setInterval(() => pressKey(def), 70);
+                    repeatInterval = setInterval(() => { paired = downKey(def, true) || paired; }, 70);
                 }, 450);
             }
         });
-        const release = () => { btn.classList.remove('tk-pressed'); clear(); };
+        const release = () => {
+            if (released) return;
+            released = true;
+            btn.classList.remove('tk-pressed');
+            clear();
+            upKey(def, paired);
+            paired = null;
+        };
         btn.addEventListener('pointerup', release);
         btn.addEventListener('pointercancel', release);
         btn.addEventListener('lostpointercapture', release);
+        // No-capture fallback (old mouse paths): sliding off releases.
+        // With active capture this never fires spuriously.
+        btn.addEventListener('pointerleave', release);
         // Keyboard access to the keyboard: real Enter/Space on a focused
         // tk-key must not double-fire via click after pointerup.
         btn.addEventListener('click', (e) => e.preventDefault());
@@ -362,6 +393,7 @@ const VirtualKeyboard = (() => {
 
         const bar = document.createElement('div');
         bar.className = 'tk-bar';
+        bar.title = 'Drag to move • double-click to re-dock';
         const grip = document.createElement('div');
         grip.className = 'tk-grip';
         const hideBtn = document.createElement('button');
@@ -373,15 +405,140 @@ const VirtualKeyboard = (() => {
         hideBtn.addEventListener('click', (e) => { e.preventDefault(); click(); hide(); });
         bar.appendChild(grip);
         bar.appendChild(hideBtn);
+        wireDrag(bar);
 
         rowsEl = document.createElement('div');
         rowsEl.className = 'tk-rows';
         kbEl.appendChild(bar);
         kbEl.appendChild(rowsEl);
+
+        const rz = document.createElement('div');
+        rz.className = 'tk-resize';
+        rz.title = 'Drag to resize';
+        wireResize(rz);
+        kbEl.appendChild(rz);
         // Outside the zoomed <body> like the other touch overlays, so
         // position:fixed maps 1:1 to client pixels.
         document.documentElement.appendChild(kbEl);
+        applyBounds();
         paint();
+    }
+
+    // ---------- drag + resize (persisted) ----------
+
+    function loadBounds() {
+        try {
+            const b = SystemConfig.get('touchKeyboardBounds');
+            if (b && typeof b === 'object') return b;
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function saveBounds() {
+        try {
+            const has = posX !== null || posY !== null || posW !== null || posKeyH !== null;
+            SystemConfig.set('touchKeyboardBounds', has
+                ? { x: posX, y: posY, w: posW, keyH: posKeyH }
+                : null);
+        } catch (e) { /* session-only */ }
+    }
+
+    function applyBounds() {
+        if (!kbEl) return;
+        const b = loadBounds();
+        posX = (b && Number.isFinite(b.x)) ? b.x : null;
+        posY = (b && Number.isFinite(b.y)) ? b.y : null;
+        posW = (b && Number.isFinite(b.w)) ? b.w : null;
+        posKeyH = (b && Number.isFinite(b.keyH)) ? b.keyH : null;
+        if (posX !== null && posY !== null) {
+            kbEl.style.transform = 'none';
+            kbEl.style.left = posX + 'px';
+            kbEl.style.top = posY + 'px';
+            kbEl.style.bottom = 'auto';
+        }
+        if (posW !== null) kbEl.style.width = posW + 'px';
+        if (posKeyH !== null) kbEl.style.setProperty('--tk-key-h', posKeyH + 'px');
+    }
+
+    function resetBounds() {
+        posX = posY = posW = posKeyH = null;
+        if (kbEl) {
+            kbEl.style.transform = '';
+            kbEl.style.left = '';
+            kbEl.style.top = '';
+            kbEl.style.bottom = '';
+            kbEl.style.width = '';
+            kbEl.style.removeProperty('--tk-key-h');
+        }
+        saveBounds();
+    }
+
+    function moveKb(clientX, clientY) {
+        if (!kbEl || !dragState) return;
+        const r = kbEl.getBoundingClientRect();
+        const maxX = Math.max(0, window.innerWidth - 60);
+        const maxY = Math.max(0, window.innerHeight - 60);
+        posX = Math.min(Math.max(clientX - dragState.dx, -((r.width || 400) - 60)), maxX);
+        posY = Math.min(Math.max(clientY - dragState.dy, 0), maxY);
+        kbEl.style.transform = 'none';
+        kbEl.style.left = posX + 'px';
+        kbEl.style.top = posY + 'px';
+        kbEl.style.bottom = 'auto';
+    }
+
+    function wireDrag(bar) {
+        bar.addEventListener('pointerdown', (e) => {
+            if (e.target.closest && e.target.closest('.tk-hide')) return;
+            if (e.button !== undefined && e.button !== 0) return;
+            try {
+                const r = kbEl.getBoundingClientRect();
+                dragState = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+                bar.setPointerCapture(e.pointerId);
+            } catch (err) { dragState = null; }
+        });
+        bar.addEventListener('pointermove', (e) => {
+            if (dragState) { e.preventDefault(); moveKb(e.clientX, e.clientY); }
+        });
+        const end = () => {
+            if (dragState) { dragState = null; saveBounds(); }
+        };
+        bar.addEventListener('pointerup', end);
+        bar.addEventListener('pointercancel', end);
+        bar.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            click();
+            resetBounds();
+        });
+    }
+
+    function wireResize(rz) {
+        rz.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                const r = kbEl.getBoundingClientRect();
+                const cs = getComputedStyle(kbEl).getPropertyValue('--tk-key-h');
+                resizeState = {
+                    startX: e.clientX, startY: e.clientY,
+                    startW: r.width, startH: parseFloat(cs) || 52
+                };
+                rz.setPointerCapture(e.pointerId);
+            } catch (err) { resizeState = null; }
+        });
+        rz.addEventListener('pointermove', (e) => {
+            if (!resizeState) return;
+            e.preventDefault();
+            const maxW = Math.max(280, window.innerWidth - 16);
+            posW = Math.min(Math.max(resizeState.startW + (e.clientX - resizeState.startX), 280), maxW);
+            posKeyH = Math.min(Math.max(resizeState.startH + (e.clientY - resizeState.startY), 36), 76);
+            kbEl.style.width = posW + 'px';
+            kbEl.style.setProperty('--tk-key-h', posKeyH + 'px');
+        });
+        const end = () => {
+            if (resizeState) { resizeState = null; saveBounds(); }
+        };
+        rz.addEventListener('pointerup', end);
+        rz.addEventListener('pointercancel', end);
     }
 
     function buildTrayButton() {

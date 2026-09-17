@@ -1128,11 +1128,12 @@ The SDK is a **stability facade, not a sandbox** -- apps share one JS context, s
 
 - Settings > System > Touch keyboard: master enable (*"Use touch keyboard instead of the native OS keyboard"*), *"Show automatically when a text field is focused"*, and *"Taskbar button"* (tray icon summons it at any time). Auto-on for touch devices, off for desktops (both can change it).
 - When enabled, focusing an `input`/`textarea`/`contenteditable` suppresses the native keyboard (`readonly` + `inputmode="none"`, restored on blur) and docks the OSK above the taskbar. Disabling restores native behavior everywhere.
-- Layouts: `abc` (QWERTY, one-shot Shift, double-tap Caps Lock), `123` (numbers, arrows), `#+=` (symbols, Esc). Backspace/Space/arrows repeat on hold. The `⌄` key, the tray button, or focus loss dismisses it.
+- Layouts: `abc` (QWERTY, one-shot Shift, double-tap Caps Lock), `123` (numbers, arrows), `#+=` (symbols, Esc). Backspace/Space/arrows/letters repeat on hold. The `⌄` key, the tray button, or focus loss dismisses it.
+- Draggable by the top bar, resizable by the corner grip (geometry persists in `touchKeyboardBounds`; double-click the bar to re-dock).
 
 **What app authors need to know:**
 
-- Key presses are honest input, not DOM hacks: each press dispatches a real bubbling `keydown`/`keyup` (`KeyboardEvent` with `.key` set — the central shortcut registry and games see touch input) and then edits via `setRangeText` + `InputEvent('input')`. If your `keydown` handler calls `preventDefault()`, the insertion is vetoed.
+- Key presses are honest input, not DOM hacks: pointer-down dispatches `keydown` (+ one edit), pointer-up dispatches a single `keyup` — a held letter looks exactly like a held physical key, so games see sustained movement. With no text field attached, events fall back to the focused element / body, so the keyboard drives games too. If your `keydown` handler calls `preventDefault()`, the insertion is vetoed.
 - `Enter` in a single-line field inside a `<form>` submits the form (unless the keydown was vetoed); in a `textarea` it inserts a newline.
 - `window` event `touch-keyboard-visibility` (`{ detail: { open } }`) fires on show/hide — use it to shrink scroll regions above the keyboard.
 - Programmatic control (console, system UI): `window._modules.VirtualKeyboard.show()/hide()/toggle()/isOpen()`.

@@ -4,6 +4,15 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4938] - 2026-09-17
+
+### Added
+- Touch keyboard is draggable (top bar, double-click re-docks) and resizable (corner grip scales width + key height), geometry persisted in `touchKeyboardBounds`; hold-to-repeat now covers letters with physical semantics (repeated `keydown` + edits, single `keyup` on release), and key events fall back to the focused element/body when no text field is attached — so the on-screen keyboard fully drives games like Riftbound Runner
+- `touchKeyboardBounds: null` config default; Settings tip and §27 document dragging, resizing, and game input
+
+### Fixed
+- Riftbound Runner's global `keydown`/`keyup` listeners leaked after close and `preventDefault`ed W/A/S/D everywhere (killing WASD in every other app); handlers are now scoped to a connected + focused game window, held keys clear on `blur` and level reset
+
 ## [12.0.4937] - 2026-09-17
 
 ### Added

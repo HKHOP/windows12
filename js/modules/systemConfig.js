@@ -38,6 +38,7 @@ const SystemConfig = (() => {
         touchKeyboardEnabled: HAS_TOUCH,
         touchKeyboardAutoShow: true,
         touchKeyboardTrayButton: true,
+        touchKeyboardBounds: null,
         cursorTheme: 'default',
         cursorSize: 'normal',
         cursorStyle: 'modern'

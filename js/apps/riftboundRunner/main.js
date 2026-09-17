@@ -144,6 +144,7 @@ const RiftboundRunner = (() => {
     }
 
     function resetLevel(){
+        keys.clear();
         game.levelState=buildLevel(currentDef());
         game.levelState.p.spawnX=48; game.levelState.p.spawnY=430;
         game.levelState.p.x=48; game.levelState.p.y=430;
@@ -291,12 +292,19 @@ const RiftboundRunner = (() => {
         const touch=(sel,key)=>{const b=root.querySelector(sel);if(!b)return;b.addEventListener('pointerdown',e=>{e.preventDefault();keys.add(key);});b.addEventListener('pointerup',()=>keys.delete(key));b.addEventListener('pointerleave',()=>keys.delete(key));};
         touch('[data-left]','ArrowLeft');touch('[data-right]','ArrowRight');touch('[data-jump]',' ');
         root.addEventListener('pointerdown',()=>WindowManager.focusWindow(win.id));
+        window.addEventListener('blur',()=>keys.clear());
         game.settings=SystemConfig.getAll?SystemConfig.getAll():{};
         window.addEventListener('keydown',onKey);window.addEventListener('keyup',onKeyUp);
         win.element.addEventListener('mousedown',()=>WindowManager.focusWindow(win.id));
         resetLevel();raf=requestAnimationFrame(gameLoop);
     }
-    function onKey(e){if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','w','a','s','d','W','A','S','D'].includes(e.key)){e.preventDefault();keys.add(e.key);}}
+    function onKey(e){
+        // Window-scoped: never steal keys typed in other windows, and go
+        // dead the moment our window closes (leaked globals used to
+        // preventDefault WASD everywhere after exit).
+        if(!win||!win.element.isConnected||!win.element.classList.contains('focused'))return;
+        if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','w','a','s','d','W','A','S','D'].includes(e.key)){e.preventDefault();keys.add(e.key);}
+    }
     function onKeyUp(e){keys.delete(e.key);}
 
     function launch(){
