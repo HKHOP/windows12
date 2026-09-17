@@ -3,6 +3,7 @@ import AppSystem from '../../modules/appSystem.js';
 import AppIcons from '../../modules/appIcons.js';
 import { AppMetadata, AppRegistry } from '../../modules/taskbar.js';
 import AppLoader from '../../modules/appLoader.js';
+import Permissions from '../../modules/permissions.js';
 
 const AppStore = (() => {
     const icon = AppIcons.get('appStore');
@@ -324,6 +325,23 @@ const AppStore = (() => {
         `;
     }
 
+    function permissionsHtml(appId) {
+        const perms = Permissions.getDeclared(appId);
+        const rows = perms.length > 0
+            ? perms.map(p => {
+                const meta = Permissions.getCatalog()[p];
+                return `<div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;padding:5px 0;">
+                    <span style="width:16px;height:16px;display:inline-flex;flex-shrink:0;margin-top:1px;color:#ccc;">${Permissions.iconFor(p)}</span>
+                    <span><span style="color:#ccc;">${meta.label}</span><br><span style="font-size:11px;color:#888;">${meta.description}</span></span>
+                </div>`;
+            }).join('')
+            : '<div style="font-size:12px;color:#888;">No special permissions required.</div>';
+        return `<div style="background:#222;border-radius:8px;padding:16px;margin-bottom:20px;">
+            <h3 style="font-size:13px;font-weight:600;margin-bottom:8px;">Permissions</h3>
+            ${rows}
+        </div>`;
+    }
+
     function getDetailContent(appId) {
         const app = appDetails[appId];
         if (!app) return shellHtml(currentTab, getHomeContent());
@@ -393,6 +411,7 @@ const AppStore = (() => {
                                     <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:#888;">Category</span><span style="color:#ccc;">${app.category || ''}</span></div>
                                 </div>
                             </div>
+                            ${permissionsHtml(appId)}
                             <div style="background:#222;border-radius:8px;padding:16px;">
                                 <h3 style="font-size:13px;font-weight:600;margin-bottom:12px;">Discover more</h3>
                                 <div style="display:flex;flex-direction:column;gap:12px;">
@@ -457,6 +476,15 @@ const AppStore = (() => {
             if (mod && typeof mod.launch === 'function') mod.launch();
         }
 
+        // Install with permission consent: apps declaring permissions show
+        // what they want first; declining aborts the install.
+        function doInstall(appId, after) {
+            Permissions.requestInstallConsent(appId).then(ok => {
+                if (ok) AppSystem.installApp(appId);
+                after();
+            });
+        }
+
         function wire(container) {
             container.querySelectorAll('.store-nav-item').forEach(item => {
                 item.addEventListener('click', () => showView(item.dataset.tab));
@@ -497,8 +525,7 @@ const AppStore = (() => {
                     e.stopPropagation();
                     const appId = btn.getAttribute('data-app');
                     if (!appId) return;
-                    AppSystem.installApp(appId);
-                    refresh();
+                    doInstall(appId, refresh);
                 });
             });
 
@@ -545,8 +572,7 @@ const AppStore = (() => {
                     e.stopPropagation();
                     const appId = btn.getAttribute('data-app');
                     if (!appId) return;
-                    AppSystem.installApp(appId);
-                    showAppDetail(appId);
+                    doInstall(appId, () => showAppDetail(appId));
                 });
             });
             container.querySelectorAll('.store-open-btn').forEach(btn => {

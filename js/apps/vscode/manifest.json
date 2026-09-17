@@ -7,6 +7,7 @@
     "distribution": "store",
     "entry": "main.js",
     "associations": [],
+  "permissions": ["filesystem"],
     "store": {
         "developer": "Microsoft Corporation",
         "category": "Developer Tools",

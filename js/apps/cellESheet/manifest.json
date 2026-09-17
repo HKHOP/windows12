@@ -11,7 +11,8 @@
         "celsheet",
         "csv"
     ],
-    "store": {
+    "permissions": ["filesystem", "clipboard"],
+  "store": {
         "developer": "Windows 12",
         "category": "Productivity",
         "rating": "4.5",

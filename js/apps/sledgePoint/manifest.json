@@ -10,7 +10,8 @@
         "sledge",
         "sledgepoint"
     ],
-    "store": {
+    "permissions": ["filesystem"],
+  "store": {
         "developer": "Windows 12",
         "category": "Productivity",
         "rating": "4.6",

@@ -12,6 +12,7 @@ import WindowsUpdate from '../../modules/windowsUpdate.js';
 import Touch from '../../modules/touch.js';
 import Cursor from '../../modules/cursor.js';
 import VirtualDesktops from '../../modules/virtualDesktops.js';
+import Permissions from '../../modules/permissions.js';
 
 const Settings = (() => {
     const icon = AppIcons.get('settings');
@@ -878,11 +879,30 @@ const Settings = (() => {
                     if (!man) return '';
                     const svc = AppLoader.isService(id);
                     if (man.distribution === 'builtin') return appRow(meta.name, svc ? 'Built-in service' : 'Built-in', false);
-                    if (installed.includes(id)) return appRow(meta.name, svc ? 'Service • Installed from Store' : 'Installed from Store', true, id);
+                    if (installed.includes(id)) {
+                        const row = appRow(meta.name, svc ? 'Service • Installed from Store' : 'Installed from Store', true, id);
+                        const perms = Permissions.getDeclared(id);
+                        if (perms.length === 0) return row;
+                        const toggles = perms.map(p => {
+                            const info = Permissions.getCatalog()[p];
+                            const on = Permissions.isGranted(id, p);
+                            return `<label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#ccc;cursor:pointer;">
+                                <input type="checkbox" class="settings-perm-toggle" data-app="${id}" data-perm="${p}"${on ? ' checked' : ''} style="accent-color:var(--accent-color);">
+                                ${info.label}</label>`;
+                        }).join('');
+                        return row + `<div style="margin:-4px 0 4px 0;padding:10px 16px;background:rgba(255,255,255,0.02);border-radius:6px;display:flex;flex-direction:column;gap:6px;">
+                            <div style="font-size:11px;color:#888;">Permissions</div>${toggles}</div>`;
+                    }
                     return '';
                 }).join('')}
             </div>
         `;
+
+        el.querySelectorAll('.settings-perm-toggle').forEach(t => {
+            t.addEventListener('change', () => {
+                Permissions.setGranted(t.dataset.app, t.dataset.perm, t.checked);
+            });
+        });
 
         el.querySelectorAll('.settings-uninstall-btn').forEach(btn => {
             btn.addEventListener('click', () => {

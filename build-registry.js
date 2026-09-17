@@ -12,6 +12,10 @@ const SW_PATH = path.join(ROOT, 'sw.js');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EXT_RE = /^[a-z0-9]+$/;
+// Declarative capabilities (see js/modules/permissions.js). The
+// "background" permission equals the "background" flag — either one grants
+// headless execution; "service" additionally hides the app from launchers.
+const PERMISSIONS = ['filesystem', 'notifications', 'network', 'clipboard', 'background'];
 
 function fail(msg) {
     console.error('build-registry: ERROR: ' + msg);
@@ -51,6 +55,12 @@ function loadManifests() {
         // Services imply background capability.
         for (const k of ['background', 'service']) {
             if (m[k] !== undefined && typeof m[k] !== 'boolean') fail(`js/apps/${id}/manifest.json: "${k}" must be a boolean when present`);
+        }
+        if (m.permissions !== undefined) {
+            if (!Array.isArray(m.permissions)) fail(`js/apps/${id}/manifest.json: "permissions" must be an array`);
+            for (const p of m.permissions) {
+                if (typeof p !== 'string' || !PERMISSIONS.includes(p)) fail(`js/apps/${id}/manifest.json: unknown permission "${p}" (expected one of: ${PERMISSIONS.join(', ')})`);
+            }
         }
         if (m.distribution === 'store') {
             const s = m.store || {};
@@ -95,6 +105,10 @@ function emitRegistry(manifests) {
             associations: m.associations || []
         };
         if (m.background) pub.background = true;
+        if (Array.isArray(m.permissions) && m.permissions.length > 0) {
+            pub.permissions = [...new Set(m.permissions)];
+            if (pub.permissions.includes('background')) pub.background = true;
+        }
         if (m.service) {
             // Services are always background-capable, never launchable.
             pub.service = true;

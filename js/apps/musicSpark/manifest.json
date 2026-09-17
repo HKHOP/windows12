@@ -9,7 +9,8 @@
     "associations": [
         "mspark"
     ],
-    "store": {
+    "permissions": ["filesystem"],
+  "store": {
         "developer": "Windows 12",
         "category": "Music & Audio",
         "rating": "4.9",

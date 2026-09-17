@@ -35,9 +35,14 @@ Minimal `manifest.json` for a builtin app:
     "version": "1.0.0",
     "distribution": "builtin",
     "entry": "main.js",
-    "associations": []
+    "associations": [],
+    "permissions": ["filesystem", "notifications"]
 }
 ```
+
+Known permissions: `filesystem` (virtual files), `notifications` (toasts + panel), `network` (fetch + remote embeds), `clipboard` (read copies), `background` (headless execution — equals the `"background": true` flag, so declare one or the other). `build-registry.js` rejects unknown names.
+
+Store apps show their permissions on the Store page, install asks for consent, and users can revoke per app in Settings > Apps (a revoked `notifications` permission blocks that app's toasts). Builtins are first-party and always granted. Check at runtime with `Permissions.isGranted(appId, perm)` (see §24).
 
 For a store app use `"distribution": "store"` and add `associations` (file extensions it opens, requires an exported `open(path, content)` function) plus a `store` block (`developer`, `category`, `rating`, `reviews`, `description`, `features[]`, `screenshots[]`, `size`, `ageRating`).
 
@@ -973,3 +978,19 @@ function launch() {
 ```
 
 **Which shortcuts already exist (don't re-register these):** `PRINTSCREEN` (screenshot), `WIN+V` / `CTRL+SHIFT+V` (clipboard history), `ALT+F4` (close focused window), layered `ESCAPE` (context menu → notification center → clipboard flyout).
+
+---
+
+## 24. Permissions API
+
+**Import:** `import Permissions from '../../modules/permissions.js';`
+
+| Method | Description |
+|--------|-------------|
+| `Permissions.getCatalog()` | `{ id: { label, description } }` for all five permissions. |
+| `Permissions.iconFor(perm)` | 16px SVG string for Store/Settings rows. |
+| `Permissions.getDeclared(appId)` | Manifest-declared permissions (unknown names filtered). |
+| `Permissions.isGranted(appId, perm)` | Grant check: builtins and undeclared capabilities always `true`; declared ones are `true` unless the user revoked them. Use before sensitive calls. |
+| `Permissions.setGranted(appId, perm, bool)` | Revoke/restore (Settings > Apps uses this). |
+| `Permissions.requestInstallConsent(appId)` → `Promise<boolean>` | Consent dialog listing declared permissions; resolves `false` when declined. No prompt when nothing is declared. |
+| `Permissions.clearGrants(appId)` | Wipe stored choices (uninstall does this automatically). |

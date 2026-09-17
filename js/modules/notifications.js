@@ -3,6 +3,7 @@ import SystemConfig from './systemConfig.js';
 import Sounds from './sounds.js';
 import WindowManager from './windowManager.js';
 import Keyboard from './keyboard.js';
+import Permissions from './permissions.js';
 import { AppMetadata, Taskbar } from './taskbar.js';
 
 // System notification center: Windows 11-style toasts + Action Center panel
@@ -119,6 +120,13 @@ const Notifications = (() => {
     // ---------------- core ----------------
     function add(type, title, message, opts) {
         opts = opts || {};
+        // Permission gate: a store app that declares "notifications" and had
+        // it revoked in Settings > Apps is dropped entirely (builtins and
+        // undeclared senders fail open for back-compat).
+        try {
+            const sender = opts.appId || 'system';
+            if (!Permissions.isGranted(sender, 'notifications')) return null;
+        } catch (e) { /* fail open */ }
         const rec = {
             id: `notif-${seq++}`,
             type,

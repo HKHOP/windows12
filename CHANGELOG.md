@@ -4,6 +4,16 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4929] - 2026-09-17
+
+### Added
+- App permissions system (`js/modules/permissions.js`): manifests declare `"permissions"` (`filesystem`, `notifications`, `network`, `clipboard`, `background` — validated by `build-registry.js`, published to the registry; `background` equals the legacy flag); Store detail pages show a Permissions section, installs with declarations ask consent first, Settings > Apps has per-app revoke toggles, grants persist per uuid and wipe on uninstall, builtins always granted
+- `Permissions` runtime API (`getCatalog`, `iconFor`, `getDeclared`, `isGranted`, `setGranted`, `requestInstallConsent`, `clearGrants`), documented as §24 in APP_DEVELOPMENT_GUIDE.md
+- Declared permission manifests for nine store apps (Discord/Subway Surfers: network; CopilotButBetter: network/filesystem/notifications/clipboard; Office apps, Music Spark, VS Code, Ex/port: filesystem)
+
+### Changed
+- Notifications are now permission-gated: a store app that declares `notifications` and has it revoked is dropped at the send choke point (undeclared senders fail open for back-compat)
+
 ## [12.0.4928] - 2026-09-17
 
 ### Added
