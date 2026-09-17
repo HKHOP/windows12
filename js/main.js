@@ -15,6 +15,7 @@ import Search from './modules/search.js';
 import Notifications from './modules/notifications.js';
 import Cursor from './modules/cursor.js';
 import BackgroundApps from './modules/backgroundApps.js';
+import ClipboardManager from './modules/clipboardManager.js';
 
 AppSystem.init();
 
@@ -46,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     Search.init();
     Notifications.init();
     BackgroundApps.init();
+    ClipboardManager.init();
 
     // ShellIcons: the system icon library (our shell32.dll) — every app can
     // use these via `import UIIcons from '../modules/uiIcons.js'` or the

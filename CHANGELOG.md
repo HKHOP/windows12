@@ -4,6 +4,13 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4926] - 2026-09-17
+
+### Added
+- Clipboard Manager system module (`js/modules/clipboardManager.js` + `css/clipboard.css`): Win+V (Meta+V, Ctrl+Shift+V fallback) flyout with clipboard history, pin/unpin, per-item delete, clear-unpinned (pinned survive), search filter, and click-to-paste (writes back to the system clipboard and inserts into the focused field); tray paste icon opens it too
+- Clipboard capture: copy/cut events inside the OS are recorded automatically; Sync button imports the live system clipboard (text + images); polling while the `clipboard-read` permission is granted
+- Clipboard persistence under `/system/programs data/clipboard/history.json` (50 items, images downscaled to fit 2MB each, storage guard evicts oldest unpinned items first)
+
 ## [12.0.4925] - 2026-09-17
 
 ### Fixed
