@@ -11,6 +11,7 @@ const urlsToCache = [
     './css/popup.css',
     './css/notifications.css',
     './css/clipboard.css',
+    './css/taskview.css',
     './js/main.js',
     './js/modules/windowManager.js',
     './js/modules/taskbar.js',

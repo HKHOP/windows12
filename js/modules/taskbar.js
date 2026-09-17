@@ -152,6 +152,17 @@ const Taskbar = (() => {
         });
         center.appendChild(searchBtn);
 
+        const taskViewBtn = document.createElement('button');
+        taskViewBtn.className = 'taskbar-btn';
+        taskViewBtn.title = 'Task View (Win+Tab)';
+        taskViewBtn.innerHTML = UIIcons.setting('multitasking', 18);
+        taskViewBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const VD = (window._modules && window._modules.VirtualDesktops) || null;
+            if (VD) VD.toggle();
+        });
+        center.appendChild(taskViewBtn);
+
         const separator = document.createElement('div');
         separator.className = 'taskbar-separator';
         center.appendChild(separator);
@@ -172,7 +183,7 @@ const Taskbar = (() => {
 
         const nonPinnedRunning = [];
         runningApps.forEach((windows, appId) => {
-            if (!pinnedApps.includes(appId) && appId !== 'search') {
+            if (!pinnedApps.includes(appId) && appId !== 'search' && hasWindowOnActiveDesktop(appId)) {
                 nonPinnedRunning.push(appId);
             }
         });
@@ -213,7 +224,7 @@ const Taskbar = (() => {
                 if (appId === 'search') return;
 
                 const meta = AppMetadata.get(appId);
-                const isRunning = runningApps.has(appId);
+                const isRunning = hasWindowOnActiveDesktop(appId);
                 const pinned = isPinned(appId);
 
                 const items = [
@@ -223,7 +234,7 @@ const Taskbar = (() => {
 
                 if (isRunning) {
                     items.push({ label: 'Close window', icon: UIIcons.action('close'), action: () => {
-                        const wins = WindowManager.getWindowsByApp(appId);
+                        const wins = WindowManager.getWindowsByApp(appId).filter(w => isOnActiveDesktop(w.id));
                         wins.forEach(w => WindowManager.closeWindow(w.id));
                     }});
                 } else {
@@ -244,6 +255,30 @@ const Taskbar = (() => {
                 }
             });
         });
+    }
+
+    function getVD() {
+        return (window._modules && window._modules.VirtualDesktops) || null;
+    }
+
+    // Virtual desktops: the taskbar only reflects the active desktop's
+    // windows. Without the module (or before it boots), everything counts.
+    function isOnActiveDesktop(windowId) {
+        const VD = getVD();
+        if (!VD) return true;
+        try {
+            return VD.getDesktopOf(windowId) === VD.getActiveId();
+        } catch (e) {
+            return true;
+        }
+    }
+
+    function hasWindowOnActiveDesktop(appId) {
+        if (!runningApps.has(appId)) return false;
+        for (const id of runningApps.get(appId)) {
+            if (isOnActiveDesktop(id)) return true;
+        }
+        return false;
     }
 
     function updateClock() {
@@ -274,15 +309,17 @@ const Taskbar = (() => {
         try {
             if (AppLoader.isService(appId)) return false;
         } catch (e) { /* manifest unreadable — fall through */ }
-        const existing = WindowManager.getWindowsByApp(appId);
+        // Only windows on the active desktop take part: clicking an app
+        // that runs solely elsewhere opens a fresh window here.
+        const existing = WindowManager.getWindowsByApp(appId).filter(w => isOnActiveDesktop(w.id));
         if (existing.length > 0) {
             const win = existing[0];
             const wasFocused = win.element.classList.contains('focused');
-            if (win.element.style.display === 'none') {
-                win.element.style.display = 'flex';
+            if (WindowManager.isMinimized(win.id)) {
+                WindowManager.setMinimized(win.id, false);
                 WindowManager.focusWindow(win.id);
             } else if (wasFocused && !options.page) {
-                win.element.style.display = 'none';
+                WindowManager.setMinimized(win.id, true);
             } else {
                 WindowManager.focusWindow(win.id);
             }
@@ -344,7 +381,7 @@ const Taskbar = (() => {
         const btns = document.querySelectorAll('.taskbar-btn.app-btn');
         btns.forEach(btn => {
             const app = btn.dataset.app;
-            if (runningApps.has(app)) {
+            if (hasWindowOnActiveDesktop(app)) {
                 btn.classList.add('running');
             } else {
                 btn.classList.remove('running');

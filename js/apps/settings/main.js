@@ -11,6 +11,7 @@ import { AppMetadata } from '../../modules/taskbar.js';
 import WindowsUpdate from '../../modules/windowsUpdate.js';
 import Touch from '../../modules/touch.js';
 import Cursor from '../../modules/cursor.js';
+import VirtualDesktops from '../../modules/virtualDesktops.js';
 
 const Settings = (() => {
     const icon = AppIcons.get('settings');
@@ -609,8 +610,26 @@ const Settings = (() => {
 
     function renderMultitaskingSettings(el) {
         const config = SystemConfig.getAll();
+        const desktops = VirtualDesktops.getDesktops();
+        const wallpaperOpts = Object.entries(VirtualDesktops.WALLPAPER_NAMES)
+            .map(([v, label]) => `<option value="${v}">${label}</option>`).join('');
         el.innerHTML += `
             <div style="display:flex;flex-direction:column;gap:16px;">
+                <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
+                    <div style="font-size:14px;font-weight:500;margin-bottom:4px;">Virtual desktops</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Add, rename, and switch desktops from Task View (WIN+TAB). Each desktop can keep its own wallpaper here.</div>
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        ${desktops.map(d => `
+                            <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+                                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${d.name.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</span>
+                                <select class="vd-wallpaper-select" data-desktop="${d.id}" style="max-width:150px;">
+                                    <option value="">Follow system</option>
+                                    ${Object.entries(VirtualDesktops.WALLPAPER_NAMES).map(([v, label]) => `<option value="${v}"${d.wallpaper === v ? ' selected' : ''}>${label}</option>`).join('')}
+                                </select>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Snap windows</div>
                     <div style="display:flex;flex-direction:column;gap:8px;">
@@ -647,6 +666,12 @@ const Settings = (() => {
 
         el.querySelector('.snap-layouts-toggle').addEventListener('change', (e) => {
             SystemConfig.set('snapLayouts', e.target.checked);
+        });
+
+        el.querySelectorAll('.vd-wallpaper-select').forEach(sel => {
+            sel.addEventListener('change', () => {
+                VirtualDesktops.setWallpaper(sel.dataset.desktop, sel.value || null);
+            });
         });
 
         el.querySelector('.snap-bar-toggle').addEventListener('change', (e) => {

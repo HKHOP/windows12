@@ -11,9 +11,15 @@ const WindowManager = (() => {
     let snapIndicator = null;
     let scale = 1;
     const closeHandlers = new Map();
+    // Virtual-desktops hook: { getActiveId() }. Set by VirtualDesktops at
+    // boot; kept behind a provider (not an import) so neither module
+    // depends on the other at load time.
+    let desktopProvider = null;
 
     function setScale(s) { scale = s; }
     function getScale() { return scale; }
+
+    function setDesktopProvider(p) { desktopProvider = p; }
 
     function init() {
         container = document.getElementById('windows-container');
@@ -333,7 +339,13 @@ const WindowManager = (() => {
             element: win,
             isMaximized: isMaximized,
             prevBounds: restoreBounds,
-            saveState: opts.saveState
+            saveState: opts.saveState,
+            // Virtual desktop membership + minimize state. New windows open
+            // on the currently active desktop, visible.
+            desktopId: (opts.desktopId
+                || (desktopProvider && typeof desktopProvider.getActiveId === 'function' && desktopProvider.getActiveId())
+                || 'desktop-1'),
+            minimized: false
         };
 
         if (isMaximized) {
@@ -528,7 +540,7 @@ const WindowManager = (() => {
 
     function setupControls(win, data) {
         win.querySelector('.minimize-btn').addEventListener('click', () => {
-            win.style.display = 'none';
+            setMinimized(data.id, true);
             if (onWindowMinimized) onWindowMinimized(data.appId);
         });
 
@@ -596,8 +608,23 @@ const WindowManager = (() => {
 
     function minimizeAll() {
         windows.forEach((data) => {
-            data.element.style.display = 'none';
+            setMinimized(data.id, true);
         });
+    }
+
+    // Single choke point for minimize state so virtual desktops can tell
+    // "minimized" apart from "on another desktop" (both hide the element).
+    function setMinimized(id, minimized) {
+        const data = windows.get(id);
+        if (!data) return false;
+        data.minimized = !!minimized;
+        data.element.style.display = minimized ? 'none' : 'flex';
+        return true;
+    }
+
+    function isMinimized(id) {
+        const data = windows.get(id);
+        return !!(data && data.minimized);
     }
 
     function _getWindow(id) {
@@ -608,7 +635,7 @@ const WindowManager = (() => {
         return Array.from(windows.values());
     }
 
-    return { init, setScale, getScale, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, setOnWindowMinimized, setCloseHandler, removeCloseHandler, requestClose, closeAllWindows, requestCloseAllWindows, createWindow, focusWindow, closeWindow, getWindowsByApp, getAllWindows, minimizeAll, toggleMaximize, _getWindow };
+    return { init, setScale, getScale, setDesktopProvider, setMinimized, isMinimized, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, setOnWindowMinimized, setCloseHandler, removeCloseHandler, requestClose, closeAllWindows, requestCloseAllWindows, createWindow, focusWindow, closeWindow, getWindowsByApp, getAllWindows, minimizeAll, toggleMaximize, _getWindow };
 })();
 
 export default WindowManager;

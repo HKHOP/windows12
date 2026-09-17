@@ -4,6 +4,17 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4928] - 2026-09-17
+
+### Added
+- Real virtual desktops (`js/modules/virtualDesktops.js` + `css/taskview.css`): Desktop 1/2/…, per-desktop open windows, add (capped at 10) / rename (dialog + double-click) / remove (windows merge into a neighbor), Task View panel (WIN+TAB, taskbar button) with per-desktop window chips, click-to-jump, and ‹ › window movers
+- Virtual-desktop shortcuts: WIN+CTRL+LEFT/RIGHT switch, WIN+CTRL+D new desktop, WIN+SHIFT+LEFT/RIGHT throw the focused window across desktops (follows it)
+- Per-desktop wallpapers: each desktop can override the global style (Settings > System > Multitasking), applied on switch and restored on leave
+- Window title-bar and taskbar minimize paths now go through `WindowManager.setMinimized/isMinimized` so minimize state stays distinct from off-desktop hiding
+
+### Changed
+- Taskbar only reflects the active desktop: running indicators, unpinned buttons, click-to-focus/restore, and Close-window all scope to current-desktop windows; clicking an app that runs solely elsewhere opens a fresh window here
+
 ## [12.0.4927] - 2026-09-17
 
 ### Added

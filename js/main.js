@@ -16,6 +16,7 @@ import Notifications from './modules/notifications.js';
 import Cursor from './modules/cursor.js';
 import BackgroundApps from './modules/backgroundApps.js';
 import ClipboardManager from './modules/clipboardManager.js';
+import VirtualDesktops from './modules/virtualDesktops.js';
 import Keyboard from './modules/keyboard.js';
 
 AppSystem.init();
@@ -49,13 +50,14 @@ document.addEventListener('DOMContentLoaded', () => {
     Notifications.init();
     BackgroundApps.init();
     ClipboardManager.init();
+    VirtualDesktops.init();
 
     // ShellIcons: the system icon library (our shell32.dll) — every app can
     // use these via `import UIIcons from '../modules/uiIcons.js'` or the
     // global `window.ShellIcons` (same object).
     window.ShellIcons = UIIcons;
     window.UIIcons = UIIcons;
-    window._modules = { ContextMenu, Cursor, UIIcons, ShellIcons: UIIcons };
+    window._modules = { ContextMenu, Cursor, UIIcons, ShellIcons: UIIcons, VirtualDesktops };
 
     WindowManager.setOnFocusChanged((appId) => {
         if (appId) {
@@ -166,7 +168,7 @@ function setupWindowTitleBarContextMenu() {
             { label: 'Restore', icon: UIIcons.action('restore'), action: () => WindowManager.toggleMaximize(WindowManager._getWindow(winId)) },
             { label: 'Move', icon: UIIcons.action('move'), disabled: true },
             { label: 'Size', icon: UIIcons.action('size'), disabled: true },
-            { label: 'Minimize', icon: UIIcons.action('minimize'), action: () => { win.style.display = 'none'; Taskbar.updateRunningState(); } },
+            { label: 'Minimize', icon: UIIcons.action('minimize'), action: () => { WindowManager.setMinimized(winId, true); Taskbar.updateRunningState(); } },
             { label: 'Maximize', icon: UIIcons.action('maximize'), action: () => WindowManager.toggleMaximize(WindowManager._getWindow(winId)) },
             'separator',
             { label: 'Close', icon: UIIcons.action('close'), action: () => WindowManager.closeWindow(winId) }
