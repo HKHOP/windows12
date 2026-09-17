@@ -1,4 +1,4 @@
-# Windows 12 — App Development Guide
+﻿# Windows 12 — App Development Guide
 
 This document contains everything you need to build a new app for the Windows 12 web OS simulation. Each app is a folder using the IIFE module pattern, described by a manifest, and wired into the OS by a generated registry — no manual registration in system files.
 
@@ -11,6 +11,8 @@ This document contains everything you need to build a new app for the Windows 12
 3. If `distribution` is `"store"`, it appears in the Microsoft Store automatically
 
 That's it. The OS handles windows, taskbar, dragging, resizing, snapping, and persistence for you.
+
+> **New apps should build on the Windows 12 SDK (§26)** — one stable import instead of deep `../../modules/*` paths. Direct module imports keep working forever, but the SDK is the documented contract.
 
 ---
 
@@ -1021,3 +1023,96 @@ Rules of the road:
 - The dialog's Restart bypasses your `WindowManager` close handler (a wedged app can't veto its own restart). Keep close handlers quick and total.
 - `CrashMonitor.isCrashed(appId)` / `getCrash(appId)` let you probe health; `restartApp(appId)` / `closeApp(appId)` are the dialog's actions, exposed for Task Manager-style UIs.
 - One dialog per app per 5s (bursts don't stack). System code (`js/modules/`, inline page scripts) is never attributed to an app.
+
+---
+
+## 26. Windows 12 SDK
+
+**Why it exists.** Apps used to import OS internals directly (`../../modules/windowManager.js`, ...), coupling every app to file paths that may move. The SDK (`js/sdk/`) is the stable public contract: one entry point, validated arguments, coherent errors, and a bound per-app context. Internals keep evolving underneath; SDK apps keep working.
+
+**Status: stable/public** (contract v1.0.0, `SDK_VERSION`). Experimental: nothing in v1 -- every namespace below is stable. Internal: everything under `js/modules/` remains internal; use it only when the SDK genuinely lacks something, and expect it to move.
+
+### Import (primary style: one bound context)
+
+```js
+import { createApp } from '../../sdk/index.js';
+
+const app = createApp({ id: 'myApp', name: 'My App' });
+
+function launch() {
+    const win = app.window.create({ title: 'My App', content: '<div id="app"></div>' });
+    win.element.querySelector('#app').textContent = 'Hello Windows 12!';
+    app.notify.info('Example', 'Application started successfully.');
+}
+
+export default { launch };
+```
+
+Flat namespaces stay available for advanced use:
+
+```js
+import { WindowManager, FileSystem, Notifications, Dialogs } from '../../sdk/index.js';
+// or: import Windows12 from '../../sdk/index.js'; const { Dialogs } = Windows12;
+```
+
+**Rule:** call `createApp()` inside `launch()`, never at module scope -- the registry/app import cycle leaves SDK bindings uninitialized during evaluation (same reason `AppLoader` is launch-only). Leaf imports (`AppIcons` for your tile icon) are safe at top level.
+
+### Architecture
+
+Each `js/sdk/*.js` file is a thin facade over one internal module -- no logic is duplicated, so behavior, settings and permissions are identical to the OS. `js/sdk/types.d.ts` mirrors the surface for editors (reference only, no runtime, no TypeScript toolchain).
+
+### Quick reference
+
+| Namespace | What | Key methods |
+|-----------|------|-------------|
+| `app.window` / `WindowManager` | windows | `create({appId,title,icon,content,width,height})`, `get/focus/minimize/restore/toggleMaximize/close/requestClose/closeAll/getByApp/getAllWindows`, `Lifecycle.onClose` vetoes |
+| `app.files` / `FileSystem` | virtual FS | scoped `read/write/exists/list/mkdir/remove/rename` + `settings.get/set/all`; raw `readFile/writeFile/createFile/createFolder/delete (remove recycles)/destroy/rename/move/exists/isFolder/list/blobs/pickSave` |
+| `app.notify` / `Notifications` | toasts + panel | `info/action/form`, `dismiss/clearAll/getAll/open/close/toggle`, Focus Assist; sends are permission-gated automatically |
+| `app.dialogs` / `Dialogs` | modal dialogs | `alert/confirm/text/select/form` (all Promises; never native `alert()`) |
+| `app.keyboard` / `Keyboard` | shortcuts | `register('CTRL+SHIFT+P', cb, {scope, owner(auto), allowInInputs, description})`, `unregister/unregisterAll/list/isDown`; exact-modifier matching; return `false` to pass through; reserved: PRINTSCREEN, WIN+V, ALT+F4, layered ESCAPE |
+| `app.clipboard` / `Clipboard` | clipboard | `writeText/readText` (reject cleanly without browser permission), `sync/show/hide/toggle/getHistory/clearHistory` |
+| `Apps` | app management | `get/getMetadata/getAll/isInstalled/launch`, `install` (permission consent), `uninstall` (always confirms), `getPermissions/hasPermission` |
+| `Settings` | user settings | `get/getAll/set` (privileged display keys throw `PERMISSION_DENIED`), `open/openPage('personalization')` |
+| `app.shell` / `Shell` | chrome | `icons.app/action/file/folder/sidebar/setting`, `contextMenu(x,y,items)`, `files.open/openWith/openWithApp`, `activity.trackFileOpen/trackAppOpen/recommended` |
+| `FileAssociations` | file types | `register/unregister/getCandidates/getAllCapable/getDefault/setDefault/clearDefault` (manifest `"associations"` still preferred) |
+| `System` | OS facts | `info()/theme()/setTheme()/accent()/setAccent()` (appearance writes are user-action only) |
+| `Events` | shared bus | `on/off/names` for `app-installed/uninstalled`, `background-apps-changed`, `app-crashed`, `virtual-desktop-changed` (window-created/closed are single-slot internals -- intentionally absent) |
+| `app.permissions` / `Permissions` | capabilities | `has/require(throws)/getDeclared/catalog/iconFor/request` (grants stay user-owned) |
+| `app.lifecycle` / `Lifecycle` | close veto | `onClose/offClose`; background hooks (`onBackground/onForeground/onShutdown` exports) are manifest-declared |
+| `app.background` / `Background` | headless | `canRun/isService/isBackground/running/goBackground/bringToForeground/startService/stopService` |
+
+### Errors
+
+One type: `SDKError` with `code` (`INVALID_ARGS`, `NOT_FOUND`, `NOT_INSTALLED`, `PERMISSION_DENIED`, `UNSUPPORTED`) -- catch by code, never by message text:
+
+```js
+import { Apps, SDKError } from '../../sdk/index.js';
+try {
+    await Apps.uninstall(id);
+} catch (e) {
+    if (e instanceof SDKError && e.code === 'NOT_FOUND') { /* -- */ }
+    throw e;
+}
+```
+
+### Security model (read carefully)
+
+The SDK is a **stability facade, not a sandbox** -- apps share one JS context, so a hostile app importing internals directly has the same power as the SDK gives it. What the SDK does instead is make the safe path the easy path:
+
+- `createApp().files` cannot escape `/system/programs data/<id>/` (traversal rejected); raw `FileSystem` paths stay available but are explicit.
+- `Apps.install` forces permission consent; `Apps.uninstall` forces a user confirm and wipes grants.
+- `Settings.set` refuses privileged display keys; notification sends respect revocations; `Permissions.require` fails loud instead of bypassing.
+- Deliberately ungated (same as direct imports, documented): closing other apps' windows, reading other apps' files, starting/stopping background execution. A real cross-app sandbox would need process isolation -- out of scope for this architecture.
+
+### Migration (new vs existing apps)
+
+- **New apps:** scaffold from `js/apps/sampleApp/` (already SDK-only), declare `permissions` honestly, run `node build-registry.js`.
+- **Existing apps:** do nothing -- `../../modules/*` imports keep working. Migrate opportunistically: replace one import block at a time (`WindowManager` -> `app.window` usually needs only the `appId` prefilled), then delete the manual guards the SDK now owns (focus checks, path building, toast attribution).
+
+### Versioning
+
+`SDK_VERSION` (`'1.0.0'`) is independent of the OS version. Within major 1, namespaces only gain methods; renames/removals wait for a major bump and a migration note here.
+
+### Test coverage
+
+`node test/sdk.smoke.mjs` (zero dependencies) stubs the browser surface, imports the real SDK + all 26 apps through the real registry, and asserts 58 checks: surface, error codes, shortcut dispatch/passthrough/unregister, events, filesystem roundtrip + recycle, sandbox scoping + traversal rejection, catalogs, clipboard denial honesty, headless window create/close. DOM-painted paths (toast animation, live permission prompts) are exercised in-OS via the sample app.

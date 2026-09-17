@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4934] - 2026-09-17
+
+### Added
+- Windows 12 SDK v1.0.0 (`js/sdk/`, 18 modules + `types.d.ts`): stable facade over all internal systems — `createApp()` bound context (scoped files, attributed notifications, owned shortcuts), WindowManager/FileSystem/Notifications/Dialogs/Keyboard/Clipboard/Apps/Settings/Shell/FileAssociations/System/Events/Permissions/Lifecycle/Background namespaces, `SDKError` codes, `SDK_VERSION`; sampleApp rewritten SDK-only with filesystem+notifications permissions; §26 SDK chapter in APP_DEVELOPMENT_GUIDE.md; `test/sdk.smoke.mjs` (58 checks, all passing)
+
 ## [12.0.4933] - 2026-09-17
 
 ### Added

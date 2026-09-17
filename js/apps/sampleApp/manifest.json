@@ -7,16 +7,17 @@
     "distribution": "store",
     "entry": "main.js",
     "associations": [],
+    "permissions": ["filesystem", "notifications"],
     "store": {
         "developer": "Windows 12",
         "category": "Productivity",
         "rating": "4.5",
         "reviews": "1,234",
-        "description": "Interactive sample app that demonstrates full system installation, uninstallation, and launching. Perfect for testing the app ecosystem.",
+        "description": "The official Windows 12 SDK reference app: one bound app context, sandboxed files, notifications, dialogs and a registered shortcut. Copy this folder to start a new app.",
         "features": [
-            "Easy installation",
-            "Full system integration",
-            "Interactive UI",
+            "Built only on the public Windows 12 SDK",
+            "Sandboxed file persistence",
+            "Notifications, dialogs and shortcuts",
             "Settings persistence"
         ],
         "screenshots": [
