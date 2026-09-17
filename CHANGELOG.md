@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4933] - 2026-09-17
+
+### Added
+- File Explorer navigation batch: multi-tab windows (strip, +/×, Ctrl+T, per-tab history + selection, desktop-icon opens land in a new tab), clickable breadcrumb bar with edit-mode address field (click empty space or Ctrl+L), recursive search-within-folders with location subtitles and full action support, preview pane toggle (image thumbnails, text head, folder counts, details), Quick Access pins (persisted, sidebar section, pin/unpin menus)
+
 ## [12.0.4932] - 2026-09-17
 
 ### Added

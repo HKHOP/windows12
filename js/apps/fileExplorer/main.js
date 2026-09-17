@@ -94,22 +94,54 @@ const FileExplorer = (() => {
         WindowManager.focusWindow(rec.win.id);
     }
 
+    // Tabs: each window owns window-level state (tabs, active tab, clipboard,
+    // search text); each tab owns navigation history + selection. Render code
+    // always works with the active tab, so per-tab switching is free.
+    let tabSeq = 0;
+    function makeTab(path) {
+        return {
+            id: `tab-${++tabSeq}`,
+            pathHistory: [path ? path.slice() : ['/']],
+            historyIndex: 0,
+            selected: new Set(),
+            lastClicked: null,
+            currentPath: null
+        };
+    }
+
+    function activeTab(wstate) {
+        if (!wstate) return null;
+        return wstate.tabs.find(t => t.id === wstate.activeTabId) || wstate.tabs[0] || null;
+    }
+
+    function tabTitle(tab) {
+        if (!tab || !tab.currentPath) return 'This PC';
+        const p = tab.currentPath;
+        return p.length <= 1 ? 'Local Disk (C:)' : p[p.length - 1];
+    }
+
     function getContent() {
         return `
             <div style="display:flex;flex-direction:column;height:100%;">
+                <div class="fe-tabs" style="display:flex;align-items:center;gap:4px;padding:6px 8px 0 8px;background:rgba(128,128,128,0.08);overflow-x:auto;flex-shrink:0;"></div>
                 <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(128,128,128,0.12);border-bottom:1px solid var(--window-border);">
                     <button class="fe-back" style="background:none;border:none;color:var(--text-secondary);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:16px;" disabled>&#9664;</button>
                     <button class="fe-forward" style="background:none;border:none;color:var(--text-secondary);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:16px;" disabled>&#9654;</button>
                     <button class="fe-up" style="background:none;border:none;color:var(--text-primary);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:16px;">&#9650;</button>
-                    <input type="text" class="fe-path" style="flex:1;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:4px;padding:6px 10px;font-size:13px;color:var(--text-primary);outline:none;" value="This PC" spellcheck="false">
+                    <div class="fe-crumbbar" title="Click an empty area to edit the path" style="flex:1;display:flex;align-items:center;gap:2px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:4px;padding:2px 6px;min-height:30px;box-sizing:border-box;overflow:hidden;">
+                        <div class="fe-crumbs" style="flex:1;display:flex;align-items:center;gap:2px;overflow:hidden;white-space:nowrap;"></div>
+                        <input type="text" class="fe-path" style="flex:1;display:none;background:transparent;border:none;font-size:13px;color:var(--text-primary);outline:none;min-width:0;" value="This PC" spellcheck="false">
+                    </div>
                     <input type="text" class="fe-search" placeholder="Search" style="background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:4px;padding:6px 10px;font-size:13px;color:var(--text-primary);width:160px;outline:none;">
+                    <button class="fe-preview-btn" title="Preview pane" style="background:none;border:none;color:var(--text-secondary);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:15px;">&#128065;</button>
                     <button class="fe-sort" title="Sort and group" style="background:none;border:none;color:var(--text-secondary);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:15px;">&#8645;</button>
                 </div>
                 <div style="display:flex;flex:1;overflow:hidden;">
-                    <div class="fe-sidebar" style="width:200px;background:rgba(128,128,128,0.08);border-right:1px solid var(--window-border);padding:8px;overflow-y:auto;">
+                    <div class="fe-sidebar" style="width:200px;background:rgba(128,128,128,0.08);border-right:1px solid var(--window-border);padding:8px;overflow-y:auto;flex-shrink:0;">
                         ${buildSidebar()}
                     </div>
-                    <div class="fe-content" style="flex:1;padding:8px;overflow-y:auto;display:flex;flex-wrap:wrap;align-content:flex-start;gap:4px;position:relative;"></div>
+                    <div class="fe-content" style="flex:1;padding:8px;overflow-y:auto;display:flex;flex-wrap:wrap;align-content:flex-start;gap:4px;position:relative;min-width:0;"></div>
+                    <div class="fe-preview" style="display:none;width:260px;flex-shrink:0;background:rgba(128,128,128,0.06);border-left:1px solid var(--window-border);padding:12px;overflow-y:auto;"></div>
                 </div>
                 <div class="fe-statusbar" style="padding:4px 12px;border-top:1px solid var(--window-border);display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);">
                     <span class="fe-count">0 items</span>
@@ -168,13 +200,17 @@ const FileExplorer = (() => {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    function showThisPC(win, state) {
+    function showThisPC(win, wstate) {
         const contentEl = win.element.querySelector('.fe-content');
         const countEl = win.element.querySelector('.fe-count');
         const pathEl = win.element.querySelector('.fe-path');
         const pathText = win.element.querySelector('.fe-path-text');
 
-        if (state) state.currentPath = null;
+        const tab = activeTab(wstate);
+        if (tab) tab.currentPath = null;
+        renderTabStrip(win, wstate);
+        renderCrumbs(win, null);
+        renderPreview(win, wstate);
 
         pathEl.value = 'This PC';
         pathText.textContent = 'This PC';
@@ -204,14 +240,25 @@ const FileExplorer = (() => {
             const driveItem = contentEl.querySelector('.drive-item');
             driveItem.addEventListener('mouseenter', () => driveItem.style.background = 'rgba(255,255,255,0.04)');
             driveItem.addEventListener('mouseleave', () => driveItem.style.background = 'transparent');
-            driveItem.addEventListener('click', () => navigate(win, ['/']));
+            driveItem.addEventListener('click', () => navigate(win, ['/'], true, wstate));
         });
     }
 
-    function navigate(win, path, addToHistory = true, state) {
+    function navigate(win, path, addToHistory = true, wstate) {
         if (!FileSystem.isFolder(path)) return;
+        // Render code works with the ACTIVE TAB; window-level concerns
+        // (search text, tab strip, crumbs) use wstate directly.
+        const state = activeTab(wstate);
+        if (!state) return;
 
-        if (state) {
+        // A real move to another folder drops the in-progress search.
+        if (addToHistory && state.currentPath && state.currentPath.join('/') !== path.join('/')) {
+            if (wstate) wstate.search = '';
+            const searchInput = win.element.querySelector('.fe-search');
+            if (searchInput) searchInput.value = '';
+        }
+
+        {
             deselectAll(state);
             state.currentPath = path.slice();
             if (addToHistory) {
@@ -240,19 +287,45 @@ const FileExplorer = (() => {
         }
         upBtn.disabled = path.length <= 1;
 
-        const entries = sortEntries(FileSystem.getChildren(path));
+        renderTabStrip(win, wstate);
+        renderCrumbs(win, path);
+
+        const query = (wstate && wstate.search || '').trim().toLowerCase();
+        const searchMode = query.length > 0;
+        // Rows pair each entry with its real directory so recursive search
+        // results can share the exact same item rendering and actions.
+        let rows;
+        if (searchMode) {
+            rows = searchFiles(path, query).map(r => ({ entry: r.entry, base: r.base }));
+            contentEl._searchDirs = {};
+            contentEl._searchEntries = {};
+            for (const r of rows) {
+                contentEl._searchDirs[r.entry.name] = r.base;
+                contentEl._searchEntries[r.entry.name] = r.entry;
+            }
+        } else {
+            rows = sortEntries(FileSystem.getChildren(path)).map(e => ({ entry: e, base: path }));
+            contentEl._searchDirs = null;
+            contentEl._searchEntries = null;
+        }
 
         contentEl.innerHTML = '';
 
-        if (entries.length === 0) {
-            contentEl.innerHTML = '<div style="width:100%;text-align:center;padding:60px 20px;color:var(--text-secondary);font-size:14px;">This folder is empty</div>';
-            countEl.textContent = '0 items';
+        if (rows.length === 0) {
+            contentEl.innerHTML = searchMode
+                ? `<div style="width:100%;text-align:center;padding:60px 20px;color:var(--text-secondary);font-size:14px;">No results for "${query.replace(/&/g, '&amp;').replace(/</g, '&lt;')}" in this folder</div>`
+                : '<div style="width:100%;text-align:center;padding:60px 20px;color:var(--text-secondary);font-size:14px;">This folder is empty</div>';
+            countEl.textContent = searchMode ? '0 results' : '0 items';
+            renderPreview(win, wstate);
             return;
         }
 
-        const allNames = entries.map(e => e.name);
+        const allNames = rows.map(r => r.entry.name);
 
-        const appendItem = (entry) => {
+        const appendItem = (row) => {
+            const entry = row.entry;
+            const basePath = row.base;
+            const fullPath = [...basePath, entry.name];
             const isDir = entry.type === 'folder';
             const item = document.createElement('div');
             item.className = 'fe-item';
@@ -261,9 +334,13 @@ const FileExplorer = (() => {
             item.dataset.type = entry.type;
             item.dataset.ext = entry.ext || '';
             item.style.cssText = 'width:90px;padding:8px;border-radius:6px;cursor:pointer;text-align:center;transition:background 0.12s;position:relative;border:2px solid transparent;';
+            const relDir = searchMode && basePath.join('/') !== path.join('/')
+                ? `<div style="font-size:10px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${basePath.slice(path.length).join('/') || ''}</div>`
+                : '';
             item.innerHTML = `
                 <div style="display:flex;justify-content:center;margin-bottom:4px;">${isDir ? getFolderIcon(entry.name) : getFileIcon(entry.ext, entry.name)}</div>
                 <div class="fe-label" style="font-size:12px;word-break:break-all;line-height:1.3;">${entry.name}</div>
+                ${relDir}
             `;
 
             function updateItemVisual() {
@@ -299,15 +376,21 @@ const FileExplorer = (() => {
                     }
                 });
                 updateItemCount();
+                renderPreview(win, wstate);
             });
 
             item.addEventListener('dblclick', () => {
                 if (isDir) {
-                    navigate(win, [...path, entry.name], true, state);
+                    if (searchMode) {
+                        wstate.search = '';
+                        const searchInput = win.element.querySelector('.fe-search');
+                        if (searchInput) searchInput.value = '';
+                    }
+                    navigate(win, fullPath, true, wstate);
                 } else if ((entry.ext || '').toLowerCase() === 'zip') {
-                    extractZipFlow(win, [...path, entry.name], state);
+                    extractZipFlow(win, fullPath, wstate);
                 } else {
-                    openFileWithDefaultApp([...path, entry.name], entry);
+                    openFileWithDefaultApp(fullPath, entry);
                 }
             });
 
@@ -330,31 +413,62 @@ const FileExplorer = (() => {
                     });
                 }
                 const selCount = state ? state.selected.size : 1;
-                const itemPath = [...path, entry.name];
+                const itemPath = fullPath;
                 const multiLabel = selCount > 1 ? ` (${selCount} items)` : '';
+                // Search-result rows live in other folders: clipboard and
+                // bulk ops resolve each selected name to its real directory.
+                const selectedFullPaths = () => [...state.selected]
+                    .map(n => {
+                        const dir = searchMode ? (contentEl._searchDirs || {})[n] : basePath;
+                        return dir ? [...dir, n] : null;
+                    })
+                    .filter(Boolean);
+                const copySearchSelection = (action) => {
+                    const items = selectedFullPaths().map(p => {
+                        const info = searchEntryInfo(win, p[p.length - 1]);
+                        const e = (info && info.entry) || {};
+                        return { path: p, name: p[p.length - 1], type: e.type || 'file', ext: e.ext || '' };
+                    });
+                    if (items.length === 0) return;
+                    wstate.clipboard = items;
+                    wstate.clipboardAction = action;
+                    showCutFeedback(win, wstate, action === 'cut');
+                };
+                const pinLabel = isDir && qaContains(loadQA(), fullPath) ? 'Unpin from Quick access' : 'Pin to Quick access';
                 const menuItems = isDir ? [
-                    { label: 'Open', icon: UIIcons.action('open'), action: () => navigate(win, itemPath, true, state) },
+                    { label: 'Open', icon: UIIcons.action('open'), action: () => {
+                        if (searchMode) {
+                            wstate.search = '';
+                            const searchInput = win.element.querySelector('.fe-search');
+                            if (searchInput) searchInput.value = '';
+                        }
+                        navigate(win, itemPath, true, wstate);
+                    } },
+                    { label: pinLabel, icon: UIIcons.action('pin'), action: () => {
+                        toggleQAPin(fullPath);
+                        renderSidebar(win, wstate);
+                    } },
                     'separator',
-                    { label: `Cut${multiLabel}`, icon: UIIcons.action('cut'), action: () => cutSelected(win, state) },
-                    { label: `Copy${multiLabel}`, icon: UIIcons.action('copy'), action: () => copySelected(win, state) },
+                    { label: `Cut${multiLabel}`, icon: UIIcons.action('cut'), action: () => { searchMode ? copySearchSelection('cut') : cutSelected(win, wstate); } },
+                    { label: `Copy${multiLabel}`, icon: UIIcons.action('copy'), action: () => { searchMode ? copySearchSelection('copy') : copySelected(win, wstate); } },
                     'separator',
                     { label: 'Rename', icon: UIIcons.action('rename'), action: () => { if (selCount === 1) renameItem(win, itemPath); } },
-                    { label: `Delete${multiLabel}`, icon: UIIcons.action('delete'), action: () => deleteSelected(win, state) },
+                    { label: `Delete${multiLabel}`, icon: UIIcons.action('delete'), action: () => { searchMode ? deletePaths(win, wstate, selectedFullPaths()) : deleteSelected(win, wstate); } },
                     'separator',
                     { label: 'Properties', icon: UIIcons.action('properties'), action: () => showProperties(entry, itemPath) }
                 ] : [
                     { label: 'Open', icon: UIIcons.action('open'), action: () => openFileWithDefaultApp(itemPath, entry) },
                     { label: 'Open With...', icon: UIIcons.action('openWith'), action: () => showOpenWithMenu(itemPath, entry) },
                     ...((selCount === 1 && (entry.ext || '').toLowerCase() === 'zip')
-                        ? [{ label: 'Extract All…', icon: UIIcons.action('open'), action: () => extractZipFlow(win, itemPath, state) }]
+                        ? [{ label: 'Extract All…', icon: UIIcons.action('open'), action: () => extractZipFlow(win, itemPath, wstate) }]
                         : []),
-                    { label: `Compress to ZIP file${selCount > 1 ? ` (${selCount} items)` : ''}`, icon: UIIcons.action('newFile'), action: () => compressSelection(win, path, [...state.selected], state) },
+                    ...(searchMode ? [] : [{ label: `Compress to ZIP file${selCount > 1 ? ` (${selCount} items)` : ''}`, icon: UIIcons.action('newFile'), action: () => compressSelection(win, path, [...state.selected], wstate) }]),
                     'separator',
-                    { label: `Cut${multiLabel}`, icon: UIIcons.action('cut'), action: () => cutSelected(win, state) },
-                    { label: `Copy${multiLabel}`, icon: UIIcons.action('copy'), action: () => copySelected(win, state) },
+                    { label: `Cut${multiLabel}`, icon: UIIcons.action('cut'), action: () => { searchMode ? copySearchSelection('cut') : cutSelected(win, wstate); } },
+                    { label: `Copy${multiLabel}`, icon: UIIcons.action('copy'), action: () => { searchMode ? copySearchSelection('copy') : copySelected(win, wstate); } },
                     'separator',
-                    { label: 'Rename', icon: UIIcons.action('rename'), action: () => { if (selCount === 1) renameItem(win, itemPath); } },
-                    { label: `Delete${multiLabel}`, icon: UIIcons.action('delete'), action: () => deleteSelected(win, state) },
+                    { label: 'Rename', icon: UIIcons.action('rename'), action: () => { if (selCount === 1) { searchMode ? renameViaDialog(win, itemPath, entry.name, wstate) : renameItem(win, itemPath); } } },
+                    { label: `Delete${multiLabel}`, icon: UIIcons.action('delete'), action: () => { searchMode ? deletePaths(win, wstate, selectedFullPaths()) : deleteSelected(win, wstate); } },
                     'separator',
                     { label: 'Properties', icon: UIIcons.action('properties'), action: () => showProperties(entry, itemPath) }
                 ];
@@ -368,7 +482,7 @@ const FileExplorer = (() => {
                 const names = (state && state.selected.size > 0 && state.selected.has(entry.name))
                     ? [...state.selected]
                     : [entry.name];
-                e.dataTransfer.setData('text/plain', JSON.stringify({ names, from: path, path: itemPath, name: entry.name, type: entry.type, ext: entry.ext }));
+                e.dataTransfer.setData('text/plain', JSON.stringify({ names, from: basePath, path: fullPath, name: entry.name, type: entry.type, ext: entry.ext }));
                 e.dataTransfer.effectAllowed = 'move';
                 item.style.opacity = '0.5';
             });
@@ -380,7 +494,7 @@ const FileExplorer = (() => {
             if (isDir) {
                 item.addEventListener('dragover', (e) => {
                     e.preventDefault();
-                    e.dataTransfer.dropEffect = state && state.clipboardAction === 'cut' ? 'move' : 'copy';
+                    e.dataTransfer.dropEffect = wstate && wstate.clipboardAction === 'cut' ? 'move' : 'copy';
                     item.style.background = 'rgba(0,120,212,0.2)';
                     item.style.outline = '2px solid var(--accent-color)';
                 });
@@ -395,7 +509,7 @@ const FileExplorer = (() => {
                 try {
                     const data = JSON.parse(e.dataTransfer.getData('text/plain'));
                     if (data && Array.isArray(data.names) && Array.isArray(data.from)) {
-                        moveNamesWithProgress(win, [...path, entry.name], data.from, data.names, path, state);
+                        moveNamesWithProgress(win, fullPath, data.from, data.names, path, wstate);
                     }
                 } catch (err) {}
             });
@@ -404,9 +518,9 @@ const FileExplorer = (() => {
             contentEl.appendChild(item);
         };
 
-        if (view.groupBy === 'type') {
+        if (view.groupBy === 'type' && !searchMode) {
             for (const g of GROUP_ORDER) {
-                const members = entries.filter(e => categoryOf(e) === g);
+                const members = rows.filter(r => categoryOf(r.entry) === g);
                 if (members.length === 0) continue;
                 const header = document.createElement('div');
                 header.style.cssText = 'width:100%;font-size:12px;font-weight:600;color:var(--text-secondary);padding:10px 4px 2px;';
@@ -415,18 +529,23 @@ const FileExplorer = (() => {
                 members.forEach(appendItem);
             }
         } else {
-            entries.forEach(appendItem);
+            rows.forEach(appendItem);
         }
 
-        countEl.textContent = `${entries.length} item${entries.length !== 1 ? 's' : ''}`;
+        countEl.textContent = searchMode
+            ? `${rows.length} result${rows.length !== 1 ? 's' : ''}`
+            : `${rows.length} item${rows.length !== 1 ? 's' : ''}`;
 
         function updateItemCount() {
             const selSize = state ? state.selected.size : 0;
             countEl.textContent = selSize > 0
-                ? `${selSize} of ${entries.length} selected`
-                : `${entries.length} item${entries.length !== 1 ? 's' : ''}`;
+                ? `${selSize} of ${rows.length} selected`
+                : (searchMode ? `${rows.length} result${rows.length !== 1 ? 's' : ''}` : `${rows.length} item${rows.length !== 1 ? 's' : ''}`);
+            if (contentEl._updateItemCount) contentEl._updateItemCount = updateItemCount;
         }
         contentEl._updateItemCount = updateItemCount;
+
+        renderPreview(win, wstate);
     }
 
     function showProgressBar(win) {
@@ -529,7 +648,7 @@ const FileExplorer = (() => {
         return text === null ? null : new TextEncoder().encode(text);
     }
 
-    async function compressSelection(win, folderPath, names, state) {
+    async function compressSelection(win, folderPath, names, wstate) {
         const valid = names.filter(n => FileSystem.itemExists([...folderPath, n]));
         if (valid.length === 0) return;
         showProgressBar(win);
@@ -569,14 +688,14 @@ const FileExplorer = (() => {
                 Popup.error('Compress failed', 'Could not write the ZIP file (storage may be full).');
                 return;
             }
-            navigate(win, folderPath, false, state);
+            navigate(win, folderPath, false, wstate);
             refreshIfDesktop(folderPath);
         } finally {
             hideProgressBar(win);
         }
     }
 
-    async function extractZipFlow(win, zipPath, state) {
+    async function extractZipFlow(win, zipPath, wstate) {
         const destParent = zipPath.slice(0, -1);
         const base = zipPath[zipPath.length - 1].replace(/\.zip$/i, '') || 'Archive';
         let bytes = null;
@@ -645,7 +764,7 @@ const FileExplorer = (() => {
             if (i % 4 === 0) await new Promise(r => setTimeout(r, 0));
         }
         dlg.close();
-        navigate(win, root, true, state);
+        navigate(win, root, true, wstate);
         refreshIfDesktop(root);
         if (skipped > 0) {
             Popup.warn('Extract finished with skips', `${skipped} entr${skipped === 1 ? 'y was' : 'ies were'} skipped (unsupported compression or corrupt data).`);
@@ -754,25 +873,25 @@ const FileExplorer = (() => {
         }
     }
 
-    function createNewFolder(win, path, state) {
+    function createNewFolder(win, path, wstate) {
         let name = 'New Folder';
         let i = 1;
         while (FileSystem.itemExists([...path, name])) {
             name = `New Folder (${i++})`;
         }
         FileSystem.createFolder(path, name);
-        navigate(win, path, false, state);
+        navigate(win, path, false, wstate);
         refreshIfDesktop(path);
     }
 
-    function createNewFile(win, path, state) {
+    function createNewFile(win, path, wstate) {
         let name = 'New Text Document.txt';
         let i = 1;
         while (FileSystem.itemExists([...path, name])) {
             name = `New Text Document (${i++}).txt`;
         }
         FileSystem.createFile(path, name, '', 'txt');
-        navigate(win, path, false, state);
+        navigate(win, path, false, wstate);
         refreshIfDesktop(path);
     }
 
@@ -784,7 +903,7 @@ const FileExplorer = (() => {
         const itemEl = contentEl ? contentEl.querySelector(`.fe-item[data-name="${CSS.escape(oldName)}"]`) : null;
         const labelEl = itemEl ? itemEl.querySelector('.fe-label') : null;
         if (!itemEl || !labelEl) {
-            renameViaDialog(win, itemPath, oldName);
+            renameViaDialog(win, itemPath, oldName, findStateFor(win));
             return;
         }
         if (itemEl.querySelector('.fe-rename-input')) return;
@@ -819,9 +938,10 @@ const FileExplorer = (() => {
                 return;
             }
             const state = findStateFor(win);
-            if (state && state.selected.has(oldName)) {
-                state.selected.delete(oldName);
-                state.selected.add(newName);
+            const tab = state && activeTab(state);
+            if (tab && tab.selected.has(oldName)) {
+                tab.selected.delete(oldName);
+                tab.selected.add(newName);
             }
             itemEl.dataset.name = newName;
             labelEl.textContent = newName;
@@ -848,58 +968,61 @@ const FileExplorer = (() => {
         return null;
     }
 
-    function renameViaDialog(win, itemPath, oldName) {
+    function renameViaDialog(win, itemPath, oldName, wstate) {
         Popup.textbox('Rename', 'Enter new name:', { value: oldName }).then(newName => {
             if (newName && newName !== oldName) {
                 FileSystem.renameItem(itemPath, newName);
-                navigate(win, itemPath.slice(0, -1), false);
+                if (wstate) navigate(win, itemPath.slice(0, -1), false, wstate);
                 refreshIfDesktop(itemPath);
             }
         });
     }
 
-    function copySelected(win, state) {
-        if (!state || state.selected.size === 0) return;
-        const currentPath = state.pathHistory[state.historyIndex];
-        state.clipboard = [...state.selected].map(name => {
+    function copySelected(win, wstate) {
+        const tab = activeTab(wstate);
+        if (!tab || tab.selected.size === 0) return;
+        const currentPath = tab.pathHistory[tab.historyIndex];
+        wstate.clipboard = [...tab.selected].map(name => {
             const entry = FileSystem.getChildren(currentPath).find(e => e.name === name);
             return { path: [...currentPath, name], name, type: entry?.type || 'file', ext: entry?.ext || '' };
         });
-        state.clipboardAction = 'copy';
-        showCutFeedback(win, state, false);
+        wstate.clipboardAction = 'copy';
+        showCutFeedback(win, wstate, false);
     }
 
-    function cutSelected(win, state) {
-        if (!state || state.selected.size === 0) return;
-        const currentPath = state.pathHistory[state.historyIndex];
-        state.clipboard = [...state.selected].map(name => {
+    function cutSelected(win, wstate) {
+        const tab = activeTab(wstate);
+        if (!tab || tab.selected.size === 0) return;
+        const currentPath = tab.pathHistory[tab.historyIndex];
+        wstate.clipboard = [...tab.selected].map(name => {
             const entry = FileSystem.getChildren(currentPath).find(e => e.name === name);
             return { path: [...currentPath, name], name, type: entry?.type || 'file', ext: entry?.ext || '' };
         });
-        state.clipboardAction = 'cut';
-        showCutFeedback(win, state, true);
+        wstate.clipboardAction = 'cut';
+        showCutFeedback(win, wstate, true);
     }
 
-    function showCutFeedback(win, state, show) {
+    function showCutFeedback(win, wstate, show) {
+        const tab = activeTab(wstate);
         const contentEl = win.element.querySelector('.fe-content');
         contentEl.querySelectorAll('.fe-item').forEach(el => {
-            if (show && state.clipboard.some(c => c.name === el.dataset.name)) {
+            if (show && wstate.clipboard.some(c => c.name === el.dataset.name)) {
                 el.style.opacity = '0.4';
                 el.style.borderStyle = 'dashed';
-            } else if (!state.selected.has(el.dataset.name)) {
+            } else if (!tab || !tab.selected.has(el.dataset.name)) {
                 el.style.opacity = '1';
                 el.style.borderStyle = 'solid';
             }
         });
     }
 
-    async function pasteItems(win, destPath, state) {
-        if (!state || !state.clipboard || state.clipboard.length === 0) return;
-        const action = state.clipboardAction;
+    async function pasteItems(win, destPath, wstate) {
+        if (!wstate || !wstate.clipboard || wstate.clipboard.length === 0) return;
+        const action = wstate.clipboardAction;
         // Expand into per-file ops upfront so progress is honest. Folders
         // merge into same-named destinations, Windows-style.
         const ops = [];
-        for (const item of state.clipboard) {
+        for (const item of wstate.clipboard) {
             if (!FileSystem.itemExists(item.path)) continue;
             const isDir = FileSystem.isFolder(item.path);
             if (action === 'cut') {
@@ -956,12 +1079,12 @@ const FileExplorer = (() => {
             if (i % 8 === 0) await new Promise(r => setTimeout(r, 0));
         }
         dlg.close();
-        if (action === 'cut') state.clipboard = [];
-        navigate(win, destPath, false, state);
+        if (action === 'cut') wstate.clipboard = [];
+        navigate(win, destPath, false, wstate);
         refreshIfDesktop(destPath);
     }
 
-    async function moveNamesWithProgress(win, destPath, srcDir, names, refreshPath, state) {
+    async function moveNamesWithProgress(win, destPath, srcDir, names, refreshPath, wstate) {
         const ops = names.filter(n => FileSystem.itemExists([...srcDir, n])).filter(n => {
             const src = [...srcDir, n];
             // Same folder, or destination inside the source: skip.
@@ -989,26 +1112,27 @@ const FileExplorer = (() => {
             if (i % 8 === 0) await new Promise(r => setTimeout(r, 0));
         }
         dlg.close();
-        navigate(win, refreshPath, false, state);
+        navigate(win, refreshPath, false, wstate);
         refreshIfDesktop(destPath);
         refreshIfDesktop(srcDir);
     }
 
-    function deleteSelected(win, state) {
-        if (!state || state.selected.size === 0) return;
-        const names = [...state.selected];
+    function deleteSelected(win, wstate) {
+        const tab = activeTab(wstate);
+        if (!tab || tab.selected.size === 0) return;
+        const names = [...tab.selected];
         const label = names.length === 1 ? `"${names[0]}"` : `${names.length} items`;
         Popup.confirm('Delete', `Delete ${label}?`).then(ok => {
             if (ok) {
                 showProgressBar(win);
-                const currentPath = state.pathHistory[state.historyIndex];
+                const currentPath = tab.pathHistory[tab.historyIndex];
                 setTimeout(() => {
                     names.forEach(name => {
                         FileSystem.deleteItem([...currentPath, name]);
                         refreshIfDesktop([...currentPath, name]);
                     });
-                    deselectAll(state);
-                    navigate(win, currentPath, false, state);
+                    deselectAll(tab);
+                    navigate(win, currentPath, false, wstate);
                     hideProgressBar(win);
                 }, 300);
             }
@@ -1288,21 +1412,367 @@ const FileExplorer = (() => {
             (p) => openFileWithBrowser(p));
     }
 
+    // ---------- tabs ----------
+
+    function renderTabStrip(win, wstate) {
+        const strip = win.element.querySelector('.fe-tabs');
+        if (!strip) return;
+        strip.innerHTML = '';
+        wstate.tabs.forEach(tab => {
+            const isActive = tab.id === wstate.activeTabId;
+            const el = document.createElement('div');
+            el.style.cssText = `display:flex;align-items:center;gap:6px;padding:5px 6px 5px 12px;border-radius:6px 6px 0 0;font-size:12px;cursor:pointer;max-width:170px;flex-shrink:0;background:${isActive ? 'rgba(128,128,128,0.25)' : 'transparent'};color:${isActive ? 'var(--text-primary)' : 'var(--text-secondary)' };`;
+            el.title = tabTitle(tab);
+            const label = document.createElement('span');
+            label.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+            label.textContent = tabTitle(tab);
+            const x = document.createElement('span');
+            x.textContent = '×';
+            x.title = 'Close tab';
+            x.style.cssText = 'flex-shrink:0;width:18px;height:18px;display:flex;align-items:center;justify-content:center;border-radius:4px;font-size:13px;';
+            x.addEventListener('mouseenter', () => x.style.background = 'rgba(255,255,255,0.15)');
+            x.addEventListener('mouseleave', () => x.style.background = 'transparent');
+            x.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeTab(win, wstate, tab.id);
+            });
+            el.addEventListener('click', () => switchTab(win, wstate, tab.id));
+            el.appendChild(label);
+            el.appendChild(x);
+            strip.appendChild(el);
+        });
+        const plus = document.createElement('div');
+        plus.textContent = '+';
+        plus.title = 'New tab (Ctrl+T)';
+        plus.style.cssText = 'flex-shrink:0;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;font-size:15px;color:var(--text-secondary);';
+        plus.addEventListener('mouseenter', () => plus.style.background = 'rgba(255,255,255,0.08)');
+        plus.addEventListener('mouseleave', () => plus.style.background = 'transparent');
+        plus.addEventListener('click', () => addTab(win, wstate, null));
+        strip.appendChild(plus);
+    }
+
+    function addTab(win, wstate, path) {
+        const tab = makeTab(path || ['/', 'users', 'default']);
+        wstate.tabs.push(tab);
+        wstate.activeTabId = tab.id;
+        renderTabStrip(win, wstate);
+        navigate(win, tab.pathHistory[0], false, wstate);
+    }
+
+    function switchTab(win, wstate, id) {
+        if (wstate.activeTabId === id) return;
+        if (!wstate.tabs.some(t => t.id === id)) return;
+        wstate.activeTabId = id;
+        const tab = activeTab(wstate);
+        renderTabStrip(win, wstate);
+        if (tab && tab.currentPath) navigate(win, tab.currentPath, false, wstate);
+        else showThisPC(win, wstate);
+    }
+
+    function closeTab(win, wstate, id) {
+        if (wstate.tabs.length <= 1) {
+            WindowManager.closeWindow(win.id);
+            return;
+        }
+        wstate.tabs = wstate.tabs.filter(t => t.id !== id);
+        if (wstate.activeTabId === id) {
+            wstate.activeTabId = wstate.tabs[wstate.tabs.length - 1].id;
+            const tab = activeTab(wstate);
+            renderTabStrip(win, wstate);
+            if (tab && tab.currentPath) navigate(win, tab.currentPath, false, wstate);
+            else showThisPC(win, wstate);
+        } else {
+            renderTabStrip(win, wstate);
+        }
+    }
+
+    // ---------- breadcrumbs ----------
+
+    function renderCrumbs(win, path) {
+        const crumbs = win.element.querySelector('.fe-crumbs');
+        const input = win.element.querySelector('.fe-path');
+        if (!crumbs || !input) return;
+        input.style.display = 'none';
+        crumbs.style.display = 'flex';
+        crumbs.innerHTML = '';
+        if (!path) {
+            const span = document.createElement('span');
+            span.style.cssText = 'font-size:13px;color:var(--text-primary);padding:4px 6px;';
+            span.textContent = 'This PC';
+            crumbs.appendChild(span);
+            return;
+        }
+        const segs = [{ label: 'C:', path: ['/'] }];
+        path.slice(1).forEach((seg, i) => segs.push({ label: seg, path: path.slice(0, i + 2) }));
+        segs.forEach((s, i) => {
+            if (i > 0) {
+                const chev = document.createElement('span');
+                chev.style.cssText = 'color:var(--text-secondary);font-size:11px;';
+                chev.textContent = '›';
+                crumbs.appendChild(chev);
+            }
+            const b = document.createElement('button');
+            b.textContent = s.label;
+            b.title = s.label;
+            b.style.cssText = 'background:none;border:none;color:var(--text-primary);font-size:13px;cursor:pointer;padding:4px 6px;border-radius:4px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+            b.addEventListener('mouseenter', () => b.style.background = 'rgba(255,255,255,0.08)');
+            b.addEventListener('mouseleave', () => b.style.background = 'none');
+            b.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const ws = findStateFor(win);
+                if (ws) navigate(win, s.path, true, ws);
+            });
+            crumbs.appendChild(b);
+        });
+    }
+
+    function enterEditMode(win) {
+        const crumbs = win.element.querySelector('.fe-crumbs');
+        const input = win.element.querySelector('.fe-path');
+        if (!crumbs || !input) return;
+        const ws = findStateFor(win);
+        const tab = ws && activeTab(ws);
+        crumbs.style.display = 'none';
+        input.style.display = 'block';
+        input.value = tab && tab.currentPath ? pathToEditable(tab.currentPath) : 'This PC';
+        input.focus();
+        input.select();
+    }
+
+    // ---------- search within folders ----------
+
+    function searchFiles(rootPath, query, limit = 200) {
+        const hits = [];
+        const stack = [rootPath];
+        while (stack.length > 0 && hits.length < limit) {
+            const dir = stack.pop();
+            let children = [];
+            try {
+                children = FileSystem.getChildren(dir);
+            } catch { continue; }
+            for (const c of children) {
+                const full = [...dir, c.name];
+                if (c.type === 'folder') stack.push(full);
+                if (c.name.toLowerCase().includes(query)) {
+                    hits.push({ entry: c, base: dir });
+                    if (hits.length >= limit) break;
+                }
+            }
+        }
+        return hits;
+    }
+
+    function searchEntryInfo(win, name) {
+        const contentEl = win.element.querySelector('.fe-content');
+        const dirs = (contentEl && contentEl._searchDirs) || {};
+        const entries = (contentEl && contentEl._searchEntries) || {};
+        if (!dirs[name] || !entries[name]) return null;
+        return { dir: dirs[name], entry: entries[name] };
+    }
+
+    function deletePaths(win, wstate, paths) {
+        if (!paths || paths.length === 0) return;
+        const label = paths.length === 1 ? `"${paths[0][paths[0].length - 1]}"` : `${paths.length} items`;
+        Popup.confirm('Delete', `Delete ${label}?`).then(ok => {
+            if (!ok) return;
+            showProgressBar(win);
+            setTimeout(() => {
+                paths.forEach(p => {
+                    if (FileSystem.itemExists(p)) {
+                        FileSystem.deleteItem(p);
+                        refreshIfDesktop(p);
+                    }
+                });
+                const tab = activeTab(wstate);
+                if (tab) deselectAll(tab);
+                hideProgressBar(win);
+                const cur = tab && tab.currentPath;
+                if (cur) navigate(win, cur, false, wstate);
+            }, 300);
+        });
+    }
+
+    // ---------- preview pane ----------
+
+    let previewToken = 0;
+
+    function renderPreview(win, wstate) {
+        const pane = win.element.querySelector('.fe-preview');
+        if (!pane) return;
+        const tab = activeTab(wstate);
+        const myToken = ++previewToken;
+        if (!view.preview || !tab || tab.selected.size !== 1) {
+            pane.style.display = 'none';
+            pane.innerHTML = '';
+            return;
+        }
+        const name = [...tab.selected][0];
+        let dir = tab.currentPath;
+        let entry = null;
+        if (wstate.search && wstate.search.trim()) {
+            const info = searchEntryInfo(win, name);
+            if (info) {
+                dir = info.dir;
+                entry = info.entry;
+            }
+        } else if (dir) {
+            entry = FileSystem.getChildren(dir).find(e => e.name === name) || null;
+        }
+        if (!entry || !dir) {
+            pane.style.display = 'none';
+            pane.innerHTML = '';
+            return;
+        }
+        pane.style.display = 'block';
+        const isDir = entry.type === 'folder';
+        const ext = (entry.ext || '').toLowerCase();
+        const head = `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:12px;">
+                <div class="fe-pv-visual" style="width:100%;min-height:120px;max-height:220px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:6px;background:rgba(0,0,0,0.25);"></div>
+                <div style="font-size:13px;font-weight:600;text-align:center;word-break:break-all;">${name.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</div>
+                <div style="font-size:11px;color:var(--text-secondary);">${isDir ? 'File folder' : `File (${ext || 'unknown'})`}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:70px 1fr;gap:6px;font-size:12px;">
+                ${!isDir ? `<span style="color:var(--text-secondary);">Size:</span><span>${formatBytes(entry.size || 0)}</span>` : ''}
+                ${entry.modified ? `<span style="color:var(--text-secondary);">Modified:</span><span>${new Date(entry.modified).toLocaleString()}</span>` : ''}
+            </div>
+            <div class="fe-pv-text" style="margin-top:10px;font-size:11px;line-height:1.5;color:var(--text-secondary);white-space:pre-wrap;word-break:break-word;max-height:200px;overflow:hidden;"></div>`;
+        pane.innerHTML = head;
+        const visual = pane.querySelector('.fe-pv-visual');
+        const textEl = pane.querySelector('.fe-pv-text');
+        const fullPath = [...dir, name];
+        const finishIcon = () => {
+            if (myToken !== previewToken || !pane.isConnected) return;
+            visual.innerHTML = `<div style="transform:scale(2);opacity:0.9;">${isDir ? UIIcons.folder(name, 48) : UIIcons.file(ext, name, 48)}</div>`;
+        };
+        if (isDir) {
+            let count = 0;
+            try {
+                count = FileSystem.getChildren(fullPath).length;
+            } catch { count = 0; }
+            textEl.textContent = `${count} item${count !== 1 ? 's' : ''}`;
+            finishIcon();
+        } else if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'].includes(ext)) {
+            const showSrc = (src) => {
+                if (myToken !== previewToken || !pane.isConnected) return;
+                visual.innerHTML = `<img src="${src}" style="max-width:100%;max-height:220px;object-fit:contain;" alt="">`;
+            };
+            if (FileSystem.isBlobFile(fullPath)) {
+                FileSystem.readFileBlob(fullPath).then(blob => {
+                    if (blob) showSrc(URL.createObjectURL(blob));
+                    else finishIcon();
+                }).catch(finishIcon);
+            } else {
+                const content = FileSystem.readFile(fullPath);
+                if (content) showSrc(content);
+                else finishIcon();
+            }
+        } else if (['txt', 'md', 'json', 'js', 'html', 'css', 'log', 'cfg', 'xml', 'yml', 'yaml', 'csv'].includes(ext)) {
+            const content = FileSystem.readFile(fullPath);
+            if (content !== null) textEl.textContent = content.slice(0, 2000);
+            finishIcon();
+        } else if (ext === 'zip') {
+            textEl.textContent = 'ZIP archive — double-click to extract.';
+            finishIcon();
+        } else {
+            finishIcon();
+        }
+    }
+
+    // ---------- Quick Access ----------
+
+    const QA_PATH = ['/', 'system', 'programs data', 'fileExplorer', 'quickaccess.json'];
+
+    function loadQA() {
+        try {
+            const raw = FileSystem.readFile(QA_PATH);
+            if (raw) {
+                const arr = JSON.parse(raw);
+                if (Array.isArray(arr)) return arr.filter(p => Array.isArray(p) && FileSystem.isFolder(p));
+            }
+        } catch { /* none pinned */ }
+        return [];
+    }
+
+    function saveQA(pins) {
+        try {
+            const json = JSON.stringify(pins);
+            if (FileSystem.itemExists(QA_PATH)) FileSystem.writeFile(QA_PATH, json);
+            else {
+                const dir = QA_PATH.slice(0, -1);
+                if (!FileSystem.itemExists(dir)) FileSystem.createFolder(dir.slice(0, -1), dir[dir.length - 1]);
+                FileSystem.createFile(dir, 'quickaccess.json', json, 'json');
+            }
+        } catch { /* session-only */ }
+    }
+
+    function qaContains(pins, path) {
+        const key = path.join('/');
+        return pins.some(p => p.join('/') === key);
+    }
+
+    function renderSidebar(win, wstate) {
+        const sidebar = win.element.querySelector('.fe-sidebar');
+        if (!sidebar) return;
+        const pins = loadQA();
+        const qaHtml = `
+            <div style="font-size:11px;font-weight:600;color:var(--text-secondary);padding:4px 10px;">Quick access</div>
+            ${pins.length === 0
+                ? '<div style="font-size:11px;color:var(--text-secondary);padding:2px 10px 6px;">Right-click a folder → Pin to Quick access</div>'
+                : pins.map(p => {
+                    const label = p.length <= 1 ? 'Local Disk (C:)' : p[p.length - 1];
+                    return `<div class="fe-sidebar-item fe-qa-item" style="padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background 0.12s;" data-path='${JSON.stringify(p)}'>
+                        <span style="width:16px;height:16px;display:inline-flex;flex-shrink:0;">${UIIcons.sidebar('Home', 16)}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${label}</span>
+                    </div>`;
+                }).join('')}
+            <div style="height:1px;background:var(--window-border);margin:6px 0;"></div>`;
+        sidebar.innerHTML = qaHtml + buildSidebar();
+        sidebar.querySelectorAll('.fe-sidebar-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const path = JSON.parse(item.dataset.path);
+                if (path[0] === '__thispc__') showThisPC(win, wstate);
+                else navigate(win, path, true, wstate);
+            });
+            if (item.classList.contains('fe-qa-item')) {
+                item.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const path = JSON.parse(item.dataset.path);
+                    ContextMenu.show(e.clientX, e.clientY, [
+                        { label: 'Unpin from Quick access', icon: UIIcons.action('unpin'), action: () => {
+                            saveQA(loadQA().filter(p => p.join('/') !== path.join('/')));
+                            renderSidebar(win, wstate);
+                        } }
+                    ]);
+                });
+            }
+        });
+    }
+
+    function toggleQAPin(path) {
+        const pins = loadQA();
+        if (qaContains(pins, path)) {
+            saveQA(pins.filter(p => p.join('/') !== path.join('/')));
+            return false;
+        }
+        pins.push(path.slice());
+        saveQA(pins);
+        return true;
+    }
+
     function launch(options = {}) {
         loadView();
         registerViewers();
-        const state = {
-            pathHistory: [['/']],
-            historyIndex: 0,
+        const wstate = {
+            tabs: [],
+            activeTabId: null,
             clipboard: [],
             clipboardAction: null,
-            selected: new Set(),
-            lastClicked: null,
-            currentPath: null
+            search: ''
         };
 
-        const win = WindowManager.createWindow('fileExplorer', 'File Explorer', icon, getContent(), { width: 800, height: 500 });
-        openWindows.set(win.id, { win, state });
+        const win = WindowManager.createWindow('fileExplorer', 'File Explorer', icon, getContent(), { width: 900, height: 550 });
+        openWindows.set(win.id, { win, state: wstate });
 
         const contentEl = win.element.querySelector('.fe-content');
         contentEl.addEventListener('contextmenu', (e) => {
@@ -1310,14 +1780,14 @@ const FileExplorer = (() => {
             e.preventDefault();
             const currentPath = JSON.parse(win.element.dataset.currentPath || '["/"]');
             const menuItems = [
-                { label: 'New folder', icon: UIIcons.action('newFolder'), action: () => createNewFolder(win, currentPath, state) },
-                { label: 'New text file', icon: UIIcons.action('newFile'), action: () => createNewFile(win, currentPath, state) },
+                { label: 'New folder', icon: UIIcons.action('newFolder'), action: () => createNewFolder(win, currentPath, wstate) },
+                { label: 'New text file', icon: UIIcons.action('newFile'), action: () => createNewFile(win, currentPath, wstate) },
                 'separator'
             ];
-            if (state.clipboard && state.clipboard.length > 0) {
-                const count = state.clipboard.length;
+            if (wstate.clipboard && wstate.clipboard.length > 0) {
+                const count = wstate.clipboard.length;
                 const label = count > 1 ? ` (${count} items)` : '';
-                menuItems.push({ label: `Paste${label}`, icon: UIIcons.action('paste'), action: () => pasteItems(win, currentPath, state) });
+                menuItems.push({ label: `Paste${label}`, icon: UIIcons.action('paste'), action: () => pasteItems(win, currentPath, wstate) });
             }
             ContextMenu.show(e.clientX, e.clientY, menuItems);
         });
@@ -1331,52 +1801,63 @@ const FileExplorer = (() => {
             e.preventDefault();
             try {
                 const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-                const cur = state.currentPath || state.pathHistory[state.historyIndex];
+                const tab = activeTab(wstate);
+                const cur = tab && (tab.currentPath || tab.pathHistory[tab.historyIndex]);
                 if (data && Array.isArray(data.names) && Array.isArray(data.from) && cur) {
-                    moveNamesWithProgress(win, cur, data.from, data.names, cur, state);
+                    moveNamesWithProgress(win, cur, data.from, data.names, cur, wstate);
                 }
             } catch (err) {}
         });
         contentEl.addEventListener('click', (e) => {
             if (e.target === contentEl) {
-                deselectAll(state);
+                const tab = activeTab(wstate);
+                if (tab) deselectAll(tab);
                 contentEl.querySelectorAll('.fe-item').forEach(el => {
                     el.style.background = 'transparent';
                     el.style.borderColor = 'transparent';
                 });
                 if (contentEl._updateItemCount) contentEl._updateItemCount();
+                renderPreview(win, wstate);
             }
         });
 
         const initialPath = options.path && FileSystem.isFolder(options.path)
             ? options.path
             : ['/', 'users', 'default'];
-        navigate(win, initialPath, true, state);
+        renderSidebar(win, wstate);
+        addTab(win, wstate, initialPath);
 
         win.element.querySelector('.fe-back').addEventListener('click', () => {
-            if (state.historyIndex > 0) {
-                state.historyIndex--;
-                navigate(win, state.pathHistory[state.historyIndex], false, state);
+            const tab = activeTab(wstate);
+            if (tab && tab.historyIndex > 0) {
+                tab.historyIndex--;
+                navigate(win, tab.pathHistory[tab.historyIndex], false, wstate);
             }
         });
 
         win.element.querySelector('.fe-forward').addEventListener('click', () => {
-            if (state.historyIndex < state.pathHistory.length - 1) {
-                state.historyIndex++;
-                navigate(win, state.pathHistory[state.historyIndex], false, state);
+            const tab = activeTab(wstate);
+            if (tab && tab.historyIndex < tab.pathHistory.length - 1) {
+                tab.historyIndex++;
+                navigate(win, tab.pathHistory[tab.historyIndex], false, wstate);
             }
         });
 
         win.element.querySelector('.fe-up').addEventListener('click', () => {
-            const current = state.pathHistory[state.historyIndex];
+            const tab = activeTab(wstate);
+            if (!tab) return;
+            const current = tab.pathHistory[tab.historyIndex];
             if (current.length > 1) {
-                navigate(win, current.slice(0, -1), true, state);
+                navigate(win, current.slice(0, -1), true, wstate);
             }
         });
 
         win.element.querySelector('.fe-sort').addEventListener('click', (e) => {
             const check = (on) => on ? UIIcons.action('check') : '';
             const sortNames = { name: 'Name', date: 'Date modified', size: 'Size', type: 'Type' };
+            const tab = activeTab(wstate);
+            const curPath = tab ? tab.pathHistory[tab.historyIndex] : ['/'];
+            const refresh = () => navigate(win, curPath, false, wstate);
             ContextMenu.show(e.clientX, e.clientY, [
                 ...Object.entries(sortNames).map(([key, label]) => ({
                     label: `Sort by ${label}`,
@@ -1384,7 +1865,7 @@ const FileExplorer = (() => {
                     action: () => {
                         view.sortBy = key;
                         saveView();
-                        navigate(win, state.pathHistory[state.historyIndex], false, state);
+                        refresh();
                     }
                 })),
                 'separator',
@@ -1394,7 +1875,7 @@ const FileExplorer = (() => {
                     action: () => {
                         view.sortDir = view.sortDir === 'asc' ? 'desc' : 'asc';
                         saveView();
-                        navigate(win, state.pathHistory[state.historyIndex], false, state);
+                        refresh();
                     }
                 },
                 'separator',
@@ -1404,17 +1885,60 @@ const FileExplorer = (() => {
                     action: () => {
                         view.groupBy = view.groupBy === 'type' ? 'none' : 'type';
                         saveView();
-                        navigate(win, state.pathHistory[state.historyIndex], false, state);
+                        refresh();
                     }
                 }
             ]);
         });
 
+        const previewBtn = win.element.querySelector('.fe-preview-btn');
+        const paintPreviewBtn = () => {
+            previewBtn.style.color = view.preview ? 'var(--accent-color)' : 'var(--text-secondary)';
+        };
+        paintPreviewBtn();
+        previewBtn.addEventListener('click', () => {
+            view.preview = !view.preview;
+            saveView();
+            paintPreviewBtn();
+            const tab = activeTab(wstate);
+            if (tab && tab.currentPath) navigate(win, tab.currentPath, false, wstate);
+            else renderPreview(win, wstate);
+        });
+
+        const searchInput = win.element.querySelector('.fe-search');
+        searchInput.addEventListener('input', () => {
+            wstate.search = searchInput.value;
+            const tab = activeTab(wstate);
+            if (tab && tab.currentPath) navigate(win, tab.currentPath, false, wstate);
+        });
+        searchInput.addEventListener('keydown', (e) => {
+            e.stopPropagation();
+            if (e.key === 'Escape') {
+                searchInput.value = '';
+                wstate.search = '';
+                const tab = activeTab(wstate);
+                if (tab && tab.currentPath) navigate(win, tab.currentPath, false, wstate);
+                else searchInput.blur();
+            }
+        });
+
         const pathInput = win.element.querySelector('.fe-path');
+        const crumbbar = win.element.querySelector('.fe-crumbbar');
+        crumbbar.addEventListener('click', () => {
+            if (win.element.querySelector('.fe-path').style.display !== 'none') return;
+            enterEditMode(win);
+        });
+
+        function currentTabPath() {
+            const tab = activeTab(wstate);
+            return tab && (tab.currentPath || tab.pathHistory[tab.historyIndex]);
+        }
 
         function revertAddressBar() {
-            const cur = state.currentPath || state.pathHistory[state.historyIndex];
+            const cur = currentTabPath();
             pathInput.value = cur ? formatPath(cur) : 'This PC';
+            const tab = activeTab(wstate);
+            renderCrumbs(win, tab ? tab.currentPath : null);
         }
 
         pathInput.addEventListener('keydown', (e) => {
@@ -1425,30 +1949,24 @@ const FileExplorer = (() => {
                 const rawPath = parseEditablePath(inputPath);
                 if (!rawPath) {
                     revertAddressBar();
+                    pathInput.blur();
                     return;
                 }
                 if (rawPath[0] === '__thispc__') {
-                    showThisPC(win, state);
+                    showThisPC(win, wstate);
                 } else if (FileSystem.isFolder(rawPath)) {
-                    navigate(win, rawPath, true, state);
+                    navigate(win, rawPath, true, wstate);
                 } else if (FileSystem.itemExists(rawPath)) {
-                    navigate(win, rawPath.slice(0, -1), true, state);
+                    navigate(win, rawPath.slice(0, -1), true, wstate);
                 } else {
                     Popup.error('Path Not Found', 'Path not found: ' + inputPath);
                     revertAddressBar();
                 }
+                pathInput.blur();
             } else if (e.key === 'Escape') {
                 revertAddressBar();
                 pathInput.blur();
             }
-        });
-
-        // Windows-style: focusing the address bar swaps the friendly
-        // breadcrumbs for the raw path so it can be copied or edited.
-        pathInput.addEventListener('focus', () => {
-            const cur = state.currentPath || state.pathHistory[state.historyIndex];
-            pathInput.value = cur ? pathToEditable(cur) : 'This PC';
-            pathInput.select();
         });
 
         // Leaving without pressing Enter discards the edit.
@@ -1456,61 +1974,104 @@ const FileExplorer = (() => {
             revertAddressBar();
         });
 
-        win.element.querySelectorAll('.fe-sidebar-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                const path = JSON.parse(item.dataset.path);
-                if (path[0] === '__thispc__') {
-                    showThisPC(win, state);
-                } else {
-                    navigate(win, path, true, state);
-                }
-            });
-        });
-
         // Central shortcut registry, scoped to this window: combos fire only
         // while focus is inside it, and stale entries self-remove once the
         // window is closed (replaces the manual add/removeEventListener).
         const kb = { scope: win.element, owner: 'fileExplorer' };
-        Keyboard.register('CTRL+C', () => copySelected(win, state), { ...kb, description: 'Copy selection' });
-        Keyboard.register('CTRL+X', () => cutSelected(win, state), { ...kb, description: 'Cut selection' });
+        const copySearchHotkey = (action) => {
+            const tab = activeTab(wstate);
+            if (!tab || tab.selected.size === 0) return false;
+            const items = [...tab.selected].map(n => {
+                const info = searchEntryInfo(win, n);
+                return info ? { path: [...info.dir, n], name: n, type: info.entry.type || 'file', ext: info.entry.ext || '' } : null;
+            }).filter(Boolean);
+            if (items.length === 0) return false;
+            wstate.clipboard = items;
+            wstate.clipboardAction = action;
+            showCutFeedback(win, wstate, action === 'cut');
+            return true;
+        };
+        const searching = () => !!(wstate.search && wstate.search.trim());
+        Keyboard.register('CTRL+C', () => {
+            if (searching()) {
+                if (!copySearchHotkey('copy')) return false;
+                return;
+            }
+            copySelected(win, wstate);
+        }, { ...kb, description: 'Copy selection' });
+        Keyboard.register('CTRL+X', () => {
+            if (searching()) {
+                if (!copySearchHotkey('cut')) return false;
+                return;
+            }
+            cutSelected(win, wstate);
+        }, { ...kb, description: 'Cut selection' });
         Keyboard.register('CTRL+V', () => {
-            const currentPath = state.pathHistory[state.historyIndex];
-            if (state.clipboard && state.clipboard.length > 0) pasteItems(win, currentPath, state);
+            const tab = activeTab(wstate);
+            const currentPath = tab && (tab.currentPath || tab.pathHistory[tab.historyIndex]);
+            if (currentPath && wstate.clipboard && wstate.clipboard.length > 0) {
+                pasteItems(win, currentPath, wstate);
+            }
         }, { ...kb, description: 'Paste' });
         Keyboard.register('CTRL+A', () => {
-            const contentEl = win.element.querySelector('.fe-content');
-            contentEl.querySelectorAll('.fe-item').forEach(el => state.selected.add(el.dataset.name));
-            state.lastClicked = null;
+            const tab = activeTab(wstate);
+            if (!tab) return;
+            contentEl.querySelectorAll('.fe-item').forEach(el => tab.selected.add(el.dataset.name));
+            tab.lastClicked = null;
             contentEl.querySelectorAll('.fe-item').forEach(el => {
                 el.style.background = 'rgba(0,120,212,0.25)';
                 el.style.borderColor = 'var(--accent-color)';
             });
             if (contentEl._updateItemCount) contentEl._updateItemCount();
+            renderPreview(win, wstate);
         }, { ...kb, description: 'Select all' });
         Keyboard.register('DELETE', () => {
-            if (state.selected.size === 0) return false;
-            deleteSelected(win, state);
+            const tab = activeTab(wstate);
+            if (!tab) return false;
+            if (wstate.search && wstate.search.trim()) {
+                if (tab.selected.size === 0) return false;
+                deletePaths(win, wstate, [...tab.selected]
+                    .map(n => {
+                        const dir = (contentEl._searchDirs || {})[n];
+                        return dir ? [...dir, n] : null;
+                    })
+                    .filter(Boolean));
+                return;
+            }
+            if (tab.selected.size === 0) return false;
+            deleteSelected(win, wstate);
         }, { ...kb, description: 'Delete selection' });
         Keyboard.register('CTRL+SHIFT+N', () => {
-            const cur = state.pathHistory[state.historyIndex];
-            createNewFolder(win, cur, state);
+            const tab = activeTab(wstate);
+            const cur = tab && (tab.currentPath || tab.pathHistory[tab.historyIndex]);
+            if (cur) createNewFolder(win, cur, wstate);
         }, { ...kb, description: 'New folder' });
         Keyboard.register('F2', () => {
-            if (state.selected.size !== 1) return false;
-            const cur = state.pathHistory[state.historyIndex];
-            renameItem(win, [...cur, [...state.selected][0]]);
+            const tab = activeTab(wstate);
+            if (!tab || tab.selected.size !== 1) return false;
+            const name = [...tab.selected][0];
+            if (wstate.search && wstate.search.trim()) {
+                const info = searchEntryInfo(win, name);
+                if (!info) return false;
+                renameViaDialog(win, [...info.dir, name], name, wstate);
+                return;
+            }
+            const cur = tab.currentPath || tab.pathHistory[tab.historyIndex];
+            renameItem(win, [...cur, name]);
         }, { ...kb, description: 'Rename' });
+        Keyboard.register('CTRL+L', () => enterEditMode(win), { ...kb, description: 'Focus address bar' });
+        Keyboard.register('CTRL+T', () => addTab(win, wstate, null), { ...kb, description: 'New tab' });
     }
 
-    // Opens a folder: reuses the most recent Explorer window (focusing and
-    // navigating it) or launches a fresh one. Used by desktop icons.
+    // Opens a folder in a new tab of the most recent Explorer window (or a
+    // fresh window). Used by desktop icons.
     function openPath(path) {
         pruneClosedWindows();
         const safe = path && FileSystem.isFolder(path) ? path : null;
         if (openWindows.size > 0) {
             const rec = [...openWindows.values()].pop();
             focusExplorerWindow(rec);
-            if (safe) navigate(rec.win, safe, true, rec.state);
+            if (safe) addTab(rec.win, rec.state, safe);
             return;
         }
         launch(safe ? { path: safe } : {});
