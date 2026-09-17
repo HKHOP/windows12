@@ -1,0 +1,37 @@
+{
+    "manifestVersion": 1,
+    "id": "todoTasks",
+    "uuid": "9dbc7212-43e5-45ab-b17a-d37e57a6a9e0",
+    "name": "To-Do Tasks",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": ["todo"],
+    "background": true,
+    "permissions": ["filesystem", "notifications", "background"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Productivity",
+        "rating": "4.8",
+        "reviews": "1,042",
+        "description": "A clean task manager with lists, due dates, and background reminders. Due tasks notify you even when the window is closed.",
+        "features": [
+            "Multiple lists with priorities and due dates",
+            "Background reminders via notifications",
+            "Search, filters and completion stats",
+            "Import/export .todo files"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #0078D4, #00BCF2)",
+                "text": "Task Lists"
+            },
+            {
+                "bg": "linear-gradient(135deg, #00BCF2, #0078D4)",
+                "text": "Reminders"
+            }
+        ],
+        "size": "1 MB",
+        "ageRating": "3+"
+    }
+}

@@ -1,0 +1,36 @@
+{
+    "manifestVersion": 1,
+    "id": "archiver",
+    "uuid": "f3912131-1048-4ce2-876e-48ee99072d26",
+    "name": "Archiver",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": ["zip"],
+    "permissions": ["filesystem"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Utilities",
+        "rating": "4.6",
+        "reviews": "733",
+        "description": "Create real .zip files from your virtual filesystem and extract them back — built on the OS zip engine, downloads included.",
+        "features": [
+            "Compress Documents files into real .zip archives",
+            "Extract any .zip back into the filesystem",
+            "Download archives to your device",
+            "CRC-verified, deflate-compressed output"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #b45309, #78350a)",
+                "text": "Compress"
+            },
+            {
+                "bg": "linear-gradient(135deg, #78350a, #b45309)",
+                "text": "Extract"
+            }
+        ],
+        "size": "1 MB",
+        "ageRating": "3+"
+    }
+}

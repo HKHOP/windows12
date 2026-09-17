@@ -1,0 +1,37 @@
+{
+    "manifestVersion": 1,
+    "id": "pomodoro",
+    "uuid": "786fa6b6-8105-41b6-9678-46cbba9374fe",
+    "name": "Pomodoro Focus",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "background": true,
+    "permissions": ["filesystem", "notifications", "background"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Productivity",
+        "rating": "4.7",
+        "reviews": "689",
+        "description": "Focus timer with work/break cycles that keeps counting in the background and chimes when a phase ends.",
+        "features": [
+            "Custom focus / short / long break lengths",
+            "Keeps time headless via background mode",
+            "Phase-change notifications + sounds",
+            "Lifetime focus stats"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #dc2626, #7f1d1d)",
+                "text": "Focus Timer"
+            },
+            {
+                "bg": "linear-gradient(135deg, #16a34a, #14532d)",
+                "text": "Break Time"
+            }
+        ],
+        "size": "1 MB",
+        "ageRating": "3+"
+    }
+}

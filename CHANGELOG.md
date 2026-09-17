@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4935] - 2026-09-17
+
+### Added
+- Eleven new Microsoft Store apps (all SDK-built, vanilla, offline-first): To-Do Tasks (lists, priorities, due dates, background reminders, `.todo` association), Sticky Notes (one window per note, colors, autosave hub, `.note`), Markdown Studio (live split preview, toolbar, Ctrl+S, HTML export, `.md`/`.markdown`), Voice Recorder (mic memos with level meter, rename/playback), Archiver (real `.zip` compress/extract on the virtual FS via the OS zip engine, downloads, `.zip` association), Weather (Open-Meteo current + 24h forecast, city search, background severe-weather alerts), Pomodoro Focus (timestamp-based phases that survive backgrounding, focus stats), Unit Converter (7 categories incl. offline currency, history, clipboard copy), Password Vault (AES-GCM + PBKDF2 offline encryption, auto-lock, generator), QR Studio (generate via QR API, camera/upload scan via BarcodeDetector, history), 2048 (keyboard/touch, best-score persistence, win/lose dialogs)
+
 ## [12.0.4934] - 2026-09-17
 
 ### Added

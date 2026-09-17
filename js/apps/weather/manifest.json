@@ -1,0 +1,37 @@
+{
+    "manifestVersion": 1,
+    "id": "weather",
+    "uuid": "25552070-4486-420c-818c-33b15cd7dfd9",
+    "name": "Weather",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "background": true,
+    "permissions": ["filesystem", "notifications", "network", "background"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Weather",
+        "rating": "4.5",
+        "reviews": "1,908",
+        "description": "Current conditions and hourly forecast for any city (free Open-Meteo data, no key needed), with background severe-weather alerts.",
+        "features": [
+            "City search with geocoding, no API key",
+            "Current conditions + 24h forecast",
+            "Saved home city",
+            "Background alerts on big condition changes"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #0ea5e9, #1e3a8a)",
+                "text": "Current Conditions"
+            },
+            {
+                "bg": "linear-gradient(135deg, #1e3a8a, #0ea5e9)",
+                "text": "Hourly Forecast"
+            }
+        ],
+        "size": "1 MB",
+        "ageRating": "3+"
+    }
+}

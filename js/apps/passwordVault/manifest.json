@@ -1,0 +1,36 @@
+{
+    "manifestVersion": 1,
+    "id": "passwordVault",
+    "uuid": "fedbd8d0-c55e-4483-8674-3d324d98037c",
+    "name": "Password Vault",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "permissions": ["filesystem", "clipboard"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Security",
+        "rating": "4.8",
+        "reviews": "356",
+        "description": "Offline password manager. Your vault is AES-GCM encrypted with your master password — the OS never sees plaintext.",
+        "features": [
+            "AES-GCM encryption (WebCrypto, offline)",
+            "Master-password gate with auto-lock",
+            "Search, generator and clipboard copy",
+            "Nothing leaves the virtual filesystem"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #334155, #0f172a)",
+                "text": "Locked Vault"
+            },
+            {
+                "bg": "linear-gradient(135deg, #0f172a, #334155)",
+                "text": "Your Logins"
+            }
+        ],
+        "size": "1 MB",
+        "ageRating": "13+"
+    }
+}

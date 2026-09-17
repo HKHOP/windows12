@@ -1,0 +1,36 @@
+{
+    "manifestVersion": 1,
+    "id": "markdownStudio",
+    "uuid": "1073f179-23a1-4b25-a278-83b1e60a772e",
+    "name": "Markdown Studio",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": ["md", "markdown"],
+    "permissions": ["filesystem", "clipboard"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Productivity",
+        "rating": "4.7",
+        "reviews": "864",
+        "description": "A focused Markdown editor with live preview, word count, and one-click HTML export. Opens .md files from File Explorer.",
+        "features": [
+            "Live split preview with zero dependencies",
+            "Toolbar for headings, bold, lists, code and links",
+            "Open/save .md files, export HTML",
+            "Word/character count and Ctrl+S shortcut"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #1e1e2e, #3b3b5e)",
+                "text": "Split Editor"
+            },
+            {
+                "bg": "linear-gradient(135deg, #3b3b5e, #1e1e2e)",
+                "text": "Live Preview"
+            }
+        ],
+        "size": "1 MB",
+        "ageRating": "3+"
+    }
+}

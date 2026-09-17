@@ -1,0 +1,36 @@
+{
+    "manifestVersion": 1,
+    "id": "game2048",
+    "uuid": "cecc28ee-8f1e-41ab-b844-ae53b7a6c425",
+    "name": "2048",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "permissions": ["filesystem"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Games",
+        "rating": "4.9",
+        "reviews": "5,214",
+        "description": "The addictive sliding-number puzzle in Windows 11 style. Arrow keys or swipe buttons, persistent best score, win at 2048.",
+        "features": [
+            "Keyboard + on-screen controls",
+            "Persistent best score and stats",
+            "Win/lose dialogs with one-click restart",
+            "Smooth acrylic tile design"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #d97706, #92400e)",
+                "text": "4x4 Board"
+            },
+            {
+                "bg": "linear-gradient(135deg, #92400e, #d97706)",
+                "text": "You Win!"
+            }
+        ],
+        "size": "1 MB",
+        "ageRating": "3+"
+    }
+}

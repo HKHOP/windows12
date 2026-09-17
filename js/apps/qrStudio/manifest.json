@@ -1,0 +1,36 @@
+{
+    "manifestVersion": 1,
+    "id": "qrStudio",
+    "uuid": "f5693667-440e-4ea0-8aea-f9d7f901967f",
+    "name": "QR Studio",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "permissions": ["filesystem", "clipboard", "network"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Utilities",
+        "rating": "4.5",
+        "reviews": "298",
+        "description": "Generate QR codes for any text or URL and scan them back with your camera or an image — history included.",
+        "features": [
+            "QR generation with size control",
+            "Scan via camera or uploaded image",
+            "History with copy and reopen",
+            "Native BarcodeDetector when available"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #111827, #4b5563)",
+                "text": "Generate"
+            },
+            {
+                "bg": "linear-gradient(135deg, #4b5563, #111827)",
+                "text": "Scan"
+            }
+        ],
+        "size": "1 MB",
+        "ageRating": "3+"
+    }
+}

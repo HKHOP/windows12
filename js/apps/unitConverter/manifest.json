@@ -1,0 +1,36 @@
+{
+    "manifestVersion": 1,
+    "id": "unitConverter",
+    "uuid": "6c0bb2a7-8fc9-4278-ad71-73afda6b7070",
+    "name": "Unit Converter",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "permissions": ["filesystem", "clipboard"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Utilities",
+        "rating": "4.6",
+        "reviews": "421",
+        "description": "Convert length, mass, temperature, data, speed, time and currency offline — with history and one-click copy.",
+        "features": [
+            "7 categories, 60+ units",
+            "Offline currency table (editable)",
+            "Conversion history persisted",
+            "Copy result to clipboard"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #0d9488, #134e4a)",
+                "text": "Converter"
+            },
+            {
+                "bg": "linear-gradient(135deg, #134e4a, #0d9488)",
+                "text": "History"
+            }
+        ],
+        "size": "1 MB",
+        "ageRating": "3+"
+    }
+}

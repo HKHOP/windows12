@@ -1,0 +1,36 @@
+{
+    "manifestVersion": 1,
+    "id": "stickyNotes",
+    "uuid": "44f726c2-8fbb-4b8a-98ef-316f8f95965c",
+    "name": "Sticky Notes",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": ["note"],
+    "permissions": ["filesystem"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Productivity",
+        "rating": "4.6",
+        "reviews": "2,315",
+        "description": "Quick sticky notes on your desktop. Each note is its own window with its own color — autosaved as you type.",
+        "features": [
+            "One window per note with 6 colors",
+            "Autosave while typing",
+            "Notes hub to reopen everything",
+            "Unsaved-changes guard on close"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #eab308, #f59e0b)",
+                "text": "Sticky Notes"
+            },
+            {
+                "bg": "linear-gradient(135deg, #f59e0b, #eab308)",
+                "text": "Notes Hub"
+            }
+        ],
+        "size": "1 MB",
+        "ageRating": "3+"
+    }
+}

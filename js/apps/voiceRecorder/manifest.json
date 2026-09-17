@@ -1,0 +1,36 @@
+{
+    "manifestVersion": 1,
+    "id": "voiceRecorder",
+    "uuid": "e41b819e-2aec-4fcf-9133-79871e748e2b",
+    "name": "Voice Recorder",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": ["m4a", "weba"],
+    "permissions": ["filesystem"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Music & Audio",
+        "rating": "4.4",
+        "reviews": "512",
+        "description": "Record voice memos with live level metering, rename them, play them back, and open them in Media Player.",
+        "features": [
+            "One-click recording with live level meter",
+            "Rename, playback and delete memos",
+            "Memos persist in the virtual filesystem",
+            "Handoff to Media Player"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #7c3aed, #4c1d95)",
+                "text": "Recorder"
+            },
+            {
+                "bg": "linear-gradient(135deg, #4c1d95, #7c3aed)",
+                "text": "Your Memos"
+            }
+        ],
+        "size": "1 MB",
+        "ageRating": "3+"
+    }
+}
