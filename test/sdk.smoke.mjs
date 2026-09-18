@@ -395,6 +395,21 @@ check('focusin ignored while disabled', (() => {
     return VK.isOpen() === false;
 })());
 check('keyboard bounds default to docked (null)', SysConf.get('touchKeyboardBounds') === null);
+check('keyboard mode defaults to auto (null)', SysConf.get('touchKeyboardMode') === null);
+check('keyboard mode auto-resolves generic without touch hw', VK.getMode() === 'generic');
+check('generic layouts include Ctrl/Alt/Tab row', (() => {
+    SysConf.set('touchKeyboardMode', 'generic');
+    const flat = VK.getLayouts().abc.flat();
+    return flat.includes('Ctrl:ctrl') && flat.includes('Alt:alt') && flat.includes('Tab:tab') && flat.includes('Esc:esc');
+})());
+check('simple layouts exclude Ctrl/Alt/Tab', (() => {
+    SysConf.set('touchKeyboardMode', 'simple');
+    const flat = VK.getLayouts().abc.flat();
+    const ok = !flat.includes('Ctrl:ctrl') && !flat.includes('Alt:alt') && !flat.includes('Tab:tab') && flat.includes('q');
+    SysConf.set('touchKeyboardMode', null);
+    return ok && VK.getMode() === 'generic';
+})());
+check('repaint() is safe headless', (() => { try { VK.repaint(); return true; } catch (e) { return false; } })());
 
 console.log('\n----------------------------------------');
 console.log(`passed ${passed}, failed ${failures.length}`);

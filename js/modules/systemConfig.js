@@ -39,6 +39,9 @@ const SystemConfig = (() => {
         touchKeyboardAutoShow: true,
         touchKeyboardTrayButton: true,
         touchKeyboardBounds: null,
+        // 'generic' = full keyboard (Esc/Ctrl/Alt/Tab row), 'simple' =
+        // phone-style without them, null = auto (simple on touch hw).
+        touchKeyboardMode: null,
         cursorTheme: 'default',
         cursorSize: 'normal',
         cursorStyle: 'modern'

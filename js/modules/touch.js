@@ -21,6 +21,15 @@ const Touch = (() => {
     let cursorY = Math.floor(window.innerHeight / 2);
     let pad = null;
     let lastTap = { time: 0, x: 0, y: 0 };
+    // A finger resting on the on-screen keyboard passes through natively
+    // (the keyboard is finger-only and handles its own pointer events).
+    let kbdTouch = false;
+
+    function isKeyboardTarget(t) {
+        try {
+            return !!(t && t.closest && t.closest('#touch-keyboard'));
+        } catch (e) { return false; }
+    }
 
     // NOTE: overlay elements (virtual cursor, touch indicator, hint) live
     // directly under <html>, OUTSIDE the zoomed <body>. position:fixed then
@@ -568,9 +577,11 @@ const Touch = (() => {
         if (!isTouchpadEnabled()) return;
         // Only swallow explicit touch pointers. Real mouse ('mouse'), pen
         // ('pen') and our own synthesized virtual-cursor events ('mouse')
-        // always pass through untouched.
+        // always pass through untouched. Finger presses on the on-screen
+        // keyboard pass through too — it is touch-only by design.
         try {
             if (!e || e.pointerType !== 'touch') return;
+            if (isKeyboardTarget(e.target)) return;
         } catch (err) { return; }
         try { e.stopPropagation(); } catch (err) {}
         if (e.cancelable) {
@@ -593,6 +604,22 @@ const Touch = (() => {
     function handleTouchStart(e) {
         requestFullscreen();
         if (isTouchpadEnabled()) {
+            // Finger on the on-screen keyboard: native passthrough, never a
+            // trackpad gesture and no synthetic cursor clicks for it.
+            if (e.touches.length === 1) {
+                let kt = null;
+                try {
+                    const t0 = e.touches[0];
+                    kt = getTarget(t0.clientX, t0.clientY);
+                } catch (err) { kt = null; }
+                if (isKeyboardTarget(kt)) {
+                    kbdTouch = true;
+                    stopPropOnly(e);
+                    return;
+                }
+            } else {
+                kbdTouch = false;
+            }
             padTouchStart(e);
             // Direct page touches keep their native default (real tap/scroll
             // inside the frame) — only keep outer app handlers out of it.
@@ -621,9 +648,10 @@ const Touch = (() => {
         // generic disabled-action menu must not cover it. The app's own
         // touchstart (target phase) runs its selection timer instead, and
         // the native contextmenu event reaches the app's menu handlers.
+        // The on-screen keyboard is finger-only and handles its own input.
         let customTouch = false;
         try {
-            customTouch = !!(target.closest && target.closest('.fe-content'));
+            customTouch = !!(target.closest && (target.closest('.fe-content') || target.closest('#touch-keyboard')));
         } catch (e) { customTouch = false; }
 
         if (!customTouch) {
@@ -655,6 +683,11 @@ const Touch = (() => {
 
     function handleTouchMove(e) {
         if (isTouchpadEnabled()) {
+            if (kbdTouch) {
+                if (e.touches.length === 0) kbdTouch = false;
+                stopPropOnly(e);
+                return;
+            }
             const wasDirect = !!(pad && pad.direct);
             padTouchMove(e);
             if (wasDirect) stopPropOnly(e);
@@ -688,6 +721,11 @@ const Touch = (() => {
 
     function handleTouchEnd(e) {
         if (isTouchpadEnabled()) {
+            if (kbdTouch) {
+                kbdTouch = false;
+                stopPropOnly(e);
+                return;
+            }
             const wasDirect = !!(pad && pad.direct);
             padTouchEnd(e);
             if (wasDirect) stopPropOnly(e);
@@ -720,6 +758,7 @@ const Touch = (() => {
 
     function handleTouchCancel(e) {
         if (isTouchpadEnabled()) {
+            kbdTouch = false;
             if (pad && pad.longPressTimer) clearTimeout(pad.longPressTimer);
             if (pad && pad.dragging) {
                 dispatchAtCursor('mouseup', 0);

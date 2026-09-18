@@ -12,7 +12,7 @@
 // setRangeText + an InputEvent, so apps observe identical input events.
 // keydown defaultPrevented by a handler vetoes the insertion.
 //
-// API: init/show/hide/toggle/isOpen/refresh/getLayouts/isEnabled.
+// API: init/show/hide/toggle/isOpen/refresh/repaint/getLayouts/getMode/isEnabled.
 import SystemConfig from './systemConfig.js';
 import Sounds from './sounds.js';
 
@@ -47,12 +47,50 @@ const VirtualKeyboard = (() => {
 
     const NO_TEXT_TYPES = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'file', 'color', 'range', 'image', 'hidden']);
 
+    const HAS_TOUCH_HW = (typeof window !== 'undefined') &&
+        (('ontouchstart' in window) || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0));
+
+    // Generic = full keyboard (extra Esc/Ctrl/Alt/Tab/arrows row).
+    // Simple = phone-style layout without Ctrl/Alt/Tab.
+    const GENERIC_ROW = [
+        { l: 'Esc', a: 'esc', f: 1 },
+        { l: 'Ctrl', a: 'ctrl', f: 1 },
+        { l: 'Alt', a: 'alt', f: 1 },
+        { l: 'Tab', a: 'tab', f: 1 },
+        { l: '←', a: 'left', f: 1 },
+        { l: '→', a: 'right', f: 1 }
+    ];
+
+    // null/auto: Simple on touch hardware, Generic on desktops.
+    function keyboardMode() {
+        try {
+            const m = SystemConfig.get('touchKeyboardMode');
+            if (m === 'generic' || m === 'simple') return m;
+        } catch (e) { /* fall through to auto */ }
+        return HAS_TOUCH_HW ? 'simple' : 'generic';
+    }
+
+    function rowsFor(v) {
+        const base = LAYOUTS[v] || LAYOUTS.abc;
+        return keyboardMode() === 'generic' ? [...base, GENERIC_ROW] : base;
+    }
+
+    // The keyboard is a touch instrument: on touch hardware only real finger
+    // touches press keys (the virtual touchpad cursor's synthesized mouse
+    // events must not type). Desktops without touch keep mouse control.
+    function acceptsPointer(e) {
+        if (!HAS_TOUCH_HW) return true;
+        try { return e && e.pointerType === 'touch'; } catch (err) { return false; }
+    }
+
     let kbEl = null;
     let rowsEl = null;
     let trayBtn = null;
     let view = 'abc';
     let shift = false;       // one-shot
     let capsLock = false;
+    let ctrl = false;        // one-shot modifier (Generic mode)
+    let alt = false;         // one-shot modifier (Generic mode)
     let open = false;
     let autoShown = false;
     let target = null;
@@ -140,12 +178,18 @@ const VirtualKeyboard = (() => {
         if (!t) return false;
         try {
             const ev = new KeyboardEvent(type, {
-                key, code: key, bubbles: true, cancelable: true
+                key, code: key, bubbles: true, cancelable: true,
+                ctrlKey: ctrl, altKey: alt, shiftKey: shift || capsLock
             });
             return !t.dispatchEvent(ev);
         } catch (e) {
             return false;
         }
+    }
+
+    // One-shot Ctrl/Alt ride along on the next key, then release.
+    function clearMods() {
+        if (ctrl || alt) { ctrl = false; alt = false; paint(); }
     }
 
     function isTextField() {
@@ -256,27 +300,46 @@ const VirtualKeyboard = (() => {
                 const ch = charFor(def.v || def.l);
                 if (!fireKey('keydown', ch) && isTextField()) insertText(ch);
                 if (shift && !capsLock) { shift = false; paint(); }
+                clearMods();
                 return ch;
             }
             case 'space':
                 if (!fireKey('keydown', ' ')) { if (isTextField()) insertText(' '); }
                 if (shift && !capsLock) { shift = false; paint(); }
+                clearMods();
                 return ' ';
             case 'backspace':
                 if (!fireKey('keydown', 'Backspace')) { if (isTextField()) deleteBackward(); }
+                clearMods();
                 return 'Backspace';
             case 'enter':
                 pressEnterDown();
+                clearMods();
                 return null; // keyup is emitted inside pressEnterUp on release
+            case 'tab':
+                if (!fireKey('keydown', 'Tab')) { if (isTextField()) insertText('\t'); }
+                clearMods();
+                return 'Tab';
             case 'left':
                 if (!fireKey('keydown', 'ArrowLeft')) moveCaret(-1);
+                clearMods();
                 return 'ArrowLeft';
             case 'right':
                 if (!fireKey('keydown', 'ArrowRight')) moveCaret(1);
+                clearMods();
                 return 'ArrowRight';
             case 'esc':
                 fireKey('keydown', 'Escape');
+                clearMods();
                 return 'Escape';
+            case 'ctrl':
+                ctrl = !ctrl;
+                paint();
+                return null;
+            case 'alt':
+                alt = !alt;
+                paint();
+                return null;
             case 'shift': {
                 const now = Date.now();
                 if (shift && !capsLock && now - lastShiftTap < 350) { capsLock = true; shift = false; }
@@ -320,17 +383,19 @@ const VirtualKeyboard = (() => {
     function paint() {
         if (!rowsEl) return;
         rowsEl.innerHTML = '';
-        for (const row of LAYOUTS[view]) {
+        for (const row of rowsFor(view)) {
             const rowEl = document.createElement('div');
             rowEl.className = 'tk-row';
             for (const k of row) {
                 const def = typeof k === 'string' ? { l: k, a: 'char', v: k, f: 1 } : { f: 1, ...k };
                 if (!def.v && def.a === 'char') def.v = def.l;
+                const activeMod = (def.a === 'shift' && (shift || capsLock))
+                    || (def.a === 'ctrl' && ctrl) || (def.a === 'alt' && alt);
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'tk-key' + ((def.a !== 'char' && def.a !== 'space') ? ' tk-fn' : '')
                     + (def.a === 'enter' ? ' tk-enter' : '')
-                    + (def.a === 'shift' && (shift || capsLock) ? ' tk-active' : '')
+                    + (activeMod ? ' tk-active' : '')
                     + (def.a === 'space' ? ' tk-space' : '');
                 btn.style.flexGrow = def.f || 1;
                 btn.textContent = keyLabel(def);
@@ -346,7 +411,7 @@ const VirtualKeyboard = (() => {
         // Held keys repeat like a physical keyboard: repeated keydowns with
         // edits, one keyup on release — so games see sustained movement.
         const repeatable = def.a === 'backspace' || def.a === 'space' || def.a === 'left'
-            || def.a === 'right' || def.a === 'char';
+            || def.a === 'right' || def.a === 'char' || def.a === 'tab';
         let repeatTimer = null;
         let repeatInterval = null;
         let paired = null;
@@ -356,6 +421,9 @@ const VirtualKeyboard = (() => {
             if (repeatInterval) { clearInterval(repeatInterval); repeatInterval = null; }
         };
         btn.addEventListener('pointerdown', (e) => {
+            // Touch-only on touch hardware: the virtual touchpad cursor's
+            // synthesized mouse events must not press keys.
+            if (!acceptsPointer(e)) return;
             e.preventDefault();
             try { btn.setPointerCapture(e.pointerId); } catch (err) { /* mouse */ }
             btn.classList.add('tk-pressed');
@@ -491,6 +559,7 @@ const VirtualKeyboard = (() => {
 
     function wireDrag(bar) {
         bar.addEventListener('pointerdown', (e) => {
+            if (!acceptsPointer(e)) return;
             if (e.target.closest && e.target.closest('.tk-hide')) return;
             if (e.button !== undefined && e.button !== 0) return;
             try {
@@ -516,6 +585,7 @@ const VirtualKeyboard = (() => {
 
     function wireResize(rz) {
         rz.addEventListener('pointerdown', (e) => {
+            if (!acceptsPointer(e)) return;
             e.preventDefault();
             e.stopPropagation();
             try {
@@ -648,13 +718,21 @@ const VirtualKeyboard = (() => {
 
     function getLayouts() {
         const out = {};
-        for (const [name, rows] of Object.entries(LAYOUTS)) {
-            out[name] = rows.map(row => row.map(k => {
+        for (const name of Object.keys(LAYOUTS)) {
+            out[name] = rowsFor(name).map(row => row.map(k => {
                 if (typeof k === 'string') return k;
                 return k.l + (k.a && k.a !== 'char' ? `:${k.a}` : '');
             }));
         }
         return out;
+    }
+
+    function getMode() {
+        return keyboardMode();
+    }
+
+    function repaint() {
+        paint();
     }
 
     function init() {
@@ -666,7 +744,7 @@ const VirtualKeyboard = (() => {
         refresh();
     }
 
-    return { init, show, hide, toggle, isOpen, refresh, getLayouts, isEnabled };
+    return { init, show, hide, toggle, isOpen, refresh, repaint, getLayouts, getMode, isEnabled };
 })();
 
 export default VirtualKeyboard;

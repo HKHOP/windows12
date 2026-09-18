@@ -775,6 +775,8 @@ const Settings = (() => {
         const autoShow = config.touchKeyboardAutoShow !== false;
         const trayBtn = config.touchKeyboardTrayButton !== false;
         const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        let kbdMode = config.touchKeyboardMode;
+        if (kbdMode !== 'generic' && kbdMode !== 'simple') kbdMode = hasTouch ? 'simple' : 'generic';
 
         const toggleRow = (title, desc, cls, checked, dimmed) => `
             <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;${dimmed ? 'opacity:0.5;pointer-events:none;' : ''}">
@@ -803,13 +805,29 @@ const Settings = (() => {
                 ${toggleRow('Taskbar button',
                     'Show the keyboard button in the taskbar tray so it can be requested at any time.',
                     'tk-tray-toggle', trayBtn, !enabled)}
+                <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;${!enabled ? 'opacity:0.5;pointer-events:none;' : ''}">
+                    <div style="font-size:14px;font-weight:500;margin-bottom:4px;">Keyboard mode</div>
+                    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Generic is the full keyboard; Simple is phone-style without Ctrl, Alt or Tab.</div>
+                    <div style="display:flex;gap:12px;">
+                        <div class="tk-mode-option" data-mode="generic" style="flex:1;padding:12px;border-radius:8px;cursor:pointer;text-align:center;background:${kbdMode === 'generic' ? 'var(--accent-color)' : 'rgba(255,255,255,0.04)'};border:1px solid ${kbdMode === 'generic' ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'};">
+                            <div style="font-size:15px;margin-bottom:2px;">⌨️</div>
+                            <div style="font-size:13px;font-weight:500;">Generic</div>
+                            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Esc · Ctrl · Alt · Tab</div>
+                        </div>
+                        <div class="tk-mode-option" data-mode="simple" style="flex:1;padding:12px;border-radius:8px;cursor:pointer;text-align:center;background:${kbdMode === 'simple' ? 'var(--accent-color)' : 'rgba(255,255,255,0.04)'};border:1px solid ${kbdMode === 'simple' ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'};">
+                            <div style="font-size:15px;margin-bottom:2px;">📱</div>
+                            <div style="font-size:13px;font-weight:500;">Simple</div>
+                            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Letters + symbols only</div>
+                        </div>
+                    </div>
+                </div>
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;margin-bottom:4px;">Try it</div>
                     <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Focus this field${enabled && autoShow ? '' : ' (enable + auto-show first)'}:</div>
                     <input type="text" class="tk-demo-input" placeholder="Type here…" style="width:100%;box-sizing:border-box;background:rgba(0,0,0,0.3);border:1px solid var(--window-border);color:var(--text-primary);border-radius:6px;padding:10px 12px;font-size:14px;outline:none;">
                     <button class="tk-show-now" style="margin-top:12px;background:var(--accent-color);border:none;color:white;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:500;">Show keyboard now</button>
                 </div>
-                <div style="font-size:12px;color:var(--text-secondary);">Tip: Shift toggles capitals for one letter — double-tap it for Caps Lock. Hold Backspace to delete quickly. Drag the keyboard's top bar to move it, pull its corner to resize (double-click the bar to re-dock). Letter keys also drive games with no text field — hold one to keep moving.</div>
+                <div style="font-size:12px;color:var(--text-secondary);">Tip: Shift toggles capitals for one letter — double-tap it for Caps Lock. In Generic mode, Ctrl and Alt work the same one-shot way (tap Ctrl, then C to copy). The keyboard is finger-only on touch screens — the virtual touchpad cursor can't press its keys. Drag the top bar to move it, pull its corner to resize (double-click the bar to re-dock). Letter keys also drive games with no text field — hold one to keep moving.</div>
             </div>
         `;
 
@@ -827,6 +845,13 @@ const Settings = (() => {
         if (trayT) trayT.addEventListener('change', (e) => {
             SystemConfig.set('touchKeyboardTrayButton', e.target.checked);
             try { VirtualKeyboard.refresh(); } catch (err) {}
+        });
+        el.querySelectorAll('.tk-mode-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                SystemConfig.set('touchKeyboardMode', opt.dataset.mode);
+                try { VirtualKeyboard.repaint(); } catch (err) {}
+                renderPage();
+            });
         });
         el.querySelector('.tk-show-now').addEventListener('click', () => {
             if (!SystemConfig.get('touchKeyboardEnabled')) {

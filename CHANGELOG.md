@@ -4,6 +4,18 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4943] - 2026-09-18
+
+### Added
+- Virtual keyboard Generic mode: full-keyboard utility row (Esc, Ctrl, Alt, Tab, arrows) on every view; Ctrl/Alt are one-shot modifiers (tap Ctrl, then C) that ride along as real `ctrlKey`/`altKey` flags on the next key event, Tab inserts `\t` in text fields
+- Settings > System > Touch keyboard now has a Keyboard mode selector: Generic (full keyboard) vs Simple (phone-style without Ctrl/Alt/Tab), backed by the `touchKeyboardMode` config (auto: Simple on touch hardware, Generic on desktops)
+
+### Changed
+- Virtual keyboard renders above the virtual touchpad cursor (z-index `1000002`) instead of underneath it
+
+### Fixed
+- Virtual keyboard keys, drag bar and resize grip are finger-only on touch hardware: the virtual touchpad cursor's synthesized mouse events no longer press keys, and finger taps on the keyboard pass through natively even while touchpad mode is on (touch.js exemption)
+
 ## [12.0.4942] - 2026-09-18
 
 ### Added

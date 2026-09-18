@@ -12,7 +12,10 @@
     border: 1px solid var(--window-border, rgba(255, 255, 255, 0.12));
     border-radius: 12px;
     box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
-    z-index: 20000;
+    /* Above the virtual touchpad cursor (1000000) and its hint (1000001)
+       so the keyboard stays on top and tappable while touchpad mode is on.
+       Still below notification toasts (200000+). */
+    z-index: 1000002;
     padding: 6px 8px 10px;
     user-select: none;
     -webkit-user-select: none;
