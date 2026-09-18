@@ -4,6 +4,15 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4942] - 2026-09-18
+
+### Added
+- CopilotBB agent `zip` tool: `{"files": ["notes.txt", "pics/"], "out": "backup.zip"}` compresses workspace files/folders (folders recurse, text + binary) into a `.zip` via the OS zip engine — documented in the agent system prompt and settings tool list
+- Ex/port export tree is now rooted at Local Disk (C:) with the `users/default` chain auto-expanded, so the whole drive is browsable instead of just home
+
+### Fixed
+- Ex/port downloads of blob-backed files (e.g. `.zip` archives, imported media) failed with "Downloaded 0 file(s)" because `readFile()` returns null for them; downloads now read blob data via object URLs, wrap raw text correctly, and report per-file failures instead of silently skipping
+
 ## [12.0.4941] - 2026-09-18
 
 ### Added

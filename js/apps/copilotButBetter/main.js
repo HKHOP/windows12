@@ -7,6 +7,7 @@ import Popup from '../../modules/popup.js';
 import FileSystem from '../../modules/fileSystem.js';
 import Notifications from '../../modules/notifications.js';
 import BatchEngine from '../../modules/batchEngine.js';
+import Zip from '../../modules/zip.js';
 
 const CopilotButBetter = (() => {
     const APP_ID = 'copilotButBetter';
@@ -80,7 +81,8 @@ Available tools:
 - grep {"pattern": "TODO", "path": "", "include": ""} — regex search. pattern is required.
 - websearch {"query": "...", "count": 5} — DuckDuckGo search.
 - webfetch {"url": "https://..."} — fetch and strip a URL.
-- analyze {"path": "file.png"} — inspect a file (text preview or image bytes). path is required.`;
+- analyze {"path": "file.png"} — inspect a file (text preview or image bytes). path is required.
+- zip {"files": ["notes.txt", "pics/"], "out": "backup.zip"} — compress workspace files/folders (folders recurse) into a .zip saved in the workspace. BOTH files AND out are required.`;
 
     function truncateOut(s, limit) {
         const t = String(s == null ? '' : s);
@@ -528,6 +530,19 @@ Available tools:
         });
     }
 
+    // Raw bytes of a workspace file (text or blob-backed) for zip payloads.
+    async function readWorkspaceBytes(full) {
+        try {
+            if (FileSystem.isBlobFile(full)) {
+                const blob = await FileSystem.readFileBlob(full);
+                if (!blob) return null;
+                return new Uint8Array(await blob.arrayBuffer());
+            }
+            const text = FileSystem.readFile(full);
+            return text === null ? null : new TextEncoder().encode(text);
+        } catch (e) { return null; }
+    }
+
     async function executeTool(convId, tool, args) {
         const ws = ensureWorkspace(convId);
         const a = args || {};
@@ -679,6 +694,50 @@ Available tools:
                     const linkSection = links.length ? '\n\nLinks:\n' + truncateOut(links.slice(0, 40).join('\n'), 2000) : '';
                     return { ok: true, output: `Fetched ${urlStr}:\n${text}${linkSection}`, images: [] };
                 }
+                case 'zip': {
+                    if (!a.out || !String(a.out).trim()) return { ok: false, output: 'zip: missing required "out" (archive path, e.g. "backup.zip"). Retry with {"tool":"zip","args":{"files":["notes.txt","pics/"],"out":"backup.zip"}}. Never send {}.', images: [] };
+                    let list = a.files;
+                    if (list == null) list = a.file != null ? [a.file] : (a.folder != null ? [a.folder] : null);
+                    if (typeof list === 'string') list = list.split(',').map(s => s.trim()).filter(Boolean);
+                    if (!Array.isArray(list) || list.length === 0) return { ok: false, output: 'zip: missing required "files" (array of workspace paths; folders are included recursively). Retry with {"tool":"zip","args":{"files":["notes.txt"],"out":"backup.zip"}}. Never send {}.', images: [] };
+                    const entries = [];
+                    const missing = [];
+                    for (const rawRel of list) {
+                        const rel = String(rawRel).replace(/^\/+/, '');
+                        if (!rel || rel === '.') continue;
+                        const full = resolveWorkspacePath(ws, rel);
+                        const node = FileSystem.getNode(full);
+                        if (!node) { missing.push(rel); continue; }
+                        if (node.type === 'folder') {
+                            entries.push({ name: `${rel.replace(/\/$/, '')}/`, isDir: true });
+                            for (const f of walkWorkspaceFiles(ws, rel.split('/'))) {
+                                const fp = resolveWorkspacePath(ws, f);
+                                const bytes = await readWorkspaceBytes(fp);
+                                if (bytes) entries.push({ name: f, data: bytes });
+                                else missing.push(f);
+                            }
+                            continue;
+                        }
+                        const bytes = await readWorkspaceBytes(full);
+                        if (bytes) entries.push({ name: rel, data: bytes });
+                        else missing.push(rel);
+                    }
+                    const payload = entries.filter(e => !e.isDir);
+                    if (payload.length === 0) return { ok: false, output: `zip: nothing readable to archive.${missing.length ? ' Missing/unreadable: ' + missing.slice(0, 10).join(', ') : ''} Workspace files: ${(walkWorkspaceFiles(ws).slice(0, 20).join(', ') || '(empty)')}`, images: [] };
+                    let zipBytes;
+                    try {
+                        zipBytes = await Zip.createZip(entries);
+                    } catch (e) {
+                        return { ok: false, output: `zip: compression failed: ${e && e.message || e}`, images: [] };
+                    }
+                    const outRel = String(a.out).replace(/^\/+/, '');
+                    ensureWorkspaceParents(ws, outRel);
+                    const outFull = resolveWorkspacePath(ws, outRel);
+                    const outName = outFull[outFull.length - 1];
+                    const blob = new Blob([zipBytes], { type: 'application/zip' });
+                    if (!await FileSystem.writeFileBlob(outFull.slice(0, -1), outName, blob, 'zip')) return { ok: false, output: `zip: compressed ${payload.length} file(s) but could not save '${outRel}' (storage may be full).`, images: [] };
+                    return { ok: true, output: `Zipped ${payload.length} file(s) (${(blob.size / 1024).toFixed(1)} KB) to ${outRel}: ${payload.map(e => e.name).slice(0, 30).join(', ')}${payload.length > 30 ? ` (+${payload.length - 30} more)` : ''}${missing.length ? `\nSkipped (${missing.length}): ` + missing.slice(0, 10).join(', ') : ''}`, images: [] };
+                }
                 case 'analyze': {
                     if (!a.path || !String(a.path).trim()) return { ok: false, output: 'analyze: missing required "path". Retry with {"tool":"analyze","args":{"path":"file.png"}}. Workspace files: ' + (walkWorkspaceFiles(ws).slice(0, 30).join(', ') || '(empty)') + '. Never send {}.', images: [] };
                     const rel = String(a.path).replace(/^\/+/, '');
@@ -713,7 +772,7 @@ Available tools:
                     return { ok: true, output: `File ${rel} (${txt.length} chars, ${txt.split('\n').length} lines):\n` + truncateOut(txt, parseInt(a.limit, 10) || 4000), images: [] };
                 }
                 default:
-                    return { ok: false, output: `Unknown tool "${tool}". Available: datetime, cmd, write, read, edit, grep, websearch, webfetch, analyze. Note: PowerShell is not available in this environment; use cmd or other built-in tools.`, images: [] };
+                    return { ok: false, output: `Unknown tool "${tool}". Available: datetime, cmd, write, read, edit, grep, websearch, webfetch, analyze, zip. Note: PowerShell is not available in this environment; use cmd or other built-in tools.`, images: [] };
             }
         } catch (e) {
             return { ok: false, output: `Tool ${tool} crashed: ${e && e.message || e}`, images: [] };
@@ -1397,7 +1456,7 @@ Available tools:
                     <label>Max output tokens</label>
                     <select class="s-max"><option ${s.maxTokens === 1024 ? 'selected' : ''}>1024</option><option ${s.maxTokens === 2048 ? 'selected' : ''}>2048</option><option ${s.maxTokens === 4096 ? 'selected' : ''}>4096</option><option ${s.maxTokens === 8192 ? 'selected' : ''}>8192</option></select>
                     <label class="cbb-toggle" style="margin-top:10px;">Send with Enter (Shift+Enter = newline)<input type="checkbox" class="s-enter" ${s.enterToSend ? 'checked' : ''}></label>
-                    <label class="cbb-toggle" style="margin-top:10px;">Agent mode — let the model call tools inline (datetime, cmd, write, read, edit, grep, websearch, webfetch, analyze)<input type="checkbox" class="s-agent" ${s.agentMode !== false ? 'checked' : ''}></label>
+                    <label class="cbb-toggle" style="margin-top:10px;">Agent mode — let the model call tools inline (datetime, cmd, write, read, edit, grep, websearch, webfetch, analyze, zip)<input type="checkbox" class="s-agent" ${s.agentMode !== false ? 'checked' : ''}></label>
                     <label class="cbb-toggle" style="margin-top:10px;">Turn off turn limits (allow unlimited agent tool turns)<input type="checkbox" class="s-turnlimits" ${s.turnLimits === false ? 'checked' : ''}></label>
                 </div>
                 <div class="cbb-sec"><h3>Agent workspace</h3>

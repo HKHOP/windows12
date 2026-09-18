@@ -214,7 +214,17 @@ const ExportImport = (() => {
         }
 
         function renderExportTree() {
-            fileTree.innerHTML = buildExportTree(['/', 'users', 'default']);
+            // Root the tree at Local Disk (C:) so the whole drive — not just
+            // home — is browsable. The users/default chain auto-expands so
+            // home contents stay one glance away like before.
+            fileTree.innerHTML = `
+                <div style="padding:4px 8px;font-size:12px;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:6px;">
+                    <span>💽</span><span>Local Disk (C:)</span>
+                </div>` + buildExportTree(['/']);
+            for (const p of ['//users', '//users/default']) {
+                const folder = fileTree.querySelector(`.exp-folder[data-path="${p}"]`);
+                if (folder) folder.click();
+            }
             fileTree.querySelectorAll('.exp-file-item').forEach(item => {
                 item.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -272,7 +282,7 @@ const ExportImport = (() => {
                             <span class="exp-check" style="width:16px;">${isSelected ? '☑' : '☐'}</span>
                             <span>${getFileIcon(name)}</span>
                             <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>
-                            <span style="color:var(--text-secondary);font-size:10px;">${formatSize(item.content ? item.content.length : 0)}</span>
+                            <span style="color:var(--text-secondary);font-size:10px;">${formatSize(item.size != null ? item.size : (item.content ? item.content.length : 0))}</span>
                         </div>
                     `;
                 }
@@ -310,35 +320,68 @@ const ExportImport = (() => {
             exportStatus.style.color = '#0078D4';
 
             let downloaded = 0;
+            const failed = [];
             const files = Array.from(exportSelection);
 
             for (let i = 0; i < files.length; i++) {
                 const pathStr = files[i];
                 const pathArr = pathStr.split('/').filter(Boolean);
-                const content = FileSystem.readFile(['/', ...pathArr]);
-                if (content !== null) {
-                    const name = pathArr[pathArr.length - 1];
-                    downloadFile(name, content);
-                    downloaded++;
-                    if (i < files.length - 1) {
-                        await new Promise(r => setTimeout(r, 300));
+                const full = ['/', ...pathArr];
+                const name = pathArr[pathArr.length - 1];
+                try {
+                    // Blob-backed files (archives, imported media, ...) have
+                    // no inline content — readFile() returns null for them.
+                    if (FileSystem.isBlobFile(full)) {
+                        const blob = await FileSystem.readFileBlob(full);
+                        if (blob) {
+                            downloadBlob(name, blob);
+                            downloaded++;
+                        } else {
+                            failed.push(`${name} (unreadable data)`);
+                        }
+                    } else {
+                        const content = FileSystem.readFile(full);
+                        if (content === null) {
+                            failed.push(`${name} (not found)`);
+                        } else if (typeof content === 'string' && content.startsWith('data:')) {
+                            downloadHref(name, content, false);
+                            downloaded++;
+                        } else {
+                            downloadBlob(name, new Blob([String(content)], { type: 'text/plain;charset=utf-8' }));
+                            downloaded++;
+                        }
                     }
+                } catch (e) {
+                    failed.push(`${name} (${e && e.message || 'error'})`);
+                }
+                if (i < files.length - 1) {
+                    await new Promise(r => setTimeout(r, 300));
                 }
             }
 
             exportBtn.disabled = false;
             updateExportBtn();
-            exportStatus.textContent = `Downloaded ${downloaded} file(s)`;
-            exportStatus.style.color = '#4CAF50';
+            if (failed.length > 0) {
+                exportStatus.textContent = `Downloaded ${downloaded} file(s), ${failed.length} failed: ${failed.slice(0, 3).join('; ')}${failed.length > 3 ? '…' : ''}`;
+                exportStatus.style.color = downloaded > 0 ? '#FF9800' : '#F44336';
+            } else {
+                exportStatus.textContent = `Downloaded ${downloaded} file(s)`;
+                exportStatus.style.color = '#4CAF50';
+            }
         });
 
-        function downloadFile(name, content) {
+        function downloadHref(name, href, revoke) {
             const link = document.createElement('a');
-            link.href = content;
+            link.href = href;
             link.download = name;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            if (revoke) setTimeout(() => URL.revokeObjectURL(href), 5000);
+        }
+
+        function downloadBlob(name, blob) {
+            downloadHref(name, URL.createObjectURL(blob), true);
         }
 
         function getFileIcon(name) {
