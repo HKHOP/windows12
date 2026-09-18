@@ -4,6 +4,18 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4940] - 2026-09-18
+
+### Added
+- CopilotBB user messages now feature Copy and Revert buttons under them (Revert truncates chat history back to that message and restores its content into the composer textarea)
+- CopilotBB settings panel now includes a toggle to turn off turn limits (allowing unlimited agent tool execution loops)
+
+### Removed
+- Removed the `powershell` tool from CopilotBB agent environment
+
+### Changed
+- Updated CopilotBB system prompt (`TOOLS_DOC`) instructing the model that PowerShell is unavailable and mandating standard CMD batch alternatives (`dir`, `type`, `echo`, etc.) instead of PowerShell cmdlets
+
 ## [12.0.4939] - 2026-09-17
 
 ### Added

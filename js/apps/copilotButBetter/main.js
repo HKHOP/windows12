@@ -27,7 +27,8 @@ const CopilotButBetter = (() => {
         accent: '#10a37f',
         glass: 0.65,
         enterToSend: true,
-        agentMode: true
+        agentMode: true,
+        turnLimits: true
     };
 
     // Empty model field falls back per provider.
@@ -47,32 +48,32 @@ RULES:
 - NEVER put your explanation / chat text into a "script" or "content" arg. "script" must contain ONLY real shell commands, "content" must contain ONLY real file text.
 - Keep file work inside the per-conversation workspace (relative paths like "notes.txt"). The workspace persists until the conversation is deleted.
 - Stop calling tools once you can answer. Do not call tools for plain chit-chat.
+- IMPORTANT: This environment DOES NOT have PowerShell. Do NOT attempt to invoke powershell or powershell.exe via cmd, scripts, or tools. Always use standard CMD / batch commands and alternatives (e.g. dir, type, copy, del, rmdir, mkdir, findstr, echo, %DATE%, %TIME%) or the dedicated write/read/edit/grep tools instead of PowerShell cmdlets.
 
 EXAMPLE — saving a file:
 I'll save that for you right now.
 
-\`\`\`toolcall
+```toolcall
 {"tool": "write", "args": {"path": "haiku.md", "content": "# Haiku\\n\\nGlass and light entwine\\nPixels dance in liquid glow\\nDigital sunrise"}}
-\`\`\`
+```
 
 EXAMPLE — reading a file:
 Let me read that file.
 
-\`\`\`toolcall
+```toolcall
 {"tool": "read", "args": {"path": "haiku.md"}}
-\`\`\`
+```
 
 EXAMPLE — running a command:
 Let me check the date.
 
-\`\`\`toolcall
+```toolcall
 {"tool": "cmd", "args": {"script": "echo %DATE% %TIME%"}}
-\`\`\`
+```
 
 Available tools:
 - datetime {} — current date/time. No args needed.
-- powershell {"script": "..."} — run PowerShell script, workspace-rooted. Supports Get-Date, echo, ls, cat, type, mkdir, rm, etc. Falls through to CMD engine.
-- cmd {"script": "..."} — run CMD/batch, workspace-rooted.
+- cmd {"script": "..."} — run CMD/batch, workspace-rooted. Use standard CMD commands (dir, echo, type, mkdir, etc.). Do not call PowerShell.
 - write {"path": "file.md", "content": "full text here"} — save a file. BOTH path AND content are required.
 - read {"path": "file.md", "offset": 0, "limit": 200} — read a file. path is required. offset/limit are optional.
 - edit {"path": "file.md", "oldText": "...", "newText": "..."} — find and replace in a file. ALL three required.
@@ -539,11 +540,6 @@ Available tools:
                     const d = new Date();
                     return { ok: true, output: `ISO: ${d.toISOString()}\nLocal: ${d.toString()}\nTimezone offset (min): ${d.getTimezoneOffset()}`, images: [] };
                 }
-                case 'powershell': {
-                    const script = a.script != null ? a.script : a.command;
-                    if (!script || !String(script).trim()) return { ok: false, output: 'powershell: missing required "script" argument. Retry with {"tool":"powershell","args":{"script":"<real PowerShell commands>"}}. Example: {"tool":"powershell","args":{"script":"Get-ChildItem"}}. Never send {} and never put chat text in "script".', images: [] };
-                    return { ok: true, output: runPowerShellCapture(String(script), ws), images: [] };
-                }
                 case 'cmd': {
                     const script = a.script != null ? a.script : a.command;
                     if (!script || !String(script).trim()) return { ok: false, output: 'cmd: missing required "script" argument. Retry with {"tool":"cmd","args":{"script":"<real CMD commands>"}}. Never send {} and never put chat text in "script".', images: [] };
@@ -717,7 +713,7 @@ Available tools:
                     return { ok: true, output: `File ${rel} (${txt.length} chars, ${txt.split('\n').length} lines):\n` + truncateOut(txt, parseInt(a.limit, 10) || 4000), images: [] };
                 }
                 default:
-                    return { ok: false, output: `Unknown tool "${tool}". Available: datetime, powershell, cmd, write, read, edit, grep, websearch, webfetch, analyze.`, images: [] };
+                    return { ok: false, output: `Unknown tool "${tool}". Available: datetime, cmd, write, read, edit, grep, websearch, webfetch, analyze. Note: PowerShell is not available in this environment; use cmd or other built-in tools.`, images: [] };
             }
         } catch (e) {
             return { ok: false, output: `Tool ${tool} crashed: ${e && e.message || e}`, images: [] };
@@ -1166,7 +1162,9 @@ Available tools:
                 if (m.role === 'user') {
                     const chips = Array.isArray(m.attachments) && m.attachments.length
                         ? `<div style="margin-top:6px;">${m.attachments.map(a => `<span class="cbb-filechip">📎 ${esc(a)}</span>`).join('')}</div>` : '';
-                    return `<div class="cbb-row user"><div class="cbb-ubub">${esc(m.content)}${chips}</div></div>`;
+                    return `<div class="cbb-row user"><div class="cbb-ubub">${esc(m.content)}${chips}` +
+                        `<div class="cbb-msgacts"><button data-ucopy="${i}">⧉ Copy</button>` +
+                        `<button data-urevert="${i}">↩ Revert</button></div></div></div>`;
                 }
                 // Legacy standalone tool messages (backward compat)
                 if (m.role === 'tool') {
@@ -1207,6 +1205,28 @@ Available tools:
                 if (navigator.clipboard) navigator.clipboard.writeText(m.content).catch(() => { });
                 b.textContent = '✓ Copied';
                 setTimeout(() => { b.textContent = '⧉ Copy'; }, 1200);
+            }));
+            colEl.querySelectorAll('[data-ucopy]').forEach(b => b.addEventListener('click', () => {
+                const m = getActive().messages[parseInt(b.dataset.ucopy, 10)];
+                if (!m) return;
+                if (navigator.clipboard) navigator.clipboard.writeText(m.content).catch(() => { });
+                b.textContent = '✓ Copied';
+                setTimeout(() => { b.textContent = '⧉ Copy'; }, 1200);
+            }));
+            colEl.querySelectorAll('[data-urevert]').forEach(b => b.addEventListener('click', () => {
+                const idx = parseInt(b.dataset.urevert, 10);
+                const c = getActive();
+                if (!c || !c.messages[idx]) return;
+                generating = false;
+                stopFlag = true;
+                const text = c.messages[idx].content;
+                c.messages = c.messages.slice(0, idx);
+                c.updatedAt = Date.now();
+                persist();
+                renderAll();
+                ta.value = text;
+                autosize();
+                ta.focus();
             }));
             colEl.querySelectorAll('[data-mem]').forEach(b => b.addEventListener('click', () => {
                 const m = getActive().messages[parseInt(b.dataset.mem, 10)];
@@ -1297,7 +1317,7 @@ Available tools:
                     // run the tool, feed the result back for another model turn.
                     c.messages.push({ role: 'assistant', content: reply, time: Date.now(), toolcall: { tool: tc.tool, args: tc.args } });
                     persist(); renderAll();
-                    if (turns >= MAX_AGENT_TURNS) {
+                    if (settings.turnLimits !== false && turns >= MAX_AGENT_TURNS) {
                         const last = c.messages[c.messages.length - 1];
                         if (last && last.role === 'assistant') {
                             last.toolResult = { status: 'failed', output: `Stopped: max ${MAX_AGENT_TURNS} tool turns reached. Answer with what you have.` };
@@ -1377,7 +1397,8 @@ Available tools:
                     <label>Max output tokens</label>
                     <select class="s-max"><option ${s.maxTokens === 1024 ? 'selected' : ''}>1024</option><option ${s.maxTokens === 2048 ? 'selected' : ''}>2048</option><option ${s.maxTokens === 4096 ? 'selected' : ''}>4096</option><option ${s.maxTokens === 8192 ? 'selected' : ''}>8192</option></select>
                     <label class="cbb-toggle" style="margin-top:10px;">Send with Enter (Shift+Enter = newline)<input type="checkbox" class="s-enter" ${s.enterToSend ? 'checked' : ''}></label>
-                    <label class="cbb-toggle" style="margin-top:10px;">Agent mode — let the model call tools inline (datetime, powershell, cmd, write, read, edit, grep, websearch, webfetch, analyze)<input type="checkbox" class="s-agent" ${s.agentMode !== false ? 'checked' : ''}></label>
+                    <label class="cbb-toggle" style="margin-top:10px;">Agent mode — let the model call tools inline (datetime, cmd, write, read, edit, grep, websearch, webfetch, analyze)<input type="checkbox" class="s-agent" ${s.agentMode !== false ? 'checked' : ''}></label>
+                    <label class="cbb-toggle" style="margin-top:10px;">Turn off turn limits (allow unlimited agent tool turns)<input type="checkbox" class="s-turnlimits" ${s.turnLimits === false ? 'checked' : ''}></label>
                 </div>
                 <div class="cbb-sec"><h3>Agent workspace</h3>
                     <div style="font-size:12.5px;color:#a8a8a8;">Each conversation gets its own temp folder (deleted with the chat). Attach files with 📎 or let the agent write/read/edit there.</div>
@@ -1483,6 +1504,7 @@ Available tools:
                     enterToSend: panel.querySelector('.s-enter').checked,
                     memoryEnabled: panel.querySelector('.s-memon').checked,
                     agentMode: panel.querySelector('.s-agent').checked,
+                    turnLimits: !panel.querySelector('.s-turnlimits').checked,
                     accent: selAcc ? selAcc.dataset.acc : settings.accent,
                     glass: parseFloat(panel.querySelector('.s-glass').value)
                 };
