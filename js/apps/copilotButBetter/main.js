@@ -53,23 +53,23 @@ RULES:
 EXAMPLE — saving a file:
 I'll save that for you right now.
 
-```toolcall
+\```toolcall
 {"tool": "write", "args": {"path": "haiku.md", "content": "# Haiku\\n\\nGlass and light entwine\\nPixels dance in liquid glow\\nDigital sunrise"}}
-```
+\```
 
 EXAMPLE — reading a file:
 Let me read that file.
 
-```toolcall
+\```toolcall
 {"tool": "read", "args": {"path": "haiku.md"}}
-```
+\```
 
 EXAMPLE — running a command:
 Let me check the date.
 
-```toolcall
+\```toolcall
 {"tool": "cmd", "args": {"script": "echo %DATE% %TIME%"}}
-```
+\```
 
 Available tools:
 - datetime {} — current date/time. No args needed.

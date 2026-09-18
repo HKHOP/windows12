@@ -16,6 +16,9 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 ### Changed
 - Updated CopilotBB system prompt (`TOOLS_DOC`) instructing the model that PowerShell is unavailable and mandating standard CMD batch alternatives (`dir`, `type`, `echo`, etc.) instead of PowerShell cmdlets
 
+### Fixed
+- Fixed a syntax error (`Unexpected identifier 'toolcall'`) in CopilotBB caused by unescaped backticks in template literal `TOOLS_DOC`
+
 ## [12.0.4939] - 2026-09-17
 
 ### Added
