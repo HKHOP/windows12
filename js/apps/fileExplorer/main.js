@@ -16,6 +16,15 @@ import Zip from '../../modules/zip.js';
 const FileExplorer = (() => {
     const icon = AppIcons.get('fileExplorer');
 
+    // Coarse-pointer / touch UI: selection checkboxes stay visible so
+    // multi-select is discoverable without a keyboard (Ctrl/Shift).
+    const IS_TOUCH_UI = (typeof window !== 'undefined') && (
+        (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+        ('ontouchstart' in window) ||
+        (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0)
+    );
+    const LONG_PRESS_SELECT_MS = 550;
+
     const VIEW_PATH = ['/', 'system', 'programs data', 'fileExplorer', 'view.json'];
     const view = { sortBy: 'name', sortDir: 'asc', groupBy: 'none' };
 
@@ -134,6 +143,7 @@ const FileExplorer = (() => {
                     </div>
                     <input type="text" class="fe-search" placeholder="Search" style="background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:4px;padding:6px 10px;font-size:13px;color:var(--text-primary);width:160px;outline:none;">
                     <button class="fe-preview-btn" title="Preview pane" style="background:none;border:none;color:var(--text-secondary);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:15px;">&#128065;</button>
+                    <button class="fe-select" title="Select: multi-select mode (touch-friendly)" style="background:none;border:none;color:var(--text-secondary);padding:4px 8px;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;">${UIIcons.action('selectAll', 15)}</button>
                     <button class="fe-sort" title="Sort and group" style="background:none;border:none;color:var(--text-secondary);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:15px;">&#8645;</button>
                 </div>
                 <div style="display:flex;flex:1;overflow:hidden;">
@@ -343,14 +353,29 @@ const FileExplorer = (() => {
                 ${relDir}
             `;
 
+            // Selection checkbox: always visible on touch devices, otherwise
+            // only in selection mode. Tapping it toggles without leaving
+            // selection mode — the touch-friendly multi-select path.
+            const check = document.createElement('div');
+            check.className = 'fe-check';
+            check.title = 'Tap to select this item';
+            check.setAttribute('aria-hidden', 'true');
+            check.style.cssText = 'position:absolute;left:4px;top:4px;width:22px;height:22px;border-radius:6px;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);border:1.5px solid rgba(255,255,255,0.55);box-sizing:border-box;z-index:2;';
+            check.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="display:none;"><path d="M4 12.5l5 5L20 6.5" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            item.appendChild(check);
+            check.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                if (!state) return;
+                if (!wstate.selectMode) setSelectMode(win, wstate, true);
+                if (state.selected.has(entry.name)) state.selected.delete(entry.name);
+                else state.selected.add(entry.name);
+                state.lastClicked = entry.name;
+                repaintSelection(contentEl, wstate);
+                renderPreview(win, wstate);
+            });
+
             function updateItemVisual() {
-                if (state && state.selected.has(entry.name)) {
-                    item.style.background = 'rgba(0,120,212,0.25)';
-                    item.style.borderColor = 'var(--accent-color)';
-                } else {
-                    item.style.background = 'transparent';
-                    item.style.borderColor = 'transparent';
-                }
+                paintItemSelection(item, !!(state && state.selected.has(entry.name)), !!(wstate && wstate.selectMode));
             }
             updateItemVisual();
 
@@ -364,22 +389,27 @@ const FileExplorer = (() => {
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (!state) return;
-                selectItem(state, entry.name, e.ctrlKey || e.metaKey, e.shiftKey, allNames);
-                contentEl.querySelectorAll('.fe-item').forEach(el => {
-                    const n = el.dataset.name;
-                    if (state.selected.has(n)) {
-                        el.style.background = 'rgba(0,120,212,0.25)';
-                        el.style.borderColor = 'var(--accent-color)';
-                    } else {
-                        el.style.background = 'transparent';
-                        el.style.borderColor = 'transparent';
-                    }
-                });
-                updateItemCount();
+                // Synthetic click arriving right after a long-press select
+                // must not toggle the item back.
+                if (wstate._lpSuppressUntil && Date.now() < wstate._lpSuppressUntil) return;
+                if (wstate.selectMode) {
+                    if (state.selected.has(entry.name)) state.selected.delete(entry.name);
+                    else state.selected.add(entry.name);
+                    state.lastClicked = entry.name;
+                } else {
+                    selectItem(state, entry.name, e.ctrlKey || e.metaKey, e.shiftKey, allNames);
+                }
+                repaintSelection(contentEl, wstate);
                 renderPreview(win, wstate);
             });
 
             item.addEventListener('dblclick', () => {
+                // A double-tap in selection mode toggles twice; make sure
+                // the opened item ends up selected.
+                if (state && !state.selected.has(entry.name)) {
+                    state.selected.add(entry.name);
+                    state.lastClicked = entry.name;
+                }
                 if (isDir) {
                     if (searchMode) {
                         wstate.search = '';
@@ -397,20 +427,15 @@ const FileExplorer = (() => {
             item.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                // Native menu arriving right after a long-press select: the
+                // press already toggled selection, don't pop a menu over it.
+                if (wstate._lpSuppressUntil && Date.now() < wstate._lpSuppressUntil) return;
+                wstate._ctxMenuAt = Date.now();
                 if (state && !state.selected.has(entry.name)) {
                     state.selected.clear();
                     state.selected.add(entry.name);
                     state.lastClicked = entry.name;
-                    contentEl.querySelectorAll('.fe-item').forEach(el => {
-                        const n = el.dataset.name;
-                        if (state.selected.has(n)) {
-                            el.style.background = 'rgba(0,120,212,0.25)';
-                            el.style.borderColor = 'var(--accent-color)';
-                        } else {
-                            el.style.background = 'transparent';
-                            el.style.borderColor = 'transparent';
-                        }
-                    });
+                    repaintSelection(contentEl, wstate);
                 }
                 const selCount = state ? state.selected.size : 1;
                 const itemPath = fullPath;
@@ -474,6 +499,51 @@ const FileExplorer = (() => {
                 ];
                 ContextMenu.show(e.clientX, e.clientY, menuItems);
             });
+
+            // Touch long-press: enter selection mode and toggle the item
+            // (standard mobile multi-select). A long-press on an already
+            // selected item falls through to the context menu above, so
+            // touch users can still reach Cut/Copy/Delete/etc.
+            let lpTimer = null;
+            let lpX = 0, lpY = 0;
+            const lpCancel = () => {
+                if (lpTimer) {
+                    clearTimeout(lpTimer);
+                    lpTimer = null;
+                }
+            };
+            item.addEventListener('touchstart', (t) => {
+                lpCancel();
+                if (!t.touches || t.touches.length !== 1) return;
+                lpX = t.touches[0].clientX;
+                lpY = t.touches[0].clientY;
+                lpTimer = setTimeout(() => {
+                    lpTimer = null;
+                    if (!state || !wstate) return;
+                    // The native long-press menu beat us to it (browser fired
+                    // contextmenu first): leave the menu alone, skip toggling.
+                    if (wstate._ctxMenuAt && Date.now() - wstate._ctxMenuAt < 1200) return;
+                    if (wstate.selectMode && state.selected.has(entry.name)) return;
+                    if (!wstate.selectMode) setSelectMode(win, wstate, true);
+                    if (state.selected.has(entry.name)) state.selected.delete(entry.name);
+                    else state.selected.add(entry.name);
+                    state.lastClicked = entry.name;
+                    wstate._lpSuppressUntil = Date.now() + 900;
+                    repaintSelection(contentEl, wstate);
+                    renderPreview(win, wstate);
+                    try {
+                        if (navigator.vibrate) navigator.vibrate(12);
+                    } catch (e2) { /* noop */ }
+                }, LONG_PRESS_SELECT_MS);
+            }, { passive: true });
+            item.addEventListener('touchmove', (t) => {
+                if (!lpTimer || !t.touches || t.touches.length === 0) return;
+                const dx = t.touches[0].clientX - lpX;
+                const dy = t.touches[0].clientY - lpY;
+                if (Math.hypot(dx, dy) > 10) lpCancel();
+            }, { passive: true });
+            item.addEventListener('touchend', lpCancel, { passive: true });
+            item.addEventListener('touchcancel', lpCancel, { passive: true });
 
             item.addEventListener('dragstart', (e) => {
                 // Drag the whole selection when the dragged item is part of
@@ -1388,6 +1458,94 @@ const FileExplorer = (() => {
         state.lastClicked = null;
     }
 
+    // ---------- touch-friendly selection mode ----------
+    // selectMode lives on wstate (shared across tabs of a window). While on,
+    // tapping an item toggles it instead of single-selecting, and every item
+    // shows a checkbox. Long-press enters the mode automatically.
+
+    function paintItemSelection(el, selected, selectMode) {
+        if (selected) {
+            el.style.background = 'rgba(0,120,212,0.25)';
+            el.style.borderColor = 'var(--accent-color)';
+        } else {
+            el.style.background = 'transparent';
+            el.style.borderColor = 'transparent';
+        }
+        const chk = el.querySelector('.fe-check');
+        if (chk) {
+            chk.style.display = (selectMode || IS_TOUCH_UI) ? 'flex' : 'none';
+            const tick = chk.querySelector('svg');
+            if (tick) tick.style.display = selected ? 'block' : 'none';
+            chk.style.borderColor = selected ? 'var(--accent-color)' : 'rgba(255,255,255,0.55)';
+            chk.style.background = selected ? 'var(--accent-color)' : 'rgba(0,0,0,0.55)';
+            chk.style.opacity = selected ? '1' : (selectMode ? '1' : '0.8');
+        }
+    }
+
+    function repaintSelection(contentEl, wstate) {
+        if (!contentEl) return;
+        const tab = activeTab(wstate);
+        const mode = !!(wstate && wstate.selectMode);
+        contentEl.querySelectorAll('.fe-item').forEach(el => {
+            paintItemSelection(el, !!(tab && tab.selected.has(el.dataset.name)), mode);
+        });
+        if (contentEl._updateItemCount) contentEl._updateItemCount();
+    }
+
+    function setSelectMode(win, wstate, on) {
+        if (!wstate) return;
+        wstate.selectMode = !!on;
+        const btn = win.element.querySelector('.fe-select');
+        if (btn) {
+            btn.style.color = wstate.selectMode ? 'var(--accent-color)' : 'var(--text-secondary)';
+            btn.style.background = wstate.selectMode ? 'rgba(0,120,212,0.2)' : 'none';
+            btn.title = wstate.selectMode
+                ? 'Selection mode ON — tap items to toggle. Click for Select all / Clear / Exit.'
+                : 'Select: multi-select mode (tap checkboxes, or long-press an item)';
+        }
+        repaintSelection(win.element.querySelector('.fe-content'), wstate);
+    }
+
+    function selectAllItems(win, wstate) {
+        const tab = activeTab(wstate);
+        if (!tab) return;
+        const contentEl = win.element.querySelector('.fe-content');
+        if (!wstate.selectMode) setSelectMode(win, wstate, true);
+        contentEl.querySelectorAll('.fe-item').forEach(el => tab.selected.add(el.dataset.name));
+        tab.lastClicked = null;
+        repaintSelection(contentEl, wstate);
+        renderPreview(win, wstate);
+    }
+
+    function clearSelectionUI(win, wstate) {
+        const tab = activeTab(wstate);
+        if (tab) deselectAll(tab);
+        const contentEl = win.element.querySelector('.fe-content');
+        repaintSelection(contentEl, wstate);
+        renderPreview(win, wstate);
+    }
+
+    function invertSelectionUI(win, wstate) {
+        const tab = activeTab(wstate);
+        if (!tab) return;
+        const contentEl = win.element.querySelector('.fe-content');
+        contentEl.querySelectorAll('.fe-item').forEach(el => {
+            const n = el.dataset.name;
+            if (tab.selected.has(n)) tab.selected.delete(n);
+            else tab.selected.add(n);
+        });
+        tab.lastClicked = null;
+        repaintSelection(contentEl, wstate);
+        renderPreview(win, wstate);
+    }
+
+    function exitSelectMode(win, wstate) {
+        const tab = activeTab(wstate);
+        if (tab) deselectAll(tab);
+        setSelectMode(win, wstate, false);
+        renderPreview(win, wstate);
+    }
+
     // Built-in file viewers (fallbacks behind manifest handlers). Registered
     // once — the Map overwrites make repeat launches harmless.
     let viewersRegistered = false;
@@ -1768,7 +1926,10 @@ const FileExplorer = (() => {
             activeTabId: null,
             clipboard: [],
             clipboardAction: null,
-            search: ''
+            search: '',
+            selectMode: false,
+            _lpSuppressUntil: 0,
+            _ctxMenuAt: 0
         };
 
         const win = WindowManager.createWindow('fileExplorer', 'File Explorer', icon, getContent(), { width: 900, height: 550 });
@@ -1812,11 +1973,7 @@ const FileExplorer = (() => {
             if (e.target === contentEl) {
                 const tab = activeTab(wstate);
                 if (tab) deselectAll(tab);
-                contentEl.querySelectorAll('.fe-item').forEach(el => {
-                    el.style.background = 'transparent';
-                    el.style.borderColor = 'transparent';
-                });
-                if (contentEl._updateItemCount) contentEl._updateItemCount();
+                repaintSelection(contentEl, wstate);
                 renderPreview(win, wstate);
             }
         });
@@ -1850,6 +2007,22 @@ const FileExplorer = (() => {
             if (current.length > 1) {
                 navigate(win, current.slice(0, -1), true, wstate);
             }
+        });
+
+        win.element.querySelector('.fe-select').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!wstate.selectMode) {
+                setSelectMode(win, wstate, true);
+                return;
+            }
+            const r = win.element.querySelector('.fe-select').getBoundingClientRect();
+            ContextMenu.show(r.left, r.bottom + 4, [
+                { label: 'Select all', icon: UIIcons.action('selectAll'), action: () => selectAllItems(win, wstate) },
+                { label: 'Clear selection', icon: UIIcons.action('close'), action: () => clearSelectionUI(win, wstate) },
+                { label: 'Invert selection', icon: '', action: () => invertSelectionUI(win, wstate) },
+                'separator',
+                { label: 'Exit selection mode', icon: UIIcons.action('check'), action: () => exitSelectMode(win, wstate) }
+            ]);
         });
 
         win.element.querySelector('.fe-sort').addEventListener('click', (e) => {
@@ -2014,16 +2187,7 @@ const FileExplorer = (() => {
             }
         }, { ...kb, description: 'Paste' });
         Keyboard.register('CTRL+A', () => {
-            const tab = activeTab(wstate);
-            if (!tab) return;
-            contentEl.querySelectorAll('.fe-item').forEach(el => tab.selected.add(el.dataset.name));
-            tab.lastClicked = null;
-            contentEl.querySelectorAll('.fe-item').forEach(el => {
-                el.style.background = 'rgba(0,120,212,0.25)';
-                el.style.borderColor = 'var(--accent-color)';
-            });
-            if (contentEl._updateItemCount) contentEl._updateItemCount();
-            renderPreview(win, wstate);
+            selectAllItems(win, wstate);
         }, { ...kb, description: 'Select all' });
         Keyboard.register('DELETE', () => {
             const tab = activeTab(wstate);

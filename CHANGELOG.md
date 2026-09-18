@@ -4,6 +4,15 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4941] - 2026-09-18
+
+### Added
+- File Explorer touch multi-select: new toolbar Select button toggles a selection mode where tapping items toggles them instead of single-selecting; every item shows a selection checkbox (always visible on touch devices, mode-only on desktop); active Select button opens a menu with Select all / Clear selection / Invert selection / Exit selection mode
+- File Explorer long-press to select on touch: holding an item enters selection mode and toggles it (with haptic feedback); long-pressing an already-selected item still opens its full context menu so Cut/Copy/Delete stay reachable without a keyboard
+
+### Fixed
+- Long-pressing File Explorer items/background on touch no longer shows the generic disabled-action touch menu; the real File Explorer context menus (Cut/Copy/Paste/Delete/New folder) appear instead
+
 ## [12.0.4940] - 2026-09-18
 
 ### Added

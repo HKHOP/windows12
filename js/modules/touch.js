@@ -616,6 +616,17 @@ const Touch = (() => {
 
         showIndicator(x, y);
 
+        // File Explorer renders its own touch UX (selection checkboxes,
+        // long-press multi-select, full Cut/Copy/Paste context menus): the
+        // generic disabled-action menu must not cover it. The app's own
+        // touchstart (target phase) runs its selection timer instead, and
+        // the native contextmenu event reaches the app's menu handlers.
+        let customTouch = false;
+        try {
+            customTouch = !!(target.closest && target.closest('.fe-content'));
+        } catch (e) { customTouch = false; }
+
+        if (!customTouch) {
         touchData.timer = setTimeout(() => {
             if (!touchData || touchData.moved) return;
             touchData.longPressTriggered = true;
@@ -633,6 +644,7 @@ const Touch = (() => {
                 ]);
             }
         }, LONG_PRESS_MS);
+        }
 
         synthesizeMouse('mousedown', target, x, y, 0);
 
