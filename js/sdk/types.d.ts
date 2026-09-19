@@ -1,5 +1,5 @@
 // Windows 12 SDK — TypeScript declarations (reference only; the runtime
-// stays dependency-free vanilla JS). SDK contract version 1.1.0.
+// stays dependency-free vanilla JS). SDK contract version 1.2.0.
 declare module '../../sdk/index.js' {
     export const SDK_VERSION: string;
     export function createApp(def: { id: string; name?: string }): BoundApp;
@@ -106,6 +106,12 @@ declare module '../../sdk/index.js' {
             onDragState(cb: (id: string, dragging: boolean) => void): () => void;
             onResizeState(cb: (id: string, resizing: boolean) => void): () => void;
             onBoundsChanged(cb: (id: string, bounds: WindowBounds) => void): () => void;
+            onClosed(cb: (appId: string, windowId: string) => void): () => void;
+            onMinimizeState(cb: (appId: string, windowId: string, minimized: boolean) => void): () => void;
+            onFocusChanged(cb: (appId: string | null) => void): () => void;
+            setFullscreen(id: string): Promise<boolean>;
+            exitFullscreen(id?: string): boolean;
+            isFullscreen(id: string): boolean;
             setTitle(id: string, title: string): boolean;
             setMinSize(id: string, minWidth: number, minHeight: number): boolean;
             close(id: string): void;
@@ -148,6 +154,34 @@ declare module '../../sdk/index.js' {
         lifecycle: {
             onClose(handler: (w: WindowHandle) => boolean | void | Promise<boolean | void>): void;
             offClose(): void;
+            onWindowClose(windowId: string, handler: (w: WindowHandle) => boolean | void | Promise<boolean | void>): (() => void) | null;
+            offWindowClose(windowId: string, handler: (w: WindowHandle) => boolean | void | Promise<boolean | void>): void;
+        };
+        pointerLock: {
+            request(element: Element): Promise<boolean>;
+            exit(): boolean;
+            isLocked(element?: Element): boolean;
+            onChange(cb: (detail: { element: Element | null; locked: boolean; error?: boolean }) => void): () => void;
+        };
+        input: {
+            keyState(element: HTMLElement, options?: { prevent?: string[] | true }): {
+                isDown(code: string): boolean;
+                clear(): void;
+                onKeyDown(cb: (d: { code: string; event: KeyboardEvent }) => void): () => void;
+                onKeyUp(cb: (d: { code: string; event: KeyboardEvent }) => void): () => void;
+                dispose(): void;
+                element: HTMLElement;
+            };
+        };
+        audio: {
+            supported(): boolean;
+            context(): AudioContext;
+            masterGain(): GainNode;
+            masterVolume(): number;
+            unlock(): Promise<string>;
+            suspend(): void;
+            state(): string;
+            beep(opts?: { freq?: number; endFreq?: number; duration?: number; type?: OscillatorType; volume?: number; delay?: number }): void;
         };
         background: {
             canRun(): boolean;
@@ -199,6 +233,12 @@ declare module '../../sdk/index.js' {
         onDragState(cb: (id: string, dragging: boolean) => void): () => void;
         onResizeState(cb: (id: string, resizing: boolean) => void): () => void;
         onBoundsChanged(cb: (id: string, bounds: WindowBounds) => void): () => void;
+        onClosed(cb: (appId: string, windowId: string) => void): () => void;
+        onMinimizeState(cb: (appId: string, windowId: string, minimized: boolean) => void): () => void;
+        onFocusChanged(cb: (appId: string | null) => void): () => void;
+        setFullscreen(id: string): Promise<boolean>;
+        exitFullscreen(id?: string): boolean;
+        isFullscreen(id: string): boolean;
         setTitle(id: string, title: string): boolean;
         setMinSize(id: string, minWidth: number, minHeight: number): boolean;
         close(id: string): void;
@@ -208,6 +248,33 @@ declare module '../../sdk/index.js' {
         getByApp(appId: string): WindowHandle[];
         getAllWindows(): WindowHandle[];
         getAll(): WindowHandle[];
+    };
+    export const PointerLock: {
+        request(element: Element, appId?: string): Promise<boolean>;
+        exit(): boolean;
+        isLocked(element?: Element): boolean;
+        onChange(cb: (detail: { element: Element | null; locked: boolean; error?: boolean }) => void): () => void;
+    };
+    export const Input: {
+        keyState(element: HTMLElement, options?: { prevent?: string[] | true }): {
+            isDown(code: string): boolean;
+            clear(): void;
+            onKeyDown(cb: (d: { code: string; event: KeyboardEvent }) => void): () => void;
+            onKeyUp(cb: (d: { code: string; event: KeyboardEvent }) => void): () => void;
+            dispose(): void;
+            element: HTMLElement;
+        };
+    };
+    export const Audio: {
+        supported(): boolean;
+        isSupported(): boolean;
+        context(): AudioContext;
+        masterGain(): GainNode;
+        masterVolume(): number;
+        unlock(): Promise<string>;
+        suspend(): void;
+        state(): string;
+        beep(opts?: { freq?: number; endFreq?: number; duration?: number; type?: OscillatorType; volume?: number; delay?: number }): void;
     };
     export const FileSystem: {
         readFile(path: string[]): string | null;
@@ -367,6 +434,8 @@ declare module '../../sdk/index.js' {
     export const Lifecycle: {
         onClose(appId: string, handler: (w: WindowHandle) => boolean | void | Promise<boolean | void>): void;
         offClose(appId: string): void;
+        onWindowClose(windowId: string, handler: (w: WindowHandle) => boolean | void | Promise<boolean | void>): (() => void) | null;
+        offWindowClose(windowId: string, handler: (w: WindowHandle) => boolean | void | Promise<boolean | void>): void;
     };
     export const Background: {
         canRun(appId: string): boolean;
@@ -417,6 +486,9 @@ declare module '../../sdk/index.js' {
         Lifecycle: typeof Lifecycle;
         Background: typeof Background;
         Media: typeof Media;
+        PointerLock: typeof PointerLock;
+        Input: typeof Input;
+        Audio: typeof Audio;
         SDKError: typeof SDKError;
         ErrorCodes: Record<string, string>;
     };

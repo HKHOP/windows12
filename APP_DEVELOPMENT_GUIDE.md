@@ -1065,11 +1065,14 @@ Each `js/sdk/*.js` file is a thin facade over one internal module -- no logic is
 
 | Namespace | What | Key methods |
 |-----------|------|-------------|
-| `app.window` / `WindowManager` | windows | `create({appId,title,icon,content,width,height,resizable})`, `get/focus/isFocused/getFocused/minimize/restore/isMinimized/maximize/unmaximize/isMaximized/toggleMaximize`, `getBounds/setBounds/getPosition/setPosition/getSize/setSize/center/getDesktopArea`, `isResizable/setResizable/setMinSize`, `isDragging/isResizing/onDragState/onResizeState/onBoundsChanged`, `setTitle/close/requestClose/closeAll/getByApp/getAllWindows`, `Lifecycle.onClose` vetoes |
+| `app.window` / `WindowManager` | windows | `create({appId,title,icon,content,width,height,resizable})`, `get/focus/isFocused/getFocused/minimize/restore/isMinimized/maximize/unmaximize/isMaximized/toggleMaximize`, `getBounds/setBounds/getPosition/setPosition/getSize/setSize/center/getDesktopArea`, `isResizable/setResizable/setMinSize`, `isDragging/isResizing/onDragState/onResizeState/onBoundsChanged`, `onClosed/onMinimizeState/onFocusChanged` (lifecycle subscriptions), `setFullscreen/exitFullscreen/isFullscreen`, `setTitle/close/requestClose/closeAll/getByApp/getAllWindows`, `Lifecycle.onClose` vetoes |
 | `app.files` / `FileSystem` | virtual FS | scoped `read/write/exists/list/mkdir/remove/rename` + `settings.get/set/all`; raw `readFile/writeFile/createFile/createFolder/delete (remove recycles)/destroy/rename/move/exists/isFolder/list/blobs/pickSave` |
 | `app.notify` / `Notifications` | toasts + panel | `info/action/form`, `dismiss/clearAll/getAll/open/close/toggle`, Focus Assist; sends are permission-gated automatically |
 | `app.dialogs` / `Dialogs` | modal dialogs | `alert/confirm/text/select/form` (all Promises; never native `alert()`) |
 | `app.keyboard` / `Keyboard` | shortcuts | `register('CTRL+SHIFT+P', cb, {scope, owner(auto), allowInInputs, description})`, `unregister/unregisterAll/list/isDown`; exact-modifier matching; return `false` to pass through; reserved: PRINTSCREEN, WIN+V, ALT+F4, layered ESCAPE |
+| `app.pointerLock` / `PointerLock` | mouse capture | `request(element, appId?)` (user gesture; parks the virtual touchpad cursor while locked, restores on unlock), `exit`, `isLocked(element?)`, `onChange({element,locked,error?})` — pause when the lock is lost (Esc); re-locking too fast after Esc rejects with `PERMISSION_DENIED` |
+| `app.input` / `Input` | game key state | `keyState(element, {prevent})` → `{ isDown(code), clear, onKeyDown, onKeyUp, dispose }` — scoped raw key tracking for games (give the element `tabindex="0"`), auto-clears on blur and self-disposes when the element is removed from the DOM |
+| `app.audio` / `Audio` | sound | shared lazy `AudioContext`: `context/masterGain/masterVolume/unlock/suspend/state`, `beep({freq,endFreq,duration,type,volume,delay})` — everything routes through the OS master volume; the tab auto-suspends when hidden |
 | `app.clipboard` / `Clipboard` | clipboard | `writeText/readText` (reject cleanly without browser permission), `sync/show/hide/toggle/getHistory/clearHistory` |
 | `app.media` / `Media` | mic + camera | `microphone()/camera()` (OS grant checked first: revoked → `PERMISSION_DENIED` before any browser prompt; missing device → `UNSUPPORTED`), `supported()`; declare `microphone`/`camera` in manifest.json |
 | `Apps` | app management | `get/getMetadata/getAll/isInstalled/launch`, `install` (permission consent), `uninstall` (always confirms), `getPermissions/hasPermission` |
@@ -1077,9 +1080,9 @@ Each `js/sdk/*.js` file is a thin facade over one internal module -- no logic is
 | `app.shell` / `Shell` | chrome | `icons.app/action/file/folder/sidebar/setting`, `contextMenu(x,y,items)`, `files.open/openWith/openWithApp`, `activity.trackFileOpen/trackAppOpen/recommended` |
 | `FileAssociations` | file types | `register/unregister/getCandidates/getAllCapable/getDefault/setDefault/clearDefault` (manifest `"associations"` still preferred) |
 | `System` | OS facts | `info()/theme()/setTheme()/accent()/setAccent()` (appearance writes are user-action only) |
-| `Events` | shared bus | `on/off/names` for `app-installed/uninstalled`, `background-apps-changed`, `app-crashed`, `virtual-desktop-changed` (window-created/closed are single-slot internals -- intentionally absent) |
+| `Events` | shared bus | `on/off/names` for `app-installed/uninstalled`, `background-apps-changed`, `app-crashed`, `virtual-desktop-changed`, `window-closed`, `window-minimized`, `window-restored`, `window-focus-changed` (window-created and settings/theme stay single-slot internals -- intentionally absent) |
 | `app.permissions` / `Permissions` | capabilities | `has/require(throws)/getDeclared/catalog/iconFor/request` (grants stay user-owned); known ids: `filesystem`, `notifications`, `network`, `clipboard`, `background`, `microphone`, `camera` |
-| `app.lifecycle` / `Lifecycle` | close veto | `onClose/offClose`; background hooks (`onBackground/onForeground/onShutdown` exports) are manifest-declared |
+| `app.lifecycle` / `Lifecycle` | close veto | `onClose/offClose` (per app), `onWindowClose/offWindowClose` (per window — runs before the app handler, any `false` vetoes just that window); background hooks (`onBackground/onForeground/onShutdown` exports) are manifest-declared |
 | `app.background` / `Background` | headless | `canRun/isService/isBackground/running/goBackground/bringToForeground/startService/stopService` |
 
 ### Errors
@@ -1112,11 +1115,11 @@ The SDK is a **stability facade, not a sandbox** -- apps share one JS context, s
 
 ### Versioning
 
-`SDK_VERSION` (`'1.1.0'`) is independent of the OS version. Within major 1, namespaces only gain methods; renames/removals wait for a major bump and a migration note here. v1.1.0 added: window geometry/state (`getBounds/setBounds`, `isMaximized/maximize/unmaximize`, `isResizable/setResizable`, `isDragging/isResizing` + `onDragState/onResizeState/onBoundsChanged`, `setTitle/setMinSize/center/getDesktopArea/getFocused`), the `microphone` + `camera` permissions, and the `Media` namespace (`app.media`).
+`SDK_VERSION` (`'1.2.0'`) is independent of the OS version. Within major 1, namespaces only gain methods; renames/removals wait for a major bump and a migration note here. v1.1.0 added: window geometry/state (`getBounds/setBounds`, `isMaximized/maximize/unmaximize`, `isResizable/setResizable`, `isDragging/isResizing` + `onDragState/onResizeState/onBoundsChanged`, `setTitle/setMinSize/center/getDesktopArea/getFocused`), the `microphone` + `camera` permissions, and the `Media` namespace (`app.media`). v1.2.0 added: game/real-time support — `PointerLock` (`app.pointerLock`), `Input.keyState` (`app.input`), `Audio` (`app.audio`), window lifecycle subscriptions (`WindowManager.onClosed/onMinimizeState/onFocusChanged` + matching `Events` names), true fullscreen (`setFullscreen/exitFullscreen/isFullscreen`), and per-window close hooks (`Lifecycle.onWindowClose`).
 
 ### Test coverage
 
-`node test/sdk.smoke.mjs` (zero dependencies) stubs the browser surface, imports the real SDK + all 37 apps through the real registry, and asserts 79 checks: surface, error codes, shortcut dispatch/passthrough/unregister, events, filesystem roundtrip + recycle, sandbox scoping + traversal rejection, catalogs (incl. microphone/camera grants), clipboard denial honesty, headless window create/close, window geometry + state (bounds, resizable lock, maximize, minimize, drag/resize subscriptions), media denial honesty, virtual-keyboard init/gating/layouts/auto-show. DOM-painted paths (toast animation, live permission prompts) are exercised in-OS via the sample app.
+`node test/sdk.smoke.mjs` (zero dependencies) stubs the browser surface, imports the real SDK + all 38 apps through the real registry, and asserts 102 checks: surface, error codes, shortcut dispatch/passthrough/unregister, events (incl. window lifecycle), filesystem roundtrip + recycle, sandbox scoping + traversal rejection, catalogs (incl. microphone/camera grants), clipboard denial honesty, headless window create/close, window geometry + state (bounds, resizable lock, maximize, minimize, drag/resize subscriptions, lifecycle subscriptions, per-window close veto, fullscreen refusal mapping), pointer lock validation, Input keyState tracking/clearing, Audio lazy context + master volume + beep, media denial honesty, virtual-keyboard init/gating/layouts/auto-show. DOM-painted paths (toast animation, live permission prompts) are exercised in-OS via the sample app.
 
 ---
 
@@ -1137,3 +1140,66 @@ The SDK is a **stability facade, not a sandbox** -- apps share one JS context, s
 - `Enter` in a single-line field inside a `<form>` submits the form (unless the keydown was vetoed); in a `textarea` it inserts a newline.
 - `window` event `touch-keyboard-visibility` (`{ detail: { open } }`) fires on show/hide — use it to shrink scroll regions above the keyboard.
 - Programmatic control (console, system UI): `window._modules.VirtualKeyboard.show()/hide()/toggle()/isOpen()`.
+
+---
+
+## 28. Games & real-time input
+
+Everything a canvas/WebGL game needs lives in the SDK v1.2.0 namespaces — no raw `document` wiring required.
+
+### Pointer lock (`app.pointerLock`)
+
+```js
+const app = createApp({ id: 'myGame' });
+
+canvas.addEventListener('mousedown', () => app.pointerLock.request(canvas));   // user gesture
+app.pointerLock.onChange(({ locked }) => {
+    if (locked) resume();
+    else pause();          // losing the lock (Esc) always means "user wants the pause screen"
+});
+```
+
+- While locked, the OS parks the virtual touchpad cursor and restores it on unlock — no double-cursor.
+- Browsers enforce a short re-lock cooldown after Esc. `request()` rejects with `PERMISSION_DENIED` (`details.name === 'SecurityError'`) if the user clicks too fast — show the pause screen and let them click again; never spin-retry.
+- When `appId` is bound (via `app.pointerLock`), the element must live inside one of your windows — locking over foreign UI fails with `PERMISSION_DENIED`.
+
+### Raw key state (`app.input`)
+
+`Keyboard.register` is for shortcuts (combos, exact modifiers). Games want held keys:
+
+```js
+// root: your window body — give it tabindex="0" and root.focus() on click
+const keys = app.input.keyState(root, { prevent: ['Space', 'ArrowUp'] });
+
+// per frame:
+if (keys.isDown('KeyW')) moveForward(dt);
+keys.onKeyDown(({ code }) => { if (code.startsWith('Digit')) selectSlot(+code.slice(5) || 10 - 1); });
+
+// on window close (or automatically when root leaves the DOM):
+keys.dispose();
+```
+
+State clears on browser blur, so an unfocused window never leaves keys stuck. `prevent` lists `event.code` values to `preventDefault()` (Space/arrows scroll the page otherwise).
+
+### Sound (`app.audio`)
+
+```js
+app.audio.unlock();                                   // from a user gesture (Play button)
+app.audio.beep({ freq: 180, endFreq: 70, type: 'triangle', duration: 0.1 });   // dig!
+```
+
+Every sound routes through a master gain tracking the Settings master volume; the context auto-suspends when the tab is hidden. For richer graphs take `app.audio.context()` and connect into `app.audio.masterGain()`.
+
+### Window lifecycle for games
+
+```js
+app.window.onMinimizeState((appId, id, minimized) => { if (minimized) pauseLoop(); });
+app.window.onClosed((appId, id) => shutdownEngine());
+app.window.setFullscreen(id);       // true browser fullscreen, user gesture required
+```
+
+`onClosed` fires after the window is gone — cancel your `requestAnimationFrame` loop there. Use `app.lifecycle.onClose` (vetoable) to save first.
+
+### Touch
+
+Detect touch hardware (`'ontouchstart' in window || navigator.maxTouchPoints > 0`) and offer on-screen controls: a virtual joystick for movement, drag-to-look, tap to act. Pointer events (`pointerdown/move/up`) cover mouse and touch uniformly.

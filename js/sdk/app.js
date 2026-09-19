@@ -28,6 +28,9 @@ import { Events } from './events.js';
 import { Permissions } from './permissions.js';
 import { Lifecycle } from './lifecycle.js';
 import { Background } from './background.js';
+import { PointerLock } from './pointerLock.js';
+import { Input } from './input.js';
+import { Audio } from './audio.js';
 import InternalFS from '../modules/fileSystem.js';
 import { ErrorCodes, SDKError, requireString, requireOptions } from './errors.js';
 
@@ -286,6 +289,12 @@ function createApp(def) {
         onDragState: (cb) => WindowManager.onDragState(cb),
         onResizeState: (cb) => WindowManager.onResizeState(cb),
         onBoundsChanged: (cb) => WindowManager.onBoundsChanged(cb),
+        onClosed: (cb) => WindowManager.onClosed(cb),
+        onMinimizeState: (cb) => WindowManager.onMinimizeState(cb),
+        onFocusChanged: (cb) => WindowManager.onFocusChanged(cb),
+        setFullscreen: (windowId) => WindowManager.setFullscreen(windowId),
+        exitFullscreen: (windowId) => WindowManager.exitFullscreen(windowId),
+        isFullscreen: (windowId) => WindowManager.isFullscreen(windowId),
         setTitle: (windowId, title) => WindowManager.setTitle(windowId, title),
         setMinSize: (windowId, w, h) => WindowManager.setMinSize(windowId, w, h),
         close: (windowId) => WindowManager.close(windowId),
@@ -323,7 +332,45 @@ function createApp(def) {
     const lifecycle = {
         /** @param {Function} handler return false to veto close */
         onClose: (handler) => Lifecycle.onClose(id, handler),
-        offClose: () => Lifecycle.offClose(id)
+        offClose: () => Lifecycle.offClose(id),
+        /** @param {string} windowId @param {Function} handler veto one window's close */
+        onWindowClose: (windowId, handler) => Lifecycle.onWindowClose(windowId, handler),
+        offWindowClose: (windowId, handler) => Lifecycle.offWindowClose(windowId, handler)
+    };
+
+    const pointerLock = {
+        /**
+         * Pointer-lock an element inside one of this app's windows (must
+         * run in a user gesture). Parks the OS virtual cursor while locked.
+         * @param {Element} element usually your canvas
+         * @returns {Promise<boolean>}
+         */
+        request: (element) => PointerLock.request(element, id),
+        exit: () => PointerLock.exit(),
+        isLocked: (element) => PointerLock.isLocked(element),
+        onChange: (cb) => PointerLock.onChange(cb)
+    };
+
+    const input = {
+        /**
+         * Raw key-state for games, scoped to an element (give your window
+         * body tabindex="0"). Clears on blur and on element removal.
+         * @param {HTMLElement} element
+         * @param {object} [options] { prevent: string[]|true }
+         */
+        keyState: (element, options) => Input.keyState(element, options)
+    };
+
+    const audio = {
+        supported: Audio.supported,
+        context: Audio.context,
+        masterGain: Audio.masterGain,
+        masterVolume: Audio.masterVolume,
+        unlock: Audio.unlock,
+        suspend: Audio.suspend,
+        state: Audio.state,
+        /** @param {object} [opts] { freq, endFreq, duration, type, volume, delay } */
+        beep: (opts) => Audio.beep(opts)
     };
 
     const background = {
@@ -370,7 +417,10 @@ function createApp(def) {
         events: Events,
         lifecycle,
         background,
-        media
+        media,
+        pointerLock,
+        input,
+        audio
     };
 }
 

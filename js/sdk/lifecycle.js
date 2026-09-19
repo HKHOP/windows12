@@ -38,9 +38,36 @@ function offClose(appId) {
     InternalWindows.removeCloseHandler(appId);
 }
 
+/**
+ * Register a close interceptor for ONE window (runs before the app-level
+ * onClose handler; any veto aborts just this window). Several hooks may
+ * coexist — each is awaited, and any false vetoes the close.
+ * @param {string} windowId
+ * @param {(windowData) => (boolean|void|Promise<boolean|void>)} handler return false to veto
+ * @returns {Function|null} unsubscribe (null when the window does not exist)
+ */
+function onWindowClose(windowId, handler) {
+    requireString(windowId, 'windowId');
+    requireFunction(handler, 'handler');
+    return InternalWindows.addWindowCloseHook(windowId, handler);
+}
+
+/**
+ * Remove a previously registered per-window close hook.
+ * @param {string} windowId
+ * @param {Function} handler
+ */
+function offWindowClose(windowId, handler) {
+    requireString(windowId, 'windowId');
+    requireFunction(handler, 'handler');
+    InternalWindows.removeWindowCloseHook(windowId, handler);
+}
+
 export const Lifecycle = {
     onClose,
-    offClose
+    offClose,
+    onWindowClose,
+    offWindowClose
 };
 
 export default Lifecycle;

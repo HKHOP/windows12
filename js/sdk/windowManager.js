@@ -5,7 +5,7 @@
 // lifecycle helpers. Windows are positioned, dragged, resized, snapped,
 // minimized, maximized and persisted by the OS — the SDK only declares them.
 import InternalWindows from '../modules/windowManager.js';
-import { ErrorCodes, assert, requireString, requireOptions, requireFunction } from './errors.js';
+import { ErrorCodes, SDKError, assert, requireString, requireOptions, requireFunction } from './errors.js';
 
 /**
  * @typedef {object} CreateWindowOptions
@@ -299,6 +299,33 @@ const resizeListeners = new Set();
 const boundsListeners = new Set();
 let hooksInstalled = false;
 
+// Window lifecycle arrives as real DOM CustomEvents fired by the internal
+// window manager ('window-closed', 'window-minimized', 'window-restored',
+// 'window-focus-changed') — additive, so the shell's own single-slot
+// setOn* handlers are never disturbed.
+const lifecycleListeners = { 'window-closed': new Set(), 'window-minimized': new Set(), 'window-restored': new Set(), 'window-focus-changed': new Set() };
+let lifecycleInstalled = false;
+
+function installLifecycle() {
+    if (lifecycleInstalled) return;
+    lifecycleInstalled = true;
+    for (const name of Object.keys(lifecycleListeners)) {
+        window.addEventListener(name, (e) => {
+            for (const cb of [...lifecycleListeners[name]]) {
+                try { cb(e.detail || {}); } catch (err) { console.error('[Windows12 SDK] window lifecycle handler threw', err); }
+            }
+        });
+    }
+}
+
+function onLifecycleEvent(name, callback, wrap) {
+    requireFunction(callback, 'callback');
+    installLifecycle();
+    const cb = wrap ? (detail) => callback(...wrap(detail)) : callback;
+    lifecycleListeners[name].add(cb);
+    return () => lifecycleListeners[name].delete(cb);
+}
+
 function installHooks() {
     if (hooksInstalled) return;
     hooksInstalled = true;
@@ -348,6 +375,101 @@ function onBoundsChanged(callback) {
     installHooks();
     boundsListeners.add(callback);
     return () => boundsListeners.delete(callback);
+}
+
+/**
+ * Fires (appId, windowId) after any window is fully closed (no veto possible
+ * at this point — use Lifecycle.onClose to veto). Stop your render loops,
+ * drop document-level listeners and free GL/audio here.
+ * @param {Function} callback
+ * @returns {Function} unsubscribe
+ */
+function onClosed(callback) {
+    return onLifecycleEvent('window-closed', callback, (d) => [d.appId, d.id]);
+}
+
+/**
+ * Fires (appId, windowId, minimized) when any window is minimized (true) or
+ * restored (false) — the moment to pause rendering and mute audio.
+ * @param {Function} callback
+ * @returns {Function} unsubscribe
+ */
+function onMinimizeState(callback) {
+    requireFunction(callback, 'callback');
+    installLifecycle();
+    const a = (d) => callback(d.appId, d.id, true);
+    const b = (d) => callback(d.appId, d.id, false);
+    lifecycleListeners['window-minimized'].add(a);
+    lifecycleListeners['window-restored'].add(b);
+    return () => {
+        lifecycleListeners['window-minimized'].delete(a);
+        lifecycleListeners['window-restored'].delete(b);
+    };
+}
+
+/**
+ * Fires (appId|null) whenever the focused window changes. Pair with
+ * Input.keyState for focus-gated game input.
+ * @param {Function} callback
+ * @returns {Function} unsubscribe
+ */
+function onFocusChanged(callback) {
+    return onLifecycleEvent('window-focus-changed', callback, (d) => [d.appId ?? null]);
+}
+
+// ---- Fullscreen (real browser fullscreen of the window element) ----
+
+function fsElementFor(w) {
+    const fsEl = typeof document !== 'undefined' ? document.fullscreenElement : null;
+    if (!fsEl || !w || !w.element) return false;
+    try { return fsEl === w.element || fsEl.contains(w.element); } catch { return false; }
+}
+
+/**
+ * Take a window truly fullscreen (browser fullscreen of its element — the
+ * taskbar and other windows are covered). Must run in a user gesture.
+ * @param {string} id
+ * @returns {Promise<boolean>} true once fullscreen; false when the window does not exist
+ * @throws {SDKError} UNSUPPORTED when the browser refuses/blocks fullscreen
+ */
+async function setFullscreen(id) {
+    const w = get(id);
+    if (!w) return false;
+    if (fsElementFor(w)) return true;
+    if (!w.element || typeof w.element.requestFullscreen !== 'function') {
+        throw new SDKError(ErrorCodes.UNSUPPORTED, 'This device does not support the Fullscreen API.');
+    }
+    try {
+        await w.element.requestFullscreen();
+        return true;
+    } catch (e) {
+        const name = (e && e.name) || 'UnknownError';
+        throw new SDKError(ErrorCodes.UNSUPPORTED,
+            `Fullscreen was refused (${name}). Call setFullscreen() from a user gesture.`, { name });
+    }
+}
+
+/**
+ * Exit fullscreen. When id is given, only exits if THAT window is the
+ * fullscreen one.
+ * @param {string} [id]
+ * @returns {boolean} true when an fullscreen session was exited
+ */
+function exitFullscreen(id) {
+    if (typeof document === 'undefined' || !document.fullscreenElement) return false;
+    if (id !== undefined && id !== null) {
+        const w = get(id);
+        if (!w || !fsElementFor(w)) return false;
+    }
+    try { document.exitFullscreen(); return true; } catch { return false; }
+}
+
+/**
+ * @param {string} id
+ * @returns {boolean} true when that window is currently fullscreen
+ */
+function isFullscreen(id) {
+    return fsElementFor(get(id));
 }
 
 /**
@@ -461,6 +583,12 @@ export const WindowManager = {
     onDragState,
     onResizeState,
     onBoundsChanged,
+    onClosed,
+    onMinimizeState,
+    onFocusChanged,
+    setFullscreen,
+    exitFullscreen,
+    isFullscreen,
     setTitle,
     setMinSize,
     close,

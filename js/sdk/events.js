@@ -7,12 +7,17 @@
 //   'background-apps-changed'            ← detail { running: [...] }
 //   'app-crashed'                        ← detail { appId }
 //   'virtual-desktop-changed'            ← detail { activeId }
+//   'window-closed'                      ← detail { appId, id }
+//   'window-minimized'                   ← detail { appId, id }
+//   'window-restored'                    ← detail { appId, id }
+//   'window-focus-changed'               ← detail { appId, id }
 //
-// Deliberately absent: window-created/closed and settings/theme change.
-// Those internals are single-slot callbacks (setOnWindowCreated,
+// Deliberately absent: window-created and settings/theme change. Those
+// internals are single-slot callbacks (setOnWindowCreated,
 // SystemConfig.onChange) — sharing them would clobber the shell's own
-// handlers. Per-window close handling lives on WindowManager via
-// Lifecycle.onClose().
+// handlers. Window close/minimize/restore/focus ARE available because the
+// window manager broadcasts them as DOM events; prefer the friendlier
+// wrappers on WindowManager (onClosed/onMinimizeState/onFocusChanged).
 import { ErrorCodes, SDKError, requireString, requireFunction } from './errors.js';
 
 const SUPPORTED = {
@@ -20,7 +25,11 @@ const SUPPORTED = {
     'app-uninstalled': 'apps-changed',
     'background-apps-changed': 'background-apps-changed',
     'app-crashed': 'app-crashed',
-    'virtual-desktop-changed': 'virtual-desktop-changed'
+    'virtual-desktop-changed': 'virtual-desktop-changed',
+    'window-closed': 'window-closed',
+    'window-minimized': 'window-minimized',
+    'window-restored': 'window-restored',
+    'window-focus-changed': 'window-focus-changed'
 };
 
 /**

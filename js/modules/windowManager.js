@@ -14,10 +14,21 @@ const WindowManager = (() => {
     let snapIndicator = null;
     let scale = 1;
     const closeHandlers = new Map();
+    // Per-window close interceptors (unlike closeHandlers these veto one
+    // window only, e.g. a single dirty document).
+    const windowCloseHooks = new Map();
     // Virtual-desktops hook: { getActiveId() }. Set by VirtualDesktops at
     // boot; kept behind a provider (not an import) so neither module
     // depends on the other at load time.
     let desktopProvider = null;
+
+    // Additive lifecycle broadcast as real DOM events so the SDK (and any
+    // number of listeners) can observe without competing for the
+    // single-slot setOn* callbacks the shell owns. Names: 'window-closed',
+    // 'window-minimized', 'window-restored', 'window-focus-changed'.
+    function fireWindowEvent(name, detail) {
+        try { window.dispatchEvent(new CustomEvent(name, { detail })); } catch (e) { /* listener env without window */ }
+    }
 
     function setScale(s) { scale = s; }
     function getScale() { return scale; }
@@ -246,6 +257,15 @@ const WindowManager = (() => {
         const data = windows.get(id);
         if (!data) return false;
 
+        // Per-window hooks first (any veto aborts this window only), then
+        // the app-level close handler.
+        const hooks = windowCloseHooks.get(id);
+        if (hooks) {
+            for (const hook of [...hooks]) {
+                const allowed = await hook(data);
+                if (allowed === false) return false;
+            }
+        }
         const handler = closeHandlers.get(data.appId);
         if (handler) {
             const allowed = await handler(data);
@@ -254,6 +274,19 @@ const WindowManager = (() => {
 
         closeWindow(id);
         return true;
+    }
+
+    function addWindowCloseHook(id, cb) {
+        if (!windows.has(id)) return null;
+        if (!windowCloseHooks.has(id)) windowCloseHooks.set(id, new Set());
+        const hooks = windowCloseHooks.get(id);
+        hooks.add(cb);
+        return () => hooks.delete(cb);
+    }
+
+    function removeWindowCloseHook(id, cb) {
+        const hooks = windowCloseHooks.get(id);
+        if (hooks) hooks.delete(cb);
     }
 
     function closeAllWindows(appId) {
@@ -414,6 +447,7 @@ const WindowManager = (() => {
         });
         data.element.classList.add('focused');
         if (onFocusChanged) onFocusChanged(data.appId);
+        fireWindowEvent('window-focus-changed', { appId: data.appId, id });
     }
 
     function setupDrag(win, data) {
@@ -640,11 +674,14 @@ const WindowManager = (() => {
         data.element.remove();
         const appId = data.appId;
         windows.delete(id);
+        windowCloseHooks.delete(id);
         if (onWindowClosed) onWindowClosed(appId, id);
+        fireWindowEvent('window-closed', { appId, id });
         if (onFocusChanged) {
             const remaining = getWindowsByApp(appId);
             if (remaining.length === 0) onFocusChanged(null);
         }
+        fireWindowEvent('window-focus-changed', { appId: getFocused() ? getFocused().appId : null, id });
     }
 
     function getWindowsByApp(appId) {
@@ -666,8 +703,12 @@ const WindowManager = (() => {
     function setMinimized(id, minimized) {
         const data = windows.get(id);
         if (!data) return false;
+        const was = !!data.minimized;
         data.minimized = !!minimized;
-        data.element.style.display = minimized ? 'none' : 'flex';
+        data.element.style.display = data.minimized ? 'none' : 'flex';
+        if (was !== data.minimized) {
+            fireWindowEvent(data.minimized ? 'window-minimized' : 'window-restored', { appId: data.appId, id });
+        }
         return true;
     }
 
@@ -806,7 +847,7 @@ const WindowManager = (() => {
         return Array.from(windows.values());
     }
 
-    return { init, setScale, getScale, getDesktopArea, setDesktopProvider, setMinimized, isMinimized, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, setOnWindowMinimized, setOnDragStateChanged, setOnResizeStateChanged, setOnBoundsChanged, setCloseHandler, removeCloseHandler, requestClose, closeAllWindows, requestCloseAllWindows, createWindow, focusWindow, closeWindow, getWindowsByApp, getAllWindows, getFocused, minimizeAll, toggleMaximize, setMaximized, isMaximized, isFocused, getBounds, setBounds, center, setResizable, isResizable, isDragging, isResizing, setTitle, setMinSize, _getWindow };
+    return { init, setScale, getScale, getDesktopArea, setDesktopProvider, setMinimized, isMinimized, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, setOnWindowMinimized, setOnDragStateChanged, setOnResizeStateChanged, setOnBoundsChanged, setCloseHandler, removeCloseHandler, addWindowCloseHook, removeWindowCloseHook, requestClose, closeAllWindows, requestCloseAllWindows, createWindow, focusWindow, closeWindow, getWindowsByApp, getAllWindows, getFocused, minimizeAll, toggleMaximize, setMaximized, isMaximized, isFocused, getBounds, setBounds, center, setResizable, isResizable, isDragging, isResizing, setTitle, setMinSize, _getWindow };
 })();
 
 export default WindowManager;

@@ -4,6 +4,18 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4945] - 2026-09-19
+
+### Added
+- SDK v1.2.0 — game & real-time support, grown out of building Minecraft Classic:
+  - `PointerLock` (`app.pointerLock`): `request(element, appId?)` with app-window containment validation, honest `PERMISSION_DENIED` mapping for the browser's re-lock cooldown (Esc → too-fast re-request), `exit/isLocked/onChange` — and the OS integration apps can't do themselves: the virtual touchpad cursor is parked while a pointer is locked and restored on unlock
+  - `Input` (`app.input`): `keyState(element, {prevent})` raw game key-state controller — `isDown/onKeyDown/onKeyUp/clear/dispose`, scoped to your element, auto-clears on blur and self-disposes when the element is removed from the DOM
+  - `Audio` (`app.audio`): shared lazy `AudioContext` with a master gain tracking the Settings master volume, gesture `unlock()`, `beep()` one-shot synth helper, `suspend/state`, and auto-suspend when the browser tab is hidden
+  - Window lifecycle subscriptions: `WindowManager.onClosed/onMinimizeState/onFocusChanged` (backed by new additive DOM events `window-closed`, `window-minimized`, `window-restored`, `window-focus-changed` fired by the internal window manager — the shell's single-slot `setOn*` handlers are untouched), also exposed on the `Events` bus
+  - True fullscreen: `WindowManager.setFullscreen/exitFullscreen/isFullscreen` (browser fullscreen of the window element, refusal mapped to `UNSUPPORTED`)
+  - Per-window close hooks: `Lifecycle.onWindowClose/offWindowClose` — veto one window's close independently of the app-level `onClose` handler
+  - `createApp()` contexts gain `window.onClosed/onMinimizeState/onFocusChanged/setFullscreen/...`, `pointerLock`, `input`, `audio`, `lifecycle.onWindowClose`; `js/sdk/types.d.ts` and the guide (§26 + new §28 "Games & real-time input") updated; smoke test extended to 102 checks; `sw.js` precache now includes `media.js` (previously missed) and the three new SDK files
+
 ## [12.0.4944] - 2026-09-19
 
 ### Added

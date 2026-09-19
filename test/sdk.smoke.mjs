@@ -94,6 +94,26 @@ try {
     Object.defineProperty(globalThis, 'navigator', { value: {}, configurable: true, writable: true });
 } catch { /* fixed in this runtime */ }
 globalThis.Audio = class Audio { play() {} pause() {} };
+globalThis.AudioContext = class AudioContext {
+    constructor() {
+        this.state = 'running';
+        this.currentTime = 0;
+        this.destination = {};
+    }
+    createGain() {
+        return { gain: { value: 1, setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect(x) { return x; } };
+    }
+    createOscillator() {
+        return {
+            type: '',
+            frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} },
+            connect(x) { return x; },
+            start() {}, stop() {}
+        };
+    }
+    resume() { this.state = 'running'; return Promise.resolve(this.state); }
+    suspend() { this.state = 'suspended'; return Promise.resolve(this.state); }
+};
 try {
     Object.defineProperty(globalThis, 'innerWidth', { value: 1280, configurable: true });
     Object.defineProperty(globalThis, 'innerHeight', { value: 800, configurable: true });
@@ -135,7 +155,8 @@ console.log('import ok\n');
 console.log('[surface]');
 for (const name of ['WindowManager', 'FileSystem', 'Files', 'Notifications', 'Dialogs', 'Keyboard',
     'Clipboard', 'Apps', 'Settings', 'Shell', 'FileAssociations', 'System', 'Events',
-    'Permissions', 'Lifecycle', 'Background', 'Media', 'SDKError', 'ErrorCodes', 'createApp']) {
+    'Permissions', 'Lifecycle', 'Background', 'Media', 'PointerLock', 'Input', 'Audio',
+    'SDKError', 'ErrorCodes', 'createApp']) {
     check(`exports ${name}`, SDK[name] !== undefined && Windows12[name] !== undefined);
 }
 check('SDK_VERSION is semver', /^\d+\.\d+\.\d+$/.test(SDK.SDK_VERSION), SDK.SDK_VERSION);
@@ -181,7 +202,7 @@ const unsub = SDK.Events.on('app-crashed', (e) => { evtPayload = e.detail; });
 globalThis.dispatchEvent(new globalThis.CustomEvent('app-crashed', { detail: { appId: 'smoke' } }));
 check('event received with detail', evtPayload && evtPayload.appId === 'smoke');
 check('unsubscribe works', (() => { unsub(); evtPayload = null; globalThis.dispatchEvent(new globalThis.CustomEvent('app-crashed', { detail: { appId: 'x' } })); return evtPayload === null; })());
-check('names() lists the five supported events', SDK.Events.names().length === 5);
+check('names() lists the nine supported events', SDK.Events.names().length === 9);
 
 console.log('[filesystem]');
 const FSMod = await import('../js/modules/fileSystem.js');
@@ -340,11 +361,107 @@ check('onBoundsChanged fires on setBounds', (() => {
 check('bound app.window mirrors new methods + app.media shape', (() => {
     const w2 = ['isMinimized', 'bounds', 'setBounds', 'move', 'resize', 'center', 'isMaximized', 'maximize',
         'unmaximize', 'isResizable', 'setResizable', 'isDragging', 'isResizing', 'onDragState', 'onBoundsChanged',
-        'setTitle', 'setMinSize', 'isFocused', 'desktopArea'].every(k => typeof app.window[k] === 'function');
+        'setTitle', 'setMinSize', 'isFocused', 'desktopArea', 'onClosed', 'onMinimizeState', 'onFocusChanged',
+        'setFullscreen', 'exitFullscreen', 'isFullscreen'].every(k => typeof app.window[k] === 'function');
     const m = typeof app.media.microphone === 'function' && typeof app.media.camera === 'function'
         && typeof app.media.supported === 'function' && app.media.supported() === false;
     return w2 && m;
 })());
+check('onClosed + Events window-closed fire with appId/id', await (async () => {
+    const w = SDK.WindowManager.create({ appId: 'sdkSmoke', title: 'Bye', content: '' });
+    let facade = null;
+    let bus = null;
+    const off = SDK.WindowManager.onClosed((appId, windowId) => { facade = { appId, windowId }; });
+    const offBus = SDK.Events.on('window-closed', (e) => { bus = e.detail; });
+    SDK.WindowManager.close(w.id);
+    off(); offBus();
+    return facade && facade.appId === 'sdkSmoke' && facade.windowId === w.id
+        && bus && bus.appId === 'sdkSmoke' && bus.id === w.id;
+})());
+check('onMinimizeState fires minimized then restored', (() => {
+    const w = SDK.WindowManager.create({ appId: 'sdkSmoke', title: 'MinEvt', content: '' });
+    const seq = [];
+    const off = SDK.WindowManager.onMinimizeState((appId, windowId, minimized) => seq.push(minimized));
+    SDK.WindowManager.minimize(w.id);
+    SDK.WindowManager.restore(w.id);
+    off();
+    SDK.WindowManager.close(w.id);
+    return seq.join(',') === 'true,false';
+})());
+check('per-window close hook vetoes only that close', await (async () => {
+    const w = SDK.WindowManager.create({ appId: 'sdkSmoke', title: 'Hook', content: '' });
+    const off = SDK.Lifecycle.onWindowClose(w.id, () => false);
+    const vetoed = await SDK.WindowManager.requestClose(w.id) === false;
+    off();
+    SDK.Lifecycle.offWindowClose(w.id, () => false);
+    const allowed = await SDK.WindowManager.requestClose(w.id) === true;
+    return vetoed && allowed && SDK.WindowManager.get(w.id) === null;
+})());
+check('fullscreen helpers are honest headless (isFullscreen false, refusal mapped)',
+    await (async () => {
+        const w = SDK.WindowManager.create({ appId: 'sdkSmoke', title: 'FS', content: '' });
+        const idle = SDK.WindowManager.isFullscreen(w.id) === false;
+        let refused = false;
+        try { await SDK.WindowManager.setFullscreen(w.id); } catch (e) { refused = e.code === 'UNSUPPORTED'; }
+        SDK.WindowManager.close(w.id);
+        return idle && refused;
+    })());
+
+console.log('[games: pointer lock / input / audio]');
+check('PointerLock.isLocked() false headless', SDK.PointerLock.isLocked() === false);
+check('PointerLock.request rejects non-canvas element → INVALID_ARGS',
+    await (async () => { try { await SDK.PointerLock.request({}); return false; } catch (e) { return e.code === 'INVALID_ARGS'; } })());
+check('PointerLock.request without browser lock API → UNSUPPORTED',
+    await (async () => {
+        const mk = document.createElement('div');
+        mk.requestPointerLock = () => {};
+        try { await SDK.PointerLock.request(mk); return false; } catch (e) { return e.code === 'UNSUPPORTED'; }
+    })());
+check('app.pointerLock is bound with appId validation wired', (() => {
+    return typeof app.pointerLock.request === 'function' && typeof app.pointerLock.exit === 'function'
+        && typeof app.pointerLock.isLocked === 'function' && typeof app.pointerLock.onChange === 'function';
+})());
+check('Input.keyState tracks, prevents and clears', (() => {
+    const el = document.createElement('div');
+    const keys = SDK.Input.keyState(el, { prevent: ['Space'] });
+    let prevented = 0;
+    const down = (code) => {
+        for (const fn of el._listeners.keydown || []) fn({ code, preventDefault() { prevented++; } });
+    };
+    const up = (code) => { for (const fn of el._listeners.keyup || []) fn({ code, preventDefault() {} }); };
+    down('KeyW'); down('Space');
+    const held = keys.isDown('KeyW') && keys.isDown('Space') && prevented === 1;
+    up('KeyW');
+    const released = keys.isDown('KeyW') === false && keys.isDown('Space') === true;
+    keys.clear();
+    keys.dispose();
+    return held && released;
+})());
+check('Input.keyState rejects non-elements and bad callbacks', (() => {
+    let bad = false;
+    try { SDK.Input.keyState(null); } catch (e) { bad = e.code === 'INVALID_ARGS'; }
+    const keys = SDK.Input.keyState(document.createElement('div'));
+    let badCb = false;
+    try { keys.onKeyDown('x'); } catch (e) { badCb = e.code === 'INVALID_ARGS'; }
+    keys.dispose();
+    return bad && badCb;
+})());
+check('app.input.keyState exists', typeof app.input.keyState === 'function');
+check('Audio: lazy context, master volume, beep through masterGain', await (async () => {
+    const a = SDK.Audio;
+    const closed = a.state() === 'closed';
+    const vol = typeof a.masterVolume() === 'number' && a.masterVolume() > 0 && a.masterVolume() <= 1;
+    a.beep({ freq: 180, endFreq: 70, type: 'triangle', duration: 0.1 });
+    const running = a.state() === 'running';
+    const unlocked = await a.unlock() === 'running';
+    const mg = a.masterGain() && typeof a.masterGain().gain.value === 'number';
+    return closed && vol && running && unlocked && mg;
+})());
+check('app.audio mirrors Audio', (() => {
+    return ['supported', 'context', 'masterGain', 'masterVolume', 'unlock', 'suspend', 'state', 'beep']
+        .every(k => typeof app.audio[k] === 'function');
+})());
+check('app.lifecycle exposes per-window close hooks', typeof app.lifecycle.onWindowClose === 'function' && typeof app.lifecycle.offWindowClose === 'function');
 
 console.log('[media honesty]');
 check('requestMicrophone without device API → UNSUPPORTED',
