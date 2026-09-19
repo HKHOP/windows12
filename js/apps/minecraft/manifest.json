@@ -1,0 +1,40 @@
+{
+    "manifestVersion": 1,
+    "id": "minecraft",
+    "uuid": "c51ecb17-f407-4455-bdbd-04fd30f9fe8f",
+    "name": "Minecraft Classic",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "permissions": ["filesystem"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Games",
+        "rating": "4.9",
+        "reviews": "5,204",
+        "description": "The classic block-building sandbox, rebuilt from scratch for Windows 12. Explore an infinite-feeling voxel world, mine blocks, build structures and save your creations — all rendered in real-time 3D with a handcrafted WebGL engine.",
+        "features": [
+            "Real-time 3D voxel world with chunk-based rendering",
+            "Procedurally generated terrain: hills, lakes, beaches and trees",
+            "10 placeable block types with a classic hotbar",
+            "Mine and build with raycast block picking and wireframe highlight",
+            "Full physics: gravity, jumping, swimming and collision",
+            "Worlds persist across sessions (seed + edits saved to disk)",
+            "Procedural textures and sound effects — no external assets",
+            "Touch controls: virtual joystick, drag-to-look, tap to mine"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #7ec850, #3a7d2c)",
+                "text": "Voxel Sandbox World"
+            },
+            {
+                "bg": "linear-gradient(135deg, #3a7d2c, #1a1a1b)",
+                "text": "Mine & Build"
+            }
+        ],
+        "size": "3.1 MB",
+        "ageRating": "3+"
+    }
+}

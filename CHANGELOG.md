@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4944] - 2026-09-19
+
+### Added
+- Minecraft Classic store app: real-time 3D voxel sandbox built on a handcrafted WebGL engine — procedurally generated terrain (hills, lakes, beaches, trees), chunk-based meshing with face culling, fog and a procedural texture atlas (no external assets)
+- Minecraft Classic gameplay: mine and place 10 block types via raycast picking with wireframe highlight, classic hotbar (1-0 keys, mouse wheel or click), isometric block icons, full physics (gravity, jumping, sneaking, swimming), dig/place sound effects
+- Minecraft Classic persistence: worlds (seed + block edits + player position) auto-save to `/system/programs data/minecraft/` every 20 s, on pause and on window close; "New World" regenerates from a fresh seed
+- Minecraft Classic touch controls: virtual joystick, drag-to-look, tap to mine, long-press to place, jump button
+
 ## [12.0.4943] - 2026-09-18
 
 ### Added
