@@ -1,12 +1,25 @@
 import AppIcons from './appIcons.js';
 import UIIcons from './uiIcons.js';
 import { AppMetadata } from './taskbar.js';
+import Users from './users.js';
 
 const UserActivity = (() => {
     const MAX_RECENT = 6;
     let recentFiles = [];
     let recentApps = [];
-    const ACTIVITY_PATH = ['/', 'system', 'programs data', 'userActivity', 'activity.json'];
+    // Recent files/apps are per-user.
+    function activityPath() {
+        return Users.userData(['userActivity', 'activity.json']);
+    }
+
+    // Shell-owned FS access (shield from fsGuard app attribution).
+    function asShell(fn) {
+        return (...args) => {
+            const g = window._FSGuard;
+            if (g) return g.asShell(fn)(...args);
+            return fn(...args);
+        };
+    }
 
     function getFS() { return window._FileSystem; }
 
@@ -30,7 +43,7 @@ const UserActivity = (() => {
         return fallback;
     }
 
-    function writeJson(path, data) {
+    const writeJson = asShell(function writeJson(path, data) {
         const fs = getFS();
         ensureDir(path);
         const name = path[path.length - 1];
@@ -41,7 +54,7 @@ const UserActivity = (() => {
         } else {
             fs.createFile(parent, name, json, 'json');
         }
-    }
+    });
 
     function init() {
         load();
@@ -121,13 +134,13 @@ const UserActivity = (() => {
 
     function save() {
         try {
-            writeJson(ACTIVITY_PATH, { recentFiles, recentApps });
+            writeJson(activityPath(), { recentFiles, recentApps });
         } catch (e) {}
     }
 
     function load() {
         try {
-            const data = readJson(ACTIVITY_PATH, { recentFiles: [], recentApps: [] });
+            const data = readJson(activityPath(), { recentFiles: [], recentApps: [] });
             recentFiles = data.recentFiles || [];
             recentApps = data.recentApps || [];
         } catch (e) {}

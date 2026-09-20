@@ -14,6 +14,7 @@ import VirtualKeyboard from '../../modules/virtualKeyboard.js';
 import Cursor from '../../modules/cursor.js';
 import VirtualDesktops from '../../modules/virtualDesktops.js';
 import Permissions from '../../modules/permissions.js';
+import Users from '../../modules/users.js';
 
 const Settings = (() => {
     const icon = AppIcons.get('settings');
@@ -52,9 +53,9 @@ const Settings = (() => {
             <div style="display:flex;height:100%;">
                 <div class="settings-sidebar" style="width:220px;background:rgba(0,0,0,0.2);padding:12px 8px;border-right:1px solid rgba(255,255,255,0.06);overflow-y:auto;">
                     <div style="padding:12px;display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-                        <div style="width:48px;height:48px;background:var(--accent-color,#0078D4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;">${(SystemConfig.get('userName')||'U').charAt(0).toUpperCase()}</div>
+                        <div style="width:48px;height:48px;background:var(--accent-color,#0078D4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;">${esc((Users.getCurrent()||{}).name || 'U').charAt(0).toUpperCase()}</div>
                         <div>
-                            <div class="settings-username" style="font-size:14px;font-weight:500;">${SystemConfig.get('userName')}</div>
+                            <div class="settings-username" style="font-size:14px;font-weight:500;">${esc((Users.getCurrent()||{}).name || 'User')}</div>
                             <div style="font-size:12px;color:#888;">Local Account</div>
                         </div>
                     </div>
@@ -559,7 +560,7 @@ const Settings = (() => {
         const budget = FileSystem.STORAGE_BUDGET || Math.floor(4.5 * 1024 * 1024);
         const usedPct = Math.min(100, Math.max(0, (totalLocal / budget) * 100));
 
-        const home = ['/', 'users', 'default'];
+        const home = Users.home();
         const categories = [
             { name: 'Documents', path: [...home, 'Documents'], color: '#FFC107' },
             { name: 'Downloads', path: [...home, 'Downloads'], color: '#00ACC1' },
@@ -567,7 +568,7 @@ const Settings = (() => {
             { name: 'Music', path: [...home, 'Music'], color: '#AB47BC' },
             { name: 'Videos', path: [...home, 'Videos'], color: '#E53935' },
             { name: 'Desktop', path: [...home, 'Desktop'], color: '#7E57C2' },
-            { name: 'Apps & data', path: ['/', 'programs data'], color: '#0078D4' },
+            { name: 'Apps & data', path: [...home, 'AppData'], color: '#0078D4' },
             { name: 'System & reserved', path: ['/', 'system'], color: '#888' }
         ].map(cat => {
             let m = { local: 0, blob: 0, files: 0 };
@@ -954,7 +955,7 @@ const Settings = (() => {
             <div class="settings-section" style="margin-bottom:24px;">
                 <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">User Name</h3>
                 <div style="display:flex;gap:8px;">
-                    <input type="text" class="username-input" value="${config.userName}" style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;padding:8px 12px;color:var(--text-primary);font-size:14px;flex:1;max-width:300px;outline:none;">
+                    <input type="text" class="username-input" value="${(Users.getCurrent()||{}).name || config.userName}" style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;padding:8px 12px;color:var(--text-primary);font-size:14px;flex:1;max-width:300px;outline:none;">
                     <button class="username-save" style="background:var(--accent-color);border:none;border-radius:6px;padding:8px 16px;color:white;cursor:pointer;font-size:14px;">Save</button>
                 </div>
             </div>
@@ -1016,16 +1017,120 @@ const Settings = (() => {
     }
 
     function renderAccounts(el) {
+        const me = Users.getCurrent() || { id: '', name: 'User', hash: null };
+        const others = Users.getAccounts().filter(a => a.id !== me.id);
+
+        const userRow = (acc, isMe) => `
+            <div data-user-row="${acc.id}" style="display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid var(--window-border);">
+                <div style="width:40px;height:40px;background:var(--accent-color,#0078D4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600;flex-shrink:0;">${esc(acc.name.charAt(0).toUpperCase())}</div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:14px;font-weight:500;">${esc(acc.name)}${isMe ? ' <span style="font-size:11px;color:#888;font-weight:400;">(signed in)</span>' : ''}</div>
+                    <div style="font-size:12px;color:#888;">${acc.hash ? 'Password protected' : 'No password'}</div>
+                </div>
+                <button class="acc-btn" data-action="rename" data-user="${acc.id}" style="padding:6px 12px;background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Rename</button>
+                ${isMe ? `
+                    <button class="acc-btn" data-action="password" data-user="${acc.id}" style="padding:6px 12px;background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">${acc.hash ? 'Change password' : 'Set password'}</button>
+                    ${acc.hash ? `<button class="acc-btn" data-action="removepassword" data-user="${acc.id}" style="padding:6px 12px;background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Remove password</button>` : ''}
+                    <button class="acc-btn" data-action="signout" style="padding:6px 12px;background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Sign out</button>
+                ` : `
+                    <button class="acc-btn acc-btn-danger" data-action="remove" data-user="${acc.id}" style="padding:6px 12px;background:rgba(220,50,50,0.15);border:1px solid rgba(220,50,50,0.4);border-radius:6px;color:#ff8a8a;font-size:12px;cursor:pointer;">Remove</button>
+                `}
+            </div>
+        `;
+
         el.innerHTML = `
             <h2 style="font-size:28px;font-weight:600;margin-bottom:24px;">Accounts</h2>
             <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:20px;display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-                <div style="width:64px;height:64px;background:var(--accent-color,#0078D4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;">${(SystemConfig.get('userName')||'U').charAt(0).toUpperCase()}</div>
+                <div style="width:64px;height:64px;background:var(--accent-color,#0078D4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;">${esc(me.name.charAt(0).toUpperCase())}</div>
                 <div>
-                    <div style="font-size:18px;font-weight:500;">${SystemConfig.get('userName')}</div>
-                    <div style="font-size:13px;color:#888;">Local Account</div>
+                    <div style="font-size:18px;font-weight:500;">${esc(me.name)}</div>
+                    <div style="font-size:13px;color:#888;">Local Account${me.hash ? ' • Password protected' : ''}</div>
+                </div>
+            </div>
+            <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:20px;margin-bottom:16px;">
+                <div style="font-size:14px;font-weight:500;margin-bottom:8px;">Your account</div>
+                ${userRow(me, true)}
+            </div>
+            <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:20px;margin-bottom:16px;">
+                <div style="font-size:14px;font-weight:500;margin-bottom:8px;">Other users</div>
+                ${others.length ? others.map(a => userRow(a, false)).join('') : '<div style="font-size:13px;color:#888;padding:12px 0;">No other accounts on this device.</div>'}
+                <div style="padding-top:12px;">
+                    <button id="acc-add-btn" style="padding:8px 16px;background:var(--accent-color,#0078D4);border:none;border-radius:6px;color:white;font-size:13px;cursor:pointer;">+ Add account</button>
                 </div>
             </div>
         `;
+
+        wireAccountActions(el, () => renderAccounts(el));
+    }
+
+    function esc(s) {
+        return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function wireAccountActions(el, rerender) {
+        el.querySelectorAll('.acc-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const action = btn.dataset.action;
+                const id = btn.dataset.user;
+                if (action === 'rename') {
+                    const acc = Users.getAccount(id);
+                    const name = await Popup.textbox('Rename account', 'Enter the new display name:', { value: acc ? acc.name : '' });
+                    if (name && name.trim()) {
+                        Users.renameAccount(id, name);
+                        try { window.dispatchEvent(new CustomEvent('user-info-changed')); } catch { /* noop */ }
+                        rerender();
+                    }
+                } else if (action === 'password') {
+                    const res = await Popup.forum('Set password', [
+                        { key: 'password', label: 'New password', type: 'password' },
+                        { key: 'confirm', label: 'Confirm password', type: 'password' }
+                    ]);
+                    if (res) {
+                        if (res.password && res.password === res.confirm) {
+                            await Users.setPassword(id, res.password);
+                            Popup.info('Password set', 'The account is now password protected.');
+                            rerender();
+                        } else {
+                            Popup.error('Passwords do not match', 'Both fields must contain the same password.');
+                        }
+                    }
+                } else if (action === 'removepassword') {
+                    const ok = await Popup.confirm('Remove password', 'Anyone will be able to sign in to this account without a password. Continue?');
+                    if (ok) {
+                        await Users.setPassword(id, null);
+                        rerender();
+                    }
+                } else if (action === 'signout') {
+                    Users.beginSwitch('');
+                } else if (action === 'remove') {
+                    const acc = Users.getAccount(id);
+                    const ok = await Popup.confirm('Remove account', `Remove "${acc ? acc.name : id}"? Their files in /users/${id} will remain on disk but the account will be gone.`);
+                    if (ok) {
+                        if (!Users.deleteAccount(id)) {
+                            Popup.error('Cannot remove account', 'The signed-in account cannot be removed, and at least one account must remain.');
+                        }
+                        rerender();
+                    }
+                }
+            });
+        });
+
+        const addBtn = el.querySelector('#acc-add-btn');
+        if (addBtn) {
+            addBtn.addEventListener('click', async () => {
+                const res = await Popup.forum('Add account', [
+                    { key: 'name', label: 'User name', placeholder: 'e.g. Alice' },
+                    { key: 'password', label: 'Password (optional)', type: 'password' }
+                ]);
+                if (res && res.name && res.name.trim()) {
+                    const created = await Users.createAccount(res.name, res.password || null);
+                    if (!created) {
+                        Popup.error('Could not create account', 'The user name cannot be empty.');
+                    }
+                    rerender();
+                }
+            });
+        }
     }
 
     function renderTime(el) {
@@ -1108,7 +1213,7 @@ const Settings = (() => {
                 <div style="display:flex;flex-direction:column;gap:12px;">
                     <div style="display:flex;justify-content:space-between;font-size:13px;">
                         <span style="color:#888;">Device name</span>
-                        <span style="font-weight:500;">${SystemConfig.get('userName')}-PC</span>
+                        <span style="font-weight:500;">${((Users.getCurrent()||{}).name || 'User')}-PC</span>
                     </div>
                     <div style="display:flex;justify-content:space-between;font-size:13px;">
                         <span style="color:#888;">Processor</span>
@@ -1303,6 +1408,10 @@ const Settings = (() => {
             usernameSave.addEventListener('click', () => {
                 const name = usernameInput.value.trim();
                 if (name) {
+                    // Display name belongs to the account now; keep the
+                    // legacy config key in sync for anything that reads it.
+                    const me = Users.getCurrent();
+                    if (me) Users.renameAccount(me.id, name);
                     SystemConfig.set('userName', name);
                     win.element.querySelector('.settings-username').textContent = name;
                 }

@@ -2,8 +2,10 @@
 //
 // The primary way to build an app: one bound context so you never repeat
 // your app id, never build raw paths, and never misattribute a toast.
-// File access is scoped to /system/programs data/<id>/ by construction —
-// names outside the sandbox are rejected, not silently resolved.
+// File access is scoped by construction to the CURRENT USER's
+// /users/<id>/AppData/<id>/ (app.files); app.globalFiles is the opt-in
+// shared store at /system/programs data/<id>/. Names outside the sandbox
+// are rejected, not silently resolved.
 //
 //   import { createApp } from '../../sdk/index.js';
 //   const app = createApp({ id: 'myApp', name: 'My App' });
@@ -31,10 +33,13 @@ import { Background } from './background.js';
 import { PointerLock } from './pointerLock.js';
 import { Input } from './input.js';
 import { Audio } from './audio.js';
+import Users from '../modules/users.js';
 import InternalFS from '../modules/fileSystem.js';
 import { ErrorCodes, SDKError, requireString, requireOptions } from './errors.js';
 
-const APP_DATA_ROOT = ['/', 'system', 'programs data'];
+// Shared (machine-global) app data root — the opt-in store. Per-user data
+// lives under the current user's home instead (Users.appData).
+const GLOBAL_DATA_ROOT = ['/', 'system', 'programs data'];
 
 /**
  * Validate a sandboxed relative name ('notes.json', 'chats/a.json').
@@ -56,11 +61,16 @@ function cleanName(name) {
     return segs;
 }
 
-function ensureChain(appId, dirSegs) {
-    // Walk from root, creating anything missing (same convention as every
-    // OS module: ['/', 'system', 'programs data', <id>, ...]).
+// Full path of an app's data root, including the app id itself.
+// Per-user: /users/<currentUser>/AppData/<appId> — shared: the global store.
+function sandboxRoot(appId, shared) {
+    return shared ? [...GLOBAL_DATA_ROOT, appId] : Users.appData(appId);
+}
+
+function ensureChain(appId, dirSegs, shared) {
+    // Walk from the sandbox root, creating anything missing.
     let cur = ['/'];
-    for (const seg of [...APP_DATA_ROOT.slice(1), appId, ...dirSegs]) {
+    for (const seg of [...sandboxRoot(appId, shared).slice(1), ...dirSegs]) {
         if (!InternalFS.itemExists([...cur, seg])) {
             if (!InternalFS.createFolder(cur, seg)) return null;
         }
@@ -90,153 +100,157 @@ function createApp(def) {
     const id = d.id;
     const name = d.name || id;
 
-    const listSandbox = (subfolder) => {
-        let dir;
-        if (subfolder === undefined || subfolder === null) {
-            dir = ensureChain(id, []);
+    // The sandboxed file store. Per-user by default; shared=true builds the
+    // same API against the machine-global /system/programs data/<id>/ store.
+    const makeSandbox = (shared) => {
+        const listSandbox = (subfolder) => {
+            let dir;
+            if (subfolder === undefined || subfolder === null) {
+                dir = ensureChain(id, [], shared);
+            } else {
+                dir = ensureChain(id, cleanName(subfolder), shared);
+            }
             if (!dir) {
                 throw new SDKError(ErrorCodes.NOT_FOUND, 'App data area is unavailable (filesystem not initialized).');
             }
-        } else {
-            dir = ensureChain(id, cleanName(subfolder));
+            return RawFiles.list(dir);
+        };
+        const resolve = (fileName) => {
+            const segs = cleanName(fileName);
+            const file = segs.pop();
+            const dir = ensureChain(id, segs, shared);
             if (!dir) {
                 throw new SDKError(ErrorCodes.NOT_FOUND, 'App data area is unavailable (filesystem not initialized).');
             }
-        }
-        return RawFiles.list(dir);
-    };
-    const resolve = (fileName) => {
-        const segs = cleanName(fileName);
-        const file = segs.pop();
-        const dir = ensureChain(id, segs);
-        if (!dir) {
-            throw new SDKError(ErrorCodes.NOT_FOUND, 'App data area is unavailable (filesystem not initialized).');
-        }
-        const dot = file.lastIndexOf('.');
-        return { dir, file, ext: dot > 0 ? file.slice(dot + 1) : '' };
+            const dot = file.lastIndexOf('.');
+            return { dir, file, ext: dot > 0 ? file.slice(dot + 1) : '' };
+        };
+
+        return {
+            /**
+             * Read a sandboxed text file (null when missing).
+             * @param {string} fileName
+             * @returns {string|null}
+             */
+            read(fileName) {
+                const { dir, file } = resolve(fileName);
+                return RawFiles.readFile([...dir, file]);
+            },
+            /**
+             * Write (create or overwrite) a sandboxed text file.
+             * @param {string} fileName
+             * @param {string} content
+             * @returns {boolean}
+             */
+            write(fileName, content) {
+                if (typeof content !== 'string') {
+                    throw new SDKError(ErrorCodes.INVALID_ARGS, 'content must be a string.');
+                }
+                const { dir, file, ext } = resolve(fileName);
+                const full = [...dir, file];
+                if (RawFiles.exists(full)) return RawFiles.write(full, content);
+                return RawFiles.createFile(dir, file, content, ext);
+            },
+            /**
+             * @param {string} fileName
+             * @returns {boolean}
+             */
+            exists(fileName) {
+                const { dir, file } = resolve(fileName);
+                return RawFiles.exists([...dir, file]);
+            },
+            /**
+             * List the sandbox root (or a sandboxed subfolder).
+             * @param {string} [subfolder]
+             * @returns {Array}
+             */
+            list(subfolder) {
+                return listSandbox(subfolder);
+            },
+            /**
+             * Create a sandboxed subfolder.
+             * @param {string} folderName
+             * @returns {boolean}
+             */
+            mkdir(folderName) {
+                const segs = cleanName(folderName);
+                const leaf = segs.pop();
+                const dir = ensureChain(id, segs, shared);
+                if (RawFiles.exists([...dir, leaf])) return false;
+                return RawFiles.createFolder(dir, leaf);
+            },
+            /**
+             * Move a sandboxed file to the Recycle Bin.
+             * @param {string} fileName
+             * @returns {boolean}
+             */
+            remove(fileName) {
+                const { dir, file } = resolve(fileName);
+                return RawFiles.delete([...dir, file]);
+            },
+            /**
+             * Rename within the same sandboxed folder.
+             * @param {string} fileName
+             * @param {string} newName plain file name, no slashes
+             * @returns {boolean}
+             */
+            rename(fileName, newName) {
+                const { dir, file } = resolve(fileName);
+                requireString(newName, 'newName');
+                if (newName.includes('/') || newName.includes('\\')) {
+                    throw new SDKError(ErrorCodes.INVALID_ARGS, 'newName must be a plain file name.');
+                }
+                return RawFiles.rename([...dir, file], newName);
+            },
+            /** Tiny persisted key/value prefs (settings.json in your sandbox). */
+            settings: {
+                _load() {
+                    try {
+                        const { dir, file } = resolve('settings.json');
+                        const raw = RawFiles.read([...dir, file]);
+                        if (raw) {
+                            const parsed = JSON.parse(raw);
+                            if (parsed && typeof parsed === 'object') return parsed;
+                        }
+                    } catch { /* corrupt -> empty */ }
+                    return {};
+                },
+                _save(obj) {
+                    const { dir, file, ext } = resolve('settings.json');
+                    const json = JSON.stringify(obj);
+                    const full = [...dir, file];
+                    if (RawFiles.exists(full)) RawFiles.write(full, json);
+                    else RawFiles.createFile(dir, file, json, ext);
+                },
+                /**
+                 * @param {string} key
+                 * @param {any} [fallback]
+                 */
+                get(key, fallback) {
+                    requireString(key, 'key');
+                    const all = this._load();
+                    return Object.prototype.hasOwnProperty.call(all, key) ? all[key] : fallback;
+                },
+                /**
+                 * @param {string} key
+                 * @param {any} value must be JSON-serializable
+                 */
+                set(key, value) {
+                    requireString(key, 'key');
+                    const all = this._load();
+                    all[key] = value;
+                    this._save(all);
+                },
+                /** @returns {object} all prefs */
+                all() {
+                    return this._load();
+                }
+            }
+        };
     };
 
-    const files = {
-        /**
-         * Read a sandboxed text file (null when missing).
-         * @param {string} fileName
-         * @returns {string|null}
-         */
-        read(fileName) {
-            const { dir, file } = resolve(fileName);
-            return RawFiles.readFile([...dir, file]);
-        },
-        /**
-         * Write (create or overwrite) a sandboxed text file.
-         * @param {string} fileName
-         * @param {string} content
-         * @returns {boolean}
-         */
-        write(fileName, content) {
-            if (typeof content !== 'string') {
-                throw new SDKError(ErrorCodes.INVALID_ARGS, 'content must be a string.');
-            }
-            const { dir, file, ext } = resolve(fileName);
-            const full = [...dir, file];
-            if (RawFiles.exists(full)) return RawFiles.write(full, content);
-            return RawFiles.createFile(dir, file, content, ext);
-        },
-        /**
-         * @param {string} fileName
-         * @returns {boolean}
-         */
-        exists(fileName) {
-            const { dir, file } = resolve(fileName);
-            return RawFiles.exists([...dir, file]);
-        },
-        /**
-         * List the sandbox root (or a sandboxed subfolder).
-         * @param {string} [subfolder]
-         * @returns {Array}
-         */
-        list(subfolder) {
-            return listSandbox(subfolder);
-        },
-        /**
-         * Create a sandboxed subfolder.
-         * @param {string} folderName
-         * @returns {boolean}
-         */
-        mkdir(folderName) {
-            const segs = cleanName(folderName);
-            const leaf = segs.pop();
-            const dir = ensureChain(id, segs);
-            if (RawFiles.exists([...dir, leaf])) return false;
-            return RawFiles.createFolder(dir, leaf);
-        },
-        /**
-         * Move a sandboxed file to the Recycle Bin.
-         * @param {string} fileName
-         * @returns {boolean}
-         */
-        remove(fileName) {
-            const { dir, file } = resolve(fileName);
-            return RawFiles.delete([...dir, file]);
-        },
-        /**
-         * Rename within the same sandboxed folder.
-         * @param {string} fileName
-         * @param {string} newName plain file name, no slashes
-         * @returns {boolean}
-         */
-        rename(fileName, newName) {
-            const { dir, file } = resolve(fileName);
-            requireString(newName, 'newName');
-            if (newName.includes('/') || newName.includes('\\')) {
-                throw new SDKError(ErrorCodes.INVALID_ARGS, 'newName must be a plain file name.');
-            }
-            return RawFiles.rename([...dir, file], newName);
-        },
-        /** Tiny persisted key/value prefs (settings.json in your sandbox). */
-        settings: {
-            _load() {
-                try {
-                    const { dir, file } = resolve('settings.json');
-                    const raw = RawFiles.read([...dir, file]);
-                    if (raw) {
-                        const parsed = JSON.parse(raw);
-                        if (parsed && typeof parsed === 'object') return parsed;
-                    }
-                } catch { /* corrupt -> empty */ }
-                return {};
-            },
-            _save(obj) {
-                const { dir, file, ext } = resolve('settings.json');
-                const json = JSON.stringify(obj);
-                const full = [...dir, file];
-                if (RawFiles.exists(full)) RawFiles.write(full, json);
-                else RawFiles.createFile(dir, file, json, ext);
-            },
-            /**
-             * @param {string} key
-             * @param {any} [fallback]
-             */
-            get(key, fallback) {
-                requireString(key, 'key');
-                const all = this._load();
-                return Object.prototype.hasOwnProperty.call(all, key) ? all[key] : fallback;
-            },
-            /**
-             * @param {string} key
-             * @param {any} value must be JSON-serializable
-             */
-            set(key, value) {
-                requireString(key, 'key');
-                const all = this._load();
-                all[key] = value;
-                this._save(all);
-            },
-            /** @returns {object} all prefs */
-            all() {
-                return this._load();
-            }
-        }
-    };
+    const files = makeSandbox(false);       // per-user: /users/<id>/AppData/<id>/
+    const globalFiles = makeSandbox(true);  // shared: /system/programs data/<id>/
 
     const notify = {
         /** @param {string} title @param {string} message @param {object} [options] */
@@ -403,6 +417,7 @@ function createApp(def) {
         icon: () => Shell.icons.app(id),
         window,
         files,
+        globalFiles,
         notify,
         notifications: notify,
         dialogs: Dialogs,

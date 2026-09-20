@@ -1,13 +1,14 @@
 import WindowManager from '../../modules/windowManager.js';
 import FileSystem from '../../modules/fileSystem.js';
 import AppIcons from '../../modules/appIcons.js';
+import Users from '../../modules/users.js';
 
 const Photos = (() => {
     const icon = AppIcons.get('photos');
 
     const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'];
 
-    function scanImages(path = ['/', 'users', 'default', 'Pictures']) {
+    function scanImages(path = Users.home(['Pictures'])) {
         const images = [];
         const items = FileSystem.getChildren(path);
         for (const item of items) {

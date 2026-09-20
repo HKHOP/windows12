@@ -4,6 +4,7 @@ import ContextMenu from '../../modules/contextMenu.js';
 import SavePrompt from '../../modules/saveprompt.js';
 import AppIcons from '../../modules/appIcons.js';
 import Keyboard from '../../modules/keyboard.js';
+import Users from '../../modules/users.js';
 
 const Notepad = (() => {
     const icon = AppIcons.get('notepad');
@@ -277,7 +278,7 @@ const Notepad = (() => {
     }
 
     function openFile(win, textarea, titleEl) {
-        const fileList = FileSystem.getChildren(['/', 'users', 'default', 'Documents']);
+        const fileList = FileSystem.getChildren(Users.home(['Documents']));
         const files = fileList.filter(item => {
             const ext = item.name.split('.').pop().toLowerCase();
             return ['txt', 'log', 'md', 'json', 'js', 'html', 'css', 'csv'].includes(ext);
@@ -296,7 +297,7 @@ const Notepad = (() => {
             label: name,
             icon: '📄',
             action: () => {
-                const path = ['/', 'users', 'default', 'Documents', name];
+                const path = Users.home(['Documents', name]);
                 const content = FileSystem.readFile(path) || '';
                 textarea.value = content;
                 titleEl.textContent = `${name} - Notepad`;
@@ -319,7 +320,7 @@ const Notepad = (() => {
     function saveAsNewFile(textarea, titleEl, defaultTitle, setFilePath) {
         SavePrompt.show({
             defaultName: 'Untitled.txt',
-            defaultPath: ['/', 'users', 'default', 'Documents'],
+            defaultPath: Users.home(['Documents']),
             parentApp: 'notepad'
         }).then(result => {
             if (result) {

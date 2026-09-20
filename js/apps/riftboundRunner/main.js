@@ -3,10 +3,11 @@ import FileSystem from '../../modules/fileSystem.js';
 import Popup from '../../modules/popup.js';
 import Sounds from '../../modules/sounds.js';
 import SystemConfig from '../../modules/systemConfig.js';
+import Users from '../../modules/users.js';
 
 const RiftboundRunner = (() => {
     const APP_ID = 'riftboundRunner';
-    const DATA_PATH = ['/', 'system', 'programs data', APP_ID];
+    const DATA_PATH = () => Users.appData(APP_ID);
     const W = 960, H = 540;
     const icon = `<svg viewBox="0 0 24 24" fill="none"><path d="M3 17.5 8 12l3.2 3.2L16 9l5 5" stroke="#8ff0ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 4h14v16H5z" stroke="#8ff0ff" stroke-width="1.5" opacity=".7"/><circle cx="16.8" cy="7.2" r="1.4" fill="#ffcf5a"/></svg>`;
 
@@ -66,18 +67,18 @@ const RiftboundRunner = (() => {
     let raf = 0;
 
     function ensureDataDir(){
-        if(!FileSystem.itemExists(DATA_PATH)) FileSystem.createFolder(['/', 'system', 'programs data'], APP_ID);
+        if(!FileSystem.itemExists(DATA_PATH())) FileSystem.createFolder(Users.home(['AppData']), APP_ID);
     }
     function loadSave(){
         ensureDataDir();
-        const raw = FileSystem.readFile([...DATA_PATH,'save.json']);
+        const raw = FileSystem.readFile([...DATA_PATH(),'save.json']);
         try { return raw ? JSON.parse(raw) : {world:0,level:0,best:{},settings:{}}; } catch { return {world:0,level:0,best:{},settings:{}}; }
     }
     function saveData(){
         ensureDataDir();
-        const p=[...DATA_PATH,'save.json'];
+        const p=[...DATA_PATH(),'save.json'];
         const text=JSON.stringify({world:game.world,level:game.level,best:game.best,settings:game.settings});
-        if(FileSystem.itemExists(p)) FileSystem.writeFile(p,text); else FileSystem.createFile(DATA_PATH,'save.json',text,'json');
+        if(FileSystem.itemExists(p)) FileSystem.writeFile(p,text); else FileSystem.createFile(DATA_PATH(),'save.json',text,'json');
     }
 
     function clamp(v,a,b){return Math.max(a,Math.min(b,v));}

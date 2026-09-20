@@ -40,7 +40,16 @@ const ClipboardManager = (() => {
         }
     }
 
-    function load() {
+    // Shell-owned FS access (shield from fsGuard app attribution).
+    function asShell(fn) {
+        return (...args) => {
+            const g = window._FSGuard;
+            if (g) return g.asShell(fn)(...args);
+            return fn(...args);
+        };
+    }
+
+    const load = asShell(function load() {
         try {
             const raw = FileSystem.readFile(HISTORY_PATH);
             if (raw) {
@@ -48,7 +57,7 @@ const ClipboardManager = (() => {
                 if (Array.isArray(parsed)) history = parsed.filter(isValidItem);
             }
         } catch { history = []; }
-    }
+    });
 
     function isValidItem(it) {
         return it && typeof it.id === 'string'
@@ -56,7 +65,7 @@ const ClipboardManager = (() => {
             && typeof it.time === 'number';
     }
 
-    function save() {
+    const save = asShell(function save() {
         try {
             ensureDir();
             let json = JSON.stringify(history);
@@ -74,7 +83,7 @@ const ClipboardManager = (() => {
             if (FileSystem.itemExists(HISTORY_PATH)) FileSystem.writeFile(HISTORY_PATH, json);
             else FileSystem.createFile(DATA_DIR, 'history.json', json, 'json');
         } catch { /* disk full — keep in-memory only */ }
-    }
+    });
 
     function makeId() {
         return `clip-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e9).toString(36)}`;
@@ -414,9 +423,11 @@ const ClipboardManager = (() => {
 
     function clearHistory() {
         history = [];
-        try {
-            if (FileSystem.itemExists(HISTORY_PATH)) FileSystem.deleteItem(HISTORY_PATH);
-        } catch { /* noop */ }
+        asShell(() => {
+            try {
+                if (FileSystem.itemExists(HISTORY_PATH)) FileSystem.deleteItem(HISTORY_PATH);
+            } catch { /* noop */ }
+        })();
         render();
     }
 

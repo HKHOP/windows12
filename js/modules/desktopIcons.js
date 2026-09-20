@@ -7,10 +7,26 @@ import { AppRegistry } from './taskbar.js';
 import Popup from './popup.js';
 import Scaling from './scaling.js';
 import Sounds from './sounds.js';
+import Users from './users.js';
 
 const DesktopIcons = (() => {
-    const DESKTOP_PATH = ['/', 'users', 'default', 'Desktop'];
-    const LAYOUT_PATH = ['/', 'system', 'desktop-layout.json'];
+    // Desktop and its icon layout are per-user.
+    function desktopPath() {
+        return Users.home(['Desktop']);
+    }
+    function layoutPath() {
+        return Users.userData(['desktop-layout.json']);
+    }
+
+    // Shell-owned FS access (shield from fsGuard app attribution).
+    function asShell(fn) {
+        return (...args) => {
+            const g = window._FSGuard;
+            if (g) return g.asShell(fn)(...args);
+            return fn(...args);
+        };
+    }
+
     const ICON_W = 80;
     const ICON_H = 90;
     const PADDING = 16;
@@ -54,7 +70,7 @@ const DesktopIcons = (() => {
     // ---------- Multi-select helpers ----------
     function orderedNames() {
         let entries = [];
-        try { entries = FileSystem.getChildren(DESKTOP_PATH) || []; } catch (e) { entries = []; }
+        try { entries = FileSystem.getChildren(desktopPath()) || []; } catch (e) { entries = []; }
         return ['$Recycle.Bin', ...sortedEntries(entries).map(e => e.name)];
     }
 
@@ -246,8 +262,8 @@ const DesktopIcons = (() => {
         });
     }
 
-    function loadPositions() {
-        const data = FileSystem.readFile(LAYOUT_PATH);
+    const loadPositions = asShell(function loadPositions() {
+        const data = FileSystem.readFile(layoutPath());
         if (data) {
             try {
                 positions = JSON.parse(data);
@@ -255,16 +271,17 @@ const DesktopIcons = (() => {
                 positions = {};
             }
         }
-    }
+    });
 
-    function savePositions() {
+    const savePositions = asShell(function savePositions() {
         const content = JSON.stringify(positions, null, 2);
-        if (FileSystem.itemExists(LAYOUT_PATH)) {
-            FileSystem.writeFile(LAYOUT_PATH, content);
+        const parent = layoutPath().slice(0, -1);
+        if (FileSystem.itemExists(layoutPath())) {
+            FileSystem.writeFile(layoutPath(), content);
         } else {
-            FileSystem.createFile(['/', 'system'], 'desktop-layout.json', content, 'json');
+            FileSystem.createFile(parent, 'desktop-layout.json', content, 'json');
         }
-    }
+    });
 
     // ---------- Single grid model (placement AND drag-snap share it) ----------
     // Cell (col, row) -> top-left pixel. Every icon slot, including the
@@ -323,7 +340,7 @@ const DesktopIcons = (() => {
     // stale entries (deleted/renamed). The repaired layout is persisted.
     function normalizeLayout() {
         let entries = [];
-        try { entries = FileSystem.getChildren(DESKTOP_PATH) || []; } catch (e) { entries = []; }
+        try { entries = FileSystem.getChildren(desktopPath()) || []; } catch (e) { entries = []; }
         const names = ['$Recycle.Bin', ...sortedEntries(entries).map(e => e.name)];
         const m = getGridMetrics();
         const occupied = new Set();
@@ -406,8 +423,8 @@ const DesktopIcons = (() => {
                     let ent = entries.find(x => x.name === n);
                     if (!ent && n === entry.name) ent = entry;
                     if (!ent) return;
-                    if (ent.type === 'folder') openFolderInExplorer([...DESKTOP_PATH, n]);
-                    else openFile([...DESKTOP_PATH, n]);
+                    if (ent.type === 'folder') openFolderInExplorer([...desktopPath(), n]);
+                    else openFile([...desktopPath(), n]);
                 });
             });
 
@@ -448,7 +465,7 @@ const DesktopIcons = (() => {
     function showIconContextMenu(x, y, entry, entries) {
         const count = [...selected].filter(n => n !== '$Recycle.Bin').length;
         const multi = count > 1 && selected.has(entry.name);
-        const itemPath = [...DESKTOP_PATH, entry.name];
+        const itemPath = [...desktopPath(), entry.name];
         if (multi) {
             ContextMenu.show(x, y, [
                 { label: `Open (${count} items)`, icon: UIIcons.action('open'), action: () => openSelected() },
@@ -474,13 +491,13 @@ const DesktopIcons = (() => {
 
     function openSelected() {
         let entries = [];
-        try { entries = FileSystem.getChildren(DESKTOP_PATH) || []; } catch (e) { entries = []; }
+        try { entries = FileSystem.getChildren(desktopPath()) || []; } catch (e) { entries = []; }
         const byName = new Map(entries.map(e => [e.name, e]));
         [...selected].filter(n => n !== '$Recycle.Bin').forEach(n => {
             const ent = byName.get(n);
             if (!ent) return;
-            if (ent.type === 'folder') openFolderInExplorer([...DESKTOP_PATH, n]);
-            else openFile([...DESKTOP_PATH, n]);
+            if (ent.type === 'folder') openFolderInExplorer([...desktopPath(), n]);
+            else openFile([...desktopPath(), n]);
         });
     }
 
@@ -491,7 +508,7 @@ const DesktopIcons = (() => {
         Popup.confirm('Delete', `Delete ${label}?`).then(ok => {
             if (!ok) return;
             names.forEach(n => {
-                try { FileSystem.deleteItem([...DESKTOP_PATH, n]); } catch (e) { /* noop */ }
+                try { FileSystem.deleteItem([...desktopPath(), n]); } catch (e) { /* noop */ }
                 delete positions[n];
             });
             selected.clear();
@@ -897,11 +914,11 @@ const DesktopIcons = (() => {
     function createNewFolder() {
         let name = 'New Folder';
         let i = 1;
-        while (FileSystem.itemExists([...DESKTOP_PATH, name])) {
+        while (FileSystem.itemExists([...desktopPath(), name])) {
             name = `New Folder (${i++})`;
         }
-        FileSystem.createFolder(DESKTOP_PATH, name);
-        const entries = FileSystem.getChildren(DESKTOP_PATH);
+        FileSystem.createFolder(desktopPath(), name);
+        const entries = FileSystem.getChildren(desktopPath());
         const s = Scaling.getScale();
         const cols = Math.floor((window.innerWidth / s - PADDING) / (ICON_W + PADDING));
         const idx = entries.length - 1;
@@ -916,11 +933,11 @@ const DesktopIcons = (() => {
     function createNewFile() {
         let name = 'New Text Document.txt';
         let i = 1;
-        while (FileSystem.itemExists([...DESKTOP_PATH, name])) {
+        while (FileSystem.itemExists([...desktopPath(), name])) {
             name = `New Text Document (${i++}).txt`;
         }
-        FileSystem.createFile(DESKTOP_PATH, name, '', 'txt');
-        const entries = FileSystem.getChildren(DESKTOP_PATH);
+        FileSystem.createFile(desktopPath(), name, '', 'txt');
+        const entries = FileSystem.getChildren(desktopPath());
         const s = Scaling.getScale();
         const cols = Math.floor((window.innerWidth / s - PADDING) / (ICON_W + PADDING));
         const idx = entries.length - 1;

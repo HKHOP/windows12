@@ -7,17 +7,18 @@
 import WindowManager from '../../modules/windowManager.js';
 import AppIcons from '../../modules/appIcons.js';
 import FileSystem from '../../modules/fileSystem.js';
+import Users from '../../modules/users.js';
 
 const Discord = (() => {
     const icon = AppIcons.get('discord');
     const APP_URL = 'https://discord.com/app';
-    const DATA_PATH = ['/', 'system', 'programs data', 'discord'];
-    const NOTICE_PATH = [...DATA_PATH, 'notice.json'];
+    const DATA_PATH = () => Users.appData('discord');
+    const NOTICE_PATH = [...DATA_PATH(), 'notice.json'];
 
     function ensureDataDir() {
         try {
-            if (!FileSystem.itemExists(DATA_PATH)) {
-                FileSystem.createFolder(['/', 'system', 'programs data'], 'discord');
+            if (!FileSystem.itemExists(DATA_PATH())) {
+                FileSystem.createFolder(Users.home(['AppData']), 'discord');
             }
         } catch (e) { /* storage unavailable — notice just won't persist */ }
     }
@@ -37,7 +38,7 @@ const Discord = (() => {
             if (FileSystem.itemExists(NOTICE_PATH)) {
                 FileSystem.writeFile(NOTICE_PATH, json);
             } else {
-                FileSystem.createFile(DATA_PATH, 'notice.json', json, 'json');
+                FileSystem.createFile(DATA_PATH(), 'notice.json', json, 'json');
             }
         } catch (e) { /* noop */ }
     }

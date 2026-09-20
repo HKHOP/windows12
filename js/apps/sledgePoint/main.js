@@ -5,11 +5,12 @@ import FileSystem from '../../modules/fileSystem.js';
 import ContextMenu from '../../modules/contextMenu.js';
 import SystemConfig from '../../modules/systemConfig.js';
 import SavePrompt from '../../modules/saveprompt.js';
+import Users from '../../modules/users.js';
 
 const SledgePoint = (() => {
     const APP_ID = 'sledgePoint';
-    const DATA_PATH = ['/', 'system', 'programs data', APP_ID];
-    const DEFAULT_DOC_PATH = ['/', 'users', 'default', 'Documents'];
+    const DATA_PATH = () => Users.appData(APP_ID);
+    const DEFAULT_DOC_PATH = () => Users.home(['Documents']);
     const icon = AppIcons.get(APP_ID);
 
     const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -76,8 +77,8 @@ const SledgePoint = (() => {
     }
 
     function ensureDataDir() {
-        if (!FileSystem.itemExists(DATA_PATH)) {
-            FileSystem.createFolder(['/', 'system', 'programs data'], APP_ID);
+        if (!FileSystem.itemExists(DATA_PATH())) {
+            FileSystem.createFolder(Users.home(['AppData']), APP_ID);
         }
     }
 
@@ -358,7 +359,7 @@ const SledgePoint = (() => {
     function applyScale(state){state.canvas.style.transform=`scale(${state.scale})`;state.zoomEl.textContent=`${Math.round(state.scale*100)}%`;}
 
     async function insertImage(state) {
-        const IMG_DIRS = [['/', 'users', 'default', 'Pictures'], ['/', 'users', 'default', 'Documents']];
+        const IMG_DIRS = [Users.home(['Pictures']), Users.home(['Documents'])];
         const candidates = [];
         for (const dir of IMG_DIRS) {
             if (!FileSystem.itemExists(dir)) continue;
@@ -394,7 +395,7 @@ const SledgePoint = (() => {
     }
 
     async function saveProject(state) {
-        const result=await SavePrompt.show({defaultName:(state.doc.name||'Untitled Presentation')+'.sledge',defaultPath:DEFAULT_DOC_PATH,extensions:[{value:'sledge',label:'Sledge Point Presentation'}],parentApp:APP_ID});
+        const result=await SavePrompt.show({defaultName:(state.doc.name||'Untitled Presentation')+'.sledge',defaultPath:DEFAULT_DOC_PATH(),extensions:[{value:'sledge',label:'Sledge Point Presentation'}],parentApp:APP_ID});
         if(!result)return;
         FileSystem.createFile(result.path,result.fullName,JSON.stringify(state.doc,null,2),result.ext);
         state.filePath=[...result.path,result.fullName];state.doc.name=result.name||state.doc.name;state.dirty=false;renderAll(state);
@@ -435,7 +436,7 @@ const SledgePoint = (() => {
         else if(fmt.startsWith('SVG')){const cw=(state.canvasSize&&state.canvasSize.w)||960,ch=(state.canvasSize&&state.canvasSize.h)||540;content=`<svg xmlns="http://www.w3.org/2000/svg" width="${cw}" height="${ch}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:${cw}px;height:${ch}px;background:${state.slide.background||'#fff'}">${state.slide.elements.map(exportElement).join('')}</div></foreignObject></svg>`;ext='svg';mime='image/svg+xml';}
         if(!content)return;
         const baseName=(state.doc.name||'Untitled Presentation').replace(/[\\/:*?"<>|]/g,'').trim()||'Untitled Presentation';
-        const result=await SavePrompt.show({defaultName:`${baseName}.${ext}`,defaultPath:DEFAULT_DOC_PATH,extensions:[{value:ext,label:fmt.split(' – ')[0]}],parentApp:APP_ID});
+        const result=await SavePrompt.show({defaultName:`${baseName}.${ext}`,defaultPath:DEFAULT_DOC_PATH(),extensions:[{value:ext,label:fmt.split(' – ')[0]}],parentApp:APP_ID});
         if(!result)return;
         FileSystem.createFile(result.path,result.fullName,content,result.ext);
         await Popup.info('Export complete',`Saved to ${result.fullName} in your filesystem.`);

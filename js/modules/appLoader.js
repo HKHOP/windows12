@@ -1,6 +1,7 @@
 import { AppRegistry, AppMetadata } from './taskbar.js';
 import FileAssociations from './fileAssociations.js';
 import { APP_MODULES, APP_MANIFESTS } from '../apps/registry.js';
+import Users from './users.js';
 
 // Resolves an id or uuid to a manifest, or null.
 function resolveManifest(idOrUuid) {
@@ -23,8 +24,26 @@ const AppLoader = (() => {
         });
     }
 
-    const STORE_KEY = 'installed_apps';
+    // Installed store apps are per-user: each account gets its own list.
+    // The legacy machine-global 'installed_apps' key seeds the current
+    // (migrated) account once, then is removed.
+    const LEGACY_STORE_KEY = 'installed_apps';
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    function storeKey() {
+        const u = Users.getCurrent();
+        return 'installed_apps_' + (u ? u.id : 'default');
+    }
+
+    function migrateLegacyInstalls() {
+        let legacy = null;
+        try { legacy = JSON.parse(localStorage.getItem(LEGACY_STORE_KEY) || 'null'); } catch { /* none */ }
+        if (!Array.isArray(legacy)) return;
+        if (localStorage.getItem(storeKey()) === null) {
+            localStorage.setItem(storeKey(), JSON.stringify(legacy));
+        }
+        localStorage.removeItem(LEGACY_STORE_KEY);
+    }
 
     function getManifest(id) {
         ensureMaps();
@@ -81,15 +100,16 @@ const AppLoader = (() => {
 
     function readStored() {
         try {
-            const raw = JSON.parse(localStorage.getItem(STORE_KEY) || '[]');
-            return Array.isArray(raw) ? raw : [];
+            const raw = JSON.parse(localStorage.getItem(storeKey()) || 'null');
+            if (Array.isArray(raw)) return raw;
         } catch (e) {
-            return [];
+            /* corrupt -> empty */
         }
+        return [];
     }
 
     function writeStored(uuids) {
-        localStorage.setItem(STORE_KEY, JSON.stringify(uuids));
+        localStorage.setItem(storeKey(), JSON.stringify(uuids));
     }
 
     // Legacy lists stored app ids; current lists store uuids. Migrate once.
@@ -135,6 +155,7 @@ const AppLoader = (() => {
     }
 
     function init() {
+        migrateLegacyInstalls();
         migrateIfNeeded();
         AppMetadata.setNames(Object.fromEntries(APP_MANIFESTS.map(m => [m.id, m.name])));
         getBuiltins().forEach(m => registerApp(m.id));

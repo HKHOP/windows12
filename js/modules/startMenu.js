@@ -8,10 +8,24 @@ import FileSystem from './fileSystem.js';
 import SystemConfig from '../modules/systemConfig.js';
 import AppSystem from './appSystem.js';
 import AppLoader from './appLoader.js';
+import Users from './users.js';
 
 const StartMenu = (() => {
     let pinnedApps = [];
-    const PINS_PATH = ['/', 'system', 'programs data', 'startmenu', 'pins.json'];
+    // Start menu pins are per-user (under the account's OS data).
+    function pinsPath() {
+        return Users.userData(['startmenu', 'pins.json']);
+    }
+
+    // Shell-owned FS access: shield from the fsGuard app attribution so a
+    // write triggered while an app window is focused isn't denied/prompted.
+    function asShell(fn) {
+        return (...args) => {
+            const g = window._FSGuard;
+            if (g) return g.asShell(fn)(...args);
+            return fn(...args);
+        };
+    }
 
     const defaultPinned = [
         { id: 'fileExplorer', name: 'File Explorer' },
@@ -47,6 +61,7 @@ const StartMenu = (() => {
         setupAllAppsButton();
         setupPowerButton();
         updateUserInfo();
+        window.addEventListener('user-info-changed', updateUserInfo);
 
         window.addEventListener('apps-changed', () => {
             renderPinnedApps();
@@ -66,15 +81,15 @@ const StartMenu = (() => {
         }
     }
 
-    function readJson(path, fallback) {
+    const readJson = asShell(function readJson(path, fallback) {
         try {
             const raw = FileSystem.readFile(path);
             if (raw) return JSON.parse(raw);
         } catch {}
         return fallback;
-    }
+    });
 
-    function writeJson(path, data) {
+    const writeJson = asShell(function writeJson(path, data) {
         ensureDir(path);
         const name = path[path.length - 1];
         const parent = path.slice(0, -1);
@@ -84,14 +99,14 @@ const StartMenu = (() => {
         } else {
             FileSystem.createFile(parent, name, json, 'json');
         }
-    }
+    });
 
     function loadPinnedApps() {
-        pinnedApps = readJson(PINS_PATH, defaultPinned.map(a => a.id));
+        pinnedApps = readJson(pinsPath(), defaultPinned.map(a => a.id));
     }
 
     function savePinnedApps() {
-        writeJson(PINS_PATH, pinnedApps);
+        writeJson(pinsPath(), pinnedApps);
     }
 
     function isPinned(appId) {
@@ -116,8 +131,8 @@ const StartMenu = (() => {
     }
 
     function updateUserInfo() {
-        const config = SystemConfig.getAll();
-        const username = config.userName || 'User';
+        const u = Users.getCurrent();
+        const username = (u && u.name) || 'User';
         const initial = username.charAt(0).toUpperCase();
         const avatar = document.querySelector('.user-avatar');
         const nameEl = document.querySelector('.user-info span');
@@ -155,6 +170,7 @@ const StartMenu = (() => {
         `;
 
         const options = [
+            { label: 'Lock', icon: UIIcons.action('lock'), action: () => lock() },
             { label: 'Switch user', icon: UIIcons.action('switchUser'), action: () => switchUser() },
             { label: 'Logout', icon: UIIcons.action('logout'), action: () => logout() },
             { label: 'Restart', icon: UIIcons.action('restart'), action: () => restart() },
@@ -206,90 +222,22 @@ const StartMenu = (() => {
         setTimeout(() => { location.reload(); }, 1500);
     }
 
+    // All session transitions are reload-based (see Users.beginSwitch):
+    // the OS boots fresh into the next session's user.
     function logout() {
         hide();
-        showLoginScreen(false);
+        Users.beginSwitch('');
     }
 
     function switchUser() {
         hide();
-        showLoginScreen(false);
+        Users.beginSwitch('');
     }
 
-    function showLoginScreen(autoLogin) {
-        const desktop = document.getElementById('desktop');
-        const taskbar = document.getElementById('taskbar');
-
-        let loginScreen = document.getElementById('login-screen');
-        if (!loginScreen) {
-            loginScreen = document.createElement('div');
-            loginScreen.id = 'login-screen';
-            loginScreen.innerHTML = `
-                <div class="login-content">
-                    <div class="login-avatar">U</div>
-                    <div class="login-username" id="login-username">User</div>
-                    ${autoLogin ? `
-                        <div class="login-welcome">
-                            <span>Welcome</span>
-                            <div class="login-spinner"></div>
-                        </div>
-                    ` : `
-                        <button class="login-signin-btn" style="
-                            margin-top:16px;padding:8px 32px;border:1px solid rgba(255,255,255,0.3);
-                            background:rgba(255,255,255,0.1);color:white;border-radius:4px;
-                            cursor:pointer;font-size:14px;transition:background 0.12s;
-                        ">Sign in</button>
-                    `}
-                </div>
-            `;
-            document.body.appendChild(loginScreen);
-        }
-
-        loginScreen.classList.remove('hidden');
-        loginScreen.style.opacity = '0';
-
-        const config = SystemConfig.getAll();
-        const username = config.userName || 'User';
-        document.getElementById('login-username').textContent = username;
-        const loginAvatar = loginScreen.querySelector('.login-avatar');
-        if (loginAvatar) loginAvatar.textContent = username.charAt(0).toUpperCase();
-
-        desktop.style.transition = 'opacity 0.4s ease-out';
-        taskbar.style.transition = 'opacity 0.4s ease-out';
-        desktop.style.opacity = '0';
-        taskbar.style.opacity = '0';
-
-        setTimeout(() => { loginScreen.style.opacity = '1'; }, 50);
-
-        if (autoLogin) {
-            setTimeout(() => {
-                loginScreen.classList.add('fade-out');
-                setTimeout(() => {
-                    loginScreen.remove();
-                    desktop.style.opacity = '1';
-                    taskbar.style.opacity = '1';
-                }, 600);
-            }, 2000);
-        } else {
-            const signinBtn = loginScreen.querySelector('.login-signin-btn');
-            if (signinBtn) {
-                signinBtn.addEventListener('click', () => {
-                    const spinner = document.createElement('div');
-                    spinner.className = 'login-welcome';
-                    spinner.innerHTML = '<span>Welcome</span><div class="login-spinner"></div>';
-                    signinBtn.replaceWith(spinner);
-
-                    setTimeout(() => {
-                        loginScreen.classList.add('fade-out');
-                        setTimeout(() => {
-                            loginScreen.remove();
-                            desktop.style.opacity = '1';
-                            taskbar.style.opacity = '1';
-                        }, 600);
-                    }, 1500);
-                });
-            }
-        }
+    function lock() {
+        hide();
+        const u = Users.getCurrent();
+        Users.beginSwitch(u ? u.id : '');
     }
 
     function setupAllAppsButton() {

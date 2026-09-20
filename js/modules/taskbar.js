@@ -58,7 +58,17 @@ const Taskbar = (() => {
     let runningApps = new Map();
     let clockInterval;
     let pinnedApps = [];
+    // Taskbar pins stay machine-global (shared shell surface).
     const PINS_PATH = ['/', 'system', 'programs data', 'taskbar', 'pins.json'];
+
+    // Shell-owned FS access (shield from fsGuard app attribution).
+    function asShell(fn) {
+        return (...args) => {
+            const g = window._FSGuard;
+            if (g) return g.asShell(fn)(...args);
+            return fn(...args);
+        };
+    }
 
     function ensureDir(path) {
         for (let i = 1; i <= path.length - 1; i++) {
@@ -70,15 +80,15 @@ const Taskbar = (() => {
         }
     }
 
-    function readJson(path, fallback) {
+    const readJson = asShell(function readJson(path, fallback) {
         try {
             const raw = FileSystem.readFile(path);
             if (raw) return JSON.parse(raw);
         } catch {}
         return fallback;
-    }
+    });
 
-    function writeJson(path, data) {
+    const writeJson = asShell(function writeJson(path, data) {
         ensureDir(path);
         const name = path[path.length - 1];
         const parent = path.slice(0, -1);
@@ -88,7 +98,7 @@ const Taskbar = (() => {
         } else {
             FileSystem.createFile(parent, name, json, 'json');
         }
-    }
+    });
 
     function init() {
         loadPinnedApps();

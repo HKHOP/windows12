@@ -12,20 +12,20 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Windows 12">
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=12.0.4934">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=12.0.4947">
     <link rel="apple-touch-icon" href="favicon.svg">
-    <link rel="stylesheet" href="css/main.css?v=12.0.4934">
-    <link rel="stylesheet" href="css/taskbar.css?v=12.0.4934">
-    <link rel="stylesheet" href="css/startmenu.css?v=12.0.4934">
-    <link rel="stylesheet" href="css/windows.css?v=12.0.4934">
-    <link rel="stylesheet" href="css/contextmenu.css?v=12.0.4934">
-    <link rel="stylesheet" href="css/browser.css?v=12.0.4934">
-    <link rel="stylesheet" href="css/popup.css?v=12.0.4934">
-    <link rel="stylesheet" href="css/search.css?v=12.0.4934">
-    <link rel="stylesheet" href="css/notifications.css?v=12.0.4934">
-    <link rel="stylesheet" href="css/clipboard.css?v=12.0.4934">
-    <link rel="stylesheet" href="css/taskview.css?v=12.0.4934">
-    <link rel="stylesheet" href="css/virtualKeyboard.css?v=12.0.4934">
+    <link rel="stylesheet" href="css/main.css?v=12.0.4947">
+    <link rel="stylesheet" href="css/taskbar.css?v=12.0.4947">
+    <link rel="stylesheet" href="css/startmenu.css?v=12.0.4947">
+    <link rel="stylesheet" href="css/windows.css?v=12.0.4947">
+    <link rel="stylesheet" href="css/contextmenu.css?v=12.0.4947">
+    <link rel="stylesheet" href="css/browser.css?v=12.0.4947">
+    <link rel="stylesheet" href="css/popup.css?v=12.0.4947">
+    <link rel="stylesheet" href="css/search.css?v=12.0.4947">
+    <link rel="stylesheet" href="css/notifications.css?v=12.0.4947">
+    <link rel="stylesheet" href="css/clipboard.css?v=12.0.4947">
+    <link rel="stylesheet" href="css/taskview.css?v=12.0.4947">
+    <link rel="stylesheet" href="css/virtualKeyboard.css?v=12.0.4947">
     <title>Windows 12</title>
 </head>
 <body>
@@ -41,16 +41,7 @@
         <div class="boot-spinner"></div>
     </div>
 
-    <div id="login-screen" class="hidden">
-        <div class="login-content">
-            <div class="login-avatar">U</div>
-            <div class="login-username" id="login-username">User</div>
-            <div class="login-welcome">
-                <span>Welcome</span>
-                <div class="login-spinner"></div>
-            </div>
-        </div>
-    </div>
+    <!-- Login screen (user picker + sign-in) is built dynamically by js/modules/loginScreen.js -->
 
     <div id="resolution-layer">
         <div id="desktop">
@@ -117,7 +108,7 @@
 
     <script>
     (function() {
-        var ver = '12.0.4520';
+        var ver = '12.0.4947';
         var stored = localStorage.getItem('app_version');
         if (stored && stored !== ver) {
             localStorage.setItem('app_version', ver);
@@ -130,6 +121,6 @@
         }
     })();
     </script>
-    <script type="module" src="js/main.js?v=12.0.4934"></script>
+    <script type="module" src="js/main.js?v=12.0.4947"></script>
 </body>
 </html>

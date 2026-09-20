@@ -4,14 +4,15 @@ import SystemConfig from '../../modules/systemConfig.js';
 import BatchEngine from '../../modules/batchEngine.js';
 import VBEngine from '../../modules/vbsEngine.js';
 import AppIcons from '../../modules/appIcons.js';
+import Users from '../../modules/users.js';
 
 const Terminal = (() => {
     const icon = AppIcons.get('terminal');
 
-    const HOME = ['/', 'users', 'default'];
+    const HOME = () => Users.home();
 
     function launch() {
-        let cwd = [...HOME];
+        let cwd = [...HOME()];
         let history = [];
         let historyIdx = -1;
 
@@ -40,7 +41,7 @@ const Terminal = (() => {
 
         function getPrompt() {
             const p = cwd.join('/').replace('//', '/');
-            const short = p === '/' + HOME.slice(1).join('/') ? '~' : '~' + p.replace('/' + HOME.slice(1).join('/'), '');
+            const short = p === '/' + HOME().slice(1).join('/') ? '~' : '~' + p.replace('/' + HOME().slice(1).join('/'), '');
             return `${SystemConfig.get('userName')}@PC ${short}> `;
         }
 
@@ -120,13 +121,13 @@ const Terminal = (() => {
 
         function resolvePath(input) {
             let s = stripQuotes(input);
-            if (!s || s === '~') return [...HOME];
+            if (!s || s === '~') return [...HOME()];
             s = s.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '');
             let parts;
             if (s.startsWith('/')) {
                 parts = s.split('/').filter(Boolean);
             } else if (s === '~' || s.startsWith('~/')) {
-                parts = [...HOME.slice(1), ...s.slice(2).split('/').filter(Boolean)];
+                parts = [...HOME().slice(1), ...s.slice(2).split('/').filter(Boolean)];
             } else {
                 parts = [...cwd.slice(1), ...s.split('/').filter(Boolean)];
             }
@@ -219,7 +220,7 @@ const Terminal = (() => {
             cd(args) {
                 const raw = stripQuotes(args || '');
                 if (!raw || raw === '~') {
-                    cwd = [...HOME];
+                    cwd = [...HOME()];
                     updatePrompt();
                     return;
                 }

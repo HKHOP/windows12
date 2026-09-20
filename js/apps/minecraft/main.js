@@ -1,10 +1,11 @@
 import WindowManager from '../../modules/windowManager.js';
 import FileSystem from '../../modules/fileSystem.js';
 import Popup from '../../modules/popup.js';
+import Users from '../../modules/users.js';
 
 const Minecraft = (() => {
     const APP_ID = 'minecraft';
-    const DATA_DIR = ['/', 'system', 'programs data', 'minecraft'];
+    const DATA_DIR = () => Users.appData('minecraft');
 
     const icon = `<svg viewBox="0 0 24 24" fill="none">
         <path d="M12 2L22 7v10l-10 5L2 17V7l10-5z" fill="#8B5A2B"/>
@@ -462,14 +463,14 @@ const Minecraft = (() => {
         }
 
         function ensureDataDir() {
-            if (!FileSystem.itemExists(DATA_DIR)) {
-                FileSystem.createFolder(['/', 'system', 'programs data'], 'minecraft');
+            if (!FileSystem.itemExists(DATA_DIR())) {
+                FileSystem.createFolder(Users.home(['AppData']), 'minecraft');
             }
         }
         function loadSaveData() {
             try {
                 ensureDataDir();
-                const raw = FileSystem.readFile([...DATA_DIR, 'world.json']);
+                const raw = FileSystem.readFile([...DATA_DIR(), 'world.json']);
                 if (!raw) return null;
                 const data = JSON.parse(raw);
                 return data && typeof data.seed === 'number' ? data : null;
@@ -485,9 +486,9 @@ const Minecraft = (() => {
                     edits: state.world.edits,
                 };
                 const json = JSON.stringify(data);
-                const path = [...DATA_DIR, 'world.json'];
+                const path = [...DATA_DIR(), 'world.json'];
                 if (FileSystem.itemExists(path)) FileSystem.writeFile(path, json);
-                else FileSystem.createFile(DATA_DIR, 'world.json', json, 'json');
+                else FileSystem.createFile(DATA_DIR(), 'world.json', json, 'json');
             } catch { /* storage full etc. — keep playing */ }
         }
 

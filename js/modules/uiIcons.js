@@ -47,6 +47,7 @@ const UIIcons = (() => {
         restart: (s) => wrap(`<path d="M20 12a8 8 0 1 1-2.3-5.6" ${stroke()}/><path d="M20 3v4h-4" ${stroke()}/>`, s),
         shutdown: (s) => wrap(`<path d="M12 3v8" ${stroke()} stroke-width="2.2"/><path d="M6.3 6.5a8 8 0 1 0 11.4 0" ${stroke()}/>`, s),
         switchUser: (s) => wrap(`<circle cx="9" cy="8" r="3.5" ${stroke()}/><path d="M3 20a6 6 0 0 1 12 0" ${stroke()}/><path d="M16 8l4 4-4 4" ${stroke()}/><path d="M20 12h-6" ${stroke()}/>`, s),
+        lock: (s) => wrap(`<rect x="5" y="11" width="14" height="9" rx="2" ${stroke()}/><path d="M8 11V8a4 4 0 0 1 8 0v3" ${stroke()}/>`, s),
         uninstall: (s) => wrap(`<path d="M4 7h16" ${stroke()}/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" ${stroke()}/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" ${stroke()}/><path d="M10 11v6M14 11v6" ${stroke()}/>`, s),
         save: (s) => wrap(`<path d="M5 3h11l3 3v15H5V3z" ${stroke()}/><path d="M8 3v5h7V3" ${stroke()}/><rect x="8" y="13" width="8" height="8" ${stroke()}/>`, s),
         info: (s) => wrap(`<circle cx="12" cy="12" r="9" ${stroke()}/><path d="M12 11v5" ${stroke()}/><circle cx="12" cy="8" r="1.1" fill="currentColor"/>`, s),

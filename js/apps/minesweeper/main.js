@@ -3,10 +3,11 @@ import AppIcons from '../../modules/appIcons.js';
 import Popup from '../../modules/popup.js';
 import FileSystem from '../../modules/fileSystem.js';
 import Sounds from '../../modules/sounds.js';
+import Users from '../../modules/users.js';
 
 const Minesweeper = (() => {
     const icon = AppIcons.get('minesweeper');
-    const DATA_PATH = ['/', 'system', 'programs data', 'minesweeper'];
+    const DATA_PATH = () => Users.appData('minesweeper');
 
     const DIFFICULTIES = {
         beginner: { name: 'Beginner', rows: 9, cols: 9, mines: 10 },
@@ -15,14 +16,14 @@ const Minesweeper = (() => {
     };
 
     function ensureDataDir() {
-        if (!FileSystem.itemExists(DATA_PATH)) {
-            FileSystem.createFolder(['/', 'system', 'programs data'], 'minesweeper');
+        if (!FileSystem.itemExists(DATA_PATH())) {
+            FileSystem.createFolder(Users.home(['AppData']), 'minesweeper');
         }
     }
 
     function loadHighScores() {
         ensureDataDir();
-        const raw = FileSystem.readFile([...DATA_PATH, 'scores.json']);
+        const raw = FileSystem.readFile([...DATA_PATH(), 'scores.json']);
         if (raw) {
             try { return JSON.parse(raw); } catch (e) {}
         }
@@ -36,17 +37,17 @@ const Minesweeper = (() => {
     function saveHighScores(scores) {
         ensureDataDir();
         const json = JSON.stringify(scores, null, 2);
-        const path = [...DATA_PATH, 'scores.json'];
+        const path = [...DATA_PATH(), 'scores.json'];
         if (FileSystem.itemExists(path)) {
             FileSystem.writeFile(path, json);
         } else {
-            FileSystem.createFile(DATA_PATH, 'scores.json', json, 'json');
+            FileSystem.createFile(DATA_PATH(), 'scores.json', json, 'json');
         }
     }
 
     function loadSettings() {
         ensureDataDir();
-        const raw = FileSystem.readFile([...DATA_PATH, 'settings.json']);
+        const raw = FileSystem.readFile([...DATA_PATH(), 'settings.json']);
         if (raw) {
             try { return JSON.parse(raw); } catch (e) {}
         }
@@ -56,11 +57,11 @@ const Minesweeper = (() => {
     function saveSettings(settings) {
         ensureDataDir();
         const json = JSON.stringify(settings, null, 2);
-        const path = [...DATA_PATH, 'settings.json'];
+        const path = [...DATA_PATH(), 'settings.json'];
         if (FileSystem.itemExists(path)) {
             FileSystem.writeFile(path, json);
         } else {
-            FileSystem.createFile(DATA_PATH, 'settings.json', json, 'json');
+            FileSystem.createFile(DATA_PATH(), 'settings.json', json, 'json');
         }
     }
 

@@ -223,12 +223,15 @@ Retrieves window data by ID.
 
 **Import:** `import FileSystem from '../../modules/fileSystem.js';`
 
-All data is a virtual JSON tree stored in `localStorage`. Paths are **arrays of strings** starting with `/`.
+All data is a virtual JSON tree stored in `localStorage`. Paths are **arrays of strings** starting with `/`. The OS is **multi-user** — always derive user-relative paths from the `Users` module, never hardcode a user id.
 
 **Path examples:**
 - Root: `['/']`
-- Folder: `['/', 'users', 'default', 'Documents']`
-- File: `['/', 'users', 'default', 'Documents', 'notes.txt']`
+- Current user's home: `Users.home()` → `['/', 'users', '<currentUserId>']`
+- Home folder: `Users.home(['Documents'])`
+- Your app's per-user data: `Users.appData('myApp')` → `['/', 'users', '<currentUserId>', 'AppData', 'myApp']`
+
+**Import:** `import Users from '../../modules/users.js';`
 
 ### Core Methods
 
@@ -247,32 +250,35 @@ All data is a virtual JSON tree stored in `localStorage`. Paths are **arrays of 
 ### Example: Persistent App Data
 
 ```js
-const DATA_PATH = ['/', 'system', 'programs data', 'myReddit'];
+// Lazy on purpose: the current user isn't resolved at module-eval time.
+const DATA_PATH = () => Users.appData('myReddit');
 
 function ensureDataDir() {
-    if (!FileSystem.itemExists(DATA_PATH)) {
-        FileSystem.createFolder(['/', 'system', 'programs data'], 'myReddit');
+    if (!FileSystem.itemExists(DATA_PATH())) {
+        FileSystem.createFolder(Users.home(['AppData']), 'myReddit');
     }
 }
 
 function saveData(key, value) {
     ensureDataDir();
     const json = JSON.stringify(value);
-    const filePath = [...DATA_PATH, `${key}.json`];
+    const filePath = [...DATA_PATH(), `${key}.json`];
     if (FileSystem.itemExists(filePath)) {
         FileSystem.writeFile(filePath, json);
     } else {
-        FileSystem.createFile(DATA_PATH, `${key}.json`, json, 'json');
+        FileSystem.createFile(DATA_PATH(), `${key}.json`, json, 'json');
     }
 }
 
 function loadData(key) {
-    const raw = FileSystem.readFile([...DATA_PATH, `${key}.json`]);
+    const raw = FileSystem.readFile([...DATA_PATH(), `${key}.json`]);
     return raw ? JSON.parse(raw) : null;
 }
 ```
 
-**Rule:** All app data MUST go under `/system/programs data/<yourAppId>/`. Never write to other locations.
+**Rule:** All per-user app data MUST go under the current user's `AppData/<yourAppId>/` (`Users.appData(APP_ID, sub)` — or just use the SDK's `app.files`, which does this for you). Apps that need machine-shared data may opt into the global store at `/system/programs data/<yourAppId>/` (SDK `app.globalFiles`, or `['/', 'system', 'programs data', appId]` with raw paths).
+
+**Permissions:** your own AppData folders (per-user **and** the global one) are always accessible. Touching anything ELSE outside them — the user's Documents, other apps' data, anything under `/system` — requires the `filesystem` permission in `manifest.json`. Apps without the declaration get a one-time runtime consent dialog instead. See §24.
 
 ### Recycle Bin Methods
 
@@ -727,20 +733,22 @@ import UIIcons from '../../modules/uiIcons.js';
 import Popup from '../../modules/popup.js';
 import FileSystem from '../../modules/fileSystem.js';
 import ContextMenu from '../../modules/contextMenu.js';
+import Users from '../../modules/users.js';
 
 const MyReddit = (() => {
     const icon = AppIcons.get('myReddit');
-    const DATA_PATH = ['/', 'system', 'programs data', 'myReddit'];
+    // Lazy on purpose: the current user isn't resolved at module-eval time.
+    const DATA_PATH = () => Users.appData('myReddit');
 
     function ensureDataDir() {
-        if (!FileSystem.itemExists(DATA_PATH)) {
-            FileSystem.createFolder(['/', 'system', 'programs data'], 'myReddit');
+        if (!FileSystem.itemExists(DATA_PATH())) {
+            FileSystem.createFolder(Users.home(['AppData']), 'myReddit');
         }
     }
 
     function loadPosts() {
         ensureDataDir();
-        const raw = FileSystem.readFile([...DATA_PATH, 'posts.json']);
+        const raw = FileSystem.readFile([...DATA_PATH(), 'posts.json']);
         return raw ? JSON.parse(raw) : [
             { id: 1, title: 'Welcome to MyReddit', author: 'admin', votes: 42, comments: [] }
         ];
@@ -749,11 +757,11 @@ const MyReddit = (() => {
     function savePosts(posts) {
         ensureDataDir();
         const json = JSON.stringify(posts);
-        const path = [...DATA_PATH, 'posts.json'];
+        const path = [...DATA_PATH(), 'posts.json'];
         if (FileSystem.itemExists(path)) {
             FileSystem.writeFile(path, json);
         } else {
-            FileSystem.createFile(DATA_PATH, 'posts.json', json, 'json');
+            FileSystem.createFile(DATA_PATH(), 'posts.json', json, 'json');
         }
     }
 
@@ -837,7 +845,7 @@ export default MyReddit;
 
 1. **Never use native `alert()`, `confirm()`, `prompt()`** — use Popup API
 2. **Never use `localStorage` directly** — use FileSystem for persistence
-3. **Store app data under `/system/programs data/<appId>/`**
+3. **Store per-user app data under the current user's `AppData/<appId>/`** (via `Users.appData` or the SDK's `app.files`); opt into the shared `/system/programs data/<appId>/` only when data is genuinely machine-wide
 4. **All imports use ES modules** (`import`/`export`)
 5. **Icons must be inline SVGs** — no external files or emojis. App tiles use `AppIcons` (§14); all other UI chrome uses ShellIcons `UIIcons` (§15)
 6. **The module must return `{ launch }`** — this is the contract
@@ -1066,7 +1074,8 @@ Each `js/sdk/*.js` file is a thin facade over one internal module -- no logic is
 | Namespace | What | Key methods |
 |-----------|------|-------------|
 | `app.window` / `WindowManager` | windows | `create({appId,title,icon,content,width,height,resizable})`, `get/focus/isFocused/getFocused/minimize/restore/isMinimized/maximize/unmaximize/isMaximized/toggleMaximize`, `getBounds/setBounds/getPosition/setPosition/getSize/setSize/center/getDesktopArea`, `isResizable/setResizable/setMinSize`, `isDragging/isResizing/onDragState/onResizeState/onBoundsChanged`, `onClosed/onMinimizeState/onFocusChanged` (lifecycle subscriptions), `setFullscreen/exitFullscreen/isFullscreen`, `setTitle/close/requestClose/closeAll/getByApp/getAllWindows`, `Lifecycle.onClose` vetoes |
-| `app.files` / `FileSystem` | virtual FS | scoped `read/write/exists/list/mkdir/remove/rename` + `settings.get/set/all`; raw `readFile/writeFile/createFile/createFolder/delete (remove recycles)/destroy/rename/move/exists/isFolder/list/blobs/pickSave` |
+| `app.files` / `app.globalFiles` / `FileSystem` | virtual FS | `app.files`: per-user sandbox `/users/<id>/AppData/<id>/`; `app.globalFiles`: shared `/system/programs data/<id>/`; both expose scoped `read/write/exists/list/mkdir/remove/rename` + `settings.get/set/all`. Raw `FileSystem`: `readFile/writeFile/createFile/createFolder/delete (remove recycles)/destroy/rename/move/exists/isFolder/list/blobs/pickSave`, permission-gated outside the app's own data |
+
 | `app.notify` / `Notifications` | toasts + panel | `info/action/form`, `dismiss/clearAll/getAll/open/close/toggle`, Focus Assist; sends are permission-gated automatically |
 | `app.dialogs` / `Dialogs` | modal dialogs | `alert/confirm/text/select/form` (all Promises; never native `alert()`) |
 | `app.keyboard` / `Keyboard` | shortcuts | `register('CTRL+SHIFT+P', cb, {scope, owner(auto), allowInInputs, description})`, `unregister/unregisterAll/list/isDown`; exact-modifier matching; return `false` to pass through; reserved: PRINTSCREEN, WIN+V, ALT+F4, layered ESCAPE |
@@ -1103,7 +1112,7 @@ try {
 
 The SDK is a **stability facade, not a sandbox** -- apps share one JS context, so a hostile app importing internals directly has the same power as the SDK gives it. What the SDK does instead is make the safe path the easy path:
 
-- `createApp().files` cannot escape `/system/programs data/<id>/` (traversal rejected); raw `FileSystem` paths stay available but are explicit.
+- `createApp().files` is scoped to the current user's `/users/<id>/AppData/<id>/` and `app.globalFiles` to the shared `/system/programs data/<id>/` (traversal rejected); raw `FileSystem` paths stay available but are explicit and now permission-gated by `fsGuard.js` — anything outside the app's own data folders requires the `filesystem` permission or a runtime consent dialog.
 - `Apps.install` forces permission consent; `Apps.uninstall` forces a user confirm and wipes grants.
 - `Settings.set` refuses privileged display keys; notification sends respect revocations; `Permissions.require` fails loud instead of bypassing.
 - Deliberately ungated (same as direct imports, documented): closing other apps' windows, reading other apps' files, starting/stopping background execution. A real cross-app sandbox would need process isolation -- out of scope for this architecture.

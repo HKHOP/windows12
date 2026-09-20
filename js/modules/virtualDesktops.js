@@ -63,7 +63,16 @@ const VirtualDesktops = (() => {
         }
     }
 
-    function load() {
+    // Shell-owned FS access (shield from fsGuard app attribution).
+    function asShell(fn) {
+        return (...args) => {
+            const g = window._FSGuard;
+            if (g) return g.asShell(fn)(...args);
+            return fn(...args);
+        };
+    }
+
+    const load = asShell(function load() {
         try {
             const raw = FileSystem.readFile(STATE_PATH);
             if (raw) {
@@ -80,16 +89,16 @@ const VirtualDesktops = (() => {
                 }
             }
         } catch { /* fresh defaults */ }
-    }
+    });
 
-    function save() {
+    const save = asShell(function save() {
         try {
             ensureDir();
             const json = JSON.stringify({ desktops, activeId });
             if (FileSystem.itemExists(STATE_PATH)) FileSystem.writeFile(STATE_PATH, json);
             else FileSystem.createFile(DATA_DIR, 'desktops.json', json, 'json');
         } catch { /* keep in-memory only */ }
-    }
+    });
 
     function esc(s) {
         return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

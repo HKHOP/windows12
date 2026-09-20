@@ -4,12 +4,13 @@ import Popup from '../../modules/popup.js';
 import FileSystem from '../../modules/fileSystem.js';
 import SystemConfig from '../../modules/systemConfig.js';
 import ContextMenu from '../../modules/contextMenu.js';
+import Users from '../../modules/users.js';
 
 const MediaPlayer = (() => {
     const APP_ID = 'mediaPlayer';
-    const DATA_DIR = ['/', 'system', 'programs data', 'mediaPlayer'];
-    const MUSIC_DIR = ['/', 'users', 'default', 'Music'];
-    const VIDEO_DIR = ['/', 'users', 'default', 'Videos'];
+    const DATA_DIR = () => Users.appData('mediaPlayer');
+    const MUSIC_DIR = () => Users.home(['Music']);
+    const VIDEO_DIR = () => Users.home(['Videos']);
     const AUDIO_EXTS = ['mp3', 'wav', 'ogg', 'oga', 'm4a'];
     const VIDEO_EXTS = ['mp4', 'webm'];
     const PLAYABLE = [...AUDIO_EXTS, ...VIDEO_EXTS];
@@ -37,8 +38,8 @@ const MediaPlayer = (() => {
 
     // ---------------- persistence ----------------
     function ensureDataDir() {
-        if (!FileSystem.itemExists(DATA_DIR)) {
-            FileSystem.createFolder(['/', 'system', 'programs data'], 'mediaPlayer');
+        if (!FileSystem.itemExists(DATA_DIR())) {
+            FileSystem.createFolder(Users.home(['AppData']), 'mediaPlayer');
         }
     }
     function blankState() {
@@ -53,7 +54,7 @@ const MediaPlayer = (() => {
         const st = blankState();
         try {
             ensureDataDir();
-            const raw = FileSystem.readFile([...DATA_DIR, 'player.json']);
+            const raw = FileSystem.readFile([...DATA_DIR(), 'player.json']);
             if (!raw) return st;
             const d = JSON.parse(raw);
             ['view', 'section', 'shuffle', 'repeat', 'volume', 'muted', 'speed', 'viz', 'seeded'].forEach(k => {
@@ -94,9 +95,9 @@ const MediaPlayer = (() => {
                     durations: st.durations, resume: st.resume, seeded: st.seeded,
                     queue: slim(st.queue), qi: st.qi
                 });
-                const p = [...DATA_DIR, 'player.json'];
+                const p = [...DATA_DIR(), 'player.json'];
                 if (FileSystem.itemExists(p)) FileSystem.writeFile(p, data);
-                else FileSystem.createFile(DATA_DIR, 'player.json', data, 'json');
+                else FileSystem.createFile(DATA_DIR(), 'player.json', data, 'json');
             } catch (e) { /* quota etc — session continues in memory */ }
         }, 600);
     }
@@ -124,8 +125,8 @@ const MediaPlayer = (() => {
     }
     function scanLibrary() {
         const out = [];
-        walkPlayable(MUSIC_DIR, out);
-        walkPlayable(VIDEO_DIR, out);
+        walkPlayable(MUSIC_DIR(), out);
+        walkPlayable(VIDEO_DIR(), out);
         out.sort((a, b) => a.name.localeCompare(b.name));
         return out;
     }
@@ -296,10 +297,10 @@ const MediaPlayer = (() => {
         let created = 0;
         for (const d of DEMOS) {
             try {
-                if (FileSystem.itemExists([...MUSIC_DIR, d.file])) continue;
+                if (FileSystem.itemExists([...MUSIC_DIR(), d.file])) continue;
                 const url = await renderDemoTrack(d.opts);
                 const blob = await (await fetch(url)).blob();
-                if (await FileSystem.writeFileBlob(MUSIC_DIR, d.file, blob, 'wav')) created++;
+                if (await FileSystem.writeFileBlob(MUSIC_DIR(), d.file, blob, 'wav')) created++;
             } catch (e) { /* quota or render failure — skip silently */ }
         }
         FileSystem.flush();

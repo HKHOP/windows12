@@ -1,5 +1,22 @@
+import Users from './users.js';
+
 const SystemConfig = (() => {
-    const CONFIG_PATH = ['/', 'system', 'config.json'];
+    // Config is per-user, stored in the account's OS data. The legacy
+    // global /system/config.json is migrated to the first account by
+    // Users.init(); fileExplorer still references CONFIG_PATH (dynamic).
+    function configPath() {
+        return Users.userData(['config.json']);
+    }
+
+    // Shell-owned FS access: shield from fsGuard app attribution (config
+    // writes triggered from an app like Settings are OS state, not the app's).
+    function asShell(fn) {
+        return (...args) => {
+            const g = window._FSGuard;
+            if (g) return g.asShell(fn)(...args);
+            return fn(...args);
+        };
+    }
 
     // Touch devices get the on-screen keyboard out of the box (it replaces
     // the native iOS/Android keyboard); desktops default to off but can
@@ -223,29 +240,28 @@ const SystemConfig = (() => {
         if (onConfigChange) onConfigChange(config);
     }
 
-    function syncToFilesystem() {
+    const syncToFilesystem = asShell(function syncToFilesystem() {
         try {
             const FileSystem = window._FileSystem;
             if (FileSystem) {
                 const json = JSON.stringify(config, null, 2);
-                const parentPath = CONFIG_PATH.slice(0, -1);
-                if (!FileSystem.itemExists(parentPath)) {
-                    // system folder should already exist
-                }
-                if (FileSystem.itemExists(CONFIG_PATH)) {
-                    FileSystem.writeFile(CONFIG_PATH, json);
+                const path = configPath();
+                const parentPath = path.slice(0, -1);
+                if (FileSystem.itemExists(path)) {
+                    FileSystem.writeFile(path, json);
                 } else {
                     FileSystem.createFile(parentPath, 'config.json', json, 'json');
                 }
             }
         } catch (e) {}
-    }
+    });
 
-    function loadFromFilesystem() {
+    const loadFromFilesystem = asShell(function loadFromFilesystem() {
         try {
             const FileSystem = window._FileSystem;
-            if (FileSystem && FileSystem.itemExists(CONFIG_PATH)) {
-                const json = FileSystem.readFile(CONFIG_PATH);
+            const path = configPath();
+            if (FileSystem && FileSystem.itemExists(path)) {
+                const json = FileSystem.readFile(path);
                 if (json) {
                     config = { ...defaults, ...JSON.parse(json) };
                     apply();
@@ -254,7 +270,7 @@ const SystemConfig = (() => {
             }
         } catch (e) {}
         return false;
-    }
+    });
 
     function load() {
         loadFromFilesystem();
@@ -272,7 +288,8 @@ const SystemConfig = (() => {
 
     return {
         init, get, getAll, set, setMultiple, reset, apply, load, onChange,
-        CONFIG_PATH, syncToFilesystem,
+        get CONFIG_PATH() { return configPath(); },
+        syncToFilesystem,
         getNativeWidth, getNativeHeight, getResolutionOptions, getCurrentResolution
     };
 })();

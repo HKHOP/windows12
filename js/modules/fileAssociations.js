@@ -119,7 +119,16 @@ const FileAssociations = (() => {
         }
     }
 
-    function readDefaults() {
+    // Shell-owned FS access (shield from fsGuard app attribution).
+    function asShell(fn) {
+        return (...args) => {
+            const g = window._FSGuard;
+            if (g) return g.asShell(fn)(...args);
+            return fn(...args);
+        };
+    }
+
+    const readDefaults = asShell(function readDefaults() {
         try {
             const raw = FileSystem.readFile(DEFAULTS_PATH);
             if (raw) {
@@ -128,16 +137,16 @@ const FileAssociations = (() => {
             }
         } catch { /* corrupt -> empty */ }
         return {};
-    }
+    });
 
-    function writeDefaults(defaults) {
+    const writeDefaults = asShell(function writeDefaults(defaults) {
         try {
             ensureDir();
             const json = JSON.stringify(defaults);
             if (FileSystem.itemExists(DEFAULTS_PATH)) FileSystem.writeFile(DEFAULTS_PATH, json);
             else FileSystem.createFile(DATA_DIR, 'defaults.json', json, 'json');
         } catch { /* session-only */ }
-    }
+    });
 
     function getDefault(extension) {
         const appId = readDefaults()[String(extension || '').toLowerCase()];

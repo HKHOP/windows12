@@ -12,6 +12,7 @@ import VBEngine from '../../modules/vbsEngine.js';
 import FileAssociations from '../../modules/fileAssociations.js';
 import Keyboard from '../../modules/keyboard.js';
 import Zip from '../../modules/zip.js';
+import Users from '../../modules/users.js';
 
 const FileExplorer = (() => {
     const icon = AppIcons.get('fileExplorer');
@@ -25,12 +26,12 @@ const FileExplorer = (() => {
     );
     const LONG_PRESS_SELECT_MS = 550;
 
-    const VIEW_PATH = ['/', 'system', 'programs data', 'fileExplorer', 'view.json'];
+    const VIEW_PATH = () => Users.appData('fileExplorer', ['view.json']);
     const view = { sortBy: 'name', sortDir: 'asc', groupBy: 'none' };
 
     function loadView() {
         try {
-            const raw = FileSystem.readFile(VIEW_PATH);
+            const raw = FileSystem.readFile(VIEW_PATH());
             if (raw) Object.assign(view, JSON.parse(raw));
         } catch { /* defaults stand */ }
         if (!['name', 'date', 'size', 'type'].includes(view.sortBy)) view.sortBy = 'name';
@@ -41,9 +42,9 @@ const FileExplorer = (() => {
     function saveView() {
         try {
             const json = JSON.stringify(view);
-            if (FileSystem.itemExists(VIEW_PATH)) FileSystem.writeFile(VIEW_PATH, json);
+            if (FileSystem.itemExists(VIEW_PATH())) FileSystem.writeFile(VIEW_PATH(), json);
             else {
-                const dir = VIEW_PATH.slice(0, -1);
+                const dir = VIEW_PATH().slice(0, -1);
                 if (!FileSystem.itemExists(dir)) {
                     FileSystem.createFolder(dir.slice(0, -1), dir[dir.length - 1]);
                 }
@@ -166,13 +167,13 @@ const FileExplorer = (() => {
 
     function buildSidebar() {
         const items = [
-            { name: 'Home', path: ['/', 'users', 'default'] },
-            { name: 'Desktop', path: ['/', 'users', 'default', 'Desktop'] },
-            { name: 'Documents', path: ['/', 'users', 'default', 'Documents'] },
-            { name: 'Downloads', path: ['/', 'users', 'default', 'Downloads'] },
-            { name: 'Pictures', path: ['/', 'users', 'default', 'Pictures'] },
-            { name: 'Music', path: ['/', 'users', 'default', 'Music'] },
-            { name: 'Videos', path: ['/', 'users', 'default', 'Videos'] },
+            { name: 'Home', path: Users.home() },
+            { name: 'Desktop', path: Users.home(['Desktop']) },
+            { name: 'Documents', path: Users.home(['Documents']) },
+            { name: 'Downloads', path: Users.home(['Downloads']) },
+            { name: 'Pictures', path: Users.home(['Pictures']) },
+            { name: 'Music', path: Users.home(['Music']) },
+            { name: 'Videos', path: Users.home(['Videos']) },
             { name: 'Recycle Bin', path: ['/', 'system', '$Recycle.Bin'] },
             'separator',
             { name: 'This PC', path: ['__thispc__'] }
@@ -922,9 +923,9 @@ const FileExplorer = (() => {
     function formatPath(path) {
         if (path.length === 0) return 'This PC';
         if (path.length === 1 && path[0] === '/') return 'Local Disk (C:)';
-        if (path.join('/') === '/users/default') return 'Home';
+        if (path.join('/') === Users.home().join('/')) return 'Home';
         const nameMap = {
-            'users': 'Users', 'default': 'User', 'system': 'System',
+            'users': 'Users', 'system': 'System',
             'programs data': 'Programs Data', '$Recycle.Bin': 'Recycle Bin'
         };
         return path.map((p, i) => {
@@ -938,7 +939,7 @@ const FileExplorer = (() => {
     }
 
     function refreshIfDesktop(path) {
-        if (path.join('/').includes('/users/default/Desktop')) {
+        if (path.join('/').includes(Users.home(['Desktop']).join('/'))) {
             DesktopIcons.render();
         }
     }
@@ -1610,7 +1611,7 @@ const FileExplorer = (() => {
     }
 
     function addTab(win, wstate, path) {
-        const tab = makeTab(path || ['/', 'users', 'default']);
+        const tab = makeTab(path || Users.home());
         wstate.tabs.push(tab);
         wstate.activeTabId = tab.id;
         renderTabStrip(win, wstate);
@@ -1839,11 +1840,11 @@ const FileExplorer = (() => {
 
     // ---------- Quick Access ----------
 
-    const QA_PATH = ['/', 'system', 'programs data', 'fileExplorer', 'quickaccess.json'];
+    const QA_PATH = () => Users.appData('fileExplorer', ['quickaccess.json']);
 
     function loadQA() {
         try {
-            const raw = FileSystem.readFile(QA_PATH);
+            const raw = FileSystem.readFile(QA_PATH());
             if (raw) {
                 const arr = JSON.parse(raw);
                 if (Array.isArray(arr)) return arr.filter(p => Array.isArray(p) && FileSystem.isFolder(p));
@@ -1855,9 +1856,9 @@ const FileExplorer = (() => {
     function saveQA(pins) {
         try {
             const json = JSON.stringify(pins);
-            if (FileSystem.itemExists(QA_PATH)) FileSystem.writeFile(QA_PATH, json);
+            if (FileSystem.itemExists(QA_PATH())) FileSystem.writeFile(QA_PATH(), json);
             else {
-                const dir = QA_PATH.slice(0, -1);
+                const dir = QA_PATH().slice(0, -1);
                 if (!FileSystem.itemExists(dir)) FileSystem.createFolder(dir.slice(0, -1), dir[dir.length - 1]);
                 FileSystem.createFile(dir, 'quickaccess.json', json, 'json');
             }
@@ -1980,7 +1981,7 @@ const FileExplorer = (() => {
 
         const initialPath = options.path && FileSystem.isFolder(options.path)
             ? options.path
-            : ['/', 'users', 'default'];
+            : Users.home();
         renderSidebar(win, wstate);
         addTab(win, wstate, initialPath);
 

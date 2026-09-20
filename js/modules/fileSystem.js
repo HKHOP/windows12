@@ -3,6 +3,10 @@ import BlobStore from './blobStore.js';
 const FileSystem = (() => {
     let root = {};
     let saveTimeout = null;
+    // Access policy hook (multi-user AppData model): main.js injects
+    // FSGuard.check here. Denying a call makes it return the usual
+    // null/false failure value without touching the tree.
+    let accessChecker = null;
     const RECYCLE_BIN_PATH = ['/', 'system', '$Recycle.Bin'];
     const STORAGE_KEY = 'windows12-filesystem';
     // Stay under the typical ~5MB localStorage quota so one big file can
@@ -416,7 +420,45 @@ const FileSystem = (() => {
         return node !== null && node.type === 'folder';
     }
 
-    return { init, save, flush, serializedSize, wouldFit, storageInfo, STORAGE_BUDGET, getNode, getChildren, createFolder, createFile, readFile, writeFile, writeFileBlob, readFileBlob, isBlobFile, deleteItem, permanentDelete, restoreFromRecycleBin, emptyRecycleBin, getRecycleBinContent, renameItem, moveItem, itemExists, isFolder };
+    // ---------- access policy (set by main.js -> FSGuard.check) ----------
+
+    function setAccessChecker(fn) {
+        accessChecker = typeof fn === 'function' ? fn : null;
+    }
+
+    function allowed(path) {
+        try {
+            return !accessChecker || accessChecker(path) !== false;
+        } catch {
+            return true; // a broken policy must not wedge the FS
+        }
+    }
+
+    function renameTarget(path, newName) {
+        return [...path.slice(0, -1), newName];
+    }
+
+    return { setAccessChecker, init, save, flush, serializedSize, wouldFit, storageInfo, STORAGE_BUDGET,
+        // Guarded public surface: every path-reaching operation consults the
+        // access checker first. Internal implementations above stay unguarded
+        // so shell internals (recycle bin bookkeeping, migrations) can't be
+        // blocked by their own guard.
+        getNode: (p) => allowed(p) ? getNode(p) : null,
+        getChildren: (p) => allowed(p) ? getChildren(p) : [],
+        readFile: (p) => allowed(p) ? readFile(p) : null,
+        writeFile: (p, c) => allowed(p) ? writeFile(p, c) : false,
+        createFile: (p, n, c, e) => allowed([...p, n]) ? createFile(p, n, c, e) : false,
+        createFolder: (p, n) => allowed([...p, n]) ? createFolder(p, n) : false,
+        writeFileBlob: async (p, n, b, e) => allowed([...p, n]) ? writeFileBlob(p, n, b, e) : false,
+        readFileBlob: async (p) => allowed(p) ? readFileBlob(p) : null,
+        isBlobFile: (p) => allowed(p) ? isBlobFile(p) : false,
+        deleteItem: (p) => allowed(p) ? deleteItem(p) : false,
+        permanentDelete: (p) => allowed(p) ? permanentDelete(p) : false,
+        renameItem: (p, n) => (allowed(p) && allowed(renameTarget(p, n))) ? renameItem(p, n) : false,
+        moveItem: (s, d) => (allowed(s) && allowed([...d, s[s.length - 1]])) ? moveItem(s, d) : false,
+        itemExists: (p) => allowed(p) ? itemExists(p) : false,
+        isFolder: (p) => allowed(p) ? isFolder(p) : false,
+        restoreFromRecycleBin, emptyRecycleBin, getRecycleBinContent };
 })();
 
 window._FileSystem = FileSystem;

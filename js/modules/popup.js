@@ -200,6 +200,14 @@ const Popup = (() => {
         return p;
     }
 
+    // Generic popup with custom body HTML and buttons — for system dialogs
+    // (permission consent, user switching) that don't fit the fixed types.
+    function custom(title, body, buttons, opts = {}) {
+        const p = createPopup('confirm', title, body, opts);
+        addButtons(p, buttons || [{ label: 'OK', value: true, primary: true }]);
+        return p;
+    }
+
     function forum(title, fields) {
         const inputs = fields.map((f, i) => `
             <div class="popup-field">
@@ -249,7 +257,7 @@ const Popup = (() => {
         return p;
     }
 
-    return { info, warn, error, confirm, pick, textbox, forum };
+    return { info, warn, error, confirm, pick, textbox, forum, custom };
 })();
 
 export default Popup;

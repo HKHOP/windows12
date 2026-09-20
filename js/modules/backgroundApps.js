@@ -23,32 +23,42 @@ import AppLoader from './appLoader.js';
 import WindowManager from './windowManager.js';
 import FileSystem from './fileSystem.js';
 import { Taskbar } from './taskbar.js';
+import Users from './users.js';
 
 const BackgroundApps = (() => {
-    const STATE_DIR = ['/', 'system', 'programs data'];
-    const STATE_NAME = 'backgroundApps.json';
+    // Autostart state is per-user: each account revives its own background
+    // apps and services at boot.
+    function statePath() {
+        return Users.userData(['backgroundApps.json']);
+    }
+
+    // Shell-owned FS access (shield from fsGuard app attribution).
+    function asShell(fn) {
+        return (...args) => {
+            const g = window._FSGuard;
+            if (g) return g.asShell(fn)(...args);
+            return fn(...args);
+        };
+    }
 
     // App ids currently running headless (no windows).
     let running = new Set();
     // App ids the user disabled for boot (Task Manager > Startup).
     let disabled = new Set();
 
-    function statePath() {
-        return [...STATE_DIR, STATE_NAME];
-    }
-
     function ensureDir() {
         try {
-            for (let i = 1; i <= STATE_DIR.length; i++) {
-                const partial = STATE_DIR.slice(0, i);
+            const path = statePath();
+            for (let i = 1; i <= path.length - 1; i++) {
+                const partial = path.slice(0, i);
                 if (!FileSystem.itemExists(partial)) {
-                    FileSystem.createFolder(STATE_DIR.slice(0, i - 1), STATE_DIR[i - 1]);
+                    FileSystem.createFolder(path.slice(0, i - 1), path[i - 1]);
                 }
             }
         } catch (e) { /* storage unavailable — run session-only */ }
     }
 
-    function loadPersisted() {
+    const loadPersisted = asShell(function loadPersisted() {
         try {
             const raw = FileSystem.readFile(statePath());
             if (!raw) return { background: [], disabled: [] };
@@ -58,19 +68,19 @@ const BackgroundApps = (() => {
         } catch (e) {
             return { background: [], disabled: [] };
         }
-    }
+    });
 
-    function persist() {
+    const persist = asShell(function persist() {
         try {
             ensureDir();
             const json = JSON.stringify({ background: [...running], disabled: [...disabled] });
             if (FileSystem.itemExists(statePath())) {
                 FileSystem.writeFile(statePath(), json);
             } else {
-                FileSystem.createFile(STATE_DIR, STATE_NAME, json, 'json');
+                FileSystem.createFile(statePath().slice(0, -1), 'backgroundApps.json', json, 'json');
             }
         } catch (e) { /* session-only */ }
-    }
+    });
 
     function emit() {
         try {

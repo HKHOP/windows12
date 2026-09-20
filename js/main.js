@@ -20,8 +20,14 @@ import VirtualDesktops from './modules/virtualDesktops.js';
 import CrashMonitor from './modules/crashMonitor.js';
 import Keyboard from './modules/keyboard.js';
 import VirtualKeyboard from './modules/virtualKeyboard.js';
+import Users from './modules/users.js';
+import FSGuard from './modules/fsGuard.js';
+import LoginScreen from './modules/loginScreen.js';
 
-AppSystem.init();
+// Filesystem access policy: app code may always touch its own AppData,
+// anything else requires the 'filesystem' permission (see fsGuard.js).
+// Must be wired before any app can run; shell code stays unguarded.
+FileSystem.setAccessChecker(FSGuard.check);
 
 document.addEventListener('DOMContentLoaded', () => {
     window.SystemConfig = SystemConfig;
@@ -30,7 +36,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const s = Scaling.getScale();
     WindowManager.setScale(s);
 
+    // Boot order matters: FS first, then users (resolves the boot target,
+    // runs one-time migration), then user-aware app registration and
+    // per-user config/activity.
     FileSystem.init();
+    Users.init();
+    AppSystem.init();
     UserActivity.init();
     SystemConfig.init();
 
@@ -66,13 +77,17 @@ document.addEventListener('DOMContentLoaded', () => {
     WindowManager.setOnFocusChanged((appId) => {
         if (appId) {
             Taskbar.setActiveApp(appId);
+            FSGuard.setActiveApp(appId);
         } else {
             Taskbar.clearActiveApp();
+            // Desktop has the focus: shell context, no app attribution.
+            FSGuard.setActiveApp(null);
         }
     });
 
     WindowManager.setOnWindowCreated((appId, windowData) => {
         Taskbar.addRunningApp(appId, windowData);
+        FSGuard.setActiveApp(appId);
     });
 
     WindowManager.setOnWindowClosed((appId, windowId) => {
@@ -97,35 +112,8 @@ document.addEventListener('DOMContentLoaded', () => {
     desktop.style.opacity = '0';
     taskbar.style.opacity = '0';
 
-    setTimeout(() => {
-        const bootScreen = document.getElementById('boot-screen');
-        if (bootScreen) {
-            bootScreen.classList.add('fade-out');
-            setTimeout(() => {
-                bootScreen.remove();
-                const loginScreen = document.getElementById('login-screen');
-                if (loginScreen) {
-                    loginScreen.classList.remove('hidden');
-                    const config = SystemConfig.getAll();
-                    const username = config.userName || 'User';
-                    document.getElementById('login-username').textContent = username;
-                    const loginAvatar = loginScreen.querySelector('.login-avatar');
-                    if (loginAvatar) loginAvatar.textContent = username.charAt(0).toUpperCase();
-
-                    setTimeout(() => {
-                        loginScreen.classList.add('fade-out');
-                        setTimeout(() => {
-                            loginScreen.remove();
-                            desktop.style.transition = 'opacity 0.5s ease-out';
-                            taskbar.style.transition = 'opacity 0.5s ease-out';
-                            desktop.style.opacity = '1';
-                            taskbar.style.opacity = '1';
-                        }, 600);
-                    }, 2000);
-                }
-            }, 500);
-        }
-    }, 2000);
+    // Boot animation → user picker → sign-in → desktop (loginScreen.js).
+    LoginScreen.bootSequence();
 });
 
 function setupDesktopContextMenu() {
@@ -229,7 +217,7 @@ function setupScreenshotCapture() {
             ctx.fillText(now.toLocaleString(), canvas.width / 2, canvas.height / 2 + 15);
 
             const dataUrl = canvas.toDataURL('image/png');
-            const picturesPath = ['/', 'users', 'default', 'Pictures'];
+            const picturesPath = Users.home(['Pictures']);
             // Screenshots can exceed the localStorage budget — store raw
             // bytes in the blob store, falling back to inline on failure.
             canvas.toBlob(async (blob) => {

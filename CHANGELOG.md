@@ -4,6 +4,31 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4947] - 2026-09-21
+
+### Added
+- Multi-user system with login:
+  - `js/modules/users.js` — user accounts persisted at `/system/users/accounts.json` (display name, optional salted SHA-256 password, timestamps); account management API (create/rename/delete, set/remove password, verify) and per-user path helpers (`Users.home()`, `Users.appData()`, `Users.userData()`)
+  - `js/modules/loginScreen.js` — real boot flow: boot animation → user picker (last user highlighted) → password prompt (shake on error) for protected accounts → Welcome spinner → desktop
+  - Power menu gained **Lock**; **Switch user** / **Logout** now end the session (reload-based) into the user picker
+  - Settings > Accounts: full user management — your account card, other users list, add account (name + optional password), rename, remove, set/change/remove password, sign out
+  - Per-user data separation: home directories, system config (`/system/users/<id>/config.json`), start-menu pins, recent activity, notification history, background-app autostart, desktop icon layout, and installed store apps (`installed_apps_<userId>`)
+  - Per-user AppData: app data now lives at `/users/<id>/AppData/<appId>/`; apps may opt into the shared global store `/system/programs data/<appId>/` (new SDK `app.globalFiles`; `app.files` is per-user)
+  - Filesystem permission enforcement (`js/modules/fsGuard.js`): apps always access their own AppData folders; anything outside requires the manifest `filesystem` permission, or a one-time runtime consent dialog (Allow once / Always allow / Deny) for apps that don't declare it; OS-only zones (per-user OS data, permission grants, recycle bin internals) are off-limits to apps; paths picked in Save dialogs are granted for the session
+  - `Popup.custom()` for system dialogs with arbitrary buttons
+- One-time migration on first boot: the existing `/users/default` data and `installed_apps` become the first account (named from the previous `userName` setting); app-owned folders in `/system/programs data/` move into that user's AppData; OS per-user storage moves under `/system/users/<id>/programs data/`
+
+### Changed
+- Boot sequence reworked (`js/main.js`): `FileSystem.init()` → `Users.init()` → user-aware `AppSystem.init()` → per-user config/activity → shell → login flow; the static cosmetic `#login-screen` markup was removed from `index.html`
+- `filesystem` permission is now enforced (previously consent-only): builtins and store apps behave the same, and revoking it in Settings > Apps actually blocks outside-AppData file access
+- Builtins no longer bypass permission grants; declared permissions of builtin apps can be revoked like store apps
+- SDK `createApp().files` sandbox root moved from `/system/programs data/<id>/` to the current user's `AppData/<id>/`; `sdk/app.js` docs updated
+- ~100 hardcoded `/users/default` and `/system/programs data/<app>` paths across apps and modules replaced with `Users.home()` / `Users.appData()` helpers (module-scope path constants made lazy)
+- `APP_DEVELOPMENT_GUIDE.md` storage/permissions/SDK sections and `AGENTS.md` conventions updated for the multi-user AppData model
+
+### Fixed
+- `settings` app "Apps & data" storage shortcut pointed at the non-existent `/programs data` root — now points at the user's `AppData`
+
 ## [12.0.4946] - 2026-09-20
 
 ### Added

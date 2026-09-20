@@ -11,7 +11,16 @@ const WindowState = (() => {
         loadState();
     }
 
-    function loadState() {
+    // Shell-owned FS access (shield from fsGuard app attribution).
+    function asShell(fn) {
+        return (...args) => {
+            const g = window._FSGuard;
+            if (g) return g.asShell(fn)(...args);
+            return fn(...args);
+        };
+    }
+
+    const loadState = asShell(function loadState() {
         try {
             const fullPath = [...STATE_PATH, STATE_FILE];
             if (FileSystem.itemExists(fullPath)) {
@@ -23,9 +32,9 @@ const WindowState = (() => {
         } catch (e) {
             state = {};
         }
-    }
+    });
 
-    function saveState() {
+    const saveState = asShell(function saveState() {
         try {
             const json = JSON.stringify(state, null, 2);
             const fullPath = [...STATE_PATH, STATE_FILE];
@@ -38,7 +47,7 @@ const WindowState = (() => {
                 FileSystem.createFile(STATE_PATH, STATE_FILE, json, 'json');
             }
         } catch (e) {}
-    }
+    });
 
     function scheduleSave() {
         if (saveTimeout) clearTimeout(saveTimeout);

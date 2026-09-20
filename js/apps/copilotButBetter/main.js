@@ -8,10 +8,11 @@ import FileSystem from '../../modules/fileSystem.js';
 import Notifications from '../../modules/notifications.js';
 import BatchEngine from '../../modules/batchEngine.js';
 import Zip from '../../modules/zip.js';
+import Users from '../../modules/users.js';
 
 const CopilotButBetter = (() => {
     const APP_ID = 'copilotButBetter';
-    const DATA_PATH = ['/', 'system', 'programs data', 'copilotButBetter'];
+    const DATA_PATH = () => Users.appData('copilotButBetter');
     const SETTINGS_FILE = 'settings.json';
     const CONVS_FILE = 'conversations.json';
 
@@ -98,15 +99,15 @@ Available tools:
     ];
 
     function ensureDataDir() {
-        if (!FileSystem.itemExists(DATA_PATH)) {
-            FileSystem.createFolder(['/', 'system', 'programs data'], APP_ID);
+        if (!FileSystem.itemExists(DATA_PATH())) {
+            FileSystem.createFolder(Users.home(['AppData']), APP_ID);
         }
     }
 
     function readJson(name, fallback) {
         try {
             ensureDataDir();
-            const raw = FileSystem.readFile([...DATA_PATH, name]);
+            const raw = FileSystem.readFile([...DATA_PATH(), name]);
             if (!raw) return fallback;
             return JSON.parse(raw);
         } catch (e) {
@@ -117,9 +118,9 @@ Available tools:
     function writeJson(name, value) {
         ensureDataDir();
         const json = JSON.stringify(value);
-        const p = [...DATA_PATH, name];
+        const p = [...DATA_PATH(), name];
         if (FileSystem.itemExists(p)) FileSystem.writeFile(p, json);
-        else FileSystem.createFile(DATA_PATH, name, json, 'json');
+        else FileSystem.createFile(DATA_PATH(), name, json, 'json');
     }
 
     function loadSettings() {
@@ -307,17 +308,17 @@ Available tools:
 
     // ---------- agent workspaces (per-conversation temp dirs) ----------
     function workspacePath(convId) {
-        return [...DATA_PATH, 'workspaces', String(convId)];
+        return [...DATA_PATH(), 'workspaces', String(convId)];
     }
     function ensureWorkspace(convId) {
         try {
             ensureDataDir();
-            if (!FileSystem.itemExists([...DATA_PATH, 'workspaces'])) {
-                FileSystem.createFolder(DATA_PATH, 'workspaces');
+            if (!FileSystem.itemExists([...DATA_PATH(), 'workspaces'])) {
+                FileSystem.createFolder(DATA_PATH(), 'workspaces');
             }
             const ws = workspacePath(convId);
             if (!FileSystem.itemExists(ws)) {
-                FileSystem.createFolder([...DATA_PATH, 'workspaces'], String(convId));
+                FileSystem.createFolder([...DATA_PATH(), 'workspaces'], String(convId));
             }
         } catch (e) { /* best effort */ }
         return workspacePath(convId);
@@ -1619,13 +1620,13 @@ Available tools:
                 let settled = false;
                 const done = (v) => { if (!settled) { settled = true; resolve(v); } };
                 const places = [
-                    { name: 'Home', icon: '🏠', path: ['/', 'users', 'default'] },
-                    { name: 'Desktop', icon: '🖥️', path: ['/', 'users', 'default', 'Desktop'] },
-                    { name: 'Documents', icon: '📄', path: ['/', 'users', 'default', 'Documents'] },
-                    { name: 'Downloads', icon: '⬇️', path: ['/', 'users', 'default', 'Downloads'] },
-                    { name: 'Pictures', icon: '🖼️', path: ['/', 'users', 'default', 'Pictures'] },
-                    { name: 'Music', icon: '🎵', path: ['/', 'users', 'default', 'Music'] },
-                    { name: 'Videos', icon: '🎬', path: ['/', 'users', 'default', 'Videos'] }
+                    { name: 'Home', icon: '🏠', path: Users.home() },
+                    { name: 'Desktop', icon: '🖥️', path: Users.home(['Desktop']) },
+                    { name: 'Documents', icon: '📄', path: Users.home(['Documents']) },
+                    { name: 'Downloads', icon: '⬇️', path: Users.home(['Downloads']) },
+                    { name: 'Pictures', icon: '🖼️', path: Users.home(['Pictures']) },
+                    { name: 'Music', icon: '🎵', path: Users.home(['Music']) },
+                    { name: 'Videos', icon: '🎬', path: Users.home(['Videos']) }
                 ];
                 const icons = {
                     'txt': '📝', 'md': '📝', 'log': '📝', 'json': '📜', 'js': '📜',
@@ -1668,7 +1669,7 @@ Available tools:
                 const pathEl = del.querySelector('.cbb-pick-path');
                 const countEl = del.querySelector('.cbb-pick-count');
                 const okBtn = del.querySelector('.cbb-pick-ok');
-                let currentPath = ['/', 'users', 'default', 'Documents'];
+                let currentPath = Users.home(['Documents']);
                 const selected = new Set();
                 const keyOf = (p) => p.join('/');
                 function render() {

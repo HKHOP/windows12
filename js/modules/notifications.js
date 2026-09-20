@@ -5,6 +5,7 @@ import WindowManager from './windowManager.js';
 import Keyboard from './keyboard.js';
 import Permissions from './permissions.js';
 import { AppMetadata, Taskbar } from './taskbar.js';
+import Users from './users.js';
 
 // System notification center: Windows 11-style toasts + Action Center panel
 // with quick settings. Apps send info / action / forum notifications.
@@ -28,10 +29,22 @@ import { AppMetadata, Taskbar } from './taskbar.js';
 // 'replace' (superseded by tag).
 
 const Notifications = (() => {
-    const DATA_DIR = ['/', 'system', 'programs data', 'notifications'];
+    // Notification history is per-user.
+    function dataDir() {
+        return Users.userData(['notifications']);
+    }
     const MAX_STORED = 20;
     const DEFAULT_TIMEOUT = 6000;
     const CRITICAL_TIMEOUT = 15000;
+
+    // Shell-owned FS access (shield from fsGuard app attribution).
+    function asShell(fn) {
+        return (...args) => {
+            const g = window._FSGuard;
+            if (g) return g.asShell(fn)(...args);
+            return fn(...args);
+        };
+    }
 
     let seq = 1;
     const items = new Map();
@@ -57,13 +70,15 @@ const Notifications = (() => {
 
     // ---------------- persistence ----------------
     function ensureDataDir() {
-        if (!FileSystem.itemExists(DATA_DIR)) {
-            FileSystem.createFolder(['/', 'system', 'programs data'], 'notifications');
+        const dir = dataDir();
+        if (!FileSystem.itemExists(dir)) {
+            FileSystem.createFolder(dir.slice(0, -1), dir[dir.length - 1]);
         }
     }
-    function persist() {
+    const persist = asShell(function persist() {
         try {
             ensureDataDir();
+            const DATA_DIR = dataDir();
             const data = JSON.stringify({
                 dnd,
                 items: [...items.values()].slice(-MAX_STORED).map(it => ({
@@ -78,10 +93,10 @@ const Notifications = (() => {
             if (FileSystem.itemExists(p)) FileSystem.writeFile(p, data);
             else FileSystem.createFile(DATA_DIR, 'notifications.json', data, 'json');
         } catch (e) { /* session continues in memory */ }
-    }
-    function restore() {
+    });
+    const restore = asShell(function restore() {
         try {
-            const raw = FileSystem.readFile([...DATA_DIR, 'notifications.json']);
+            const raw = FileSystem.readFile([...dataDir(), 'notifications.json']);
             if (!raw) return;
             const d = JSON.parse(raw);
             dnd = !!d.dnd;
@@ -92,7 +107,7 @@ const Notifications = (() => {
                 if (Number.isFinite(n) && n >= seq) seq = n + 1;
             });
         } catch (e) { /* corrupt save -> start fresh */ }
-    }
+    });
 
     // ---------------- gating ----------------
     function appNameOf(appId) {

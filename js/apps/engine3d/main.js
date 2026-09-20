@@ -5,6 +5,7 @@
 import { Engine3D, FileSystem, Dialogs, Notifications, PointerLock, WindowManager as SDKWindowManager } from '../../sdk/index.js';
 import WindowManager from '../../modules/windowManager.js';
 import AppIcons from '../../modules/appIcons.js';
+import Users from '../../modules/users.js';
 
 // Bound lazily in bindEngine3D(): the registry <-> SDK import cycle leaves
 // the Engine3D export uninitialized while this module body evaluates.
@@ -15,8 +16,8 @@ function bindEngine3D() {
 
 const Engine3DApp = (() => {
     const icon = AppIcons.get('engine3d');
-    const DATA_PATH = ['/', 'system', 'programs data', 'engine3d'];
-    const SCENE_FILE = [...DATA_PATH, 'scene.json'];
+    const DATA_PATH = () => Users.appData('engine3d');
+    const SCENE_FILE = [...DATA_PATH(), 'scene.json'];
 
     let win = null;
     let engine = null;
@@ -204,8 +205,8 @@ const Engine3DApp = (() => {
     // ------------------------------------------------------------ persistence
 
     function ensureDataDir() {
-        if (!FileSystem.exists(DATA_PATH)) {
-            FileSystem.createFolder(['/', 'system', 'programs data'], 'engine3d');
+        if (!FileSystem.exists(DATA_PATH())) {
+            FileSystem.createFolder(Users.home(['AppData']), 'engine3d');
         }
     }
 
@@ -235,8 +236,8 @@ const Engine3DApp = (() => {
         ensureDataDir();
         const json = serializeScene();
         if (FileSystem.itemExists(SCENE_FILE)) FileSystem.writeFile(SCENE_FILE, json);
-        else FileSystem.createFile(DATA_PATH, 'scene.json', json, 'json');
-        Notifications.info('3D Sandbox', 'Scene saved to /system/programs data/engine3d/scene.json', { appId: 'engine3d' });
+        else FileSystem.createFile(DATA_PATH(), 'scene.json', json, 'json');
+        Notifications.info('3D Sandbox', 'Scene saved to your AppData (engine3d/scene.json)', { appId: 'engine3d' });
     }
 
     function loadScene(silent = false) {

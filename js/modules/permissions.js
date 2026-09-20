@@ -20,11 +20,13 @@
 //   microphone    getUserMedia audio ("Use your microphone")
 //   camera        getUserMedia video ("Use your camera")
 //
-// Trust model (honest): builtins are first-party and always granted.
-// Undeclared capabilities fail open (legacy back-compat). Only a DECLARED
-// permission can be revoked into an actual block — currently enforced at
-// the Notifications choke point; filesystem/network/clipboard are
-// consent + display until app code runs behind a sandbox.
+// Trust model (honest): undeclared capabilities fail open at the generic
+// level (legacy back-compat), but declared permissions are enforced —
+// notifications at the Notifications choke point, and filesystem via
+// FSGuard: an app may always touch its own AppData folders, while anything
+// outside them requires the 'filesystem' permission (revocable in
+// Settings > Apps). Apps that don't declare it get a one-time runtime
+// consent dialog instead (see requestFsAccess).
 import AppLoader from './appLoader.js';
 import FileSystem from './fileSystem.js';
 import Popup from './popup.js';
@@ -130,12 +132,20 @@ const Permissions = (() => {
     }
 
     function writeGrants(grants) {
-        try {
-            ensureDir();
-            const json = JSON.stringify(grants);
-            if (FileSystem.itemExists(GRANTS_PATH)) FileSystem.writeFile(GRANTS_PATH, json);
-            else FileSystem.createFile(DATA_DIR, 'grants.json', json, 'json');
-        } catch { /* session-only */ }
+        // Grant writes can be triggered from an app context (runtime consent,
+        // revocations) — they are OS-owned state, so shield them from the
+        // filesystem guard. window._FSGuard avoids a static import cycle.
+        const guard = window._FSGuard;
+        const run = guard ? guard.asShell(() => { try { _writeGrants(grants); } catch { /* session-only */ } })
+                          : () => { try { _writeGrants(grants); } catch { /* session-only */ } };
+        run();
+    }
+
+    function _writeGrants(grants) {
+        ensureDir();
+        const json = JSON.stringify(grants);
+        if (FileSystem.itemExists(GRANTS_PATH)) FileSystem.writeFile(GRANTS_PATH, json);
+        else FileSystem.createFile(DATA_DIR, 'grants.json', json, 'json');
     }
 
     function uuidOf(appId) {
@@ -150,12 +160,12 @@ const Permissions = (() => {
         return (all[uuid] && typeof all[uuid] === 'object') ? { ...all[uuid] } : {};
     }
 
-    // Builtins: always granted. Undeclared: fail open (legacy).
-    // Declared: granted unless explicitly revoked (missing record means
+    // Builtins and store apps behave the same here: declared permissions
+    // are granted unless explicitly revoked (missing record means
     // consent-at-install or grandfathered pre-permissions install).
+    // Undeclared permissions fail open (legacy).
     function isGranted(appId, perm) {
         if (!isKnown(perm)) return true;
-        if (isBuiltin(appId)) return true;
         if (!getDeclared(appId).includes(perm)) return true;
         return getGrants(appId)[perm] !== false;
     }
@@ -213,9 +223,45 @@ const Permissions = (() => {
         });
     }
 
+    // ---------- runtime filesystem consent (FSGuard) ----------
+
+    // "Always allow" grant for apps that never declared 'filesystem' —
+    // stored alongside the normal grants under a dedicated key so it can't
+    // collide with install-consent semantics.
+    function setFsAlways(appId, val) {
+        const uuid = uuidOf(appId);
+        if (!uuid) return false;
+        const all = readGrants();
+        if (!all[uuid] || typeof all[uuid] !== 'object') all[uuid] = {};
+        all[uuid].fsAlways = !!val;
+        writeGrants(all);
+        return true;
+    }
+
+    // Consent dialog when an app without the 'filesystem' permission touches
+    // a path outside its own data. Resolves 'session' | 'always' | 'deny'.
+    function requestFsAccess(appId, path) {
+        const man = manifestOf(appId);
+        const appName = man ? (man.name || appId) : appId;
+        const full = Array.isArray(path) ? path.join('/') : String(path || '');
+        const short = full.length > 64 ? '…' + full.slice(-63) : full;
+        const body = `
+            <div class="popup-message">
+                <b>${appName}</b> is trying to access files outside its own app data:<br><br>
+                <span style="font-family:monospace;font-size:12px;color:#9ecbff;word-break:break-all;">/${short}</span><br><br>
+                Allow access?
+            </div>`;
+        return Popup.custom('File access request', body, [
+            { label: 'Deny', value: 'deny' },
+            { label: 'Allow once', value: 'session' },
+            { label: 'Always allow', value: 'always', primary: true }
+        ], { width: 460, height: 280 });
+    }
+
     return {
-        getCatalog, isKnown, iconFor, getDeclared, isBuiltin,
+        getCatalog, isKnown, iconFor, getDeclared, isBuiltin, manifestOf,
         getGrants, isGranted, setGranted, grantAll, clearGrants,
+        setFsAlways, requestFsAccess,
         requestInstallConsent
     };
 })();

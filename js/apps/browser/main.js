@@ -3,6 +3,7 @@ import ContextMenu from '../../modules/contextMenu.js';
 import FileSystem from '../../modules/fileSystem.js';
 import AppIcons from '../../modules/appIcons.js';
 import Touch from '../../modules/touch.js';
+import Users from '../../modules/users.js';
 
 const Browser = (() => {
     const icon = AppIcons.get('browser');
@@ -18,9 +19,9 @@ const Browser = (() => {
         { name: 'MDN Docs', url: 'https://developer.mozilla.org/en-US/', color: '#005A9C', letter: 'D' }
     ];
 
-    const HISTORY_PATH = ['/', 'system', 'programs data', 'browser', 'history.json'];
-    const DOWNLOADS_PATH = ['/', 'system', 'programs data', 'browser', 'downloads.json'];
-    const EXT_NOTICE_PATH = ['/', 'system', 'programs data', 'browser', 'extNotice.json'];
+    const HISTORY_PATH = () => Users.appData('browser', ['history.json']);
+    const DOWNLOADS_PATH = () => Users.appData('browser', ['downloads.json']);
+    const EXT_NOTICE_PATH = () => Users.appData('browser', ['extNotice.json']);
     const MAX_CLOSED = 20;
 
     const EXT_CHROME_URL = 'https://chromewebstore.google.com/detail/ignore-x-frame-headers/gleekbfjekiniecknbkamfmkohkpodhe';
@@ -141,42 +142,42 @@ const Browser = (() => {
 
     function addHistoryEntry(url, title) {
         if (!url || url === 'about:blank') return;
-        const history = readJson(HISTORY_PATH, []);
+        const history = readJson(HISTORY_PATH(), []);
         history.unshift({ url, title: title || url, time: Date.now() });
         if (history.length > 500) history.length = 500;
-        writeJson(HISTORY_PATH, history);
+        writeJson(HISTORY_PATH(), history);
     }
 
     function getHistory() {
-        return readJson(HISTORY_PATH, []);
+        return readJson(HISTORY_PATH(), []);
     }
 
     function clearHistory() {
-        if (FileSystem.itemExists(HISTORY_PATH)) {
-            FileSystem.deleteItem(HISTORY_PATH);
+        if (FileSystem.itemExists(HISTORY_PATH())) {
+            FileSystem.deleteItem(HISTORY_PATH());
         }
     }
 
     function getDownloads() {
-        return readJson(DOWNLOADS_PATH, []);
+        return readJson(DOWNLOADS_PATH(), []);
     }
 
     function addDownload(name, size, path) {
         const downloads = getDownloads();
         downloads.unshift({ name, size, path, time: Date.now() });
         if (downloads.length > 100) downloads.length = 100;
-        writeJson(DOWNLOADS_PATH, downloads);
+        writeJson(DOWNLOADS_PATH(), downloads);
     }
 
     function isExtNoticeDismissed() {
         try {
-            const v = readJson(EXT_NOTICE_PATH, null);
+            const v = readJson(EXT_NOTICE_PATH(), null);
             return !!(v && v.dismissed);
         } catch { return false; }
     }
 
     function setExtNoticeDismissed(v) {
-        writeJson(EXT_NOTICE_PATH, { dismissed: !!v });
+        writeJson(EXT_NOTICE_PATH(), { dismissed: !!v });
     }
 
     function copyExtUrl(text, btn) {

@@ -1,6 +1,7 @@
 // Markdown Studio — split editor with live preview, .md associations.
 import { createApp, FileSystem } from '../../sdk/index.js';
 import AppIcons from '../../modules/appIcons.js';
+import Users from '../../modules/users.js';
 
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
@@ -82,7 +83,7 @@ function launch(openPath, openContent) {
     el.querySelector('.md-open').addEventListener('click', async () => {
         const name = await app.dialogs.text('Open file', 'File name in Documents (e.g. notes.md):');
         if (!name) return;
-        const p = ['/', 'users', 'default', 'Documents', name];
+        const p = Users.home(['Documents', name]);
         const content = FileSystem.readFile(p);
         if (content === null) { await app.dialogs.alert('Not found', `"${name}" was not found in Documents.`); return; }
         src.value = content; curPath = p; dirty = false; paint();

@@ -5,9 +5,10 @@ import FileSystem from '../../modules/fileSystem.js';
 import ContextMenu from '../../modules/contextMenu.js';
 import SystemConfig from '../../modules/systemConfig.js';
 import SavePrompt from '../../modules/saveprompt.js';
+import Users from '../../modules/users.js';
 
 const CellESheet = (() => {
-  const APP_ID='cellESheet', DOCS=['/','users','default','Documents'];
+  const APP_ID='cellESheet', DOCS=Users.home(['Documents']);
   const icon=AppIcons.get(APP_ID)||`<svg viewBox="0 0 24 24"><rect x="3" y="2" width="18" height="20" rx="3" fill="#217346"/><path d="M7 7h10M7 11h10M7 15h10M11 5v14M15 5v14" stroke="white" stroke-width="1.4"/></svg>`;
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const colName=n=>{let s='';for(n++;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s};

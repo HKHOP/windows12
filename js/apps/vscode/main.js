@@ -1,6 +1,7 @@
 import WindowManager from '../../modules/windowManager.js';
 import FileSystem from '../../modules/fileSystem.js';
 import AppIcons from '../../modules/appIcons.js';
+import Users from '../../modules/users.js';
 
 const VSCode = (() => {
     const icon = AppIcons.get('vscode');
@@ -8,8 +9,8 @@ const VSCode = (() => {
     let openTabs = [];
     let activeTab = null;
     let terminalVisible = false;
-    let projectRoot = ['/', 'users', 'default'];
-    let termCwd = [...projectRoot];
+    let projectRoot = () => Users.home();
+    let termCwd = [...projectRoot()];
     let termHistory = [];
     let termHistIdx = -1;
     let menuOpen = null;
@@ -179,8 +180,8 @@ const VSCode = (() => {
         openTabs = [];
         activeTab = null;
         terminalVisible = false;
-        projectRoot = ['/', 'users', 'default'];
-        termCwd = [...projectRoot];
+        projectRoot = () => Users.home();
+        termCwd = [...projectRoot()];
         termHistory = [];
         termHistIdx = -1;
         menuOpen = null;
@@ -259,10 +260,10 @@ const VSCode = (() => {
         `;
 
         const sidebarContent = body.querySelector('.vsc-sidebar-content');
-        sidebarContent.innerHTML = buildTree(projectRoot);
+        sidebarContent.innerHTML = buildTree(projectRoot());
 
         function refreshTree() {
-            sidebarContent.innerHTML = buildTree(projectRoot);
+            sidebarContent.innerHTML = buildTree(projectRoot());
             setupFileTreeEvents(el);
             refreshFn = refreshTree;
         }
@@ -270,7 +271,7 @@ const VSCode = (() => {
         function refreshSidebar(view) {
             const sidebarHeader = el.querySelector('.vsc-sidebar-header');
             if (view === 'explorer') {
-                sidebarContent.innerHTML = buildTree(projectRoot);
+                sidebarContent.innerHTML = buildTree(projectRoot());
                 setupFileTreeEvents(el);
                 sidebarHeader.querySelector('.vsc-project-label').textContent = 'EXPLORER';
             } else if (view === 'search') {
@@ -639,7 +640,7 @@ const VSCode = (() => {
 
         function updateTermPrompt() {
             const p = termCwd.join('/').replace('//', '/');
-            const home = '/users/default';
+            const home = Users.home().join('/');
             const short = p === home ? '~' : '~' + p.replace(home, '');
             termPrompt.textContent = `${short} > `;
         }
@@ -655,7 +656,7 @@ const VSCode = (() => {
             if (input.startsWith('/')) {
                 parts = input.split('/').filter(Boolean);
             } else if (input.startsWith('~/')) {
-                parts = ['/', 'users', 'default', ...input.slice(2).split('/').filter(Boolean)];
+                parts = Users.home([...input.slice(2).split('/').filter(Boolean)]);
             } else {
                 parts = [...termCwd, ...input.split('/').filter(Boolean)];
             }
@@ -725,7 +726,7 @@ const VSCode = (() => {
                 }
                 case 'cd': {
                     if (!args[0] || args[0] === '~') {
-                        termCwd = [...projectRoot];
+                        termCwd = [...projectRoot()];
                     } else if (args[0] === '/') {
                         termCwd = ['/'];
                     } else {
@@ -1037,7 +1038,7 @@ const VSCode = (() => {
         overlay.querySelector('.vsc-new-file-create').addEventListener('click', () => {
             const name = input.value.trim();
             if (!name) return;
-            const pathArr = [...projectRoot, ...name.split('/')];
+            const pathArr = [...projectRoot(), ...name.split('/')];
             const parentPath = pathArr.slice(0, -1);
             if (!FileSystem.itemExists(parentPath)) {
                 return;
@@ -1085,7 +1086,7 @@ const VSCode = (() => {
         overlay.querySelector('.vsc-new-folder-create').addEventListener('click', () => {
             const name = input.value.trim();
             if (!name) return;
-            const pathArr = [...projectRoot, ...name.split('/')];
+            const pathArr = [...projectRoot(), ...name.split('/')];
             const parentPath = pathArr.slice(0, -1);
             if (!FileSystem.itemExists(parentPath)) {
                 return;
@@ -1134,7 +1135,7 @@ const VSCode = (() => {
         overlay.querySelector('.vsc-saveas-save').addEventListener('click', () => {
             const name = input.value.trim();
             if (!name) return;
-            const pathArr = [...projectRoot, ...name.split('/')];
+            const pathArr = [...projectRoot(), ...name.split('/')];
             const parentPath = pathArr.slice(0, -1);
             if (!FileSystem.itemExists(parentPath)) {
                 return;
@@ -1171,13 +1172,13 @@ const VSCode = (() => {
                 <div style="font-size:14px;font-weight:600;color:#ccc;margin-bottom:12px;">Open Folder</div>
                 <div style="font-size:12px;color:#888;margin-bottom:8px;">Enter folder path to open as project root:</div>
                 <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
-                    <span class="vsc-folder-shortcut" data-path="/users/default" style="padding:4px 10px;background:#3c3c3c;border:1px solid #555;border-radius:4px;font-size:11px;color:#aaa;cursor:pointer;">~/default</span>
-                    <span class="vsc-folder-shortcut" data-path="/users/default/Desktop" style="padding:4px 10px;background:#3c3c3c;border:1px solid #555;border-radius:4px;font-size:11px;color:#aaa;cursor:pointer;">~/Desktop</span>
-                    <span class="vsc-folder-shortcut" data-path="/users/default/Documents" style="padding:4px 10px;background:#3c3c3c;border:1px solid #555;border-radius:4px;font-size:11px;color:#aaa;cursor:pointer;">~/Documents</span>
-                    <span class="vsc-folder-shortcut" data-path="/users/default/Documents/Projects" style="padding:4px 10px;background:#3c3c3c;border:1px solid #555;border-radius:4px;font-size:11px;color:#aaa;cursor:pointer;">~/Projects</span>
+                    <span class="vsc-folder-shortcut" data-path="${Users.home().join('/')}" style="padding:4px 10px;background:#3c3c3c;border:1px solid #555;border-radius:4px;font-size:11px;color:#aaa;cursor:pointer;">~</span>
+                    <span class="vsc-folder-shortcut" data-path="${Users.home(['Desktop']).join('/')}" style="padding:4px 10px;background:#3c3c3c;border:1px solid #555;border-radius:4px;font-size:11px;color:#aaa;cursor:pointer;">~/Desktop</span>
+                    <span class="vsc-folder-shortcut" data-path="${Users.home(['Documents']).join('/')}" style="padding:4px 10px;background:#3c3c3c;border:1px solid #555;border-radius:4px;font-size:11px;color:#aaa;cursor:pointer;">~/Documents</span>
+                    <span class="vsc-folder-shortcut" data-path="${Users.home(['Documents', 'Projects']).join('/')}" style="padding:4px 10px;background:#3c3c3c;border:1px solid #555;border-radius:4px;font-size:11px;color:#aaa;cursor:pointer;">~/Projects</span>
                     <span class="vsc-folder-shortcut" data-path="/" style="padding:4px 10px;background:#3c3c3c;border:1px solid #555;border-radius:4px;font-size:11px;color:#aaa;cursor:pointer;">/ (root)</span>
                 </div>
-                <input type="text" class="vsc-folder-input" style="width:100%;padding:8px 12px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;font-size:13px;outline:none;margin-bottom:12px;box-sizing:border-box;" value="${projectRoot.join('/').replace(/"/g, '&quot;')}" autofocus>
+                <input type="text" class="vsc-folder-input" style="width:100%;padding:8px 12px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;font-size:13px;outline:none;margin-bottom:12px;box-sizing:border-box;" value="${projectRoot().join('/').replace(/"/g, '&quot;')}" autofocus>
                 <div style="display:flex;justify-content:flex-end;gap:8px;">
                     <button class="vsc-folder-cancel" style="padding:6px 14px;background:#3c3c3c;border:1px solid #555;border-radius:4px;color:#ccc;cursor:pointer;font-size:12px;">Cancel</button>
                     <button class="vsc-folder-open" style="padding:6px 14px;background:#0078D4;border:none;border-radius:4px;color:white;cursor:pointer;font-size:12px;font-weight:500;">Open</button>
@@ -1207,8 +1208,8 @@ const VSCode = (() => {
             const val = input.value.trim();
             if (!val) return;
             const parts = val.split('/').filter(Boolean);
-            projectRoot = ['/', ...parts];
-            termCwd = [...projectRoot];
+            projectRoot = () => ['/', ...parts];
+            termCwd = [...projectRoot()];
             el.querySelector('.vsc-project-root').textContent = val;
             close();
             if (refreshFn) refreshFn();

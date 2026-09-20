@@ -23,7 +23,7 @@ function getContent(app, clicks, userName) {
             <div style="background:#282828;border:1px solid #383838;border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:12px;flex:1;">
                 <h3 style="font-size:16px;font-weight:500;margin:0;color:#fff;">SDK showcase</h3>
                 <p style="font-size:13px;color:#ccc;line-height:1.5;margin:0;">
-                    Counter persists in the app sandbox (<span style="font-family:Consolas,monospace;">/system/programs data/sampleApp/clicks.json</span>),
+                    Counter persists in the app sandbox (<span style="font-family:Consolas,monospace;">AppData/sampleApp/clicks.json (per user)</span>),
                     toasts go through Notifications, and the shortcut is registered centrally.
                 </p>
                 <div style="display:flex;gap:12px;flex-wrap:wrap;">

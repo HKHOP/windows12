@@ -2,17 +2,18 @@ import WindowManager from './windowManager.js';
 import FileSystem from './fileSystem.js';
 import UIIcons from './uiIcons.js';
 import Popup from './popup.js';
+import Users from './users.js';
 
 const SavePrompt = (() => {
     function buildSidebar() {
         const items = [
-            { name: 'Home', path: ['/', 'users', 'default'] },
-            { name: 'Desktop', path: ['/', 'users', 'default', 'Desktop'] },
-            { name: 'Documents', path: ['/', 'users', 'default', 'Documents'] },
-            { name: 'Downloads', path: ['/', 'users', 'default', 'Downloads'] },
-            { name: 'Pictures', path: ['/', 'users', 'default', 'Pictures'] },
-            { name: 'Music', path: ['/', 'users', 'default', 'Music'] },
-            { name: 'Videos', path: ['/', 'users', 'default', 'Videos'] }
+            { name: 'Home', path: Users.home() },
+            { name: 'Desktop', path: Users.home(['Desktop']) },
+            { name: 'Documents', path: Users.home(['Documents']) },
+            { name: 'Downloads', path: Users.home(['Downloads']) },
+            { name: 'Pictures', path: Users.home(['Pictures']) },
+            { name: 'Music', path: Users.home(['Music']) },
+            { name: 'Videos', path: Users.home(['Videos']) }
         ];
         return items.map(i => `
             <div class="save-sidebar-item" data-path='${JSON.stringify(i.path)}' style="padding:5px 8px;border-radius:4px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px;transition:background 0.12s;">
@@ -23,9 +24,18 @@ const SavePrompt = (() => {
 
     function show(opts = {}) {
         const defaultName = opts.defaultName || 'Untitled.txt';
-        const defaultPath = opts.defaultPath || ['/', 'users', 'default', 'Documents'];
+        const defaultPath = opts.defaultPath || Users.home(['Documents']);
         const extensions = opts.extensions || null;
         const parentApp = opts.parentApp || 'save-dialog';
+
+        // The user picks the target in this dialog, so the dialog's own FS
+        // browsing is shell-privileged and the picked folder is granted to
+        // the app for the session.
+        const shFS = (method, ...args) => {
+            const g = window._FSGuard;
+            const call = () => FileSystem[method](...args);
+            return g ? g.asShell(call)() : call();
+        };
 
         const extHtml = extensions
             ? `<select class="save-ext" style="min-width:90px;">${extensions.map(e => `<option value="${e.value}">${e.label}</option>`).join('')}</select>`
@@ -91,10 +101,10 @@ const SavePrompt = (() => {
         }
 
         function renderPath() {
-            const nameMap = { 'users': 'Users', 'default': 'User', 'system': 'System', 'programs data': 'Programs Data', '$Recycle.Bin': 'Recycle Bin' };
+            const nameMap = { 'users': 'Users', 'system': 'System', 'programs data': 'Programs Data', '$Recycle.Bin': 'Recycle Bin' };
             if (currentPath.length === 0 || (currentPath.length === 1 && currentPath[0] === '/')) {
                 pathEl.textContent = 'Local Disk (C:)';
-            } else if (currentPath.join('/') === '/users/default') {
+            } else if (currentPath.join('/') === Users.home().join('/')) {
                 pathEl.textContent = 'Home';
             } else {
                 pathEl.textContent = currentPath.map((p, i) => i === 0 ? 'Local Disk (C:)' : (nameMap[p] || p)).join(' > ');
@@ -105,7 +115,7 @@ const SavePrompt = (() => {
         }
 
         function navigateTo(path) {
-            if (!FileSystem.isFolder(path)) return;
+            if (!shFS('isFolder', path)) return;
             currentPath = path.slice();
             pathHistory = pathHistory.slice(0, historyIdx + 1);
             pathHistory.push(currentPath.slice());
@@ -115,7 +125,7 @@ const SavePrompt = (() => {
 
         function renderFolder() {
             renderPath();
-            const entries = FileSystem.getChildren(currentPath);
+            const entries = shFS('getChildren', currentPath);
             entries.sort((a, b) => {
                 if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
                 return a.name.localeCompare(b.name);
@@ -207,20 +217,30 @@ const SavePrompt = (() => {
                 const fullName = extensions && !name.includes('.') ? `${name}.${ext}` : name;
                 const pathDisplay = pathEl.textContent;
 
-                const existing = FileSystem.readFile([...currentPath, fullName]);
+                const existing = shFS('readFile', [...currentPath, fullName]);
                 if (existing !== null) {
                     Popup.confirm('Replace File', `"${fullName}" already exists. Replace it?`).then(ok => {
                         if (!ok) return;
                         WindowManager.closeWindow(saveWin.id);
                         showToast(`Saved "${fullName}" to ${pathDisplay}`);
-                        resolve({ path: currentPath.slice(), name: fullName, fullName, ext });
+                        grantAndResolve({ path: currentPath.slice(), name: fullName, fullName, ext });
                     });
                     return;
                 }
 
                 WindowManager.closeWindow(saveWin.id);
                 showToast(`Saved "${fullName}" to ${pathDisplay}`);
-                resolve({ path: currentPath.slice(), name: fullName, fullName, ext });
+                grantAndResolve({ path: currentPath.slice(), name: fullName, fullName, ext });
+            }
+
+            // The user explicitly chose this folder in the dialog — the app
+            // may write there without further prompts (this session).
+            function grantAndResolve(result) {
+                try {
+                    const g = window._FSGuard;
+                    if (g && parentApp) g.allowSession(parentApp, [...result.path, result.fullName]);
+                } catch { /* best effort */ }
+                resolve(result);
             }
 
             el.querySelector('.save-confirm-btn').addEventListener('click', doSave);

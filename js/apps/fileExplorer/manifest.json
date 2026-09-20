@@ -6,5 +6,8 @@
     "version": "1.0.0",
     "distribution": "builtin",
     "entry": "main.js",
-    "associations": []
+    "associations": [],
+    "permissions": [
+        "filesystem"
+    ]
 }

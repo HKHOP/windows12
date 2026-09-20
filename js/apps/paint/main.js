@@ -3,6 +3,7 @@ import FileSystem from '../../modules/fileSystem.js';
 import SavePrompt from '../../modules/saveprompt.js';
 import AppIcons from '../../modules/appIcons.js';
 import SystemConfig from '../../modules/systemConfig.js';
+import Users from '../../modules/users.js';
 
 const Paint = (() => {
     const icon = AppIcons.get('paint');
@@ -450,7 +451,7 @@ const Paint = (() => {
         el.querySelector('.paint-save-btn').addEventListener('click', () => {
             SavePrompt.show({
                 defaultName: 'painting.png',
-                defaultPath: ['/', 'users', 'default', 'Pictures'],
+                defaultPath: Users.home(['Pictures']),
                 extensions: [
                     { value: 'png', label: 'PNG' },
                     { value: 'jpeg', label: 'JPEG' },

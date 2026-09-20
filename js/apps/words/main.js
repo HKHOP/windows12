@@ -7,10 +7,11 @@ import SystemConfig from '../../modules/systemConfig.js';
 import UserActivity from '../../modules/userActivity.js';
 import Sounds from '../../modules/sounds.js';
 import SavePrompt from '../../modules/saveprompt.js';
+import Users from '../../modules/users.js';
 
 const Words = (() => {
     const APP_ID = 'words';
-    const DOCS = ['/', 'users', 'default', 'Documents'];
+    const DOCS = () => Users.home(['Documents']);
     const icon = AppIcons.get(APP_ID) || `<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="2" width="18" height="20" rx="2" fill="#3b82f6"/><path d="M7 7h10M7 11h10M7 15h7" stroke="white" stroke-width="1.6" stroke-linecap="round"/></svg>`;
 
     const state = {
@@ -101,7 +102,7 @@ const Words = (() => {
     }
 
     function ensureFolder() {
-        if (!FileSystem.itemExists(DOCS)) return false;
+        if (!FileSystem.itemExists(DOCS())) return false;
         return true;
     }
 
@@ -255,7 +256,7 @@ const Words = (() => {
             if (!FileSystem.writeFile(state.path, payload)) { await Popup.error('Save failed','Words could not write the document.'); return false; }
             state.dirty=false; updateTitle(win); Sounds.confirm(); return true;
         }
-        const result = await SavePrompt.show({defaultName:`${state.title || 'Untitled document'}.html`,defaultPath:DOCS,extensions:[{value:'html',label:'HTML Document'},{value:'txt',label:'Text Document'},{value:'md',label:'Markdown Document'}],parentApp:APP_ID});
+        const result = await SavePrompt.show({defaultName:`${state.title || 'Untitled document'}.html`,defaultPath:DOCS(),extensions:[{value:'html',label:'HTML Document'},{value:'txt',label:'Text Document'},{value:'md',label:'Markdown Document'}],parentApp:APP_ID});
         if (!result) return false;
         const full = [...result.path,result.fullName];
         const out = result.ext === 'txt' || result.ext === 'md' ? stripHtml(html) : payload;
@@ -275,11 +276,11 @@ const Words = (() => {
 
     async function open(win) {
         if(state.dirty){ const r=await Popup.confirm('Unsaved Changes','Save changes before opening another document?'); if(r && !(await save(win))) return; if(!r) return; }
-        const children=FileSystem.getChildren(DOCS)||[];
+        const children=FileSystem.getChildren(DOCS())||[];
         const candidates=children.filter(x=>x.type!=='folder' && /\.(html?|txt|md|markdown)$/i.test(x.name));
         if(!candidates.length){await Popup.info('Open Document','No supported documents were found in Documents.');return;}
         const pick=await Popup.pick('Open Document','Select a document:',candidates.map(x=>x.name)); if(!pick)return;
-        const path=[...DOCS,pick], raw=FileSystem.readFile(path); if(raw==null){await Popup.error('Open failed','Words could not read that file.');return;}
+        const path=[...DOCS(),pick], raw=FileSystem.readFile(path); if(raw==null){await Popup.error('Open failed','Words could not read that file.');return;}
         const payload=parsePayload(raw); win.element.querySelector('.words-editor').innerHTML=payload.html; state.path=path; state.title=pick.replace(/\.[^.]+$/,'')||'Untitled document'; state.dirty=false; updateTitle(win); renderObjects(win,payload.objects); updateStats(win); UserActivity.trackFileOpen(path,pick); Sounds.info();
     }
 

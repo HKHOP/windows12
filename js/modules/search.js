@@ -4,6 +4,7 @@ import FileSystem from './fileSystem.js';
 import AppIcons from './appIcons.js';
 import Flyout from './flyout.js';
 import AppLoader from './appLoader.js';
+import Users from './users.js';
 
 const Search = (() => {
     let panel = null;
@@ -61,7 +62,15 @@ const Search = (() => {
     function searchFiles(query) {
         const results = [];
         const q = query.toLowerCase();
-        function walk(path) {
+        // Shell-owned scan: search runs on behalf of the user, not the
+        // focused app, so shield it from fsGuard attribution.
+        const g = window._FSGuard;
+        const scan = g ? g.asShell(searchFilesImpl) : searchFilesImpl;
+        return scan(q, results);
+    }
+
+    function searchFilesImpl(q, results) {
+        const walk = (path) => {
             const children = FileSystem.getChildren(path);
             if (!children) return;
             for (const child of children) {
@@ -74,11 +83,11 @@ const Search = (() => {
                 }
             }
             if (results.length >= 10) return;
-        }
-        walk(['/', 'users', 'default', 'Documents']);
-        walk(['/', 'users', 'default', 'Desktop']);
-        walk(['/', 'users', 'default', 'Downloads']);
-        walk(['/', 'users', 'default', 'Pictures']);
+        };
+        walk(Users.home(['Documents']));
+        walk(Users.home(['Desktop']));
+        walk(Users.home(['Downloads']));
+        walk(Users.home(['Pictures']));
         return results;
     }
 
@@ -211,7 +220,10 @@ const Search = (() => {
                 const filePath = el.dataset.file.split('/');
                 const fileName = filePath.pop();
                 const ext = fileName.split('.').pop().toLowerCase();
-                const content = FileSystem.readFile(filePath);
+                // Shell-owned read on behalf of the user's search click.
+                const g = window._FSGuard;
+                const read = g ? g.asShell(() => FileSystem.readFile(filePath)) : () => FileSystem.readFile(filePath);
+                const content = read();
                 if (content === null) return;
                 const app = AppRegistry.get('notepad');
                 if (app) {

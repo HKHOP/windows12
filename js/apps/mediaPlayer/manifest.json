@@ -14,5 +14,8 @@
         "m4a",
         "mp4",
         "webm"
+    ],
+    "permissions": [
+        "filesystem"
     ]
 }

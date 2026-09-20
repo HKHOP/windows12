@@ -2,8 +2,9 @@
 import { createApp, FileSystem } from '../../sdk/index.js';
 import Zip from '../../modules/zip.js';
 import AppIcons from '../../modules/appIcons.js';
+import Users from '../../modules/users.js';
 
-const DOCS = ['/', 'users', 'default', 'Documents'];
+const DOCS = () => Users.home(['Documents']);
 const te = new TextEncoder();
 const td = new TextDecoder();
 
@@ -46,7 +47,7 @@ function launch(zipPath, zipContent) {
 
     function docFiles() {
         try {
-            return FileSystem.list(DOCS).filter(f => f.type !== 'folder');
+            return FileSystem.list(DOCS()).filter(f => f.type !== 'folder');
         } catch { return []; }
     }
 
@@ -71,16 +72,16 @@ function launch(zipPath, zipContent) {
             try {
                 const entries = [];
                 for (const n of checked) {
-                    const content = FileSystem.readFile([...DOCS, n]);
+                    const content = FileSystem.readFile([...DOCS(), n]);
                     if (content !== null) entries.push({ name: n, data: te.encode(content) });
                 }
                 const bytes = await Zip.createZip(entries);
                 const name = body.querySelector('.ar-name').value.trim() || 'archive.zip';
                 download(name, bytes);
                 const b64 = bytesToB64(bytes);
-                const full = [...DOCS, name];
+                const full = [...DOCS(), name];
                 if (FileSystem.exists(full)) FileSystem.write(full, b64);
-                else FileSystem.createFile(DOCS, name, b64, 'zip');
+                else FileSystem.createFile(DOCS(), name, b64, 'zip');
                 body.querySelector('.ar-msg').textContent = `Created ${name} (${entries.length} files, ${(bytes.length / 1024).toFixed(1)} KB) — downloaded and saved to Documents.`;
                 app.notify.info('Archiver', `${name} created.`);
             } catch (e) { body.querySelector('.ar-msg').textContent = 'Failed: ' + e.message; }
@@ -109,10 +110,10 @@ function launch(zipPath, zipContent) {
                 const data = await Zip.extractFile(bytes, e);
                 if (!data) { skipped++; continue; }
                 const base = e.name.split('/').pop() || `file${i}`;
-                const full = [...DOCS, base];
+                const full = [...DOCS(), base];
                 const text = td.decode(data);
                 if (FileSystem.exists(full)) FileSystem.write(full, text);
-                else FileSystem.createFile(DOCS, base, text, base.includes('.') ? base.split('.').pop() : '');
+                else FileSystem.createFile(DOCS(), base, text, base.includes('.') ? base.split('.').pop() : '');
                 ok++;
             }
             body.querySelector('.ar-msg').textContent = `Extracted ${ok} file(s) to Documents${skipped ? `, ${skipped} skipped (undecodable)` : ''}.`;
@@ -138,7 +139,7 @@ function launch(zipPath, zipContent) {
         body.querySelector('.ar-fsgo').addEventListener('click', () => {
             const n = body.querySelector('.ar-fsname').value.trim();
             if (!n) return;
-            const content = FileSystem.readFile([...DOCS, n]);
+            const content = FileSystem.readFile([...DOCS(), n]);
             if (content === null) { body.querySelector('.ar-msg').textContent = 'File not found in Documents.'; return; }
             try { showEntries(n, b64ToBytes(content)); }
             catch { body.querySelector('.ar-msg').textContent = 'That file is not an Archiver-made (base64) zip. Use the file picker for real zips.'; }

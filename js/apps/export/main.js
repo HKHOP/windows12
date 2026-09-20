@@ -32,16 +32,16 @@ const ExportImport = (() => {
                         <div class="exp-import-options" style="background:#252526;border:1px solid #3d3d3d;border-radius:8px;padding:16px;margin-bottom:20px;">
                             <div style="font-size:13px;font-weight:500;color:var(--text-primary);margin-bottom:12px;">Import to:</div>
                             <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                                <button class="exp-path-btn active" data-path="/users/default/Desktop" style="padding:6px 12px;background:rgba(0,120,212,0.2);border:1px solid #0078D4;border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Desktop</button>
-                                <button class="exp-path-btn" data-path="/users/default/Documents" style="padding:6px 12px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Documents</button>
-                                <button class="exp-path-btn" data-path="/users/default/Downloads" style="padding:6px 12px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Downloads</button>
-                                <button class="exp-path-btn" data-path="/users/default/Pictures" style="padding:6px 12px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Pictures</button>
-                                <button class="exp-path-btn" data-path="/users/default/Music" style="padding:6px 12px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Music</button>
-                                <button class="exp-path-btn" data-path="/users/default/Videos" style="padding:6px 12px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Videos</button>
+                                <button class="exp-path-btn active" data-path="${Users.home(['Desktop']).join('/')}" style="padding:6px 12px;background:rgba(0,120,212,0.2);border:1px solid #0078D4;border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Desktop</button>
+                                <button class="exp-path-btn" data-path="${Users.home(['Documents']).join('/')}" style="padding:6px 12px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Documents</button>
+                                <button class="exp-path-btn" data-path="${Users.home(['Downloads']).join('/')}" style="padding:6px 12px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Downloads</button>
+                                <button class="exp-path-btn" data-path="${Users.home(['Pictures']).join('/')}" style="padding:6px 12px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Pictures</button>
+                                <button class="exp-path-btn" data-path="${Users.home(['Music']).join('/')}" style="padding:6px 12px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Music</button>
+                                <button class="exp-path-btn" data-path="${Users.home(['Videos']).join('/')}" style="padding:6px 12px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Videos</button>
                             </div>
                             <div style="margin-top:12px;display:flex;align-items:center;gap:8px;">
                                 <span style="color:var(--text-secondary);font-size:12px;">Custom path:</span>
-                                <input type="text" class="exp-custom-path" placeholder="/users/default/..." style="flex:1;padding:6px 10px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:4px;color:var(--text-primary);font-size:12px;outline:none;">
+                                <input type="text" class="exp-custom-path" placeholder="/users/..." style="flex:1;padding:6px 10px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);border-radius:4px;color:var(--text-primary);font-size:12px;outline:none;">
                             </div>
                         </div>
                         <button class="exp-import-btn" disabled style="width:100%;padding:12px;background:#0078D4;border:none;border-radius:6px;color:white;font-size:13px;font-weight:500;cursor:not-allowed;opacity:0.5;">Import Files</button>
@@ -65,7 +65,7 @@ const ExportImport = (() => {
         const el = win.element;
 
         let selectedFiles = [];
-        let importPath = '/users/default/Desktop';
+        let importPath = Users.home(['Desktop']).join('/');
         let exportSelection = new Set();
 
         const dropzone = el.querySelector('.exp-dropzone');
@@ -215,13 +215,14 @@ const ExportImport = (() => {
 
         function renderExportTree() {
             // Root the tree at Local Disk (C:) so the whole drive — not just
-            // home — is browsable. The users/default chain auto-expands so
-            // home contents stay one glance away like before.
+            // home — is browsable. The current user's home chain auto-expands
+            // so home contents stay one glance away like before.
+            const homeStr = Users.home().join('/');
             fileTree.innerHTML = `
                 <div style="padding:4px 8px;font-size:12px;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:6px;">
                     <span>💽</span><span>Local Disk (C:)</span>
                 </div>` + buildExportTree(['/']);
-            for (const p of ['//users', '//users/default']) {
+            for (const p of ['//users', '/' + homeStr]) {
                 const folder = fileTree.querySelector(`.exp-folder[data-path="${p}"]`);
                 if (folder) folder.click();
             }

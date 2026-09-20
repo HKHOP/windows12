@@ -3,12 +3,13 @@ import AppIcons from '../../modules/appIcons.js';
 import Popup from '../../modules/popup.js';
 import FileSystem from '../../modules/fileSystem.js';
 import SavePrompt from '../../modules/saveprompt.js';
+import Users from '../../modules/users.js';
 
 const MusicSpark = (() => {
     const APP_ID = 'musicSpark';
-    const DATA_DIR = ['/', 'system', 'programs data', 'musicSpark'];
-    const DOCS_DIR = ['/', 'users', 'default', 'Documents'];
-    const MUSIC_DIR = ['/', 'users', 'default', 'Music'];
+    const DATA_DIR = () => Users.appData('musicSpark');
+    const DOCS_DIR = () => Users.home(['Documents']);
+    const MUSIC_DIR = () => Users.home(['Music']);
 
     const DRUMS = [
         { id: 'kick', name: 'Kick', color: '#ff5252' },
@@ -441,8 +442,8 @@ const MusicSpark = (() => {
 
     // ---------------- persistence ----------------
     function ensureDataDir() {
-        if (!FileSystem.itemExists(DATA_DIR)) {
-            FileSystem.createFolder(['/', 'system', 'programs data'], 'musicSpark');
+        if (!FileSystem.itemExists(DATA_DIR())) {
+            FileSystem.createFolder(Users.home(['AppData']), 'musicSpark');
         }
     }
     function serialize(st) {
@@ -528,15 +529,15 @@ const MusicSpark = (() => {
         autosaveTimer = setTimeout(() => {
             try {
                 ensureDataDir();
-                const p = [...DATA_DIR, 'autosave.json'];
+                const p = [...DATA_DIR(), 'autosave.json'];
                 if (FileSystem.itemExists(p)) FileSystem.writeFile(p, serialize(st));
-                else FileSystem.createFile(DATA_DIR, 'autosave.json', serialize(st), 'json');
+                else FileSystem.createFile(DATA_DIR(), 'autosave.json', serialize(st), 'json');
             } catch (e) { /* storage may be full; ignore */ }
         }, 800);
     }
     function loadAutosave() {
         try {
-            const raw = FileSystem.readFile([...DATA_DIR, 'autosave.json']);
+            const raw = FileSystem.readFile([...DATA_DIR(), 'autosave.json']);
             if (raw) return deserialize(raw);
         } catch (e) { /* ignore */ }
         return null;
@@ -1300,7 +1301,7 @@ const MusicSpark = (() => {
         if (!name) return;
         const res = await SavePrompt.show({
             defaultName: name.replace(/[\\/:*?"<>|]/g, '').slice(0, 40) + '.mspark',
-            defaultPath: DOCS_DIR,
+            defaultPath: DOCS_DIR(),
             extensions: [{ value: 'mspark', label: 'Music Spark project' }],
             parentApp: APP_ID
         });
@@ -1328,10 +1329,10 @@ const MusicSpark = (() => {
                 if (k.type === 'file' && k.name.endsWith('.mspark')) projects.push({ label: prefix + k.name, path: [...dir, k.name] });
             });
         };
-        scan(DOCS_DIR, '');
-        scan(MUSIC_DIR, 'Music/');
+        scan(DOCS_DIR(), '');
+        scan(MUSIC_DIR(), 'Music/');
         ensureDataDir();
-        scan(DATA_DIR, '(autosave dir) ');
+        scan(DATA_DIR(), '(autosave dir) ');
         if (projects.length === 0) {
             await Popup.info('Open project', 'No saved .mspark projects found yet. Save one first!');
             return;
@@ -1376,9 +1377,9 @@ const MusicSpark = (() => {
             // Stored as raw bytes in the IndexedDB blob store — no base64
             // inflation, no localStorage quota involved.
             const blob = new Blob([buf], { type: 'audio/wav' });
-            const target = [...MUSIC_DIR, fileName];
+            const target = [...MUSIC_DIR(), fileName];
             if (FileSystem.itemExists(target)) FileSystem.permanentDelete(target);
-            const ok = await FileSystem.writeFileBlob(MUSIC_DIR, fileName, blob, 'wav');
+            const ok = await FileSystem.writeFileBlob(MUSIC_DIR(), fileName, blob, 'wav');
             if (!ok) {
                 const dl = await Popup.confirm('Music folder full',
                     `"${fileName}" is about ${mb} MB and could not be stored on the virtual disk. Download it straight to your device instead?`);
