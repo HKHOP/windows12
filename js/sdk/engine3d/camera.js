@@ -94,8 +94,9 @@ export class OrbitControls {
 
         this._onDown = (e) => {
             if (!this.enabled) return;
+            if (e.button === BUTTON.RIGHT) return; // let context menu work
             canvas.setPointerCapture?.(e.pointerId);
-            this._dragging = e.button === BUTTON.RIGHT || e.shiftKey ? 2 : 1;
+            this._dragging = e.button === BUTTON.MIDDLE || e.shiftKey ? 2 : 1;
             this._lastX = e.clientX; this._lastY = e.clientY;
             e.preventDefault();
         };
@@ -106,7 +107,9 @@ export class OrbitControls {
             this._lastX = e.clientX; this._lastY = e.clientY;
             if (this._dragging === 1) {
                 spherical.yaw -= dx * 0.006;
-                spherical.pitch = clamp(spherical.pitch + dy * 0.006, this.minPolar, this.maxPolar);
+                // Keep up/down mouse movement consistent regardless of camera yaw
+                const pitchDir = Math.sign(Math.cos(spherical.yaw)) || 1;
+                spherical.pitch = clamp(spherical.pitch - dy * 0.006 * pitchDir, this.minPolar, this.maxPolar);
             } else {
                 const panScale = spherical.dist * 0.0016;
                 this._pan(-dx * panScale, dy * panScale);
@@ -250,14 +253,16 @@ export class FlyControls {
         canvas.addEventListener('pointermove', this._onMove);
         canvas.addEventListener('pointerup', this._onUp);
         canvas.addEventListener('wheel', this._onWheel, { passive: false });
-        canvas.addEventListener('keydown', this._onKeyDown);
-        canvas.addEventListener('keyup', this._onKeyUp);
-        canvas.addEventListener('blur', this._onBlur);
+        window.addEventListener('keydown', this._onKeyDown);
+        window.addEventListener('keyup', this._onKeyUp);
+        window.addEventListener('blur', this._onBlur);
     }
 
     setEnabled(on) {
         this.enabled = on;
-        if (!on) {
+        if (on) {
+            this.canvas.focus();
+        } else {
             this.keys.clear();
             if (this.lockAdapter) this.lockAdapter.exit();
             else if (document.pointerLockElement === this.canvas) document.exitPointerLock?.();
@@ -296,8 +301,8 @@ export class FlyControls {
         c.removeEventListener('pointermove', this._onMove);
         c.removeEventListener('pointerup', this._onUp);
         c.removeEventListener('wheel', this._onWheel);
-        c.removeEventListener('keydown', this._onKeyDown);
-        c.removeEventListener('keyup', this._onKeyUp);
-        c.removeEventListener('blur', this._onBlur);
+        window.removeEventListener('keydown', this._onKeyDown);
+        window.removeEventListener('keyup', this._onKeyUp);
+        window.removeEventListener('blur', this._onBlur);
     }
 }

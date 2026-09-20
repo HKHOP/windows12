@@ -20,6 +20,8 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 
 ### Fixed
 - SDK Engine3D `OrbitControls`: pointer capture was never released on `pointerup`/`pointercancel`, causing right-click pan or any drag to lock pointer capture and freeze camera controls permanently
+- SDK Engine3D `OrbitControls`: right-click is now ignored so context menus work normally (panning uses middle-click or shift+left-click), pitch drag direction corrected so moving mouse up/down tilts correctly, and `FlyControls` key events bound to `window` with automatic canvas focus so WASD works reliably in fly mode
+- SDK Engine3D `OrbitControls`: up/down mouse drag is now consistent regardless of camera yaw (looking backward no longer inverts vertical drag)
 
 ## [12.0.4945] - 2026-09-19
 
