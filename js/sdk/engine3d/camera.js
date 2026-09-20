@@ -114,7 +114,12 @@ export class OrbitControls {
             this._apply();
             e.preventDefault();
         };
-        this._onUp = () => { this._dragging = 0; };
+        this._onUp = (e) => {
+            if (this._dragging) {
+                try { canvas.releasePointerCapture?.(e.pointerId); } catch (err) {}
+            }
+            this._dragging = 0;
+        };
         this._onWheel = (e) => {
             if (!this.enabled) return;
             const zoom = Math.exp(Math.sign(e.deltaY) * 0.12);

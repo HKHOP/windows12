@@ -18,6 +18,9 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
   - Exported via `js/sdk/index.js` as `Engine3D` namespace; `js/sdk/types.d.ts` updated
   - `js/apps/engine3d/` demo app showcasing the engine
 
+### Fixed
+- SDK Engine3D `OrbitControls`: pointer capture was never released on `pointerup`/`pointercancel`, causing right-click pan or any drag to lock pointer capture and freeze camera controls permanently
+
 ## [12.0.4945] - 2026-09-19
 
 ### Added
