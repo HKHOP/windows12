@@ -4,7 +4,7 @@
     "uuid": "8c671a5d-e112-4fb9-a80d-96b26cb6b2f7",
     "name": "3D Sandbox",
     "version": "1.0.0",
-    "distribution": "builtin",
+    "distribution": "store",
     "entry": "main.js",
     "associations": [],
     "permissions": ["filesystem", "notifications"],
