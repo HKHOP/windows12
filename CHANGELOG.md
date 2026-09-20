@@ -6,8 +6,17 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 
 ## [12.0.4946] - 2026-09-20
 
-### Fixed
-- SDK Engine3D: `camera.js` now imports `Node` from `scene.js` — the `Camera` class extends `Node` but was missing the import, causing a runtime error when the module was loaded
+### Added
+- SDK Engine3D — a full 3D rendering engine (`js/sdk/engine3d/`) with:
+  - `math.js` — Vec3, Mat4, Quat, AABB, frustum, random, scratch buffers
+  - `geometry.js` — BufferGeometry, primitives (box, sphere, plane, cylinder, cone, torus, capsule), computed normals/tangents/UVs, bounding sphere/box, instancing support
+  - `materials.js` — Material base + StandardMaterial (PBR metallic-roughness, normal/emissive/occlusion maps), ShaderMaterial (custom GLSL), MaterialLibrary
+  - `scene.js` — Node, Group, Mesh, InstancedMesh, Scene, lights (Ambient/Directional/Point/Spot), Raycaster (mesh + instanced picking)
+  - `camera.js` — PerspectiveCamera, OrbitControls, FlyControls (pointer-lock + drag fallback)
+  - `renderer.js` — WebGL2 forward renderer: clustered lighting (16 directional, 64 point, 64 spot), shadow maps (directional cascades + point cube), SSR, tone mapping (ACES), FXAA, gamma-correct sRGB, HDR render target, resize handling
+  - `engine.js` — Engine orchestrator (canvas, renderer, scene, camera, resize, render loop), post-effect pipeline, stats overlay
+  - Exported via `js/sdk/index.js` as `Engine3D` namespace; `js/sdk/types.d.ts` updated
+  - `js/apps/engine3d/` demo app showcasing the engine
 
 ## [12.0.4945] - 2026-09-19
 
