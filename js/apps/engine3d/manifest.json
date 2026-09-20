@@ -1,0 +1,37 @@
+{
+    "manifestVersion": 1,
+    "id": "engine3d",
+    "uuid": "8c671a5d-e112-4fb9-a80d-96b26cb6b2f7",
+    "name": "3D Sandbox",
+    "version": "1.0.0",
+    "distribution": "builtin",
+    "entry": "main.js",
+    "associations": [],
+    "permissions": ["filesystem", "notifications"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Developer tools",
+        "rating": "4.8",
+        "reviews": "356",
+        "description": "Interactive playground for the Windows 12 SDK 3D Engine (Engine3D). Add primitives, light the scene, toggle shadows and fog, fly or orbit the camera, and save/load scenes.",
+        "features": [
+            "Built on the SDK Engine3D WebGL engine",
+            "Real-time shadows, fog and gradient sky",
+            "Orbit and first-person fly cameras",
+            "Raycast picking and instancing demo",
+            "Scene save/load to the virtual file system"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #0f2027, #2c5364)",
+                "text": "3D Viewport"
+            },
+            {
+                "bg": "linear-gradient(135deg, #2c5364, #0f2027)",
+                "text": "Primitives & Lights"
+            }
+        ],
+        "size": "1 MB",
+        "ageRating": "3+"
+    }
+}

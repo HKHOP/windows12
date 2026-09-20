@@ -34,6 +34,7 @@ import { PointerLock } from './pointerLock.js';
 import { Input } from './input.js';
 import { Audio } from './audio.js';
 import { SDKError, ErrorCodes } from './errors.js';
+import { Engine3D } from './engine3d/engine.js';
 
 /** SDK major contract version (semver, independent of the OS version). */
 const SDK_VERSION = '1.2.0';
@@ -62,6 +63,7 @@ const Windows12 = {
     PointerLock,
     Input,
     Audio,
+    Engine3D,
     SDKError,
     ErrorCodes
 };
@@ -88,6 +90,7 @@ export {
     PointerLock,
     Input,
     Audio,
+    Engine3D,
     SDKError,
     ErrorCodes
 };

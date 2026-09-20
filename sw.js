@@ -70,6 +70,7 @@ const urlsToCache = [
     './js/apps/clock/main.js',
     './js/apps/copilotButBetter/main.js',
     './js/apps/discord/main.js',
+    './js/apps/engine3d/main.js',
     './js/apps/export/main.js',
     './js/apps/fileExplorer/main.js',
     './js/apps/game2048/main.js',

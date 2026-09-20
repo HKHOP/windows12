@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4946] - 2026-09-20
+
+### Fixed
+- SDK Engine3D: `camera.js` now imports `Node` from `scene.js` — the `Camera` class extends `Node` but was missing the import, causing a runtime error when the module was loaded
+
 ## [12.0.4945] - 2026-09-19
 
 ### Added
