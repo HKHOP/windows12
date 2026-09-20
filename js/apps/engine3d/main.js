@@ -204,7 +204,7 @@ const Engine3DApp = (() => {
     // ------------------------------------------------------------ persistence
 
     function ensureDataDir() {
-        if (!FileSystem.itemExists(DATA_PATH)) {
+        if (!FileSystem.exists(DATA_PATH)) {
             FileSystem.createFolder(['/', 'system', 'programs data'], 'engine3d');
         }
     }
