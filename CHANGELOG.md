@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4948] - 2026-09-21
+
+### Removed
+- The "User Name" edit box from Settings > Personalization — account names are managed in Settings > Accounts now
+
 ## [12.0.4947] - 2026-09-21
 
 ### Added

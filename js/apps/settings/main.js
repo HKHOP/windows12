@@ -954,10 +954,7 @@ const Settings = (() => {
 
             <div class="settings-section" style="margin-bottom:24px;">
                 <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">User Name</h3>
-                <div style="display:flex;gap:8px;">
-                    <input type="text" class="username-input" value="${(Users.getCurrent()||{}).name || config.userName}" style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;padding:8px 12px;color:var(--text-primary);font-size:14px;flex:1;max-width:300px;outline:none;">
-                    <button class="username-save" style="background:var(--accent-color);border:none;border-radius:6px;padding:8px 16px;color:white;cursor:pointer;font-size:14px;">Save</button>
-                </div>
+                <div style="font-size:14px;color:var(--text-secondary);">Your account name is managed in <b>Accounts</b>.</div>
             </div>
 
             <div class="settings-section">
@@ -1401,22 +1398,6 @@ const Settings = (() => {
                 renderPersonalization(win.element.querySelector('.settings-content'));
             });
         });
-
-        const usernameInput = win.element.querySelector('.username-input');
-        const usernameSave = win.element.querySelector('.username-save');
-        if (usernameSave) {
-            usernameSave.addEventListener('click', () => {
-                const name = usernameInput.value.trim();
-                if (name) {
-                    // Display name belongs to the account now; keep the
-                    // legacy config key in sync for anything that reads it.
-                    const me = Users.getCurrent();
-                    if (me) Users.renameAccount(me.id, name);
-                    SystemConfig.set('userName', name);
-                    win.element.querySelector('.settings-username').textContent = name;
-                }
-            });
-        }
 
         const resetBtn = win.element.querySelector('.reset-btn');
         if (resetBtn) {
