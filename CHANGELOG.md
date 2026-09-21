@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4950] - 2026-09-21
+
+### Changed
+- **Minecraft Java** launcher: per-version touch-control support is now three-state (supported / unknown / unsupported) — supported: 1.12.2, 1.5.2 and all legacy builds (toggle defaults on); unknown: 26.2, 26.1, 1.21.11, 1.20.4 (off, but togglable); unsupported: 1.8.8 (toggle disabled). Each version row shows its known support level
+
+### Fixed
+- Task View taskbar icon ignored the theme: `.taskbar-btn` now inherits `color: var(--text-primary)` (buttons default to the browser's own text color, so the icon's `currentColor` stroke rendered near-black in dark mode); start/search/tray icons already had explicit overrides, the Task View button was the one miss
+
 ## [12.0.4949] - 2026-09-21
 
 ### Added

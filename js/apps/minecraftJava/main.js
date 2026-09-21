@@ -10,21 +10,28 @@ import AppIcons from '../../modules/appIcons.js';
 // Eaglermobile userscript adds on-screen touch controls to compatible clients.
 const TOUCH_USERSCRIPT = 'flameddogo99-eaglermobile.js';
 
-// Newest first. `touch` is the default state of the touch-controls toggle —
-// only eaglercraft.com clients are known to accept the userscript parameter.
+// Newest first. `touch` is the client's known touch-controls support:
+// 'supported' (defaults the toggle on), 'unknown' (off, but togglable),
+// 'unsupported' (toggle disabled).
 const VERSIONS = [
-    { id: '26.2', label: '26.2', group: 'Snapshots', url: 'https://eaglercraft-26-2-client.u2471966200.workers.dev/', touch: false },
-    { id: '26.1', label: '26.1', group: 'Snapshots', url: 'https://github.com/thebananamanjcgaming/EaglercraftZ-26.1.1/blob/main/index.html', touch: false },
-    { id: '1.21.11', label: '1.21.11 (WASM)', group: 'Releases', url: 'https://www.mediafire.com/file/2oqt9ihytokhvh3/Eaglercraft_1.21.11_WASM_Offline_Download_(7)_(1).html/file', touch: false },
-    { id: '1.20.4', label: '1.20.4', group: 'Releases', url: 'https://github.com/XxFluffyAsherxX/Eaglercraft-1.20.4-Updated-/blob/main/index%20(2).html', touch: false },
-    { id: '1.12.2', label: '1.12.2 (WASM)', group: 'Releases', url: 'https://eaglercraft.com/play?version=1.12.2-wasm', touch: true },
-    { id: '1.8.8', label: '1.8.8 (WASM)', group: 'Releases', url: 'https://eaglercraft.com/play?version=1.8.8-wasm', touch: true },
-    { id: '1.5.2', label: '1.5.2', group: 'Releases', url: 'https://eaglercraft.com/play?version=1.5.2', touch: true },
-    { id: 'b1.7.3', label: 'Beta 1.7.3', group: 'Legacy', url: 'https://eaglercraft.com/play?version=b1.7.3', touch: true },
-    { id: 'b1.3', label: 'Beta 1.3', group: 'Legacy', url: 'https://eaglercraft.com/play?version=b1.3', touch: true },
-    { id: 'a1.2.6', label: 'Alpha 1.2.6', group: 'Legacy', url: 'https://eaglercraft.com/play?version=a1.2.6', touch: true },
-    { id: 'indev', label: 'Indev', group: 'Legacy', url: 'https://eaglercraft.com/play?version=indev', touch: true },
+    { id: '26.2', label: '26.2', group: 'Snapshots', url: 'https://eaglercraft-26-2-client.u2471966200.workers.dev/', touch: 'unknown' },
+    { id: '26.1', label: '26.1', group: 'Snapshots', url: 'https://github.com/thebananamanjcgaming/EaglercraftZ-26.1.1/blob/main/index.html', touch: 'unknown' },
+    { id: '1.21.11', label: '1.21.11 (WASM)', group: 'Releases', url: 'https://www.mediafire.com/file/2oqt9ihytokhvh3/Eaglercraft_1.21.11_WASM_Offline_Download_(7)_(1).html/file', touch: 'unknown' },
+    { id: '1.20.4', label: '1.20.4', group: 'Releases', url: 'https://github.com/XxFluffyAsherxX/Eaglercraft-1.20.4-Updated-/blob/main/index%20(2).html', touch: 'unknown' },
+    { id: '1.12.2', label: '1.12.2 (WASM)', group: 'Releases', url: 'https://eaglercraft.com/play?version=1.12.2-wasm', touch: 'supported' },
+    { id: '1.8.8', label: '1.8.8 (WASM)', group: 'Releases', url: 'https://eaglercraft.com/play?version=1.8.8-wasm', touch: 'unsupported' },
+    { id: '1.5.2', label: '1.5.2', group: 'Releases', url: 'https://eaglercraft.com/play?version=1.5.2', touch: 'supported' },
+    { id: 'b1.7.3', label: 'Beta 1.7.3', group: 'Legacy', url: 'https://eaglercraft.com/play?version=b1.7.3', touch: 'supported' },
+    { id: 'b1.3', label: 'Beta 1.3', group: 'Legacy', url: 'https://eaglercraft.com/play?version=b1.3', touch: 'supported' },
+    { id: 'a1.2.6', label: 'Alpha 1.2.6', group: 'Legacy', url: 'https://eaglercraft.com/play?version=a1.2.6', touch: 'supported' },
+    { id: 'indev', label: 'Indev', group: 'Legacy', url: 'https://eaglercraft.com/play?version=indev', touch: 'supported' },
 ];
+
+const TOUCH_HINT = {
+    'supported': 'Touch controls supported',
+    'unknown': 'Touch support unknown',
+    'unsupported': 'Touch controls not supported',
+};
 
 const GROUP_ORDER = ['Snapshots', 'Releases', 'Legacy'];
 
@@ -51,7 +58,7 @@ function launcherHtml(lastPlayed) {
             <div class="mcj-row" data-version="${v.id}">
                 <div class="mcj-row-info">
                     <div class="mcj-row-name">${v.label}</div>
-                    <div class="mcj-row-touch">${v.touch ? 'Touch controls available' : 'Touch controls may not be supported'}</div>
+                    <div class="mcj-row-touch">${TOUCH_HINT[v.touch]}</div>
                 </div>
                 <button class="mcj-play-btn" title="Play ${v.label}">Play</button>
             </div>
@@ -77,7 +84,7 @@ function launcherHtml(lastPlayed) {
                 ${lastChip}
             </div>
             <div class="mcj-list">${groups}</div>
-            <div class="mcj-footnote">Touch controls use the Eaglermobile userscript and are only supported by some clients.
+            <div class="mcj-footnote">Touch controls use the Eaglermobile userscript; support varies by client — each version shows what's known.
                 If a client refuses to load, its host may not allow embedding.</div>
         </div>
     `;
@@ -94,8 +101,8 @@ function gameHtml(version) {
                     Versions
                 </button>
                 <div class="mcj-game-title">Minecraft Java — ${version.label}</div>
-                <label class="mcj-touch-toggle" title="Reload with on-screen touch controls">
-                    <input type="checkbox" class="mcj-touch-check" ${version.touch ? 'checked' : ''}>
+                <label class="mcj-touch-toggle" title="${TOUCH_HINT[version.touch]}">
+                    <input type="checkbox" class="mcj-touch-check" ${version.touch === 'supported' ? 'checked' : ''} ${version.touch === 'unsupported' ? 'disabled' : ''}>
                     Touch controls
                 </label>
                 <button class="mcj-fullscreen" title="Fullscreen (F11)">

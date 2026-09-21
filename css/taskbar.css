@@ -59,6 +59,9 @@
     justify-content: center;
     transition: background 0.15s;
     position: relative;
+    /* Buttons don't inherit text color by default — without this,
+       currentColor icons (Task View) ignore the theme. */
+    color: var(--text-primary);
 }
 
 .taskbar-btn:hover {
