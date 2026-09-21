@@ -49,11 +49,17 @@ const Settings = (() => {
     };
 
     function currentUserName() {
+        let accName = null;
         try {
             const u = Users.getCurrent();
-            if (u && u.name) return u.name;
+            if (u && u.name) accName = String(u.name);
         } catch { /* fall through */ }
-        return 'User';
+        if (accName && accName !== 'User') return accName;
+        try {
+            const c = SystemConfig.get('userName');
+            if (c) return String(c);
+        } catch { /* fall through */ }
+        return accName || 'User';
     }
 
     function getContent() {

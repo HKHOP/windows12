@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4954] - 2026-09-21
+
+### Fixed
+- Terminal `whoami` / prompt (and batch `%USERNAME%`) still showed "User": the account record and the legacy `SystemConfig userName` could disagree, with each reader picking a different side. `userName` is now a live alias of the signed-in `Users` account (`get`/`getAll` resolve it, `set`/`setMultiple` rename the account, `reset` preserves it), renames mirror into the per-user `config.json` and emit `user-info-changed`, and boot heals split-brain stores by adopting whichever side holds a real name (account wins ties). Terminal, batch, and Settings readers prefer the non-default name
+
 ## [12.0.4953] - 2026-09-21
 
 ### Fixed

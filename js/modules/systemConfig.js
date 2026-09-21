@@ -82,6 +82,21 @@ const SystemConfig = (() => {
     let nativeWidth = window.innerWidth;
     let nativeHeight = window.innerHeight;
 
+    // userName is a live alias of the signed-in account (Users is the
+    // source of truth since multi-user). The cached config value is only
+    // a fallback for contexts where Users isn't resolved yet.
+    function accountName() {
+        try {
+            const u = Users.getCurrent();
+            if (u && u.name) return u.name;
+        } catch { /* Users not ready — use cache */ }
+        return null;
+    }
+
+    function displayName() {
+        return accountName() || config.userName || 'User';
+    }
+
     function init() {
         nativeWidth = window.innerWidth;
         nativeHeight = window.innerHeight;
@@ -89,11 +104,12 @@ const SystemConfig = (() => {
     }
 
     function get(key) {
+        if (key === 'userName') return displayName();
         return config[key];
     }
 
     function getAll() {
-        return { ...config };
+        return { ...config, userName: displayName() };
     }
 
     function getNativeWidth() { return nativeWidth; }
@@ -160,6 +176,10 @@ const SystemConfig = (() => {
     }
 
     function set(key, value) {
+        if (key === 'userName') {
+            renameAccountTo(value);
+            return;
+        }
         config[key] = value;
         save();
         apply();
@@ -167,14 +187,48 @@ const SystemConfig = (() => {
     }
 
     function setMultiple(obj) {
-        Object.assign(config, obj);
+        const rest = { ...(obj || {}) };
+        if (Object.hasOwn(rest, 'userName')) {
+            const name = rest.userName;
+            delete rest.userName;
+            Object.assign(config, rest);
+            save();
+            apply();
+            syncToFilesystem();
+            renameAccountTo(name);
+            return;
+        }
+        Object.assign(config, rest);
         save();
         apply();
         syncToFilesystem();
     }
 
+    // Route a display-name change through the account record (source of
+    // truth) and keep the cached config value in step. Never calls set()
+    // recursively — Users.renameAccount mirrors back to config.json via
+    // plain FS, so there is no loop.
+    function renameAccountTo(name) {
+        const clean = String(name || '').trim();
+        if (!clean) return;
+        try {
+            const cur = Users.getCurrent();
+            if (cur && typeof Users.renameAccount === 'function') {
+                Users.renameAccount(cur.id, clean);
+            }
+        } catch { /* keep cache-only */ }
+        if (config.userName !== clean) {
+            config.userName = clean;
+            save();
+            apply();
+            syncToFilesystem();
+        }
+        try { window.dispatchEvent(new CustomEvent('user-info-changed')); } catch { /* noop */ }
+    }
+
     function reset() {
-        config = { ...defaults };
+        const keepName = config.userName;
+        config = { ...defaults, userName: keepName };
         save();
         apply();
         syncToFilesystem();
@@ -250,7 +304,7 @@ const SystemConfig = (() => {
             }
         }
 
-        if (onConfigChange) onConfigChange(config);
+        if (onConfigChange) onConfigChange(getAll());
     }
 
     const syncToFilesystem = asShell(function syncToFilesystem() {
@@ -288,8 +342,29 @@ const SystemConfig = (() => {
 
     function load() {
         loadFromFilesystem();
+        healAccountName();
         syncToFilesystem();
         apply();
+    }
+
+    // One-time-per-boot convergence for pre-existing split-brain stores:
+    // the account record and the cached config userName can disagree
+    // (name set via legacy personalization after multi-user, or a rename
+    // that persisted to only one store). Prefer whichever side holds a
+    // real (non-default) name; the account wins ties.
+    function healAccountName() {
+        try {
+            const acc = Users.getCurrent();
+            const accName = acc && acc.name ? String(acc.name) : '';
+            const cfgName = config.userName ? String(config.userName) : '';
+            const accCustom = accName && accName !== 'User';
+            const cfgCustom = cfgName && cfgName !== 'User';
+            if (!accCustom && cfgCustom && acc) {
+                try { Users.renameAccount(acc.id, cfgName); } catch { /* keep cache */ }
+            } else if (accName && config.userName !== accName) {
+                config.userName = accName;
+            }
+        } catch { /* keep whatever loaded */ }
     }
 
     function save() {

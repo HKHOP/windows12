@@ -45,11 +45,18 @@ const BatchEngine = (() => {
             if (key === 'TIME') return new Date().toLocaleTimeString();
             if (key === 'RANDOM') return String(Math.floor(Math.random() * 32768));
             if (key === 'USERNAME') {
+                let accName = null, cfgName = null;
                 try {
                     const u = window?._Users?.getCurrent?.();
-                    if (u && u.name) return String(u.name);
-                } catch { /* fall through to legacy config */ }
-                try { return String(window?.SystemConfig?.get?.('userName') ?? 'User'); } catch { return 'User'; }
+                    if (u && u.name) accName = String(u.name);
+                } catch { /* fall through */ }
+                try {
+                    const c = window?.SystemConfig?.get?.('userName');
+                    if (c) cfgName = String(c);
+                } catch { /* fall through */ }
+                if (accName && accName !== 'User') return accName;
+                if (cfgName && cfgName !== 'User') return cfgName;
+                return accName || cfgName || 'User';
             }
             if (key === 'OS') return 'Windows_NT';
             if (key === 'WINDIR') return '\\system';

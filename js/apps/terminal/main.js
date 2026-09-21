@@ -39,12 +39,21 @@ const Terminal = (() => {
         output.addEventListener('selectstart', (e) => e.stopPropagation());
         output.addEventListener('mousedown', (e) => e.stopPropagation());
 
+        // Prefer whichever store holds a real (non-default) name so a
+        // rename that reached only one store still displays correctly.
         function currentUserName() {
+            let accName = null, cfgName = null;
             try {
                 const u = Users.getCurrent();
-                if (u && u.name) return u.name;
+                if (u && u.name) accName = String(u.name);
             } catch { /* fall through */ }
-            try { return SystemConfig.get('userName') || 'User'; } catch { return 'User'; }
+            try {
+                const c = SystemConfig.get('userName');
+                if (c) cfgName = String(c);
+            } catch { /* fall through */ }
+            if (accName && accName !== 'User') return accName;
+            if (cfgName && cfgName !== 'User') return cfgName;
+            return accName || cfgName || 'User';
         }
 
         function getPrompt() {

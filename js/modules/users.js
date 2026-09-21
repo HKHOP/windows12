@@ -364,6 +364,34 @@ const Users = (() => {
         acc.name = clean;
         writeAccounts();
         if (current && current.id === id) current = acc;
+        // Keep the per-user config cache in step (SystemConfig.userName is
+        // a live alias of this record). Direct FS write — never call into
+        // SystemConfig here (it imports this module; that would cycle).
+        // Only the signed-in account owns the current per-user config.
+        if (current && current.id === id) {
+            try {
+                const run = asShell(() => {
+                    const f = fs();
+                    if (!f) return;
+                    const path = userData(['config.json']);
+                    let data = {};
+                    try {
+                        const raw = f.readFile(path);
+                        if (raw) data = JSON.parse(raw) || {};
+                    } catch { data = {}; }
+                    if (data.userName === clean) return;
+                    data.userName = clean;
+                    const json = JSON.stringify(data, null, 2);
+                    if (f.itemExists(path)) f.writeFile(path, json);
+                    else {
+                        ensureDirChain(path);
+                        f.createFile(path.slice(0, -1), 'config.json', json, 'json');
+                    }
+                });
+                run();
+            } catch { /* accounts.json is the source of truth */ }
+        }
+        try { window.dispatchEvent(new CustomEvent('user-info-changed')); } catch { /* noop */ }
         return true;
     }
 
