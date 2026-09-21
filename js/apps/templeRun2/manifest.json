@@ -1,0 +1,30 @@
+{
+  "manifestVersion": 1,
+  "id": "templeRun2",
+  "uuid": "23684f31-bd12-4d20-a5d9-9922d79d7a25",
+  "name": "Temple Run 2",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": ["network"],
+  "store": {
+    "developer": "SubwayOnline",
+    "category": "Games",
+    "rating": 4.5,
+    "reviews": 15230,
+    "description": "Outrun the cursed temple — leap chasms, slide under traps, and grab coins in the classic endless chase.",
+    "features": [
+      "The classic endless-run chase",
+      "Arrow-key + Space controls with swipe-style moves",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      { "bg": "linear-gradient(135deg, #1c1410, #8a6d3b)", "text": "Run for your life" },
+      { "bg": "linear-gradient(135deg, #8a6d3b, #1c1410)", "text": "Escape the temple" }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "9+"
+  }
+}

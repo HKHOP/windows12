@@ -1,0 +1,30 @@
+{
+  "manifestVersion": 1,
+  "id": "motoX3M",
+  "uuid": "c6031939-a594-43a9-a2a6-5d08265850cf",
+  "name": "Moto X3M",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": ["network"],
+  "store": {
+    "developer": "Slope-Slope",
+    "category": "Games",
+    "rating": 4.7,
+    "reviews": 11028,
+    "description": "Extreme bike stunt racing — backflip over ramps, stick the landing, and beat the clock across all levels. Press PLAY inside the game to start.",
+    "features": [
+      "Physics stunt tracks with flips and wheelies",
+      "Arrow-key riding, all levels unlocked",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      { "bg": "linear-gradient(135deg, #241206, #ff9f1c)", "text": "Stunt season" },
+      { "bg": "linear-gradient(135deg, #ff9f1c, #241206)", "text": "Stick the landing" }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "7+"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "manifestVersion": 1,
+  "id": "slope2",
+  "uuid": "9fd0bef4-e3e7-46af-8e9e-d425fc9c94bd",
+  "name": "Slope 2",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": ["network"],
+  "store": {
+    "developer": "SubwayOnline",
+    "category": "Games",
+    "rating": 4.6,
+    "reviews": 5120,
+    "description": "The sequel to the endless-slope classic: new track twists, faster pacing, and the same one-more-run addiction.",
+    "features": [
+      "Faster, trickier endless 3D tracks",
+      "Arrow-key / WASD steering with instant restart",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      { "bg": "linear-gradient(135deg, #101a2e, #7aa2ff)", "text": "Steeper. Faster." },
+      { "bg": "linear-gradient(135deg, #7aa2ff, #101a2e)", "text": "Beat your best run" }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "7+"
+  }
+}

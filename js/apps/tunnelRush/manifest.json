@@ -1,0 +1,30 @@
+{
+  "manifestVersion": 1,
+  "id": "tunnelRush",
+  "uuid": "9d3f9b28-0b88-4e02-919f-15a5fffb2bb8",
+  "name": "Tunnel Rush",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": ["network"],
+  "store": {
+    "developer": "Slope-Slope",
+    "category": "Games",
+    "rating": 4.6,
+    "reviews": 7431,
+    "description": "Hurtling neon tunnel dodger — thread the gaps at breakneck speed. Press PLAY inside the game, then steer with the arrow keys.",
+    "features": [
+      "High-speed 3D tunnel survival",
+      "Arrow-key dodging, endless mode",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      { "bg": "linear-gradient(135deg, #0b0b10, #ff5d8f)", "text": "Into the tunnel" },
+      { "bg": "linear-gradient(135deg, #ff5d8f, #0b0b10)", "text": "Dodge at 200mph" }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "7+"
+  }
+}

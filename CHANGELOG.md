@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4956] - 2026-09-21
+
+### Added
+- 8 new iframe Store games (all `network`-permission wrappers with keyboard-focus capture and a Reload / Open-in-Browser toolbar): **Slope** (GameZipper embed), **Slope 2** + **Slope 3** (`subwayonline.io` embeds), **Tunnel Rush**, **Moto X3M** (unblocked clients), **Stickman Hook**, **Temple Run 2** (`subwayonline.io` embed), and **Chess** (official Lichess Live TV + Daily Puzzle embeds with tab switcher and a Play-on-Lichess button)
+
 ## [12.0.4955] - 2026-09-21
 
 ### Fixed

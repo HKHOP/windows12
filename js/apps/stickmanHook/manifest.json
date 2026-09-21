@@ -1,0 +1,30 @@
+{
+  "manifestVersion": 1,
+  "id": "stickmanHook",
+  "uuid": "c237a124-75af-46d2-a0c9-a651c1315df6",
+  "name": "Stickman Hook",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": ["network"],
+  "store": {
+    "developer": "Slope2Unblocked",
+    "category": "Games",
+    "rating": 4.6,
+    "reviews": 6892,
+    "description": "Swing a stickman through hundreds of levels — hold to hook, release to fly, and bounce to the finish.",
+    "features": [
+      "Hundreds of swing-physics levels",
+      "One-button play: hold Space or mouse to hook",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      { "bg": "linear-gradient(135deg, #0d1b12, #7cff9d)", "text": "Hook. Swing. Fly." },
+      { "bg": "linear-gradient(135deg, #7cff9d, #0d1b12)", "text": "Stick every landing" }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "7+"
+  }
+}

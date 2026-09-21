@@ -1,0 +1,30 @@
+{
+  "manifestVersion": 1,
+  "id": "chess",
+  "uuid": "99024fdc-a531-4249-8310-2c72d4a8807d",
+  "name": "Chess",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": ["network"],
+  "store": {
+    "developer": "Lichess",
+    "category": "Games",
+    "rating": 4.9,
+    "reviews": 22140,
+    "description": "Watch top-rated live games on Lichess TV and solve the daily puzzle — powered by Lichess's official embeds. Hit Play on Lichess for full rated play.",
+    "features": [
+      "Live TV: the best game playing right now, auto-updating",
+      "Daily puzzle with a fresh challenge every day",
+      "Official Lichess embeds — free, no account, no ads",
+      "One-click jump to full Lichess play in your browser"
+    ],
+    "screenshots": [
+      { "bg": "linear-gradient(135deg, #161512, #8a6d3b)", "text": "Live grandmaster TV" },
+      { "bg": "linear-gradient(135deg, #8a6d3b, #161512)", "text": "Daily puzzles" }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "3+"
+  }
+}

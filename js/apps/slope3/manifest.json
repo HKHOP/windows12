@@ -1,0 +1,30 @@
+{
+  "manifestVersion": 1,
+  "id": "slope3",
+  "uuid": "14d2c95a-3f27-43b0-b514-785d8ac54568",
+  "name": "Slope 3",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": ["network"],
+  "store": {
+    "developer": "SubwayOnline",
+    "category": "Games",
+    "rating": 4.5,
+    "reviews": 2874,
+    "description": "Third run down the neon slope — the fastest tracks yet with brutal late-game obstacle patterns.",
+    "features": [
+      "The fastest Slope tracks yet",
+      "Arrow-key / WASD steering with instant restart",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      { "bg": "linear-gradient(135deg, #1a0f2e, #c77dff)", "text": "Maximum velocity" },
+      { "bg": "linear-gradient(135deg, #c77dff, #1a0f2e)", "text": "Survive the descent" }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "7+"
+  }
+}
