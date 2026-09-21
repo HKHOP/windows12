@@ -111,8 +111,9 @@ function gameHtml(version) {
                 </button>
             </div>
             <div class="mcj-frame-holder">
-                <iframe class="mcj-frame" title="Minecraft Java ${version.label}" src="about:blank"
-                    allow="autoplay; fullscreen; gamepad; pointer-lock; clipboard-write; screen-wake-lock; xr-spatial-tracking"
+                <div class="mcj-key-hint">Click the game to capture keyboard (WASD) — click Versions or press Esc to release</div>
+                <iframe class="mcj-frame" title="Minecraft Java ${version.label}" src="about:blank" tabindex="0"
+                    allow="autoplay; fullscreen; gamepad; keyboard-lock; pointer-lock; clipboard-write; screen-wake-lock; xr-spatial-tracking"
                     sandbox="allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-scripts allow-same-origin allow-downloads"></iframe>
             </div>
         </div>
@@ -160,8 +161,13 @@ const STYLES = `
         color:#9a958c; cursor:pointer; white-space:nowrap; user-select:none; }
     .mcj-touch-toggle input { accent-color:#7ec850; cursor:pointer; }
     .mcj-fullscreen span { min-width:64px; text-align:left; }
-    .mcj-frame-holder { flex:1; min-height:0; background:#000; }
+    .mcj-frame-holder { flex:1; min-height:0; background:#000; position:relative; }
     .mcj-frame { width:100%; height:100%; border:none; display:block; background:#000; }
+    .mcj-key-hint { position:absolute; left:50%; bottom:10px; transform:translateX(-50%); z-index:2;
+        font-size:11px; color:#e8e5df; background:rgba(0,0,0,0.65); border:1px solid rgba(255,255,255,0.14);
+        padding:4px 12px; border-radius:999px; pointer-events:none; white-space:nowrap;
+        transition:opacity 0.25s ease; }
+    .mcj-key-hint.hidden { opacity:0; }
 `;
 
 function launch() {
@@ -206,10 +212,31 @@ function launch() {
         try { app.files.write('lastplayed.json', JSON.stringify({ id: version.id })); } catch { /* non-fatal */ }
 
         const game = el.querySelector('.mcj-game');
+        const holder = el.querySelector('.mcj-frame-holder');
         const frame = el.querySelector('.mcj-frame');
+        const keyHint = el.querySelector('.mcj-key-hint');
         const touchCheck = el.querySelector('.mcj-touch-check');
         const fsBtn = el.querySelector('.mcj-fullscreen');
         let touchOn = touchCheck.checked;
+
+        // Keyboard (WASD) only reaches the cross-origin client when the
+        // iframe itself holds focus — keys pressed while the parent document
+        // is focused never arrive. Capture focus on load and on every click
+        // into the game area; the hint hides once the frame takes over
+        // (parent window blurs) or the user clicks through.
+        const captureKeys = () => {
+            try { frame.contentWindow.focus(); } catch { /* cross-origin may throw */ }
+            try { frame.focus({ preventScroll: true }); } catch {
+                try { frame.focus(); } catch { /* noop */ }
+            }
+        };
+        const hideHint = () => { if (keyHint) keyHint.classList.add('hidden'); };
+        const onHolderPointerDown = () => { captureKeys(); hideHint(); setTimeout(captureKeys, 0); };
+        const onFrameLoad = () => { captureKeys(); setTimeout(captureKeys, 100); };
+        const onWindowBlur = () => hideHint();
+        holder.addEventListener('pointerdown', onHolderPointerDown);
+        frame.addEventListener('load', onFrameLoad);
+        window.addEventListener('blur', onWindowBlur);
 
         const loadFrame = () => { frame.src = buildUrl(version, touchOn); };
         loadFrame();
@@ -243,6 +270,9 @@ function launch() {
         // listener and this view's game state need explicit cleanup.
         cleanupGame = () => {
             document.removeEventListener('fullscreenchange', syncFsBtn);
+            holder.removeEventListener('pointerdown', onHolderPointerDown);
+            frame.removeEventListener('load', onFrameLoad);
+            window.removeEventListener('blur', onWindowBlur);
             if (app.window.isFullscreen(win.id)) app.window.exitFullscreen(win.id);
             frame.src = 'about:blank';
         };

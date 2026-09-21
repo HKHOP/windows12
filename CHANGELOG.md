@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4955] - 2026-09-21
+
+### Fixed
+- **Minecraft Java**: WASD (and all keyboard input) never reached the embedded Eaglercraft client — key events only arrive at the cross-origin iframe when it holds focus, but the launcher left focus in the parent document after Play/load. The game view now focuses the frame on load and on every click into the game area (with `tabindex` + `keyboard-lock` permission), shows a "Click the game to capture keyboard (WASD)" hint that hides once the frame takes over, and cleans up its focus listeners on exit
+
 ## [12.0.4954] - 2026-09-21
 
 ### Fixed
