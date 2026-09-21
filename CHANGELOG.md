@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4951] - 2026-09-21
+
+### Fixed
+- **Minecraft Java**: embedded client was squashed into a ~150px-tall strip at the top of the window — the `.mcj-root` wrapper had no height, so the iframe's percentage-height chain broke and it fell back to its default height (width was unaffected). It now fills the window body at any size
+
 ## [12.0.4950] - 2026-09-21
 
 ### Changed

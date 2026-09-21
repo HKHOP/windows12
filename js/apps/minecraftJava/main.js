@@ -120,6 +120,7 @@ function gameHtml(version) {
 }
 
 const STYLES = `
+    .mcj-root { height:100%; }
     .mcj-home, .mcj-game { display:flex; flex-direction:column; height:100%; min-height:0;
         background:#141210; color:#e8e5df; font-family:'Segoe UI',sans-serif; box-sizing:border-box; }
     .mcj-home { overflow:auto; padding:20px 24px; }
