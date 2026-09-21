@@ -18,6 +18,19 @@ const SystemConfig = (() => {
         };
     }
 
+    function ensureParentDirs(path) {
+        try {
+            const FileSystem = window._FileSystem;
+            if (!FileSystem) return;
+            for (let i = 1; i <= path.length - 1; i++) {
+                const partial = path.slice(0, i);
+                if (!FileSystem.itemExists(partial)) {
+                    FileSystem.createFolder(path.slice(0, i - 1), path[i - 1]);
+                }
+            }
+        } catch (e) { /* best effort */ }
+    }
+
     // Touch devices get the on-screen keyboard out of the box (it replaces
     // the native iOS/Android keyboard); desktops default to off but can
     // opt in from Settings > System > Touch keyboard.
@@ -246,6 +259,7 @@ const SystemConfig = (() => {
             if (FileSystem) {
                 const json = JSON.stringify(config, null, 2);
                 const path = configPath();
+                ensureParentDirs(path);
                 const parentPath = path.slice(0, -1);
                 if (FileSystem.itemExists(path)) {
                     FileSystem.writeFile(path, json);

@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4952] - 2026-09-21
+
+### Fixed
+- Settings not saving at all after the multi-user system: `window._FSGuard` was never exposed so every OS module's `asShell()` was a no-op and per-user writes under `/system/users/<id>/programs data/` were denied as app access while Settings was focused; `SystemConfig` now creates its parent chain before writing `config.json`; `Users` directory creation fixed (folder paths now ensure the final segment), file moves (legacy `config.json`, `backgroundApps.json`) work again, legacy config migrates to `programs data/config.json`, and all account/metadata FS access runs as shell
+
 ## [12.0.4951] - 2026-09-21
 
 ### Fixed

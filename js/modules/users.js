@@ -43,8 +43,21 @@ const Users = (() => {
 
     function fs() { return window._FileSystem; }
 
+    // All account metadata lives under /system/users (an FSGuard OS-only
+    // zone): run it as shell so a focused app can never get it denied or
+    // trigger a consent prompt for OS bookkeeping.
+    function asShell(fn) {
+        return (...args) => {
+            const g = window._FSGuard;
+            if (g) return g.asShell(fn)(...args);
+            return fn(...args);
+        };
+    }
+
     // ---------- low-level FS helpers ----------
 
+    // Ensure the PARENT chain of a file path exists (last segment is the
+    // file name, never created as a folder).
     function ensureDirChain(path) {
         const f = fs();
         if (!f) return;
@@ -56,36 +69,61 @@ const Users = (() => {
         }
     }
 
+    // Ensure a full DIRECTORY path exists, including the final segment.
+    function ensureDirAll(dirPath) {
+        const f = fs();
+        if (!f) return;
+        for (let i = 1; i <= dirPath.length; i++) {
+            const partial = dirPath.slice(0, i);
+            if (!f.itemExists(partial)) {
+                f.createFolder(dirPath.slice(0, i - 1), dirPath[i - 1]);
+            }
+        }
+    }
+
+    const ensureDirAllShell = asShell(ensureDirAll);
+
     function readJson(path, fallback) {
         try {
-            const raw = fs().readFile(path);
+            const run = asShell(() => fs().readFile(path));
+            const raw = run();
             if (raw) return JSON.parse(raw);
         } catch { /* corrupt -> fallback */ }
         return fallback;
     }
 
     function writeJson(path, data) {
-        ensureDirChain(path);
-        const parent = path.slice(0, -1);
-        const name = path[path.length - 1];
-        const json = JSON.stringify(data, null, 2);
-        if (fs().itemExists(path)) fs().writeFile(path, json);
-        else fs().createFile(parent, name, json, 'json');
+        const run = asShell(() => {
+            ensureDirChain(path);
+            const parent = path.slice(0, -1);
+            const name = path[path.length - 1];
+            const json = JSON.stringify(data, null, 2);
+            if (fs().itemExists(path)) fs().writeFile(path, json);
+            else fs().createFile(parent, name, json, 'json');
+        });
+        run();
     }
 
-    // Move a subtree within the same FS without tripping blob cleanup
+    // Move a node within the same FS without tripping blob cleanup
     // (permanentDelete would drop IndexedDB blobs; we reattach instead).
+    // Handles both files (e.g. legacy config.json) and folders.
     function moveNode(srcPath, destParentPath) {
-        const f = fs();
-        const node = f.getNode(srcPath);
-        if (!node || node.type !== 'folder') return false;
-        const name = srcPath[srcPath.length - 1];
-        ensureDirChain(destParentPath);
-        if (f.itemExists([...destParentPath, name])) return false;
-        f.getNode(destParentPath).children[name] = JSON.parse(JSON.stringify(node));
-        delete f.getNode(srcPath.slice(0, -1)).children[name];
-        f.save();
-        return true;
+        const run = asShell(() => {
+            const f = fs();
+            const node = f.getNode(srcPath);
+            if (!node) return false;
+            const name = srcPath[srcPath.length - 1];
+            ensureDirAll(destParentPath);
+            if (f.itemExists([...destParentPath, name])) return false;
+            const destParent = f.getNode(destParentPath);
+            const srcParent = f.getNode(srcPath.slice(0, -1));
+            if (!destParent || !srcParent) return false;
+            destParent.children[name] = JSON.parse(JSON.stringify(node));
+            delete srcParent.children[name];
+            f.save();
+            return true;
+        });
+        return run();
     }
 
     // ---------- accounts store ----------
@@ -148,9 +186,10 @@ const Users = (() => {
 
         // Per-user config: legacy /system/config.json moves to the account.
         try {
-            if (fs().itemExists(LEGACY_CONFIG_PATH)) {
-                ensureDirChain(['/', 'system', 'users', 'default']);
-                moveNode(LEGACY_CONFIG_PATH, ['/', 'system', 'users', 'default']);
+            const existsRun = asShell(() => fs().itemExists(LEGACY_CONFIG_PATH));
+            if (existsRun()) {
+                ensureDirAllShell(['/', 'system', 'users', 'default', 'programs data']);
+                moveNode(LEGACY_CONFIG_PATH, ['/', 'system', 'users', 'default', 'programs data']);
             }
         } catch { /* keep legacy file */ }
 
@@ -163,9 +202,12 @@ const Users = (() => {
 
         // App-owned data folders become the first user's AppData; every
         // other top-level entry in /system/programs data stays global.
-        ensureDirChain([...LEGACY_USER_HOME, 'AppData']);
+        ensureDirAllShell([...LEGACY_USER_HOME, 'AppData']);
         let children = [];
-        try { children = fs().getChildren(LEGACY_PROGRAMS); } catch { /* none */ }
+        try {
+            const run = asShell(() => fs().getChildren(LEGACY_PROGRAMS));
+            children = run();
+        } catch { /* none */ }
         children.forEach(entry => {
             if (OS_RESERVED.has(entry.name) || entry.name === 'backgroundApps.json') return;
             try { moveNode([...LEGACY_PROGRAMS, entry.name], [...LEGACY_USER_HOME, 'AppData']); } catch { /* keep */ }
@@ -175,8 +217,12 @@ const Users = (() => {
     // ---------- home layout ----------
 
     function ensureHome(id) {
-        ensureDirChain(['/', 'users', id]);
-        HOME_DIRS.forEach(dir => ensureDirChain(['/', 'users', id, ...dir]));
+        const run = asShell(() => {
+            ensureDirAll(['/', 'users', id]);
+            HOME_DIRS.forEach(dir => ensureDirAll(['/', 'users', id, ...dir]));
+            ensureDirAll(['/', 'system', 'users', id, 'programs data']);
+        });
+        run();
     }
 
     // ---------- boot / session ----------
@@ -200,7 +246,7 @@ const Users = (() => {
     function init() {
         const f = fs();
         if (!f) return;
-        ensureDirChain(ROOT);
+        ensureDirAllShell(ROOT);
         const stored = readAccounts();
         if (stored) {
             users = stored.users;
@@ -219,6 +265,7 @@ const Users = (() => {
         }
         current = getAccount(id);
         ensureHome(current.id);
+        ensureDirAllShell(['/', 'system', 'users', current.id, 'programs data']);
     }
 
     function setCurrent(id) {
@@ -265,6 +312,7 @@ const Users = (() => {
     function userData(sub) {
         const base = ['/', 'system', 'users', current ? current.id : 'default', 'programs data'];
         if (Array.isArray(sub) && sub.length > 0) return [...base, ...sub];
+        if (typeof sub === 'string' && sub) return [...base, ...sub.split('/').filter(Boolean)];
         return base;
     }
 

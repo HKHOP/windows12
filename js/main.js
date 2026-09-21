@@ -27,6 +27,12 @@ import LoginScreen from './modules/loginScreen.js';
 // Filesystem access policy: app code may always touch its own AppData,
 // anything else requires the 'filesystem' permission (see fsGuard.js).
 // Must be wired before any app can run; shell code stays unguarded.
+// window._FSGuard is the escape hatch every OS module's asShell() uses to
+// shield its writes from app attribution — without it all per-user OS
+// saves (config, pins, activity, ...) are denied while an app is focused.
+window._FSGuard = FSGuard;
+window._Users = Users;
+window._FileSystem = FileSystem;
 FileSystem.setAccessChecker(FSGuard.check);
 
 document.addEventListener('DOMContentLoaded', () => {

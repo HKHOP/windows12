@@ -1238,7 +1238,8 @@ const FileExplorer = (() => {
         const name = itemPath[itemPath.length - 1];
         UserActivity.trackFileOpen(itemPath, name);
 
-        const isConfigFile = itemPath.join('/') === SystemConfig.CONFIG_PATH;
+        const cfgPath = Array.isArray(SystemConfig.CONFIG_PATH) ? SystemConfig.CONFIG_PATH.join('/') : SystemConfig.CONFIG_PATH;
+        const isConfigFile = itemPath.join('/') === cfgPath;
 
         const notepadContent = `
             <div style="display:flex;flex-direction:column;height:100%;">
