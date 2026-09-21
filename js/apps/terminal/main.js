@@ -39,10 +39,18 @@ const Terminal = (() => {
         output.addEventListener('selectstart', (e) => e.stopPropagation());
         output.addEventListener('mousedown', (e) => e.stopPropagation());
 
+        function currentUserName() {
+            try {
+                const u = Users.getCurrent();
+                if (u && u.name) return u.name;
+            } catch { /* fall through */ }
+            try { return SystemConfig.get('userName') || 'User'; } catch { return 'User'; }
+        }
+
         function getPrompt() {
             const p = cwd.join('/').replace('//', '/');
             const short = p === '/' + HOME().slice(1).join('/') ? '~' : '~' + p.replace('/' + HOME().slice(1).join('/'), '');
-            return `${SystemConfig.get('userName')}@PC ${short}> `;
+            return `${currentUserName()}@PC ${short}> `;
         }
 
         function updatePrompt() {
@@ -360,7 +368,7 @@ const Terminal = (() => {
             },
 
             whoami() {
-                print(SystemConfig.get('userName'));
+                print(currentUserName());
             },
 
             date() {
@@ -368,7 +376,7 @@ const Terminal = (() => {
             },
 
             neofetch() {
-                const user = SystemConfig.get('userName');
+                const user = currentUserName();
                 const w = window.innerWidth;
                 const h = window.innerHeight;
                 const theme = SystemConfig.get('darkMode') ? 'Dark' : 'Light';

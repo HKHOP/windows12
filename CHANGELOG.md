@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4953] - 2026-09-21
+
+### Fixed
+- Settings sidebar account header showed "User" instead of the signed-in account name: it was overwritten on every config change by the legacy `SystemConfig userName` (which is no longer edited since multi-user). The header now reads `Users.getCurrent().name`, refreshes on `user-info-changed` (rename) and on page navigation, including the avatar initial
+- Terminal prompt, `whoami` and `neofetch`, plus batch `%USERNAME%`, now prefer the signed-in `Users` account name with the legacy config value as fallback
+
 ## [12.0.4952] - 2026-09-21
 
 ### Fixed

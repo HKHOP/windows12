@@ -48,14 +48,22 @@ const Settings = (() => {
         touchKeyboard: { name: 'Touch keyboard', icon: TOUCH_KBD_ICON }
     };
 
+    function currentUserName() {
+        try {
+            const u = Users.getCurrent();
+            if (u && u.name) return u.name;
+        } catch { /* fall through */ }
+        return 'User';
+    }
+
     function getContent() {
         return `
             <div style="display:flex;height:100%;">
                 <div class="settings-sidebar" style="width:220px;background:rgba(0,0,0,0.2);padding:12px 8px;border-right:1px solid rgba(255,255,255,0.06);overflow-y:auto;">
                     <div style="padding:12px;display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-                        <div style="width:48px;height:48px;background:var(--accent-color,#0078D4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;">${esc((Users.getCurrent()||{}).name || 'U').charAt(0).toUpperCase()}</div>
+                        <div class="settings-avatar" style="width:48px;height:48px;background:var(--accent-color,#0078D4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;">${esc(currentUserName()).charAt(0).toUpperCase()}</div>
                         <div>
-                            <div class="settings-username" style="font-size:14px;font-weight:500;">${esc((Users.getCurrent()||{}).name || 'User')}</div>
+                            <div class="settings-username" style="font-size:14px;font-weight:500;">${esc(currentUserName())}</div>
                             <div style="font-size:12px;color:#888;">Local Account</div>
                         </div>
                     </div>
@@ -64,6 +72,15 @@ const Settings = (() => {
                 <div class="settings-content" style="flex:1;padding:24px;overflow-y:auto;"></div>
             </div>
         `;
+    }
+
+    function refreshSidebarUser() {
+        if (!win || !win.element || !win.element.isConnected) return;
+        const name = currentUserName();
+        const usernameEl = win.element.querySelector('.settings-username');
+        if (usernameEl) usernameEl.textContent = name;
+        const avatarEl = win.element.querySelector('.settings-avatar');
+        if (avatarEl) avatarEl.textContent = name.charAt(0).toUpperCase();
     }
 
     function buildNav() {
@@ -1424,7 +1441,10 @@ const Settings = (() => {
         }
         WindowManager.focusWindow(win.id);
         renderPage();
+        refreshSidebarUser();
     }
+
+    let userListenerWired = false;
 
     function launch(options = {}) {
         if (options.page || options.subPage) {
@@ -1456,10 +1476,11 @@ const Settings = (() => {
 
         renderPage();
 
-        SystemConfig.onChange(() => {
-            const usernameEl = win.element.querySelector('.settings-username');
-            if (usernameEl) usernameEl.textContent = SystemConfig.get('userName');
-        });
+        if (!userListenerWired) {
+            userListenerWired = true;
+            window.addEventListener('user-info-changed', refreshSidebarUser);
+        }
+        refreshSidebarUser();
     }
 
     return { launch, showPage };

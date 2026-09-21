@@ -45,6 +45,10 @@ const BatchEngine = (() => {
             if (key === 'TIME') return new Date().toLocaleTimeString();
             if (key === 'RANDOM') return String(Math.floor(Math.random() * 32768));
             if (key === 'USERNAME') {
+                try {
+                    const u = window?._Users?.getCurrent?.();
+                    if (u && u.name) return String(u.name);
+                } catch { /* fall through to legacy config */ }
                 try { return String(window?.SystemConfig?.get?.('userName') ?? 'User'); } catch { return 'User'; }
             }
             if (key === 'OS') return 'Windows_NT';
