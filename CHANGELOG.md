@@ -4,6 +4,17 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4949] - 2026-09-21
+
+### Added
+- **Minecraft Java** store app — an Eaglercraft launcher (`js/apps/minecraftJava/`):
+  - Curated version list, newest to oldest: 26.2, 26.1, 1.21.11 (WASM), 1.20.4, 1.12.2, 1.8.8, 1.5.2, Beta 1.7.3, Beta 1.3, Alpha 1.2.6 and Indev — grouped into Snapshots / Releases / Legacy
+  - One-click play: each version loads in a sandboxed embedded iframe (pointer lock, gamepad and fullscreen allowed inside the frame) — no username, no mods
+  - Real browser fullscreen via the SDK's `app.window.setFullscreen` (Fullscreen toolbar button or F11 in the game view), so the game never gets stuck in window mode
+  - Optional touch controls via the Eaglermobile userscript (`flameddogo99-eaglermobile.js`), appended to the client URL and toggleable per session; toggling reloads the client
+  - Remembers the last played version per user (`AppData/minecraftJava/lastplayed.json`)
+  - New `minecraftJava` app icon (flat grass block, distinct from Minecraft Classic's isometric one)
+
 ## [12.0.4948] - 2026-09-21
 
 ### Removed

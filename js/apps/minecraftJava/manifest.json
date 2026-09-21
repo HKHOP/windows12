@@ -1,0 +1,38 @@
+{
+    "manifestVersion": 1,
+    "id": "minecraftJava",
+    "uuid": "6516fc29-6398-48dc-a3d6-9809fda4a7a5",
+    "name": "Minecraft Java",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "permissions": ["network"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Games",
+        "rating": "4.8",
+        "reviews": "3,417",
+        "description": "Play Minecraft Java Edition right on Windows 12 — no account, no mods, no setup. The launcher hosts a curated list of Eaglercraft clients covering over a decade of the game, from Indev and Alpha all the way to the newest snapshots. Pick a version, hit play, and go full screen.",
+        "features": [
+            "Curated Eaglercraft version list — snapshots, releases and legacy builds",
+            "One-click play in a sandboxed embedded client",
+            "Real browser fullscreen (F11 or the fullscreen button)",
+            "Optional touch controls via the Eaglermobile userscript where supported",
+            "Remembers your last played version",
+            "Nothing to configure: no username, no mods, no downloads"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #3d85c6, #1a472a)",
+                "text": "Every era, one launcher"
+            },
+            {
+                "bg": "linear-gradient(135deg, #1a472a, #1a1a1b)",
+                "text": "Indev to 26.2"
+            }
+        ],
+        "size": "0.2 MB",
+        "ageRating": "9+"
+    }
+}

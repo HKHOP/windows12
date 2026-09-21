@@ -77,6 +77,7 @@ const urlsToCache = [
     './js/apps/markdownStudio/main.js',
     './js/apps/mediaPlayer/main.js',
     './js/apps/minecraft/main.js',
+    './js/apps/minecraftJava/main.js',
     './js/apps/minesweeper/main.js',
     './js/apps/musicSpark/main.js',
     './js/apps/notepad/main.js',
