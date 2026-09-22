@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4963] - 2026-09-22
+
+### Added
+- Remote Desktop replica now mirrors the desktop itself on solid black: host desktop icons stream with live grid positions (click to select, double-click to open, same behavior as local), and the replica start menu matches the real one — search with live filtering, host-ordered Pinned grid, All-apps drawer, Recommended files/apps that open on the host, and the host user in the footer
+
+### Fixed
+- Remote Desktop session "gone" after visiting Settings/Connect mid-connection: the Session nav button stayed hidden forever, so a live session had no way back. It now appears on connect and hides on disconnect
+
 ## [12.0.4962] - 2026-09-22
 
 ### Added
