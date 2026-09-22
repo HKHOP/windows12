@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4959] - 2026-09-22
+
+### Fixed
+- Remote Desktop invite codes always rejected ("That code is not a Windows 12 Net invite"): the SDK encoder never wrote the `app`/`v` envelope fields the decoder requires, so every valid code failed. Both code types now carry the envelope, and pasting tolerates stray whitespace/line breaks picked up from chat apps
+
 ## [12.0.4958] - 2026-09-22
 
 ### Added
