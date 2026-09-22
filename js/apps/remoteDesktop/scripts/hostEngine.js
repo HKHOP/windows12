@@ -18,12 +18,14 @@
 // fsGuard zones stay off limits — file commands resolve strictly inside
 // the signed-in user's home.
 import WindowManager from '../../../modules/windowManager.js';
-import { Taskbar, AppMetadata } from '../../../modules/taskbar.js';
+import { Taskbar, AppMetadata, AppRegistry } from '../../../modules/taskbar.js';
 import FileSystem from '../../../modules/fileSystem.js';
 import ClipboardManager from '../../../modules/clipboardManager.js';
 import Notifications from '../../../modules/notifications.js';
 import BackgroundApps from '../../../modules/backgroundApps.js';
 import Users from '../../../modules/users.js';
+import UIIcons from '../../../modules/uiIcons.js';
+import UserActivity from '../../../modules/userActivity.js';
 import { Inject } from '../../../sdk/inject.js';
 import { Session, PROTOCOL, CHANNEL_NAME, deviceInfo } from './protocol.js';
 
@@ -675,7 +677,11 @@ export class HostEngine {
             focusedId: focused ? focused.id : null,
             focusText: focused ? this._textProbe(focused) : null,
             windows,
-            taskbarPins: (() => { try { return Taskbar.getPinnedApps(); } catch { return []; } })()
+            taskbarPins: (() => { try { return Taskbar.getPinnedApps(); } catch { return []; } })(),
+            startPins: this._startPins(),
+            recommended: this._recommended(),
+            desktopIcons: this._desktopIcons(),
+            user: this._userInfo()
         };
         // Page CSS goes out once (and again only when it changes) — the
         // controller caches it to style mirrored app content.
@@ -776,6 +782,126 @@ export class HostEngine {
         } catch {
             return null;
         }
+    }
+
+    // ---------- desktop shell mirror (icons, start menu, user) ----------
+
+    _userInfo() {
+        try {
+            const u = Users.getCurrent();
+            return { name: (u && u.name) || 'User' };
+        } catch {
+            return { name: 'User' };
+        }
+    }
+
+    // Shell-owned read of the Start pins (same file the Start menu uses),
+    // narrowed to installed non-service apps like the menu itself.
+    _startPins() {
+        const fallback = ['fileExplorer', 'settings', 'notepad', 'calendar', 'taskManager', 'photos'];
+        try {
+            const g = window._FSGuard;
+            const read = () => FileSystem.readFile(Users.userData(['startmenu', 'pins.json']));
+            const raw = g ? g.asShell(read)() : read();
+            const pins = raw ? JSON.parse(raw) : fallback;
+            if (!Array.isArray(pins)) return fallback;
+            const catalogIds = new Set(this.appCatalog().map(a => a.id));
+            const kept = pins.filter(id => typeof id === 'string' && catalogIds.has(id));
+            return kept.length > 0 ? kept : fallback.filter(id => catalogIds.has(id));
+        } catch {
+            try {
+                const catalogIds = new Set(this.appCatalog().map(a => a.id));
+                return fallback.filter(id => catalogIds.has(id));
+            } catch {
+                return fallback;
+            }
+        }
+    }
+
+    // Recent files/apps with icons, mirroring Start → Recommended.
+    _recommended() {
+        try {
+            return UserActivity.getRecommended().slice(0, 6).map(item => {
+                if (item.type === 'file') {
+                    return { type: 'file', name: item.name, path: item.path, detail: item.detail || '', icon: UserActivity.getFileIcon(item.name) };
+                }
+                return { type: 'app', id: item.id, name: item.name, detail: item.detail || '', icon: UserActivity.getAppIcon(item.id) || '' };
+            });
+        } catch {
+            return [];
+        }
+    }
+
+    // Desktop icons at their live grid positions (read from the rendered
+    // desktop so drags are reflected; the Recycle Bin needs its special
+    // opener and is skipped).
+    _desktopIcons() {
+        try {
+            const root = document.getElementById('desktop');
+            if (!root) return [];
+            let entries = [];
+            try { entries = FileSystem.getChildren(Users.home(['Desktop'])) || []; } catch { entries = []; }
+            const byName = new Map(entries.map(e => [e.name, e]));
+            const out = [];
+            for (const elm of root.querySelectorAll('.desktop-icon')) {
+                const name = elm.dataset && elm.dataset.name;
+                if (!name || name === '$Recycle.Bin') continue;
+                const ent = byName.get(name);
+                if (!ent) continue;
+                const isDir = ent.type === 'folder';
+                const ext = (ent.ext || (name.includes('.') ? name.split('.').pop() : '')).toLowerCase();
+                out.push({
+                    name,
+                    dir: isDir,
+                    ext,
+                    x: parseInt(elm.style.left, 10) || 0,
+                    y: parseInt(elm.style.top, 10) || 0,
+                    icon: isDir ? UIIcons.folder(name, 36) : UIIcons.file(ext, name, 36)
+                });
+            }
+            return out;
+        } catch {
+            return [];
+        }
+    }
+
+    // Open a Desktop path the same way a local double-click would.
+    _openDesktopPath(path) {
+        if (!Array.isArray(path) || path.length === 0) throw new Error('path required.');
+        let isDir = false;
+        try {
+            const parent = path.slice(0, -1);
+            const kids = FileSystem.getChildren(parent) || [];
+            const hit = kids.find(e => e.name === path[path.length - 1]);
+            isDir = !!hit && hit.type === 'folder';
+        } catch { /* treat as file */ }
+        if (isDir) {
+            const explorer = AppRegistry.get('fileExplorer');
+            if (explorer && typeof explorer.openPath === 'function') explorer.openPath(path);
+            else if (explorer) explorer.launch();
+            return true;
+        }
+        const content = FileSystem.readFile(path);
+        if (content === null) throw new Error('That file could not be opened.');
+        const name = path[path.length - 1];
+        try { UserActivity.trackFileOpen(path, name); } catch { /* cosmetic */ }
+        const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="4" y="2" width="16" height="20" rx="2" fill="#1E88E5"/><rect x="7" y="6" width="10" height="1.5" rx="0.5" fill="white"/><rect x="7" y="9.5" width="8" height="1.5" rx="0.5" fill="white"/><rect x="7" y="13" width="10" height="1.5" rx="0.5" fill="white"/></svg>`;
+        const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const win = WindowManager.createWindow('notepad', `${name} - Notepad`, icon, `
+            <div style="display:flex;flex-direction:column;height:100%;">
+                <textarea class="notepad-textarea" style="flex:1;background:transparent;border:none;color:#ddd;padding:12px 16px;resize:none;outline:none;font-family:'Consolas','Courier New',monospace;font-size:14px;line-height:1.6;" spellcheck="false">${esc(content)}</textarea>
+            </div>`, { width: 650, height: 450 });
+        const ta = win.element.querySelector('.notepad-textarea');
+        if (ta) {
+            ta.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    try { FileSystem.writeFile(path, ta.value); } catch { /* read-only */ }
+                }
+            });
+        }
+        try { WindowManager.focusWindow(win.id); } catch { /* visible anyway */ }
+        return true;
     }
 
     _startStateStream() {
@@ -1008,6 +1134,29 @@ export class HostEngine {
                 const ok = this.app.apps.launch(a.appId);
                 if (!ok) throw new Error(`App "${a.appId}" could not be launched.`);
                 return true;
+            }
+
+            case 'icon-open': {
+                // Desktop icon double-click: open from the user's Desktop.
+                if (typeof a.name !== 'string' || !a.name) throw new Error('name required.');
+                if (a.name.includes('/') || a.name.includes('\\') || a.name === '..') {
+                    throw new Error('Invalid icon name.');
+                }
+                return this._openDesktopPath([...Users.home(['Desktop']), a.name]);
+            }
+
+            case 'recent-open': {
+                // Start → Recommended entry on the host.
+                if (a.type === 'app') {
+                    if (typeof a.id !== 'string') throw new Error('id required.');
+                    const ok = this.app.apps.launch(a.id);
+                    if (!ok) throw new Error(`App "${a.id}" could not be launched.`);
+                    return true;
+                }
+                if (typeof a.path !== 'string' || !a.path) throw new Error('path required.');
+                const segs = a.path.split('/').filter(p => p && p !== '..');
+                if (segs.length === 0) throw new Error('Invalid path.');
+                return this._openDesktopPath(segs);
             }
 
             case 'key': {

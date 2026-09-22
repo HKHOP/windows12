@@ -113,8 +113,11 @@ export function createReplica(container, client) {
     container.innerHTML = '';
     const stage = el('div', 'rd-stage', container);
     stage.tabIndex = 0;
+    // Desktop icons sit under windows (z-order mirrors the real desktop).
+    const iconsLayer = el('div', 'rd-dicons', stage);
     const startMenu = el('div', 'rd-startmenu', stage);
     startMenu.style.display = 'none';
+    buildStartMenu(startMenu);
     const taskbar = el('div', 'rd-taskbar', stage);
     const startBtn = el('button', 'rd-startbtn', taskbar);
     startBtn.title = 'Start';
@@ -149,10 +152,9 @@ export function createReplica(container, client) {
         const area = snap.area || { w: 1280, h: 720 };
         const totalH = area.h + TASKBAR_H;
         container.style.overflow = zoom === 'fit' ? 'hidden' : 'auto';
-        const wp = snap.wallpaper || {};
-        stage.style.background = wp.image && wp.image !== 'none'
-            ? `${wp.image} ${wp.color || '#111'} center/cover no-repeat`
-            : (wp.color || '#111');
+        // The remote desktop backdrop stays solid black by design —
+        // wallpaper is not mirrored, only windows, icons and chrome.
+        stage.style.background = '#000';
         if (zoom === 'fit') {
             const cw = container.clientWidth || 1;
             const ch = container.clientHeight || 1;
@@ -426,7 +428,36 @@ export function createReplica(container, client) {
         }
     }
 
-    // ---------- taskbar + start menu ----------
+    // ---------- desktop icons ----------
+
+    let lastIconsJson = null;
+
+    function syncDesktopIcons() {
+        const icons = Array.isArray(snap && snap.desktopIcons) ? snap.desktopIcons : [];
+        const json = JSON.stringify(icons.map(i => [i.name, i.x, i.y, i.dir, i.ext]));
+        if (json === lastIconsJson) return;
+        lastIconsJson = json;
+        iconsLayer.innerHTML = '';
+        for (const icon of icons) {
+            const d = el('button', 'rd-dicon', iconsLayer);
+            d.style.left = (icon.x || 0) + 'px';
+            d.style.top = (icon.y || 0) + 'px';
+            d.title = icon.name;
+            d.innerHTML = `<span class="rd-dicon-img">${icon.icon || GENERIC_ICON}</span><span class="rd-dicon-label">${escapeHtml(icon.name)}</span>`;
+            d.addEventListener('click', (e) => {
+                e.stopPropagation();
+                stage.focus();
+                iconsLayer.querySelectorAll('.rd-dicon').forEach(o => o.classList.remove('selected'));
+                d.classList.add('selected');
+            });
+            d.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                client.post('icon-open', { name: icon.name });
+            });
+        }
+    }
+
+    // ---------- taskbar ----------
 
     function catalogIcon(appId) {
         const c = catalog.find(a => a.id === appId);
@@ -481,28 +512,191 @@ export function createReplica(container, client) {
 
     function toggleStartMenu(force) {
         const show = force !== undefined ? force : startMenu.style.display === 'none';
-        startMenu.style.display = show ? 'flex' : 'none';
-        if (show && catalog.length === 0 && client.isOpen) {
-            client.request('apps', {}).then((res) => {
-                if (res && Array.isArray(res.apps)) {
-                    catalog = res.apps;
-                    renderStartMenu();
-                }
-            }).catch(() => { /* host busy */ });
+        startMenu.style.display = show ? 'block' : 'none';
+        if (show) {
+            smState.query = '';
+            if (smInput) smInput.value = '';
+            showSmMain();
+            renderStartMenu();
+            if (catalog.length === 0 && client.isOpen) {
+                client.request('apps', {}).then((res) => {
+                    if (res && Array.isArray(res.apps)) {
+                        catalog = res.apps;
+                        renderStartMenu();
+                    }
+                }).catch(() => { /* host busy */ });
+            }
         }
     }
 
+    // Start menu state + static skeleton (mirrors the real menu: search,
+    // Pinned grid, Recommended list, user footer, All-apps drawer).
+    const smState = { query: '', view: 'main' };
+    let smInput = null;
+    let smMain = null;
+    let smAll = null;
+    let smGrid = null;
+    let smList = null;
+    let smFooterUser = null;
+
+    function buildStartMenu(menu) {
+        const search = el('div', 'rd-sm-search', menu);
+        search.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="#888" stroke="#888" stroke-width="2"><circle cx="10.5" cy="10.5" r="7"/><line x1="15.5" y1="15.5" x2="21" y2="21"/></svg>`;
+        smInput = document.createElement('input');
+        smInput.type = 'text';
+        smInput.placeholder = 'Type here to search';
+        smInput.setAttribute('aria-label', 'Search apps');
+        smInput.addEventListener('input', () => {
+            smState.query = smInput.value.trim().toLowerCase();
+            showSmMain();
+            renderStartMenu();
+        });
+        // Typing in search must not leak keystrokes to the host desktop.
+        smInput.addEventListener('keydown', (e) => e.stopPropagation());
+        smInput.addEventListener('keyup', (e) => e.stopPropagation());
+        search.appendChild(smInput);
+
+        smMain = el('div', 'rd-sm-main', menu);
+
+        const pinHead = el('div', 'rd-sm-sec-head', smMain);
+        pinHead.innerHTML = `<span>Pinned</span>`;
+        const allBtn = el('button', 'rd-sm-all-btn', pinHead);
+        allBtn.textContent = 'All apps >';
+        allBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            smState.view = 'all';
+            renderStartMenu();
+        });
+        smGrid = el('div', 'rd-sm-grid', smMain);
+
+        const recHead = el('div', 'rd-sm-sec-head', smMain);
+        recHead.innerHTML = `<span>Recommended</span>`;
+        smList = el('div', 'rd-sm-list', smMain);
+
+        smAll = el('div', 'rd-sm-all', smMain);
+        smAll.style.display = 'none';
+
+        const footer = el('div', 'rd-sm-footer', menu);
+        smFooterUser = el('div', 'rd-sm-user', footer);
+    }
+
+    function showSmMain() {
+        smState.view = 'main';
+    }
+
+    function catalogById(appId) {
+        return catalog.find(a => a.id === appId);
+    }
+
+    function pinnedApps() {
+        const pins = Array.isArray(snap && snap.startPins) ? snap.startPins : [];
+        const out = [];
+        for (const id of pins) {
+            const app = catalogById(id);
+            if (app) out.push(app);
+        }
+        // Pins referencing unknown ids still get a generic tile so the
+        // grid order matches the host.
+        if (out.length === 0) {
+            return [...catalog].sort((a, b) => (a.name || '').localeCompare(b.name || '')).slice(0, 6);
+        }
+        return out;
+    }
+
+    function launchFromMenu(appId) {
+        toggleStartMenu(false);
+        stage.focus();
+        client.post('launch-app', { appId });
+    }
+
     function renderStartMenu() {
-        startMenu.innerHTML = '';
-        const grid = el('div', 'rd-smgrid', startMenu);
-        const sorted = [...catalog].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        if (!smGrid) return;
+        const q = smState.query;
+        if (smState.view === 'all') {
+            renderSmAll(q);
+            return;
+        }
+        smAll.style.display = 'none';
+        smMain.querySelectorAll(':scope > :not(.rd-sm-all)').forEach(n => { n.style.display = ''; });
+        // Pinned grid (or search results across the whole catalog).
+        smGrid.innerHTML = '';
+        const items = q
+            ? [...catalog]
+                .filter(a => ((a.name || '') + ' ' + a.id).toLowerCase().includes(q))
+                .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+            : pinnedApps();
+        if (items.length === 0) {
+            smGrid.innerHTML = `<div class="rd-sm-empty">${q ? 'No apps found' : 'Nothing pinned'}</div>`;
+        }
+        for (const app of items) {
+            const item = el('button', 'rd-sm-item', smGrid);
+            item.innerHTML = `<span class="rd-sm-appicon">${app.icon || GENERIC_ICON}</span><span class="rd-sm-appname">${escapeHtml(app.name || app.id)}</span>`;
+            item.addEventListener('click', () => launchFromMenu(app.id));
+        }
+        // Recommended (hidden while searching, like the real menu).
+        smList.innerHTML = '';
+        const recHead = smList.previousElementSibling;
+        if (q) {
+            if (recHead) recHead.style.display = 'none';
+            smList.style.display = 'none';
+        } else {
+            if (recHead) recHead.style.display = '';
+            smList.style.display = '';
+            const recs = Array.isArray(snap && snap.recommended) ? snap.recommended : [];
+            if (recs.length === 0) {
+                smList.innerHTML = '<div class="rd-sm-empty">No recent activity</div>';
+            }
+            for (const r of recs.slice(0, 6)) {
+                const row = el('button', 'rd-sm-row', smList);
+                row.innerHTML = `<span class="rd-sm-rowicon">${r.icon || GENERIC_ICON}</span>`
+                    + `<span class="rd-sm-rowinfo"><span class="rd-sm-rowname">${escapeHtml(r.name || '')}</span>`
+                    + (r.detail ? `<span class="rd-sm-rowdetail">${escapeHtml(r.detail)}</span>` : '') + `</span>`;
+                row.addEventListener('click', () => {
+                    toggleStartMenu(false);
+                    stage.focus();
+                    if (r.type === 'app' && r.id) client.post('launch-app', { appId: r.id });
+                    else if (r.type === 'file' && r.path) client.post('recent-open', { type: 'file', path: r.path });
+                });
+            }
+        }
+        // Footer user.
+        if (smFooterUser && snap && snap.user) {
+            const name = snap.user.name || 'User';
+            smFooterUser.innerHTML = `<span class="rd-sm-avatar">${escapeHtml(name.charAt(0).toUpperCase() || 'U')}</span><span>${escapeHtml(name)}</span>`;
+        }
+    }
+
+    function renderSmAll(q) {
+        smMain.querySelectorAll(':scope > :not(.rd-sm-all)').forEach(n => { n.style.display = 'none'; });
+        smAll.style.display = 'block';
+        smAll.innerHTML = '';
+        const head = el('div', 'rd-sm-all-head', smAll);
+        const back = el('button', 'rd-sm-back', head);
+        back.innerHTML = '&#9664;';
+        back.addEventListener('click', (e) => { e.stopPropagation(); showSmMain(); renderStartMenu(); });
+        const title = el('span', 'rd-sm-all-title', head);
+        title.textContent = 'All apps';
+        const sorted = [...catalog]
+            .filter(a => !q || ((a.name || '') + ' ' + a.id).toLowerCase().includes(q))
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        const groups = new Map();
         for (const app of sorted) {
-            const item = el('button', 'rd-smitem', grid);
-            item.innerHTML = `<span class="rd-smicon">${app.icon || GENERIC_ICON}</span><span class="rd-smname">${escapeHtml(app.name || app.id)}</span>`;
-            item.addEventListener('click', () => {
-                toggleStartMenu(false);
-                client.post('launch-app', { appId: app.id });
-            });
+            const letter = ((app.name || app.id || '?').charAt(0) || '?').toUpperCase();
+            if (!groups.has(letter)) groups.set(letter, []);
+            groups.get(letter).push(app);
+        }
+        if (sorted.length === 0) {
+            smAll.innerHTML += `<div class="rd-sm-empty">No apps found</div>`;
+        }
+        for (const [letter, apps] of [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+            const lh = el('div', 'rd-sm-letter', smAll);
+            lh.textContent = letter;
+            for (const app of apps) {
+                const row = el('button', 'rd-sm-row', smAll);
+                row.innerHTML = `<span class="rd-sm-rowicon">${app.icon || GENERIC_ICON}</span>`
+                    + `<span class="rd-sm-rowinfo"><span class="rd-sm-rowname">${escapeHtml(app.name || app.id)}</span></span>`;
+                row.addEventListener('click', () => launchFromMenu(app.id));
+            }
         }
     }
 
@@ -583,7 +777,11 @@ export function createReplica(container, client) {
         }
         const sorted = [...(next.windows || [])].sort((a, b) => (a.z || 0) - (b.z || 0));
         for (const w of sorted) syncWindow(w);
+        syncDesktopIcons();
         syncTaskbar();
+        // Keep an open menu live (pins/recommended/user), but don't churn
+        // its DOM when closed.
+        if (startMenu.style.display !== 'none') renderStartMenu();
         layout();
     }
 
