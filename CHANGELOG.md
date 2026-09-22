@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4960] - 2026-09-22
+
+### Fixed
+- Remote Desktop replica taskbar flooded with the device name: `syncTaskbar` removed stale app buttons but never the device label it re-appends, so every snapshot (practically every interaction) added another label. Stale labels are now cleared with the buttons
+
 ## [12.0.4959] - 2026-09-22
 
 ### Fixed
