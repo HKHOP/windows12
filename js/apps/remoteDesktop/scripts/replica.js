@@ -303,6 +303,9 @@ export function createReplica(container, client) {
 
     function syncTaskbar() {
         taskbar.querySelectorAll('.rd-tbtn').forEach(b => b.remove());
+        // The device label is re-created below — drop the stale one or it
+        // piles up (one extra label per snapshot).
+        taskbar.querySelectorAll('.rd-tlabel').forEach(l => l.remove());
         const seen = new Set();
         const pins = (snap.taskbarPins || []).filter(p => typeof p === 'string');
         const running = [...new Set((snap.windows || []).map(w => w.appId))];
