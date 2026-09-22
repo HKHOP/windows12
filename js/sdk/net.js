@@ -94,7 +94,10 @@ function encodeCode(obj) {
 function decodeCode(code) {
     let parsed;
     try {
-        const json = decodeURIComponent(atob(String(code).trim()).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+        // Strip all whitespace: long codes pasted through chat apps or
+        // wrapped textareas can pick up line breaks/spaces mid-code.
+        const clean = String(code).replace(/\s+/g, '');
+        const json = decodeURIComponent(atob(clean).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
         parsed = JSON.parse(json);
     } catch {
         throw new SDKError(ErrorCodes.INVALID_ARGS, 'That code is not valid — copy it exactly as it was shown.');
@@ -394,7 +397,7 @@ async function createInvite(opts = {}) {
     await gatherIce(pc);
     // `pid` carries our peer id across the manual handshake so both ends
     // address each other consistently.
-    const code = encodeCode({ type: 'offer', sdp: pc.localDescription.sdp, pid: selfId, meta });
+    const code = encodeCode({ app: 'w12-net', v: NET_VERSION, type: 'offer', sdp: pc.localDescription.sdp, pid: selfId, meta });
 
     return {
         code,
@@ -435,7 +438,7 @@ async function acceptInvite(inviteCode, opts = {}) {
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
     await gatherIce(pc);
-    const code = encodeCode({ type: 'answer', sdp: pc.localDescription.sdp, pid: selfId, meta });
+    const code = encodeCode({ app: 'w12-net', v: NET_VERSION, type: 'answer', sdp: pc.localDescription.sdp, pid: selfId, meta });
 
     const connected = whenOpen(pc, dcPromise, offer.meta || {}).then((opened) => {
         return wrapDataChannel(opened.dc, selfId, offer.pid || uid(), opened.meta, pc, () => { try { pc.close(); } catch { /* noop */ } });
