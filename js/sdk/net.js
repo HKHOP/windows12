@@ -1,0 +1,464 @@
+// Windows 12 SDK — Net.
+//
+// App-to-app messaging between separate OS sessions ("devices"). Two
+// transports ship built in:
+//
+//   local   — BroadcastChannel. Every tab running the OS in this browser
+//             is a peer. Zero setup; peer presence + discovery built in.
+//   webrtc  — a direct peer-to-peer DataChannel to another device over
+//             the network, with MANUAL signaling: one side creates an
+//             invite code, the other pastes it and returns an answer
+//             code. No server is involved (public STUN only), so very
+//             strict NATs may fail to connect — that is the price of
+//             serverless. On a LAN or typical home network it just works.
+//
+//   // Same-browser: presence + messaging
+//   const ch = Net.createChannel({ name: 'my-game', meta: { name: 'Desk PC' } });
+//   ch.on('message', ({ from, msg }) => ch.send({ hello: 'back' }));
+//   ch.on('peer-open', ({ id, meta }) => console.log('joined', meta));
+//   const devices = await Net.discover('my-game');
+//
+//   // Cross-device: manual pairing
+//   const invite = await Net.createInvite({ meta: { name: 'Desk PC' } });
+//   // ... hand invite.code to the other device, get an answer code back:
+//   const ch = await invite.accept(answerCode);
+//   // ... and on the other side:
+//   const pending = await Net.acceptInvite(inviteCode, { meta: { name: 'Laptop' } });
+//   // ... hand pending.code back, then:
+//   const ch2 = await pending.connected;
+//
+// Messages must be JSON-serializable objects. A Channel is a plain event
+// source: on('message'|'peer-open'|'peer-close'|'error', cb) returns an
+// unsubscribe function; close() releases the transport. WebRTC channels
+// are point-to-point; local channels broadcast to every peer (use
+// sendTo(peerId, msg) for directed sends).
+import { ErrorCodes, SDKError, requireString } from './errors.js';
+
+const NET_VERSION = 1;
+// Public STUN only — serverless by design. Host candidates cover LAN;
+// STUN covers most home/consumer NATs. No TURN: traffic must stay P2P.
+const ICE_SERVERS = [
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
+];
+const DISCOVER_DEFAULT_MS = 900;   // how long discovery listens for acks
+const ICE_GATHER_TIMEOUT_MS = 3500; // host candidates exist immediately; STUN may need a beat
+const LINK_OPEN_TIMEOUT_MS = 20000;
+const PING_MS = 5000;              // keep-alive so dead tabs are pruned
+const PEER_STALE_MS = 14000;
+
+/** @returns {string} random id (UUID when the platform has it) */
+function uid() {
+    try {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    } catch { /* fall through */ }
+    return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+}
+
+function cleanMeta(meta) {
+    if (meta === undefined || meta === null) return {};
+    if (typeof meta !== 'object' || Array.isArray(meta)) {
+        throw new SDKError(ErrorCodes.INVALID_ARGS, 'meta must be an object.');
+    }
+    return { ...meta };
+}
+
+// Minimal multi-event emitter shared by every transport.
+function makeEvents() {
+    const map = new Map();
+    return {
+        on(event, cb) {
+            if (typeof event !== 'string' || typeof cb !== 'function') {
+                throw new SDKError(ErrorCodes.INVALID_ARGS, 'on() needs an event name and a function.');
+            }
+            if (!map.has(event)) map.set(event, new Set());
+            map.get(event).add(cb);
+            return () => map.get(event) && map.get(event).delete(cb);
+        },
+        emit(event, detail) {
+            const set = map.get(event);
+            if (!set) return;
+            for (const cb of [...set]) {
+                try { cb(detail); } catch (e) { console.error('[Windows12 SDK] Net handler threw for "' + event + '"', e); }
+            }
+        },
+        has(event) { return !!map.get(event) && map.get(event).size > 0; }
+    };
+}
+
+// Safe code packing (invite/answer codes carry SDP + meta; may hold unicode).
+function encodeCode(obj) {
+    const json = JSON.stringify(obj);
+    return btoa(encodeURIComponent(json).replace(/%([0-9A-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16))));
+}
+
+function decodeCode(code) {
+    let parsed;
+    try {
+        const json = decodeURIComponent(atob(String(code).trim()).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+        parsed = JSON.parse(json);
+    } catch {
+        throw new SDKError(ErrorCodes.INVALID_ARGS, 'That code is not valid — copy it exactly as it was shown.');
+    }
+    if (!parsed || parsed.app !== 'w12-net' || parsed.v !== NET_VERSION || !parsed.sdp) {
+        throw new SDKError(ErrorCodes.INVALID_ARGS, 'That code is not a Windows 12 Net invite.');
+    }
+    return parsed;
+}
+
+// ---------- local transport (BroadcastChannel, many peers) ----------
+
+function createLocalChannel(name, opts = {}) {
+    if (typeof BroadcastChannel === 'undefined') {
+        throw new SDKError(ErrorCodes.UNSUPPORTED, 'BroadcastChannel is not available in this browser.');
+    }
+    const meta = cleanMeta(opts.meta);
+    const self = { id: uid(), meta };
+    const events = makeEvents();
+    const peers = new Map(); // id -> { id, meta, lastSeen }
+    let closed = false;
+
+    const bus = new BroadcastChannel('w12-net/' + name);
+
+    function post(kind, payload, to) {
+        if (closed) return;
+        try {
+            const env = { net: NET_VERSION, ch: name, kind, from: self.id, to: to || null };
+            if (payload !== undefined) env.payload = payload;
+            bus.postMessage(env);
+        } catch (e) {
+            events.emit('error', { error: e });
+        }
+    }
+
+    function touchPeer(id, peerMeta) {
+        const existing = peers.get(id);
+        if (existing) {
+            existing.lastSeen = Date.now();
+            if (peerMeta) existing.meta = peerMeta;
+            return existing;
+        }
+        const peer = { id, meta: peerMeta || {}, lastSeen: Date.now() };
+        peers.set(id, peer);
+        events.emit('peer-open', { id, meta: peer.meta });
+        return peer;
+    }
+
+    function dropPeer(id, reason) {
+        if (!peers.has(id)) return;
+        peers.delete(id);
+        events.emit('peer-close', { id, reason: reason || 'left' });
+    }
+
+    bus.onmessage = (e) => {
+        const env = e.data;
+        if (!env || env.net !== NET_VERSION || env.ch !== name) return;
+        if (env.from === self.id) return;
+        if (env.to && env.to !== self.id) return;
+        switch (env.kind) {
+            case 'hello':
+                // Answer so the newcomer learns about us, too.
+                touchPeer(env.from, env.payload);
+                post('hello-back', self.meta, env.from);
+                break;
+            case 'hello-back':
+                touchPeer(env.from, env.payload);
+                break;
+            case 'msg':
+                touchPeer(env.from);
+                events.emit('message', { from: env.from, msg: env.payload });
+                break;
+            case 'bye':
+                dropPeer(env.from, 'left');
+                break;
+            case 'probe':
+                post('ack', self.meta, env.from);
+                break;
+            case 'ack':
+                // Discovery-only channels handle their own acks; live
+                // channels just treat them as presence.
+                touchPeer(env.from, env.payload);
+                break;
+            case 'ping':
+                touchPeer(env.from);
+                break;
+            default:
+                break;
+        }
+    };
+
+    // Liveness: announce, then keep-alive so crashed tabs disappear.
+    post('hello', self.meta);
+    const pinger = setInterval(() => post('ping'), PING_MS);
+    const pruner = setInterval(() => {
+        const now = Date.now();
+        for (const id of [...peers.keys()]) {
+            if (now - peers.get(id).lastSeen > PEER_STALE_MS) dropPeer(id, 'timeout');
+        }
+    }, PING_MS);
+    const bye = () => post('bye');
+    window.addEventListener('beforeunload', bye);
+
+    function close() {
+        if (closed) return;
+        closed = true;
+        bye();
+        clearInterval(pinger);
+        clearInterval(pruner);
+        window.removeEventListener('beforeunload', bye);
+        try { bus.close(); } catch { /* already closed */ }
+        for (const id of [...peers.keys()]) dropPeer(id, 'closed');
+    }
+
+    return {
+        transport: 'local',
+        localId: self.id,
+        send(msg) { post('msg', msg); },
+        sendTo(peerId, msg) {
+            requireString(peerId, 'peerId');
+            post('msg', msg, peerId);
+        },
+        peers() {
+            return [...peers.values()].map(p => ({ id: p.id, meta: { ...p.meta } }));
+        },
+        on: events.on,
+        close
+    };
+}
+
+/**
+ * Discover peers listening on a channel name in this browser.
+ * @param {string} name channel name
+ * @param {object} [opts] { timeout: ms (default ~900) }
+ * @returns {Promise<Array<{id: string, meta: object}>>}
+ */
+function discover(name, opts = {}) {
+    requireString(name, 'name');
+    const timeout = Number.isFinite(opts.timeout) ? Math.max(100, opts.timeout) : DISCOVER_DEFAULT_MS;
+    return new Promise((resolve) => {
+        if (typeof BroadcastChannel === 'undefined') { resolve([]); return; }
+        const bus = new BroadcastChannel('w12-net/' + name);
+        const from = uid();
+        const found = new Map();
+        let done = false;
+
+        const finish = () => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            try { bus.close(); } catch { /* already closed */ }
+            resolve([...found.values()].map(p => ({ id: p.id, meta: { ...p.meta } })));
+        };
+        const timer = setTimeout(finish, timeout);
+
+        bus.onmessage = (e) => {
+            const env = e.data;
+            if (!env || env.net !== NET_VERSION || env.ch !== name || env.kind !== 'ack') return;
+            if (env.to !== from) return;
+            found.set(env.from, { id: env.from, meta: env.payload || {} });
+        };
+        try {
+            bus.postMessage({ net: NET_VERSION, ch: name, kind: 'probe', from, to: null });
+        } catch {
+            finish();
+        }
+    });
+}
+
+// ---------- webrtc transport (manual signaling, one peer) ----------
+
+function makePeerConnection() {
+    if (typeof RTCPeerConnection === 'undefined') {
+        throw new SDKError(ErrorCodes.UNSUPPORTED, 'WebRTC is not available in this browser.');
+    }
+    return new RTCPeerConnection({ iceServers: ICE_SERVERS });
+}
+
+// Resolve once local candidates are in the SDP (or the timeout hits —
+// host candidates usually arrive instantly, STUN may add a beat).
+function gatherIce(pc) {
+    return new Promise((resolve) => {
+        if (pc.iceGatheringState === 'complete') { resolve(); return; }
+        let finished = false;
+        const finish = () => {
+            if (finished) return;
+            finished = true;
+            clearTimeout(timer);
+            try { pc.removeEventListener('icegatheringstatechange', check); } catch { /* noop */ }
+            resolve();
+        };
+        const timer = setTimeout(finish, ICE_GATHER_TIMEOUT_MS);
+        const check = () => { if (pc.iceGatheringState === 'complete') finish(); };
+        pc.addEventListener('icegatheringstatechange', check);
+    });
+}
+
+// Wrap an open DataChannel in the standard Channel surface. `pc` is the
+// owning RTCPeerConnection (watched for connection death).
+function wrapDataChannel(dc, selfId, remoteId, remoteMeta, pc, teardown) {
+    const events = makeEvents();
+    // whenOpen() may resolve after the open event already fired — seed
+    // the state from readyState so peers() works immediately.
+    let open = dc.readyState === 'open';
+    let closed = false;
+
+    const close = (reason) => {
+        if (closed) return;
+        closed = true;
+        try { dc.close(); } catch { /* noop */ }
+        try { teardown(); } catch { /* noop */ }
+        events.emit('peer-close', { id: remoteId, reason: reason || 'closed' });
+    };
+
+    dc.onopen = () => {
+        open = true;
+        events.emit('peer-open', { id: remoteId, meta: remoteMeta });
+    };
+    dc.onmessage = (e) => {
+        let msg = e.data;
+        if (typeof msg === 'string') {
+            try { msg = JSON.parse(msg); } catch { /* keep raw string */ }
+        }
+        events.emit('message', { from: remoteId, msg });
+    };
+    dc.onclose = () => close('closed');
+    dc.onerror = () => { if (!open) close('error'); };
+
+    if (pc) {
+        pc.onconnectionstatechange = () => {
+            if (pc.connectionState === 'failed' || pc.connectionState === 'closed') close(pc.connectionState);
+        };
+    }
+
+    return {
+        transport: 'webrtc',
+        localId: selfId,
+        peerId: remoteId,
+        send(msg) {
+            if (closed || dc.readyState !== 'open') {
+                throw new SDKError(ErrorCodes.UNSUPPORTED, 'The WebRTC link is not open.');
+            }
+            dc.send(JSON.stringify(msg === undefined ? null : msg));
+        },
+        sendTo(peerId, msg) {
+            if (peerId && peerId !== remoteId) {
+                throw new SDKError(ErrorCodes.NOT_FOUND, 'A WebRTC channel has exactly one peer.');
+            }
+            this.send(msg);
+        },
+        peers() { return open ? [{ id: remoteId, meta: { ...remoteMeta } }] : []; },
+        on: events.on,
+        close: () => close('closed')
+    };
+}
+
+// Wait for the DataChannel to open (or the link/timeout to fail).
+function whenOpen(pc, dcPromise, remoteMeta) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            cleanup();
+            reject(new SDKError(ErrorCodes.UNSUPPORTED, 'The WebRTC link did not open in time. Check both devices are online and try again.'));
+        }, LINK_OPEN_TIMEOUT_MS);
+        function cleanup() { clearTimeout(timer); try { pc.removeEventListener('connectionstatechange', onState); } catch { /* noop */ } }
+        function onState() {
+            if (pc.connectionState === 'failed') {
+                cleanup();
+                reject(new SDKError(ErrorCodes.UNSUPPORTED, 'The WebRTC link failed to connect (network blocked peer-to-peer?).'));
+            }
+        }
+        pc.addEventListener('connectionstatechange', onState);
+        dcPromise.then((dc) => {
+            if (dc.readyState === 'open') {
+                cleanup();
+                resolve({ dc, meta: remoteMeta });
+                return;
+            }
+            dc.addEventListener('open', () => { cleanup(); resolve({ dc, meta: remoteMeta }); }, { once: true });
+        }).catch((e) => { cleanup(); reject(e); });
+    });
+}
+
+/**
+ * Create an invite for a point-to-point WebRTC link (the "host" side of
+ * pairing). Share `code` with the other device; when it returns an answer
+ * code, call `accept(answerCode)` — resolves with the open Channel.
+ * @param {object} [opts] { meta: object }
+ * @returns {Promise<{code: string, accept: (answerCode: string) => Promise<object>}>}
+ */
+async function createInvite(opts = {}) {
+    const meta = cleanMeta(opts.meta);
+    const selfId = uid();
+    const pc = makePeerConnection();
+    const dc = pc.createDataChannel('w12-net', { ordered: true });
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await gatherIce(pc);
+    // `pid` carries our peer id across the manual handshake so both ends
+    // address each other consistently.
+    const code = encodeCode({ type: 'offer', sdp: pc.localDescription.sdp, pid: selfId, meta });
+
+    return {
+        code,
+        async accept(answerCode) {
+            requireString(answerCode, 'answerCode');
+            const ans = decodeCode(answerCode);
+            if (ans.type !== 'answer') {
+                throw new SDKError(ErrorCodes.INVALID_ARGS, 'Expected an answer code here (this side created the invite).');
+            }
+            await pc.setRemoteDescription({ type: 'answer', sdp: ans.sdp });
+            const opened = await whenOpen(pc, Promise.resolve(dc), ans.meta || {});
+            return wrapDataChannel(dc, selfId, ans.pid || uid(), opened.meta, pc, () => { try { pc.close(); } catch { /* noop */ } });
+        }
+    };
+}
+
+/**
+ * Accept an invite code (the "join" side of pairing). Returns the answer
+ * `code` to hand back, plus a `connected` promise for the open Channel.
+ * @param {string} inviteCode the code from Net.createInvite()
+ * @param {object} [opts] { meta: object }
+ * @returns {Promise<{code: string, connected: Promise<object>}>}
+ */
+async function acceptInvite(inviteCode, opts = {}) {
+    requireString(inviteCode, 'inviteCode');
+    const meta = cleanMeta(opts.meta);
+    const offer = decodeCode(inviteCode);
+    if (offer.type !== 'offer') {
+        throw new SDKError(ErrorCodes.INVALID_ARGS, 'Expected an invite code here (not an answer code).');
+    }
+    const pc = makePeerConnection();
+    const selfId = uid();
+    let dcResolve;
+    const dcPromise = new Promise((resolve) => { dcResolve = resolve; });
+    pc.ondatachannel = (e) => dcResolve(e.channel);
+
+    await pc.setRemoteDescription({ type: 'offer', sdp: offer.sdp });
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await gatherIce(pc);
+    const code = encodeCode({ type: 'answer', sdp: pc.localDescription.sdp, pid: selfId, meta });
+
+    const connected = whenOpen(pc, dcPromise, offer.meta || {}).then((opened) => {
+        return wrapDataChannel(opened.dc, selfId, offer.pid || uid(), opened.meta, pc, () => { try { pc.close(); } catch { /* noop */ } });
+    });
+    return { code, connected };
+}
+
+export const Net = {
+    transports: { local: 'local', webrtc: 'webrtc' },
+    createChannel(opts) {
+        const o = opts || {};
+        requireString(o.name, 'opts.name');
+        const transport = o.transport || 'local';
+        if (transport === 'local') return createLocalChannel(o.name, o);
+        if (transport === 'webrtc') {
+            throw new SDKError(ErrorCodes.INVALID_ARGS,
+                "WebRTC channels are created via Net.createInvite()/Net.acceptInvite() — manual signaling needs the two of you to exchange codes first.");
+        }
+        throw new SDKError(ErrorCodes.INVALID_ARGS, `Unknown transport "${transport}" (use 'local' or 'webrtc').`);
+    },
+    discover,
+    createInvite,
+    acceptInvite
+};
+
+export default Net;

@@ -6,6 +6,8 @@ const AppIcons = (() => {
 
         notepad: `<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="2" width="16" height="20" rx="2" fill="#1E88E5"/><rect x="7" y="6" width="10" height="1.5" rx="0.5" fill="white"/><rect x="7" y="9.5" width="8" height="1.5" rx="0.5" fill="white"/><rect x="7" y="13" width="10" height="1.5" rx="0.5" fill="white"/><rect x="7" y="16.5" width="6" height="1.5" rx="0.5" fill="white"/></svg>`,
 
+        remoteDesktop: `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="14" rx="2" fill="#0F4C81"/><rect x="4" y="5" width="16" height="10" rx="1" fill="#123A5E"/><path d="M7 9h6" stroke="#4FC3F7" stroke-width="1.4" stroke-linecap="round"/><path d="M7 12h4" stroke="#4FC3F7" stroke-width="1.4" stroke-linecap="round" stroke-opacity="0.7"/><path d="M15 8.5l3 2.5-3 2.5" stroke="#4FC3F7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M9 21h6M12 17v4" stroke="#888" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+
         calendar: `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="4" width="20" height="18" rx="2" fill="#E53935"/><rect x="2" y="4" width="20" height="6" rx="2" fill="#B71C1C"/><rect x="6" y="2" width="2" height="4" rx="1" fill="white" fill-opacity="0.6"/><rect x="16" y="2" width="2" height="4" rx="1" fill="white" fill-opacity="0.6"/><path d="M7 14h3v3H7zM14 14h3v3h-3zM7 19h3v1H7zM14 19h3v1h-3z" fill="white" fill-opacity="0.9"/></svg>`,
 
         taskManager: `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="3" fill="#0078D4"/><path d="M6 6h5v5H6zM13 6h5v5h-5zM6 13h5v5H6zM13 13h5v5h-5z" fill="white" fill-opacity="0.9" rx="1"/></svg>`,

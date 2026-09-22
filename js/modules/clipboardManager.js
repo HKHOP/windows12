@@ -528,7 +528,9 @@ const ClipboardManager = (() => {
         }, 15000);
     }
 
-    return { init, show, hide, toggle, isOpen, syncFromSystemClipboard, clearHistory, getHistory: () => [...history] };
+    // addItem: programmatic insertion into the OS clipboard history
+    // (used by Remote Desktop clipboard sync; same shape as internal adds).
+    return { init, show, hide, toggle, isOpen, syncFromSystemClipboard, addItem, clearHistory, getHistory: () => [...history] };
 })();
 
 export default ClipboardManager;

@@ -33,6 +33,8 @@ import { Background } from './background.js';
 import { PointerLock } from './pointerLock.js';
 import { Input } from './input.js';
 import { Audio } from './audio.js';
+import { Net } from './net.js';
+import { Inject } from './inject.js';
 import Users from '../modules/users.js';
 import InternalFS from '../modules/fileSystem.js';
 import { ErrorCodes, SDKError, requireString, requireOptions } from './errors.js';
@@ -394,6 +396,26 @@ function createApp(def) {
         bringToForeground: () => Background.bringToForeground(id)
     };
 
+    const net = {
+        /** @param {object} opts { name, transport?: 'local', meta? } */
+        createChannel: (opts) => Net.createChannel(opts),
+        /** @param {string} name channel name @param {object} [opts] { timeout } */
+        discover: (name, opts) => Net.discover(name, opts),
+        /** @param {object} [opts] { meta } — returns { code, accept(answerCode) } */
+        createInvite: (opts) => Net.createInvite(opts),
+        /** @param {string} inviteCode @param {object} [opts] { meta } — returns { code, connected } */
+        acceptInvite: (inviteCode, opts) => Net.acceptInvite(inviteCode, opts)
+    };
+
+    const inject = {
+        /** @param {object} opts { type?, key, code?, modifiers... } */
+        key: (opts) => Inject.key(opts),
+        /** @param {string} text insert into the focused editable element */
+        type: (text) => Inject.type(text),
+        /** @param {HTMLElement} element @param {object} opts { x, y, type?, button? } */
+        pointer: (element, opts) => Inject.pointer(element, opts)
+    };
+
     const media = {
         /**
          * Open a microphone MediaStream (OS grant checked first).
@@ -435,7 +457,9 @@ function createApp(def) {
         media,
         pointerLock,
         input,
-        audio
+        audio,
+        net,
+        inject
     };
 }
 

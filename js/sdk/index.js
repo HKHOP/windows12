@@ -33,11 +33,13 @@ import { createApp } from './app.js';
 import { PointerLock } from './pointerLock.js';
 import { Input } from './input.js';
 import { Audio } from './audio.js';
+import { Net } from './net.js';
+import { Inject } from './inject.js';
 import { SDKError, ErrorCodes } from './errors.js';
 import { Engine3D } from './engine3d/engine.js';
 
 /** SDK major contract version (semver, independent of the OS version). */
-const SDK_VERSION = '1.2.0';
+const SDK_VERSION = '1.3.0';
 
 const Windows12 = {
     SDK_VERSION,
@@ -63,6 +65,8 @@ const Windows12 = {
     PointerLock,
     Input,
     Audio,
+    Net,
+    Inject,
     Engine3D,
     SDKError,
     ErrorCodes
@@ -90,6 +94,8 @@ export {
     PointerLock,
     Input,
     Audio,
+    Net,
+    Inject,
     Engine3D,
     SDKError,
     ErrorCodes

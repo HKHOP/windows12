@@ -88,6 +88,7 @@ const urlsToCache = [
     './js/apps/photos/main.js',
     './js/apps/pomodoro/main.js',
     './js/apps/qrStudio/main.js',
+    './js/apps/remoteDesktop/main.js',
     './js/apps/riftboundRunner/main.js',
     './js/apps/sampleApp/main.js',
     './js/apps/settings/main.js',

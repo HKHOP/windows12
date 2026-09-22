@@ -1,0 +1,16 @@
+{
+    "manifestVersion": 1,
+    "id": "remoteDesktop",
+    "uuid": "cd7207c4-245f-44a2-8457-171c465e3c4a",
+    "name": "Remote Desktop",
+    "version": "1.0.0",
+    "distribution": "builtin",
+    "entry": "main.js",
+    "associations": [],
+    "permissions": [
+        "notifications",
+        "clipboard",
+        "filesystem"
+    ],
+    "background": true
+}
