@@ -807,6 +807,10 @@ function injectStyles() {
 .rd-rph { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:var(--text-secondary); font-size:13px; background:repeating-linear-gradient(45deg, transparent, transparent 12px, rgba(255,255,255,0.015) 12px, rgba(255,255,255,0.015) 24px); }
 .rd-rph-icon { display:flex; width:40px; height:40px; opacity:0.5; } .rd-rph-icon svg { width:100%; height:100%; }
 .rd-rtext { position:absolute; inset:0; margin:0; padding:10px 12px; color:var(--text-primary); font:12px/1.55 Consolas,'Courier New',monospace; white-space:pre-wrap; word-break:break-word; overflow:auto; }
+.rd-rmirror { position:absolute; inset:0; overflow:auto; background:#1b1b1b; }
+.rd-rmirror input, .rd-rmirror textarea { caret-color:transparent; }
+.rd-mirror-frame { margin:12px; padding:16px; border:1px dashed var(--window-border); border-radius:8px; color:var(--text-secondary); font-size:12px; text-align:center; }
+.rd-mirror-trunc { padding:8px; color:var(--text-secondary); font-size:11px; text-align:center; }
 .rd-rhandle { position:absolute; z-index:5; touch-action:none; }
 .rd-h-n { top:-4px; left:8px; right:8px; height:8px; cursor:ns-resize; }
 .rd-h-s { bottom:-4px; left:8px; right:8px; height:8px; cursor:ns-resize; }

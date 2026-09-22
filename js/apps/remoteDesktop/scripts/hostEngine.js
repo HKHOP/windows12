@@ -33,6 +33,49 @@ const PIN_ATTEMPTS = 3;
 const MAX_TEXT_FILE_CHARS = 2 * 1024 * 1024;   // inline text transfer cap
 const MAX_BINARY_BYTES = 6 * 1024 * 1024;      // blob transfer cap
 const INVITE_TTL_MS = 10 * 60000;
+const MAX_CONTENT_CHARS = 120000;              // mirrored window HTML cap
+const MAX_CSS_CHARS = 500000;                  // one-time page CSS bundle cap
+
+// Strip everything that could execute or load in the controller's
+// document: scripts, event-handler attributes, javascript: URLs, frames
+// and media sources (replaced with placeholders). Operates on a detached
+// clone — the live window is never modified.
+function sanitizeMirror(root) {
+    root.querySelectorAll('script').forEach(n => n.remove());
+    root.querySelectorAll('iframe').forEach(f => {
+        const ph = document.createElement('div');
+        ph.className = 'rd-mirror-frame';
+        ph.textContent = 'Embedded content not mirrored';
+        f.replaceWith(ph);
+    });
+    root.querySelectorAll('audio, video').forEach(m => {
+        m.removeAttribute('src');
+        m.querySelectorAll('source').forEach(s => s.remove());
+    });
+    const all = [root, ...root.querySelectorAll('*')];
+    for (const n of all) {
+        if (n.attributes) {
+            for (const attr of [...n.attributes]) {
+                const name = attr.name.toLowerCase();
+                if (name.startsWith('on')) n.removeAttribute(attr.name);
+                else if ((name === 'href' || name === 'src' || name === 'srcset' || name === 'poster' || name === 'action')
+                    && /^\s*javascript:/i.test(attr.value)) n.removeAttribute(attr.name);
+                else if (name === 'srcset') n.removeAttribute(attr.name);
+            }
+        }
+        const tag = (n.tagName || '').toLowerCase();
+        // Text fields stay visible but not locally editable: clicks focus
+        // the HOST field, keystrokes travel via key forwarding.
+        if (tag === 'textarea') n.setAttribute('readonly', '');
+        else if (tag === 'input') {
+            const type = (n.getAttribute('type') || 'text').toLowerCase();
+            if (!['button', 'checkbox', 'radio', 'submit', 'reset', 'image', 'file', 'range', 'color', 'hidden'].includes(type)) {
+                n.setAttribute('readonly', '');
+            }
+        } else if (tag === 'select') n.setAttribute('disabled', '');
+        n.removeAttribute('contenteditable');
+    }
+}
 
 function uid() {
     try { if (crypto.randomUUID) return crypto.randomUUID(); } catch { /* fall through */ }
@@ -436,6 +479,7 @@ export class HostEngine {
         }
         this.active = session;
         this._markClipboardBaseline();
+        this._lastCssHash = null; // force the CSS bundle into the opening state
         session.send('session-open', {
             device: deviceInfo(this.identity()),
             state: this.snapshot()
@@ -559,21 +603,33 @@ export class HostEngine {
             if (activeDesktop && w.desktopId && w.desktopId !== activeDesktop) continue;
             let z = 0;
             try { z = parseInt(w.element.style.zIndex, 10) || 0; } catch { /* noop */ }
-            windows.push({
+            const bounds = WindowManager.getBounds(w.id);
+            const entry = {
                 id: w.id,
                 appId: w.appId,
                 title: w.title || w.appId,
                 icon: w.icon || '',
-                bounds: WindowManager.getBounds(w.id),
+                bounds,
                 z,
                 minimized: !!w.minimized,
                 maximized: !!w.isMaximized,
                 resizable: w.resizable !== false,
                 minWidth: w.minWidth || 400,
                 minHeight: w.minHeight || 300
-            });
+            };
+            // Live content mirror (skipped for minimized windows): sanitized
+            // body HTML + the content origin inside the window frame, so the
+            // controller can render and click the real app UI.
+            if (!w.minimized) {
+                const mirror = this._windowMirror(w, bounds);
+                if (mirror) {
+                    entry.chrome = mirror.chrome;
+                    entry.content = mirror.html;
+                }
+            }
+            windows.push(entry);
         }
-        return {
+        const snap = {
             proto: PROTOCOL,
             area,
             wallpaper: this._wallpaper(),
@@ -582,6 +638,105 @@ export class HostEngine {
             windows,
             taskbarPins: (() => { try { return Taskbar.getPinnedApps(); } catch { return []; } })()
         };
+        // Page CSS goes out once (and again only when it changes) — the
+        // controller caches it to style mirrored app content.
+        const css = this._cssBundle();
+        if (css && css.hash !== this._lastCssHash) {
+            this._lastCssHash = css.hash;
+            snap.css = css.text;
+        }
+        return snap;
+    }
+
+    // ---------- live content mirror ----------
+    //
+    // Serializes a window's `.window-body` into sanitized HTML for the
+    // controller: scripts removed, event-handler attributes stripped,
+    // iframes/media sources replaced (they would load in the wrong
+    // document), live field values baked in from a detached clone (the
+    // live DOM is never touched), text fields locked read-only (the
+    // controller types into the HOST field via key forwarding instead).
+
+    _windowMirror(winData, bounds) {
+        try {
+            const body = winData.element.querySelector('.window-body');
+            if (!body) return null;
+            const clone = body.cloneNode(true);
+            this._bakeLiveValues(body, clone);
+            sanitizeMirror(clone);
+            let html = clone.innerHTML;
+            if (html.length > MAX_CONTENT_CHARS) {
+                html = html.slice(0, MAX_CONTENT_CHARS)
+                    + '<div class="rd-mirror-trunc">…content truncated…</div>';
+            }
+            // Content origin inside the window frame (titlebar height etc.)
+            // in desktop px, so controller clicks map back exactly.
+            let dx = 0, dy = 28;
+            try {
+                const rootRect = winData.element.getBoundingClientRect();
+                const bodyRect = body.getBoundingClientRect();
+                const layoutW = winData.element.offsetWidth || (bounds && bounds.width) || 1;
+                const zoom = rootRect.width > 0 && layoutW > 0 ? rootRect.width / layoutW : 1;
+                dx = Math.round((bodyRect.left - rootRect.left) / (zoom || 1));
+                dy = Math.round((bodyRect.top - rootRect.top) / (zoom || 1));
+            } catch { /* keep estimates */ }
+            return { chrome: { dx, dy }, html };
+        } catch {
+            return null;
+        }
+    }
+
+    // Copy live field values into the detached clone (same document order).
+    _bakeLiveValues(body, clone) {
+        try {
+            const live = body.querySelectorAll('input, textarea, select');
+            const mirrored = clone.querySelectorAll('input, textarea, select');
+            live.forEach((el, i) => {
+                const c = mirrored[i];
+                if (!c) return;
+                const tag = (el.tagName || '').toLowerCase();
+                if (tag === 'textarea') {
+                    c.textContent = el.value;
+                } else if (tag === 'select') {
+                    const opts = c.querySelectorAll('option');
+                    [...el.options].forEach((o, j) => {
+                        if (opts[j]) { if (o.selected) opts[j].setAttribute('selected', ''); else opts[j].removeAttribute('selected'); }
+                    });
+                } else if (tag === 'input') {
+                    const type = (el.type || 'text').toLowerCase();
+                    if (type === 'checkbox' || type === 'radio') {
+                        if (el.checked) c.setAttribute('checked', ''); else c.removeAttribute('checked');
+                    } else if (type !== 'file') {
+                        c.setAttribute('value', el.value);
+                    }
+                }
+            });
+        } catch { /* best effort */ }
+    }
+
+    _cssBundle() {
+        try {
+            const parts = [];
+            for (const sheet of document.styleSheets) {
+                let rules = null;
+                try { rules = sheet.cssRules; } catch { continue; } // cross-origin — skip
+                if (!rules) continue;
+                const texts = [];
+                for (const rule of rules) {
+                    try { texts.push(rule.cssText); } catch { /* skip one rule */ }
+                    if (texts.join('\n').length > MAX_CSS_CHARS) break;
+                }
+                parts.push(texts.join('\n'));
+                if (parts.join('\n').length > MAX_CSS_CHARS) break;
+            }
+            const text = parts.join('\n').slice(0, MAX_CSS_CHARS);
+            if (!text) return null;
+            let h = 5381;
+            for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) >>> 0;
+            return { hash: 'css-' + h.toString(16), text };
+        } catch {
+            return null;
+        }
     }
 
     _startStateStream() {
@@ -720,6 +875,35 @@ export class HostEngine {
         } catch { /* noop */ }
     }
 
+    // Replay a controller click on the live window: resolve the deepest
+    // element under the point (a real click's target) and dispatch the
+    // pointer sequence there via Inject. Falls back to the window root.
+    _clickWindow(w, x, y, kind, button) {
+        const root = w.element;
+        if (!root || !root.isConnected) throw new Error('Window is gone.');
+        const b = WindowManager.getBounds(w.id) || { x: 0, y: 0 };
+        const rect = root.getBoundingClientRect();
+        const layoutW = root.offsetWidth || b.width || 1;
+        const zoom = rect.width > 0 && layoutW > 0 ? rect.width / layoutW : 1;
+        const clientX = rect.left + (x - b.x) * (zoom || 1);
+        const clientY = rect.top + (y - b.y) * (zoom || 1);
+        let target = null;
+        try { target = document.elementFromPoint(clientX, clientY); } catch { target = null; }
+        if (!target || target === this._cursorEl || !root.contains(target)) target = root;
+        let lx = x - b.x;
+        let ly = y - b.y;
+        if (target !== root) {
+            try {
+                const tr = target.getBoundingClientRect();
+                const tw = target.offsetWidth || 1;
+                const tz = tr.width > 0 && tw > 0 ? tr.width / tw : 1;
+                lx = (clientX - tr.left) / (tz || 1);
+                ly = (clientY - tr.top) / (tz || 1);
+            } catch { lx = 0; ly = 0; }
+        }
+        Inject.pointer(target, { x: lx, y: ly, type: kind, button });
+    }
+
     /** Launchable apps on this device (catalog for the replica start menu). */
     appCatalog() {
         const out = [];
@@ -805,6 +989,22 @@ export class HostEngine {
             }
             case 'pointer-hide': {
                 if (session === this.active) this._hideControllerCursor();
+                return true;
+            }
+
+            case 'click-at':
+            case 'dblclick-at': {
+                // Controller clicked the mirrored app content: replay a real
+                // pointer sequence on the live window at desktop (x, y).
+                const w = this._win(a.id);
+                if (!Number.isFinite(a.x) || !Number.isFinite(a.y)) throw new Error('x/y required.');
+                if (w.minimized) WindowManager.setMinimized(w.id, false);
+                WindowManager.focusWindow(w.id);
+                this._clickWindow(
+                    w, Math.round(a.x), Math.round(a.y),
+                    cmd === 'dblclick-at' ? 'dblclick' : 'click',
+                    Number.isFinite(a.button) ? a.button : 0
+                );
                 return true;
             }
 

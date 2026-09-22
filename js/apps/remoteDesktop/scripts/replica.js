@@ -3,6 +3,10 @@
 // Draws the remote desktop from host snapshots inside a container and
 // turns local gestures into host commands:
 //   - window replicas (real icon/title, live bounds, z-order, focus)
+//   - LIVE app content: the host mirrors sanitized window HTML (+ page
+//     CSS, sent once) so native apps render for real; clicks/dblclicks/
+//     right-clicks inside mirrored content replay on the live host window
+//     (text fields focus the host field — keystrokes already forward)
 //   - drag / 8-way resize (throttled live set-bounds), dblclick maximize,
 //     minimize / maximize / close buttons, click-to-focus
 //   - taskbar + start menu replica (launch apps on the host)
@@ -37,6 +41,73 @@ function hostPoint(stage, areaW, e) {
 
 const GENERIC_ICON = `<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="2" fill="#556"/></svg>`;
 
+// Prefix every style-rule selector with `scope` so host CSS only paints
+// inside the replica. Conditional group rules (@media/@supports/…) are
+// recursed into; keyframes/fonts/imports stay global (harmless names).
+// Quote- and comment-aware brace matching keeps embedded `{`/`}` safe.
+function scopeCss(css, scope) {
+    const text = String(css).replace(/\/\*[\s\S]*?\*\//g, '');
+    function blockEnd(str, from) {
+        let depth = 0;
+        let quote = null;
+        for (let k = from; k < str.length; k++) {
+            const c = str[k];
+            if (quote) {
+                if (c === quote && str[k - 1] !== '\\') quote = null;
+            } else if (c === '"' || c === "'") {
+                quote = c;
+            } else if (c === '{') {
+                depth++;
+            } else if (c === '}') {
+                depth--;
+                if (depth === 0) return k + 1;
+            }
+        }
+        return str.length;
+    }
+    function scopeBody(src) {
+        let out = '';
+        let i = 0;
+        while (i < src.length) {
+            while (i < src.length && /\s/.test(src[i])) i++;
+            if (i >= src.length) break;
+            if (src[i] === '@') {
+                let j = i;
+                while (j < src.length && src[j] !== '{' && src[j] !== ';') j++;
+                const header = src.slice(i, j).trim();
+                if (j >= src.length || src[j] === ';') { out += src.slice(i, j + 1); i = j + 1; continue; }
+                const end = blockEnd(src, j);
+                if (/^@(?:media|supports|layer|container|scope)\b/i.test(header)) {
+                    out += header + '{' + scopeBody(src.slice(j + 1, end - 1)) + '}';
+                } else {
+                    out += src.slice(i, end);
+                }
+                i = end;
+            } else {
+                let j = i;
+                while (j < src.length && src[j] !== '{') j++;
+                if (j >= src.length) break;
+                const sel = src.slice(i, j).trim();
+                const end = blockEnd(src, j);
+                const body = src.slice(j, end);
+                if (sel) {
+                    out += sel.split(',').map(s => {
+                        s = s.trim();
+                        if (!s) return s;
+                        if (/^(?:html|body|:root)\b/i.test(s)) {
+                            return (scope + s.replace(/^(?:html|body|:root)\b/i, '')).trim() || scope;
+                        }
+                        return scope + ' ' + s;
+                    }).join(', ') + body;
+                }
+                i = end;
+            }
+        }
+        return out;
+    }
+    return scopeBody(text);
+}
+
 export function createReplica(container, client) {
     container.classList.add('rd-replica');
     container.innerHTML = '';
@@ -55,6 +126,21 @@ export function createReplica(container, client) {
     let destroyed = false;
     let suppressState = false; // during local gestures, don't re-apply host state
     let zoom = 'native';    // 'native' (fixed to remote px) | 'fit' (scale to window)
+    let cssEl = null;       // cached host stylesheet for mirrored content
+
+    // Host page CSS (sent once per session, refreshed on change) so
+    // mirrored app content looks like the real thing. Selectors are
+    // scoped under the replica container — a <style> element would
+    // otherwise restyle the controller's own desktop too.
+    function setCss(css) {
+        if (!cssEl) {
+            cssEl = document.createElement('style');
+            cssEl.setAttribute('data-rd-css', '');
+            container.appendChild(cssEl);
+        }
+        const scoped = scopeCss(String(css), '.rd-replica');
+        if (cssEl.textContent !== scoped) cssEl.textContent = scoped;
+    }
 
     // ---------- layout ----------
 
@@ -117,14 +203,17 @@ export function createReplica(container, client) {
             const body = el('div', 'rd-rbody', root);
             const placeholder = el('div', 'rd-rph', body);
             const text = el('pre', 'rd-rtext', body);
+            const mirror = el('div', 'rd-rmirror', body);
+            mirror.style.display = 'none';
             // 8 resize handles
             const handles = {};
             for (const dir of ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']) {
                 handles[dir] = el('div', `rd-rhandle rd-h-${dir}`, root);
                 handles[dir].dataset.dir = dir;
             }
-            entry = { root, icon, label, body, placeholder, text, handles, lastIcon: '' };
+            entry = { root, icon, label, body, placeholder, text, mirror, lastContent: null, handles, lastIcon: '' };
             winEls.set(w.id, entry);
+            setupMirrorInput(w.id, entry, mirror);
 
             bMin.addEventListener('click', (e) => { e.stopPropagation(); client.post('minimize', { id: w.id }); });
             bMax.addEventListener('click', (e) => { e.stopPropagation(); client.post('maximize', { id: w.id, flag: !w.maximized }); });
@@ -158,13 +247,29 @@ export function createReplica(container, client) {
             entry.icon.innerHTML = GENERIC_ICON;
             entry.lastIcon = GENERIC_ICON;
         }
-        // Live text preview only on the focused window that owns the text.
-        const ft = snap.focusText;
-        const showText = ft && ft.appId === w.appId && snap.focusedId === w.id && ft.text;
-        entry.text.style.display = showText ? 'block' : 'none';
-        entry.placeholder.style.display = showText ? 'none' : 'flex';
-        if (showText) entry.text.textContent = ft.text + '▏';
-        entry.placeholder.innerHTML = `<span class="rd-rph-icon">${w.icon || GENERIC_ICON}</span><span>${escapeHtml(w.title || w.appId)}</span>`;
+        // Live content mirror wins over the placeholder/text preview.
+        // innerHTML is only rewritten when the host HTML actually changed,
+        // so local scroll and selection inside the mirror survive polls.
+        if (typeof w.content === 'string' && w.content) {
+            if (entry.lastContent !== w.content) {
+                entry.lastContent = w.content;
+                entry.mirror.innerHTML = w.content;
+            }
+            entry.mirror.style.display = 'block';
+            entry.text.style.display = 'none';
+            entry.placeholder.style.display = 'none';
+        } else {
+            entry.lastContent = null;
+            entry.mirror.style.display = 'none';
+            entry.mirror.innerHTML = '';
+            // Live text preview only on the focused window that owns the text.
+            const ft = snap.focusText;
+            const showText = ft && ft.appId === w.appId && snap.focusedId === w.id && ft.text;
+            entry.text.style.display = showText ? 'block' : 'none';
+            entry.placeholder.style.display = showText ? 'none' : 'flex';
+            if (showText) entry.text.textContent = ft.text + '▏';
+            entry.placeholder.innerHTML = `<span class="rd-rph-icon">${w.icon || GENERIC_ICON}</span><span>${escapeHtml(w.title || w.appId)}</span>`;
+        }
     }
 
     function escapeHtml(s) {
@@ -182,6 +287,38 @@ export function createReplica(container, client) {
     }
 
     // ---------- gestures ----------
+
+    // Clicks inside mirrored app content replay on the live host window:
+    // coordinates map back to host desktop px through the stage scale.
+    // Navigation is kept local (preventDefault) — the host performs it.
+    function setupMirrorInput(id, entry, mirror) {
+        const toHost = (e) => {
+            if (!snap) return null;
+            const p = hostPoint(stage, (snap.area || {}).w || 1280, e);
+            if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return null;
+            return { x: Math.round(p.x), y: Math.round(p.y) };
+        };
+        mirror.addEventListener('click', (e) => {
+            if (e.target.closest('a')) e.preventDefault();
+            const pt = toHost(e);
+            if (pt) client.post('click-at', { id, ...pt });
+        });
+        mirror.addEventListener('dblclick', (e) => {
+            if (e.target.closest('a')) e.preventDefault();
+            const pt = toHost(e);
+            if (pt) client.post('dblclick-at', { id, ...pt });
+        });
+        mirror.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            const pt = toHost(e);
+            if (pt) client.post('click-at', { id, ...pt, button: 2 });
+        });
+        mirror.addEventListener('submit', (e) => {
+            // Never navigate the controller document; the host click above
+            // already drove the real form.
+            e.preventDefault();
+        });
+    }
 
     function setupDrag(id, entry, title) {
         let dragging = false;
@@ -434,6 +571,7 @@ export function createReplica(container, client) {
 
     function applyState(next) {
         if (destroyed || !next) return;
+        if (typeof next.css === 'string' && next.css) setCss(next.css);
         snap = next;
         if (suppressState) return; // our own gesture owns the geometry right now
         const alive = new Set((next.windows || []).map(w => w.id));
@@ -464,7 +602,7 @@ export function createReplica(container, client) {
         winEls.clear();
     }
 
-    return { applyState, setApps, setZoom, getZoom: () => zoom, destroy, focus: () => stage.focus() };
+    return { applyState, setApps, setCss, setZoom, getZoom: () => zoom, destroy, focus: () => stage.focus() };
 }
 
 export default createReplica;
