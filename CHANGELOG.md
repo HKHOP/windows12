@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4962] - 2026-09-22
+
+### Added
+- 6-character Remote Desktop short codes as an alternative to full invite codes: host creates one in Settings, controller just types it in (no answer step). Codes are rendezvous keys — devices swap SDP through a public MQTT relay (hand-rolled MQTT 3.1.1 over WebSocket in the SDK, two-broker fallback, rooms tidied after pairing), then the link stays direct WebRTC. New SDK methods `Net.createShortInvite` / `Net.acceptShortInvite` (`app.net`); full-length codes remain the offline fallback
+
 ## [12.0.4961] - 2026-09-22
 
 ### Added
