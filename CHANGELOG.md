@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4958] - 2026-09-22
+
+### Added
+- Remote Desktop shows the controller's mouse on the remote screen: a blue arrow + device-name pill overlay (pointer-events-none, auto-hides after 2.5 s idle, cleared on disconnect), streamed throttled from the replica
+
+### Fixed
+- Remote Desktop session view no longer distorts with the controller's window size: the stage now renders 1:1 fixed to the remote screen size by default (scroll to pan), with a 1:1/Fit toolbar toggle; remote screen resizes push immediately to controllers instead of waiting for the poll
+
 ## [12.0.4957] - 2026-09-22
 
 ### Added
