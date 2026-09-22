@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4961] - 2026-09-22
+
+### Added
+- Remote Desktop live app interaction: windows now mirror their real content (sanitized HTML with live field values + one-time page CSS, selectors scoped so the controller's own desktop is untouched) instead of placeholders — click, double-click and right-click inside mirrored Store/Notepad/popups/etc. replay on the live host window via element-accurate synthetic pointer events. Text fields focus the host field for typing over the existing keyboard forwarding
+
 ## [12.0.4960] - 2026-09-22
 
 ### Fixed
