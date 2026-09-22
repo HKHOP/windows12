@@ -195,21 +195,37 @@ export class ClientEngine {
         const pending = await this.app.net.acceptInvite(inviteCode, {
             meta: { role: 'controller', deviceId: this.identity.deviceId, name: this.identity.deviceName, proto: PROTOCOL }
         });
-        const opened = (async () => {
-            const channel = await pending.connected; // resolves once the host completes pairing
-            this.channel = channel;
-            this.transport = 'webrtc';
-            const peerId = channel.peerId || 'webrtc-peer';
-            const link = {
-                send: (msg) => channel.send(msg),
-                close: () => { try { channel.close(); } catch { /* noop */ } }
-            };
-            const session = new Session(link, peerId, {});
-            channel.on('message', ({ from, msg }) => session.handleIncoming(from, msg));
-            channel.on('peer-close', () => session._remoteClosed('remote'));
-            return this._connect(session, {});
-        })();
+        const opened = this._adoptWebrtc(pending.connected);
         return { answerCode: pending.code, opened };
+    }
+
+    /**
+     * Join a device via 6-character short code (rendezvous WebRTC). No
+     * answer code to hand back — returns { opened } resolving when the
+     * session is approved and running.
+     */
+    async joinByShortCode(code) {
+        const pending = await this.app.net.acceptShortInvite(code, {
+            meta: { role: 'controller', deviceId: this.identity.deviceId, name: this.identity.deviceName, proto: PROTOCOL }
+        });
+        const opened = this._adoptWebrtc(pending.connected);
+        return { opened };
+    }
+
+    // Shared adoption for every WebRTC channel once the link is open.
+    async _adoptWebrtc(connectedPromise) {
+        const channel = await connectedPromise; // resolves once the host completes pairing
+        this.channel = channel;
+        this.transport = 'webrtc';
+        const peerId = channel.peerId || 'webrtc-peer';
+        const link = {
+            send: (msg) => channel.send(msg),
+            close: () => { try { channel.close(); } catch { /* noop */ } }
+        };
+        const session = new Session(link, peerId, {});
+        channel.on('message', ({ from, msg }) => session.handleIncoming(from, msg));
+        channel.on('peer-close', () => session._remoteClosed('remote'));
+        return this._connect(session, {});
     }
 
     /** Answer a host's auth-need prompt. */

@@ -446,6 +446,343 @@ async function acceptInvite(inviteCode, opts = {}) {
     return { code, connected };
 }
 
+// ---------- short codes (6-character rendezvous pairing) ----------
+//
+// A 6-character code cannot physically carry kilobytes of SDP, so short
+// codes are lookup keys: both devices swap their offer/answer envelopes
+// through a public MQTT rendezvous (hand-rolled MQTT 3.1.1 over
+// WebSocket — our own code, no libraries, same dependency class as the
+// STUN servers). The peer link itself stays direct WebRTC. Manual
+// full-length codes keep working with no relay (the offline fallback).
+
+const SHORT_CODE_LEN = 6;
+const SHORT_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // unambiguous: no 0/O/1/I/L
+const SHORT_TTL_MS = 10 * 60000;
+const OFFER_WAIT_MS = 60000;
+const RENDEZVOUS_BROKERS = [
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://test.mosquitto.org:8081/mqtt'
+];
+const RELAY_WS_TIMEOUT_MS = 15000;
+
+function makeShortCode() {
+    const out = [];
+    try {
+        const rnd = new Uint8Array(SHORT_CODE_LEN);
+        crypto.getRandomValues(rnd);
+        for (const b of rnd) out.push(SHORT_ALPHABET[b % SHORT_ALPHABET.length]);
+    } catch {
+        for (let i = 0; i < SHORT_CODE_LEN; i++) {
+            out.push(SHORT_ALPHABET[Math.floor(Math.random() * SHORT_ALPHABET.length)]);
+        }
+    }
+    return out.join('');
+}
+
+function normalizeShortCode(code) {
+    const clean = String(code).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (clean.length !== SHORT_CODE_LEN || [...clean].some(c => !SHORT_ALPHABET.includes(c))) {
+        throw new SDKError(ErrorCodes.INVALID_ARGS,
+            'That short code doesn\'t look right — 6 characters, no 0/O/1/I/L. Check for typos.');
+    }
+    return clean;
+}
+
+function relayUnreachable() {
+    return new SDKError(ErrorCodes.UNSUPPORTED,
+        'Short-code pairing can\'t reach its relay — check your internet connection, or use a full invite code instead.');
+}
+
+// --- minimal MQTT 3.1.1 codec (QoS 0, no auth; exact-topic only) ---
+
+function encodeVarint(n) {
+    const out = [];
+    do {
+        let b = n % 128;
+        n = Math.floor(n / 128);
+        if (n > 0) b |= 0x80;
+        out.push(b);
+    } while (n > 0);
+    return out;
+}
+
+function decodeVarint(buf, offset) {
+    let value = 0;
+    let mult = 1;
+    for (let i = 0; i < 4; i++) {
+        if (offset + i >= buf.length) return null;
+        const b = buf[offset + i];
+        value += (b & 0x7F) * mult;
+        mult *= 128;
+        if ((b & 0x80) === 0) return { value, bytes: i + 1 };
+    }
+    return null;
+}
+
+function encodeStr(s) {
+    const bytes = new TextEncoder().encode(s);
+    return [bytes.length >> 8, bytes.length & 0xFF, ...bytes];
+}
+
+function buildConnect(clientId) {
+    const body = [0x00, 0x04, 0x4D, 0x51, 0x54, 0x54, 0x04, 0x02, 0x00, 0x3C, ...encodeStr(clientId)];
+    return new Uint8Array([0x10, ...encodeVarint(body.length), ...body]);
+}
+
+let mqttPktId = 0;
+
+function buildSubscribe(topic) {
+    mqttPktId = (mqttPktId % 65535) + 1;
+    const body = [mqttPktId >> 8, mqttPktId & 0xFF, ...encodeStr(topic), 0x00];
+    return new Uint8Array([0x82, ...encodeVarint(body.length), ...body]);
+}
+
+function buildPublish(topic, payloadBytes, retain) {
+    const body = [...encodeStr(topic), ...payloadBytes];
+    return new Uint8Array([0x30 | (retain ? 0x01 : 0), ...encodeVarint(body.length), ...body]);
+}
+
+// Connect to the first reachable rendezvous broker.
+// Resolves { publish(topic, text, retain), subscribe(topic), onMessage(cb)->off, close() }.
+function mqttRelay() {
+    return new Promise((resolve, reject) => {
+        if (typeof WebSocket === 'undefined') { reject(relayUnreachable()); return; }
+        let i = 0;
+        const tryNext = () => {
+            if (i >= RENDEZVOUS_BROKERS.length) { reject(relayUnreachable()); return; }
+            const url = RENDEZVOUS_BROKERS[i++];
+            let ws;
+            try {
+                ws = new WebSocket(url);
+            } catch {
+                tryNext();
+                return;
+            }
+            ws.binaryType = 'arraybuffer';
+            let settled = false;
+            let buf = new Uint8Array(0);
+            let handler = null;
+            let pingTimer = null;
+            const send = (bytes) => ws.send(bytes);
+            const api = {
+                publish(topic, text, retain) {
+                    send(buildPublish(topic, new TextEncoder().encode(text), !!retain));
+                },
+                subscribe(topic) {
+                    send(buildSubscribe(topic));
+                },
+                onMessage(cb) {
+                    handler = cb;
+                    return () => { if (handler === cb) handler = null; };
+                },
+                close() {
+                    if (pingTimer) clearTimeout(pingTimer);
+                    try { send(new Uint8Array([0xE0, 0x00])); } catch { /* closing */ }
+                    try { ws.close(); } catch { /* already closed */ }
+                }
+            };
+            const fail = () => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                try { ws.close(); } catch { /* noop */ }
+                tryNext();
+            };
+            const timer = setTimeout(fail, RELAY_WS_TIMEOUT_MS);
+            const feed = (chunk) => {
+                const next = new Uint8Array(buf.length + chunk.length);
+                next.set(buf);
+                next.set(chunk, buf.length);
+                buf = next;
+                for (;;) {
+                    if (buf.length < 2) return;
+                    const rl = decodeVarint(buf, 1);
+                    if (!rl) return;
+                    const total = 1 + rl.bytes + rl.value;
+                    if (buf.length < total) return;
+                    const packet = buf.slice(0, total);
+                    buf = buf.slice(total);
+                    const type = packet[0] & 0xF0;
+                    if (type === 0x20) { // CONNACK
+                        if (packet.length < 4 || packet[3] !== 0) { fail(); return; }
+                        if (!settled) {
+                            settled = true;
+                            clearTimeout(timer);
+                            pingTimer = setInterval(() => {
+                                try { send(new Uint8Array([0xC0, 0x00])); } catch { /* dying */ }
+                            }, 30000);
+                            resolve(api);
+                        }
+                    } else if (type === 0x30) { // PUBLISH (QoS 0)
+                        const off = 1 + rl.bytes;
+                        if (packet.length < off + 2) continue;
+                        const tlen = (packet[off] << 8) | packet[off + 1];
+                        const topic = new TextDecoder().decode(packet.slice(off + 2, off + 2 + tlen));
+                        const payload = new TextDecoder().decode(packet.slice(off + 2 + tlen));
+                        if (handler) {
+                            try { handler(topic, payload); } catch (e) { console.error('[Windows12 SDK] Net relay handler threw', e); }
+                        }
+                    }
+                    // SUBACK / PINGRESP / anything else: safely ignored.
+                }
+            };
+            ws.onopen = () => {
+                try { send(buildConnect('w12-' + uid().replace(/[^a-zA-Z0-9]/g, '').slice(0, 12))); }
+                catch { fail(); }
+            };
+            ws.onmessage = (e) => {
+                const data = e.data;
+                if (data instanceof ArrayBuffer) {
+                    feed(new Uint8Array(data));
+                } else if (typeof Blob !== 'undefined' && data instanceof Blob) {
+                    data.arrayBuffer().then((ab) => feed(new Uint8Array(ab))).catch(() => { /* drop */ });
+                }
+            };
+            ws.onerror = fail;
+            ws.onclose = () => { if (!settled) fail(); };
+        };
+        tryNext();
+    });
+}
+
+function validEnvelope(parsed, type) {
+    return !!parsed && parsed.app === 'w12-net' && parsed.v === NET_VERSION
+        && parsed.type === type && typeof parsed.sdp === 'string' && !!parsed.sdp;
+}
+
+/**
+ * Create a 6-character short code for a point-to-point WebRTC link. Share
+ * `code`; the other device types it into Net.acceptShortInvite() — no
+ * answer code to pass back. `waitForController()` resolves with the open
+ * Channel once the controller joins (rejects after ~10 minutes).
+ * @param {object} [opts] { meta: object }
+ * @returns {Promise<{code: string, waitForController: () => Promise<object>}>}
+ */
+async function createShortInvite(opts = {}) {
+    const meta = cleanMeta(opts.meta);
+    const selfId = uid();
+    const code = makeShortCode();
+    const pc = makePeerConnection();
+    const dc = pc.createDataChannel('w12-net', { ordered: true });
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await gatherIce(pc);
+    const base = 'w12rd/v1/' + code;
+    let relay;
+    try {
+        relay = await mqttRelay();
+    } catch (e) {
+        try { pc.close(); } catch { /* noop */ }
+        throw e;
+    }
+    try {
+        relay.subscribe(base + '/answer');
+        relay.publish(base + '/offer',
+            JSON.stringify({ app: 'w12-net', v: NET_VERSION, type: 'offer', sdp: pc.localDescription.sdp, pid: selfId, meta }),
+            true);
+    } catch (e) {
+        try { relay.close(); } catch { /* noop */ }
+        try { pc.close(); } catch { /* noop */ }
+        throw new SDKError(ErrorCodes.UNSUPPORTED, 'Short-code pairing failed — use a full invite code instead.');
+    }
+    // Answers arriving before waitForController() is called are stashed.
+    let stashedAnswer = null;
+    const waiters = new Set();
+    relay.onMessage((topic, text) => {
+        if (topic !== base + '/answer') return;
+        let parsed;
+        try { parsed = JSON.parse(text); } catch { return; }
+        if (!validEnvelope(parsed, 'answer')) return;
+        stashedAnswer = parsed;
+        for (const w of [...waiters]) {
+            try { w(parsed); } catch { /* waiter gone */ }
+        }
+        waiters.clear();
+    });
+
+    async function waitForController() {
+        if (!stashedAnswer) {
+            stashedAnswer = await new Promise((resolve, reject) => {
+                const timer = setTimeout(() => {
+                    waiters.delete(res);
+                    reject(new SDKError(ErrorCodes.UNSUPPORTED, 'No device joined with this code in time.'));
+                }, SHORT_TTL_MS);
+                const res = (p) => { clearTimeout(timer); resolve(p); };
+                waiters.add(res);
+            });
+        }
+        const ans = stashedAnswer;
+        await pc.setRemoteDescription({ type: 'answer', sdp: ans.sdp });
+        const opened = await whenOpen(pc, Promise.resolve(dc), ans.meta || {});
+        // Tidy the room so the code can't be replayed later.
+        try {
+            relay.publish(base + '/offer', '', true);
+            relay.publish(base + '/answer', '', true);
+        } catch { /* best effort */ }
+        try { relay.close(); } catch { /* noop */ }
+        return wrapDataChannel(dc, selfId, ans.pid || uid(), opened.meta, pc, () => { try { pc.close(); } catch { /* noop */ } });
+    }
+
+    return { code, waitForController };
+}
+
+/**
+ * Join via a 6-character short code (the "join" side of rendezvous
+ * pairing). No answer code to hand back — `connected` resolves with the
+ * open Channel once the link is up.
+ * @param {string} code the 6-character code from Net.createShortInvite()
+ * @param {object} [opts] { meta: object }
+ * @returns {Promise<{connected: Promise<object>}>}
+ */
+async function acceptShortInvite(code, opts = {}) {
+    requireString(code, 'code');
+    const meta = cleanMeta(opts.meta);
+    const clean = normalizeShortCode(code);
+    const selfId = uid();
+    const base = 'w12rd/v1/' + clean;
+    const relay = await mqttRelay();
+    const offer = await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            cleanup();
+            reject(new SDKError(ErrorCodes.UNSUPPORTED,
+                'No host is waiting on that code — check it, or ask for a fresh one.'));
+        }, OFFER_WAIT_MS);
+        const off = relay.onMessage((topic, text) => {
+            if (topic !== base + '/offer') return;
+            let parsed;
+            try { parsed = JSON.parse(text); } catch { return; } // cleared rooms send '' — ignore
+            if (!validEnvelope(parsed, 'offer')) return;
+            cleanup();
+            resolve(parsed);
+        });
+        function cleanup() { clearTimeout(timer); try { off(); } catch { /* noop */ } }
+        try {
+            relay.subscribe(base + '/offer');
+        } catch (e) {
+            cleanup();
+            reject(e);
+        }
+    });
+    const pc = makePeerConnection();
+    let dcResolve;
+    const dcPromise = new Promise((resolve) => { dcResolve = resolve; });
+    pc.ondatachannel = (e) => dcResolve(e.channel);
+
+    await pc.setRemoteDescription({ type: 'offer', sdp: offer.sdp });
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await gatherIce(pc);
+    relay.publish(base + '/answer',
+        JSON.stringify({ app: 'w12-net', v: NET_VERSION, type: 'answer', sdp: pc.localDescription.sdp, pid: selfId, meta }),
+        true);
+
+    const connected = whenOpen(pc, dcPromise, offer.meta || {}).then((opened) => {
+        try { relay.close(); } catch { /* noop */ }
+        return wrapDataChannel(opened.dc, selfId, offer.pid || uid(), opened.meta, pc, () => { try { pc.close(); } catch { /* noop */ } });
+    });
+    return { connected };
+}
+
 export const Net = {
     transports: { local: 'local', webrtc: 'webrtc' },
     createChannel(opts) {
@@ -461,7 +798,9 @@ export const Net = {
     },
     discover,
     createInvite,
-    acceptInvite
+    acceptInvite,
+    createShortInvite,
+    acceptShortInvite
 };
 
 export default Net;

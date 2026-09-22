@@ -243,6 +243,7 @@ export class HostEngine {
         if (this._stateTimer) { clearInterval(this._stateTimer); this._stateTimer = null; }
         if (this.channel) { try { this.channel.close(); } catch { /* noop */ } this.channel = null; }
         this._clearInvite();
+        this._clearShortInvite();
         this._hideBanner();
         this._hideControllerCursor();
         this._emit('status', this.status());
@@ -531,6 +532,44 @@ export class HostEngine {
         const invite = this._pendingInvite.invite;
         this._clearInvite();
         const channel = await invite.accept(answerCode);
+        this._adoptWebrtcChannel(channel);
+    }
+
+    /** Create a 6-character short code the controller just types in. */
+    async createShortInviteCode() {
+        this._clearInvite();
+        this._clearShortInvite();
+        const pending = await this.app.net.createShortInvite({
+            meta: { role: 'host', deviceId: this._settings.deviceId, name: this._settings.deviceName, proto: PROTOCOL }
+        });
+        this._pendingShort = { code: pending.code };
+        this._pendingShort.timer = setTimeout(() => this._clearShortInvite(), INVITE_TTL_MS);
+        // Pair in the background: the controller's hello arrives over the
+        // data channel and flows through the normal PIN/consent gates.
+        pending.waitForController().then(
+            (channel) => {
+                if (this._pendingShort) {
+                    this._clearShortInvite();
+                    this._adoptWebrtcChannel(channel);
+                } else {
+                    try { channel.close(); } catch { /* superseded */ }
+                }
+            },
+            () => { this._clearShortInvite(); }
+        );
+        return pending.code;
+    }
+
+    _clearShortInvite() {
+        if (this._pendingShort) {
+            clearTimeout(this._pendingShort.timer);
+            this._pendingShort = null;
+        }
+    }
+
+    // Shared adoption for every WebRTC channel (manual invite answer or
+    // short-code rendezvous): wire the session and wait for hello.
+    _adoptWebrtcChannel(channel) {
         const peerId = channel.peerId || 'webrtc-peer';
         const link = {
             send: (msg) => channel.send(msg),

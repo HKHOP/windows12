@@ -1093,7 +1093,7 @@ Each `js/sdk/*.js` file is a thin facade over one internal module -- no logic is
 | `app.permissions` / `Permissions` | capabilities | `has/require(throws)/getDeclared/catalog/iconFor/request` (grants stay user-owned); known ids: `filesystem`, `notifications`, `network`, `clipboard`, `background`, `microphone`, `camera` |
 | `app.lifecycle` / `Lifecycle` | close veto | `onClose/offClose` (per app), `onWindowClose/offWindowClose` (per window — runs before the app handler, any `false` vetoes just that window); background hooks (`onBackground/onForeground/onShutdown` exports) are manifest-declared |
 | `app.background` / `Background` | headless | `canRun/isService/isBackground/running/goBackground/bringToForeground/startService/stopService` |
-| `app.net` / `Net` | peer messaging | `createChannel({name, transport})` → `{ send/sendTo/close, on('message/peer-open/peer-close') }`; transports `local` (BroadcastChannel `w12-net/<name>`) + `webrtc` (manual invite/answer codes, STUN-only); `discover(name)` presence pings |
+| `app.net` / `Net` | peer messaging | `createChannel({name, transport})` → `{ send/sendTo/close, on('message/peer-open/peer-close') }`; transports `local` (BroadcastChannel `w12-net/<name>`) + `webrtc` (manual invite/answer codes, STUN-only); `discover(name)` presence pings; 6-char rendezvous pairing `createShortInvite` → `{ code, waitForController }` / `acceptShortInvite` → `{ connected }` (needs internet for the relay; full codes stay the offline fallback) |
 | `app.inject` / `Inject` | synthetic input | `key({type, code, key})` (dispatches to focused element/document), `pointer(element, {x,y,type,button})` |
 
 ### Errors

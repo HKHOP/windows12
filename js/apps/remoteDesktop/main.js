@@ -129,8 +129,8 @@ function buildHtml() {
 
                     <div class="rd-card">
                         <div class="rd-card-head"><h3>Control another device</h3></div>
-                        <p class="rd-hint">On the other device's Remote Desktop → Settings → <b>Create invite code</b>. Paste it here.</p>
-                        <textarea class="rd-code" id="rd-join-invite" rows="3" placeholder="Paste invite code…" spellcheck="false"></textarea>
+                        <p class="rd-hint">On the other device's Remote Desktop → Settings → <b>Create short code</b> (just type the 6 characters) or <b>Create invite code</b> (paste the full text, works offline).</p>
+                        <textarea class="rd-code" id="rd-join-invite" rows="3" placeholder="Short code or full invite code…" spellcheck="false"></textarea>
                         <div class="rd-row">
                             <button class="rd-btn primary" id="rd-join">Join device</button>
                             <span class="rd-inline-status" id="rd-join-status"></span>
@@ -193,7 +193,18 @@ function buildHtml() {
 
                     <div class="rd-card">
                         <div class="rd-card-head"><h3>Invite a device with a code</h3></div>
-                        <p class="rd-hint">Works across devices on your network. Create a code, paste it on the other device, then paste its answer here.</p>
+                        <p class="rd-hint">Short code: the other device just types 6 characters (needs internet for the relay). Full code: paste both ways, works fully offline.</p>
+                        <div class="rd-row">
+                            <button class="rd-btn primary" id="rd-short-create">Create short code</button>
+                            <span class="rd-inline-status" id="rd-short-status"></span>
+                        </div>
+                        <div class="rd-answer" id="rd-short-out" style="display:none;">
+                            <p class="rd-hint">The other device just types this in — no answer code needed:</p>
+                            <div class="rd-short-code" id="rd-short-code"></div>
+                            <div class="rd-row">
+                                <button class="rd-btn" id="rd-short-copy">${ico('copy')} Copy code</button>
+                            </div>
+                        </div>
                         <div class="rd-row">
                             <button class="rd-btn primary" id="rd-invite-create">Create invite code</button>
                             <span class="rd-inline-status" id="rd-invite-status"></span>
@@ -340,6 +351,26 @@ function buildUi(win) {
         if (!ensureClient()) return;
         const code = ($('#rd-join-invite').value || '').trim();
         if (!code) { setJoinStatus('Paste an invite code first.', true); return; }
+        // Short (≤10 chars, whitespace ignored) → rendezvous pairing with
+        // no answer step. Anything longer → manual full-length code.
+        if (code.replace(/\s+/g, '').length <= 10) {
+            setJoinStatus('Reaching the host…');
+            let out;
+            try {
+                out = await client.joinByShortCode(code);
+            } catch (e) {
+                setJoinStatus('');
+                app.dialogs.error('Remote Desktop', e.message || 'That short code did not work.');
+                return;
+            }
+            setJoinStatus('Waiting for the other device to allow the connection…');
+            out.opened.then((res) => ui.onOpen(res)).catch((e) => {
+                app.dialogs.error('Remote Desktop', e.message || 'The connection failed.');
+                setJoinStatus('');
+                $('#rd-join-invite').value = '';
+            });
+            return;
+        }
         let out;
         try {
             out = await client.joinByInvite(code);
@@ -421,6 +452,24 @@ function buildUi(win) {
         if (!ok) return;
         await hostEngine().setPin(null);
         renderSettings();
+    });
+    $('#rd-short-create').addEventListener('click', async () => {
+        const status = $('#rd-short-status');
+        status.textContent = 'Creating code…';
+        try {
+            const code = await hostEngine().createShortInviteCode();
+            $('#rd-short-out').style.display = 'block';
+            $('#rd-short-code').textContent = code;
+            status.textContent = 'Waiting for a device… (valid 10 minutes)';
+        } catch (e) {
+            status.textContent = '';
+            app.dialogs.error('Remote Desktop', e.message || 'Could not create a short code.');
+        }
+    });
+    $('#rd-short-copy').addEventListener('click', async () => {
+        const code = $('#rd-short-code').textContent;
+        try { await app.clipboard.writeText(code); app.notify.info('Remote Desktop', 'Short code copied.'); }
+        catch { /* clipboard needs focus — the code is visible to type */ }
     });
     $('#rd-invite-create').addEventListener('click', async () => {
         const status = $('#rd-invite-status');
@@ -762,6 +811,7 @@ function injectStyles() {
 .rd-toggle small { display:block; color:var(--text-secondary); font-size:11.5px; margin-top:2px; }
 .rd-pin-row { border-top:1px solid var(--window-border); margin-top:8px; padding-top:12px; color:var(--text-secondary); }
 .rd-code { width:100%; box-sizing:border-box; padding:8px 10px; border-radius:6px; border:1px solid var(--window-border); background:rgba(0,0,0,0.25); color:var(--text-primary); font-family:Consolas,monospace; font-size:11px; resize:vertical; outline:none; word-break:break-all; }
+.rd-short-code { padding:10px; text-align:center; font:28px/1.4 Consolas,monospace; letter-spacing:10px; text-indent:10px; color:var(--text-primary); background:rgba(0,0,0,0.25); border:1px solid var(--window-border); border-radius:8px; user-select:all; }
 .rd-answer { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
 .rd-devices { display:flex; flex-direction:column; gap:6px; }
 .rd-device { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px; background:rgba(255,255,255,0.04); border:1px solid transparent; }

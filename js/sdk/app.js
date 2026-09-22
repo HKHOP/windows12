@@ -404,7 +404,11 @@ function createApp(def) {
         /** @param {object} [opts] { meta } — returns { code, accept(answerCode) } */
         createInvite: (opts) => Net.createInvite(opts),
         /** @param {string} inviteCode @param {object} [opts] { meta } — returns { code, connected } */
-        acceptInvite: (inviteCode, opts) => Net.acceptInvite(inviteCode, opts)
+        acceptInvite: (inviteCode, opts) => Net.acceptInvite(inviteCode, opts),
+        /** @param {object} [opts] { meta } — returns { code (6 chars), waitForController } */
+        createShortInvite: (opts) => Net.createShortInvite(opts),
+        /** @param {string} code 6-char code @param {object} [opts] { meta } — returns { connected } */
+        acceptShortInvite: (code, opts) => Net.acceptShortInvite(code, opts)
     };
 
     const inject = {
