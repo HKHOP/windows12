@@ -4,6 +4,16 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4957] - 2026-09-22
+
+### Added
+- **Remote Desktop** builtin app (`js/apps/remoteDesktop/`, background-capable): control other Windows 12 devices via scene-replication — Connect pane (local discovery + WebRTC invite/answer codes), interactive Session replica (drag/resize/double-click maximize, taskbar + mini start menu, keyboard capture, clipboard sync, remote file browser with 6 MB upload/download), Settings pane (device name, allow-connections toggle, 6-digit PIN, known-device pairing, invite creation)
+- SDK `Net` (`app.net`) peer messaging: `createChannel` with pluggable `local` (BroadcastChannel) and `webrtc` (manual signaling, STUN-only) transports plus `discover` presence pings
+- SDK `Inject` (`app.inject`) synthetic input: `key` and `pointer` dispatch for remote control and automation
+
+### Changed
+- SDK bumped to v1.3.0 (`Net` + `Inject` namespaces); `APP_DEVELOPMENT_GUIDE.md` documents both
+
 ## [12.0.4956] - 2026-09-21
 
 ### Added

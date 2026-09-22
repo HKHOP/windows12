@@ -1093,6 +1093,8 @@ Each `js/sdk/*.js` file is a thin facade over one internal module -- no logic is
 | `app.permissions` / `Permissions` | capabilities | `has/require(throws)/getDeclared/catalog/iconFor/request` (grants stay user-owned); known ids: `filesystem`, `notifications`, `network`, `clipboard`, `background`, `microphone`, `camera` |
 | `app.lifecycle` / `Lifecycle` | close veto | `onClose/offClose` (per app), `onWindowClose/offWindowClose` (per window — runs before the app handler, any `false` vetoes just that window); background hooks (`onBackground/onForeground/onShutdown` exports) are manifest-declared |
 | `app.background` / `Background` | headless | `canRun/isService/isBackground/running/goBackground/bringToForeground/startService/stopService` |
+| `app.net` / `Net` | peer messaging | `createChannel({name, transport})` → `{ send/sendTo/close, on('message/peer-open/peer-close') }`; transports `local` (BroadcastChannel `w12-net/<name>`) + `webrtc` (manual invite/answer codes, STUN-only); `discover(name)` presence pings |
+| `app.inject` / `Inject` | synthetic input | `key({type, code, key})` (dispatches to focused element/document), `pointer(element, {x,y,type,button})` |
 
 ### Errors
 
@@ -1124,7 +1126,7 @@ The SDK is a **stability facade, not a sandbox** -- apps share one JS context, s
 
 ### Versioning
 
-`SDK_VERSION` (`'1.2.0'`) is independent of the OS version. Within major 1, namespaces only gain methods; renames/removals wait for a major bump and a migration note here. v1.1.0 added: window geometry/state (`getBounds/setBounds`, `isMaximized/maximize/unmaximize`, `isResizable/setResizable`, `isDragging/isResizing` + `onDragState/onResizeState/onBoundsChanged`, `setTitle/setMinSize/center/getDesktopArea/getFocused`), the `microphone` + `camera` permissions, and the `Media` namespace (`app.media`). v1.2.0 added: game/real-time support — `PointerLock` (`app.pointerLock`), `Input.keyState` (`app.input`), `Audio` (`app.audio`), window lifecycle subscriptions (`WindowManager.onClosed/onMinimizeState/onFocusChanged` + matching `Events` names), true fullscreen (`setFullscreen/exitFullscreen/isFullscreen`), and per-window close hooks (`Lifecycle.onWindowClose`).
+`SDK_VERSION` (`'1.3.0'`) is independent of the OS version. Within major 1, namespaces only gain methods; renames/removals wait for a major bump and a migration note here. v1.1.0 added: window geometry/state (`getBounds/setBounds`, `isMaximized/maximize/unmaximize`, `isResizable/setResizable`, `isDragging/isResizing` + `onDragState/onResizeState/onBoundsChanged`, `setTitle/setMinSize/center/getDesktopArea/getFocused`), the `microphone` + `camera` permissions, and the `Media` namespace (`app.media`). v1.2.0 added: game/real-time support — `PointerLock` (`app.pointerLock`), `Input.keyState` (`app.input`), `Audio` (`app.audio`), window lifecycle subscriptions (`WindowManager.onClosed/onMinimizeState/onFocusChanged` + matching `Events` names), true fullscreen (`setFullscreen/exitFullscreen/isFullscreen`), and per-window close hooks (`Lifecycle.onWindowClose`). v1.3.0 added: peer messaging — `Net` (`app.net`, `local` + manual-signaling `webrtc` transports, `discover`) and synthetic input — `Inject` (`app.inject`, `key` + `pointer`).
 
 ### Test coverage
 
