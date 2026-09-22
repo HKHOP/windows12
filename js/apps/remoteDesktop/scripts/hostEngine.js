@@ -201,6 +201,7 @@ export class HostEngine {
         if (this.channel) { try { this.channel.close(); } catch { /* noop */ } this.channel = null; }
         this._clearInvite();
         this._hideBanner();
+        this._hideControllerCursor();
         this._emit('status', this.status());
     }
 
@@ -292,6 +293,7 @@ export class HostEngine {
             if (this.active === session) {
                 this.active = null;
                 this._hideBanner();
+                this._hideControllerCursor();
                 this._emit('session-close', {
                     device: session._peerDevice || { name: 'Remote device' },
                     reason: session._endReason || 'ended'
@@ -599,6 +601,10 @@ export class HostEngine {
             window.addEventListener(name, push);
             this._unsubs.push(() => window.removeEventListener(name, push));
         }
+        // Remote screen resizes (browser window) change the snapshot area —
+        // push immediately so controllers re-fit live instead of on poll.
+        window.addEventListener('resize', push);
+        this._unsubs.push(() => window.removeEventListener('resize', push));
         // Apps catalog goes once per session (icons are static).
         const pushApps = () => {
             if (this.active && this.active.isOpen) {
@@ -635,6 +641,82 @@ export class HostEngine {
             const top = ClipboardManager.getHistory()[0];
             this._lastClipId = top ? top.id : null;
             this._sessionStartTime = Date.now();
+        } catch { /* noop */ }
+    }
+
+    // ---------- controller cursor presence ----------
+    //
+    // Shows where the controller's mouse is pointing on THIS screen: a
+    // small arrow + device-name pill inside #windows-container (desktop
+    // coordinates, origin 0,0). Pure overlay — pointer-events:none, never
+    // injected — auto-hidden when updates stop or the session ends.
+
+    _cursorHost() {
+        try {
+            return document.getElementById('windows-container') || document.body;
+        } catch {
+            return null;
+        }
+    }
+
+    _ensureCursorEl(label) {
+        if (this._cursorEl && this._cursorEl.isConnected) {
+            if (label) {
+                const tag = this._cursorEl.querySelector('[data-tag]');
+                if (tag && tag.textContent !== label) tag.textContent = label;
+            }
+            return this._cursorEl;
+        }
+        const host = this._cursorHost();
+        if (!host) return null;
+        const root = document.createElement('div');
+        root.id = 'rd-controller-cursor';
+        root.setAttribute('aria-hidden', 'true');
+        root.style.cssText = 'position:absolute;left:0;top:0;z-index:999999;pointer-events:none;display:none;'
+            + 'filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6));transition:opacity 0.25s;';
+        root.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none">`
+            + `<path d="M6 3l14 7-6.5 1.5L10 18z" fill="#4FC3F7" stroke="#06283a" stroke-width="1.5" stroke-linejoin="round"/></svg>`
+            + `<span data-tag style="display:inline-block;vertical-align:6px;margin-left:14px;padding:1px 8px;border-radius:10px;`
+            + `background:rgba(6,40,58,0.85);border:1px solid rgba(79,195,247,0.6);color:#bfe9ff;`
+            + `font:11px/1.7 system-ui,sans-serif;white-space:nowrap;"></span>`;
+        if (label) {
+            const tag = root.querySelector('[data-tag]');
+            if (tag) tag.textContent = label;
+        }
+        host.appendChild(root);
+        this._cursorEl = root;
+        return root;
+    }
+
+    _showControllerCursor(session, a) {
+        const x = a && a.x;
+        const y = a && a.y;
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        let area = null;
+        try { area = WindowManager.getDesktopArea(); } catch { /* fall through */ }
+        const cx = Math.max(0, Math.min(Math.round(x), Math.max(0, (area && area.w || 4096) - 4)));
+        const cy = Math.max(0, Math.min(Math.round(y), Math.max(0, (area && area.h || 4096) - 4)));
+        const name = (session._peerDevice && session._peerDevice.name) || 'Remote control';
+        const elc = this._ensureCursorEl(name);
+        if (!elc) return;
+        elc.style.display = 'block';
+        elc.style.opacity = '1';
+        elc.style.left = cx + 'px';
+        elc.style.top = cy + 'px';
+        if (this._cursorTimer) clearTimeout(this._cursorTimer);
+        this._cursorTimer = setTimeout(() => this._hideControllerCursor(), 2500);
+    }
+
+    _hideControllerCursor() {
+        if (this._cursorTimer) { clearTimeout(this._cursorTimer); this._cursorTimer = null; }
+        try {
+            if (this._cursorEl) {
+                if (this._cursorEl.isConnected) this._cursorEl.style.display = 'none';
+                else this._cursorEl = null;
+            } else {
+                const stale = document.getElementById('rd-controller-cursor');
+                if (stale) stale.remove();
+            }
         } catch { /* noop */ }
     }
 
@@ -713,6 +795,16 @@ export class HostEngine {
             case 'type': {
                 if (typeof a.text !== 'string') throw new Error('text required.');
                 Inject.type(a.text);
+                return true;
+            }
+
+            case 'pointer': {
+                // Controller mouse presence — overlay only, never injected.
+                if (session === this.active) this._showControllerCursor(session, a);
+                return true;
+            }
+            case 'pointer-hide': {
+                if (session === this.active) this._hideControllerCursor();
                 return true;
             }
 

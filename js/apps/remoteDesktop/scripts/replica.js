@@ -9,8 +9,15 @@
 //   - keyboard forwarding while the stage holds focus
 //   - live text preview of the host's focused text field (what you type)
 //
-// The stage is rendered at the host's native resolution and CSS-scaled
-// to fit; pointer math divides coordinates back through that scale.
+// The stage renders at the host's native resolution. Zoom modes:
+//   native — 1:1, fixed to the remote screen size (the stage keeps the
+//            remote's pixel dimensions no matter how big the controller
+//            window is; scroll when it overflows). This is the default,
+//            so window sizes on screen always match the remote.
+//   fit    — CSS-scaled to fit the controller window (whole desktop
+//            visible at once, sizes shrink/grow with the window).
+// Pointer math always divides back through the effective scale, so both
+// modes drive the host with exact desktop coordinates.
 const TASKBAR_H = 40;
 const LIVE_SEND_MS = 90; // throttle for in-gesture set-bounds
 
@@ -47,26 +54,44 @@ export function createReplica(container, client) {
     let winEls = new Map(); // window id -> {root, titleEl, bodyEl, textEl, lastIcon}
     let destroyed = false;
     let suppressState = false; // during local gestures, don't re-apply host state
+    let zoom = 'native';    // 'native' (fixed to remote px) | 'fit' (scale to window)
 
     // ---------- layout ----------
 
     function layout() {
         if (!snap || destroyed) return;
         const area = snap.area || { w: 1280, h: 720 };
-        const cw = container.clientWidth || 1;
-        const ch = container.clientHeight || 1;
         const totalH = area.h + TASKBAR_H;
-        const s = Math.min(cw / area.w, ch / totalH);
-        stage.style.width = area.w + 'px';
-        stage.style.height = totalH + 'px';
-        stage.style.transformOrigin = '0 0';
-        stage.style.transform = `scale(${s})`;
-        stage.style.left = Math.max(0, (cw - area.w * s) / 2) + 'px';
-        stage.style.top = Math.max(0, (ch - totalH * s) / 2) + 'px';
+        container.style.overflow = zoom === 'fit' ? 'hidden' : 'auto';
         const wp = snap.wallpaper || {};
         stage.style.background = wp.image && wp.image !== 'none'
             ? `${wp.image} ${wp.color || '#111'} center/cover no-repeat`
             : (wp.color || '#111');
+        if (zoom === 'fit') {
+            const cw = container.clientWidth || 1;
+            const ch = container.clientHeight || 1;
+            const s = Math.min(cw / area.w, ch / totalH);
+            stage.style.width = area.w + 'px';
+            stage.style.height = totalH + 'px';
+            stage.style.transformOrigin = '0 0';
+            stage.style.transform = `scale(${s})`;
+            stage.style.left = Math.max(0, (cw - area.w * s) / 2) + 'px';
+            stage.style.top = Math.max(0, (ch - totalH * s) / 2) + 'px';
+            return;
+        }
+        // native: fixed to the remote screen size — no scaling, so the
+        // controller's window size never distorts remote geometry.
+        stage.style.width = area.w + 'px';
+        stage.style.height = totalH + 'px';
+        stage.style.transform = 'none';
+        stage.style.left = '0px';
+        stage.style.top = '0px';
+    }
+
+    function setZoom(mode) {
+        zoom = mode === 'fit' ? 'fit' : 'native';
+        layout();
+        return zoom;
     }
 
     const ro = (typeof ResizeObserver === 'function')
@@ -382,6 +407,26 @@ export function createReplica(container, client) {
     stage.addEventListener('keydown', (e) => keyEvent('keydown', e));
     stage.addEventListener('keyup', (e) => keyEvent('keyup', e));
 
+    // ---------- controller pointer presence ----------
+    //
+    // Streams the controller's mouse position (in host desktop px) so the
+    // remote screen can show where the controller is pointing. Throttled;
+    // the host auto-hides the marker when updates stop.
+
+    let lastPointerSent = 0;
+    stage.addEventListener('pointermove', (e) => {
+        if (!snap || !client.isOpen) return;
+        const now = performance.now();
+        if (now - lastPointerSent < 120) return;
+        lastPointerSent = now;
+        const p = hostPoint(stage, (snap.area || {}).w || 1280, e);
+        if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return;
+        client.post('pointer', { x: Math.round(p.x), y: Math.round(p.y) });
+    });
+    stage.addEventListener('pointerleave', () => {
+        if (client.isOpen) client.post('pointer-hide', {});
+    });
+
     // ---------- public ----------
 
     function applyState(next) {
@@ -416,7 +461,7 @@ export function createReplica(container, client) {
         winEls.clear();
     }
 
-    return { applyState, setApps, destroy, focus: () => stage.focus() };
+    return { applyState, setApps, setZoom, getZoom: () => zoom, destroy, focus: () => stage.focus() };
 }
 
 export default createReplica;

@@ -155,6 +155,7 @@ function buildHtml() {
                     <span class="rd-spacer"></span>
                     <button class="rd-btn" id="rd-tb-clipboard" title="Send your clipboard to the device">${ico('clip')} Clipboard</button>
                     <button class="rd-btn" id="rd-tb-files" title="Browse and transfer files">${ico('folder')} Files</button>
+                    <button class="rd-btn" id="rd-tb-zoom" title="Toggle between actual size (fixed to the remote screen) and fit-to-window">1:1</button>
                     <button class="rd-btn" id="rd-tb-fullscreen" title="Fullscreen">${ico('expand')}</button>
                     <button class="rd-btn danger" id="rd-tb-disconnect">${ico('power')} Disconnect</button>
                 </div>
@@ -372,6 +373,12 @@ function buildUi(win) {
         } catch { /* fullscreen unavailable */ }
     });
     $('#rd-tb-clipboard').addEventListener('click', sendClipboardDialog);
+    $('#rd-tb-zoom').addEventListener('click', () => {
+        if (!replica) return;
+        const next = replica.getZoom() === 'fit' ? 'native' : 'fit';
+        replica.setZoom(next);
+        $('#rd-tb-zoom').textContent = next === 'fit' ? 'Fit' : '1:1';
+    });
     $('#rd-tb-files').addEventListener('click', () => {
         const panel = $('#rd-files');
         const show = panel.style.display === 'none';
@@ -494,6 +501,7 @@ function buildUi(win) {
         $('#rd-files').style.display = 'none';
         const host9 = $('#rd-replica-host');
         replica = createReplica(host9, client);
+        $('#rd-tb-zoom').textContent = '1:1';
         if (state) replica.applyState(state);
         client.request('apps', {}).then((res) => {
             if (res && res.apps && replica) replica.setApps(res.apps);
@@ -782,7 +790,7 @@ function injectStyles() {
 .rd-fsize { color:var(--text-secondary); font-size:11px; flex:none; }
 
 /* replica */
-.rd-replica { position:relative; overflow:hidden; background:#000; }
+.rd-replica { position:relative; overflow:auto; background:#000; }
 .rd-replica:focus, .rd-stage:focus { outline:none; }
 .rd-stage { position:absolute; background:#111; }
 .rd-rwin { position:absolute; display:flex; flex-direction:column; border-radius:8px; overflow:hidden; background:var(--window-bg); border:1px solid var(--window-border); box-shadow:0 8px 28px rgba(0,0,0,0.5); min-width:80px; min-height:40px; }
