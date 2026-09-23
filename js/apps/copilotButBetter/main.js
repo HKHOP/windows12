@@ -7,6 +7,8 @@ import Popup from '../../modules/popup.js';
 import FileSystem from '../../modules/fileSystem.js';
 import Notifications from '../../modules/notifications.js';
 import BatchEngine from '../../modules/batchEngine.js';
+import VBEngine from '../../modules/vbsEngine.js';
+import PowershellEngine from '../../modules/powershellEngine.js';
 import Zip from '../../modules/zip.js';
 import Users from '../../modules/users.js';
 
@@ -50,7 +52,7 @@ RULES:
 - NEVER put your explanation / chat text into a "script" or "content" arg. "script" must contain ONLY real shell commands, "content" must contain ONLY real file text.
 - Keep file work inside the per-conversation workspace (relative paths like "notes.txt"). The workspace persists until the conversation is deleted.
 - Stop calling tools once you can answer. Do not call tools for plain chit-chat.
-- IMPORTANT: This environment DOES NOT have PowerShell. Do NOT attempt to invoke powershell or powershell.exe via cmd, scripts, or tools. Always use standard CMD / batch commands and alternatives (e.g. dir, type, copy, del, rmdir, mkdir, findstr, echo, %DATE%, %TIME%) or the dedicated write/read/edit/grep tools instead of PowerShell cmdlets.
+- The "cmd" tool runs CMD/batch, VBScript, AND PowerShell through the real OS engines — pick with the "language" arg ("cmd" default, "vbs", "powershell"). Never try to invoke powershell.exe / cscript.exe as subprocesses; just set "language".
 
 EXAMPLE — saving a file:
 I'll save that for you right now.
@@ -73,9 +75,14 @@ Let me check the date.
 {"tool": "cmd", "args": {"script": "echo %DATE% %TIME%"}}
 \`\`\`
 
+EXAMPLE — PowerShell and VBScript use the same tool with "language":
+\`\`\`toolcall
+{"tool": "cmd", "args": {"language": "powershell", "script": "Get-ChildItem | Select-Object Name"}}
+\`\`\`
+
 Available tools:
 - datetime {} — current date/time. No args needed.
-- cmd {"script": "..."} — run CMD/batch, workspace-rooted. Use standard CMD commands (dir, echo, type, mkdir, etc.). Do not call PowerShell.
+- cmd {"script": "...", "language": "cmd|vbs|powershell"} — run one script family per call through the real OS engine, workspace-rooted. "language" defaults to "cmd" (batch: dir, echo, type, mkdir, ...). Use "powershell" for cmdlets (Get-ChildItem, Get-Content, Where-Object, ...) and "vbs" for VBScript (WScript.Echo, ...).
 - write {"path": "file.md", "content": "full text here"} — save a file. BOTH path AND content are required.
 - read {"path": "file.md", "offset": 0, "limit": 200} — read a file. path is required. offset/limit are optional.
 - edit {"path": "file.md", "oldText": "...", "newText": "..."} — find and replace in a file. ALL three required.
@@ -387,113 +394,42 @@ Available tools:
     }
 
     // ---------- shell runners (built-in engines, workspace-rooted) ----------
-    function runBatchCapture(script, ws) {
+    // One tool ("cmd") runs all three script families through the real OS
+    // engines — the same code as Terminal / PowerShell / VBScript runners.
+    function normalizeScriptLanguage(raw) {
+        const t = String(raw == null ? 'cmd' : raw).trim().toLowerCase().replace(/^\./, '');
+        if (!t || t === 'cmd' || t === 'batch' || t === 'bat') return 'cmd';
+        if (t === 'vbs' || t === 'vbe' || t === 'vbscript') return 'vbs';
+        if (t === 'ps' || t === 'ps1' || t === 'psm1' || t === 'powershell' || t === 'pwsh') return 'powershell';
+        return null;
+    }
+    function runScriptCapture(script, ws, language) {
         const lines = [];
         let cwd = [...ws];
         const print = (t) => { lines.push(String(t == null ? '' : t)); };
         const getCwd = () => [...cwd];
         const setCwd = (next) => { if (Array.isArray(next) && next.length) cwd = [...next]; };
         try {
-            const engine = BatchEngine.create(print, getCwd, setCwd);
-            engine.run(String(script || ''));
+            if (language === 'vbs') {
+                VBEngine.create(print, getCwd, setCwd).run(String(script || ''));
+            } else if (language === 'powershell') {
+                PowershellEngine.create(print, getCwd, setCwd, { shell: 'powershell', noProfile: true }).run(String(script || ''));
+            } else {
+                BatchEngine.create(print, getCwd, setCwd).run(String(script || ''));
+            }
         } catch (e) {
             lines.push(`[engine error] ${e && e.message || e}`);
         }
         return truncateOut(lines.join('\n') || '(no output)');
     }
+    function runBatchCapture(script, ws) {
+        return runScriptCapture(script, ws, 'cmd');
+    }
     function runPowerShellCapture(script, ws) {
-        // Minimal PowerShell emulation: native cmdlets + $vars, everything
-        // else falls through to the built-in CMD-compatible engine.
-        const out = [];
-        const vars = Object.create(null);
-        const expand = (s) => String(s).replace(/\$([A-Za-z_][A-Za-z0-9_]*)/g, (m, n) => (vars[n] != null ? vars[n] : m));
-        const unquote = (s) => {
-            const t = String(s || '').trim();
-            if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) return t.slice(1, -1);
-            return t;
-        };
-        const listDir = (rel) => {
-            const dir = rel ? resolveWorkspacePath(ws, expand(rel)) : [...ws];
-            let children = [];
-            try { children = FileSystem.getChildren(dir); } catch (e) { children = []; }
-            if (!children.length) return '(empty)';
-            return children.map(c => (c.type === 'folder' ? c.name + '/' : c.name)).join('\n');
-        };
-        const passthrough = [];
-        const flushPassthrough = () => {
-            if (!passthrough.length) return;
-            out.push(runBatchCapture(passthrough.join('\n'), ws));
-            passthrough.length = 0;
-        };
-        const lines = String(script || '').split(/\r?\n/);
-        for (let rawLine of lines) {
-            const line = rawLine.trim();
-            if (!line || line.startsWith('#')) continue;
-            let m;
-            if ((m = line.match(/^\$([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/))) {
-                vars[m[1]] = unquote(expand(m[2]));
-                continue;
-            }
-            if (/^Get-Date/i.test(line)) {
-                const d = new Date();
-                const extra = line.replace(/^Get-Date/i, '').trim();
-                out.push(extra ? d.toISOString() : `${d.toString()} | ${d.toISOString()}`);
-                continue;
-            }
-            if ((m = line.match(/^(Write-Output|Write-Host|echo)\b\s*(.*)$/i))) {
-                out.push(unquote(expand(m[2])));
-                continue;
-            }
-            if (/^(Get-Location|pwd)\b/i.test(line)) { out.push('/' + ws.slice(1).join('/')); continue; }
-            if ((m = line.match(/^(Get-ChildItem|ls|dir)\b\s*(.*)$/i))) { out.push(listDir(unquote(expand(m[2])))); continue; }
-            if ((m = line.match(/^(Get-Content|cat|type)\b\s+(.+)$/i))) {
-                const p = resolveWorkspacePath(ws, unquote(expand(m[2])));
-                const content = FileSystem.readFile(p);
-                out.push(content == null ? `Get-Content: cannot find path '${m[2]}'` : content);
-                continue;
-            }
-            if ((m = line.match(/^Set-Content\b\s+(.+)$/i))) {
-                const parts = m[1].trim().match(/^(.*?)\s+-Value\s+(.+)$/i) || m[1].trim().match(/^(.*?)\s+(.+)$/);
-                if (parts) {
-                    const p = unquote(expand(parts[1]));
-                    const val = unquote(expand(parts[2]));
-                    ensureWorkspaceParents(ws, p);
-                    const full = resolveWorkspacePath(ws, p);
-                    const name = full[full.length - 1];
-                    if (FileSystem.itemExists(full)) FileSystem.writeFile(full, val);
-                    else FileSystem.createFile(full.slice(0, -1), name, val, name.includes('.') ? name.split('.').pop() : '');
-                    out.push(`Wrote ${p}`);
-                } else out.push('Set-Content: usage: Set-Content <path> [-Value] <text>');
-                continue;
-            }
-            if ((m = line.match(/^New-Item\b\s*(.*)$/i))) {
-                const rest = expand(m[1]);
-                const pm = rest.match(/-Path\s+("[^"]+"|'[^']+'|\S+)/i);
-                const tm = rest.match(/-ItemType\s+(\S+)/i);
-                const target = pm ? unquote(pm[1]) : rest.trim();
-                if (!target) { out.push('New-Item: missing -Path'); continue; }
-                const isDir = tm ? /dir/i.test(tm[1]) : /\/$/.test(target);
-                ensureWorkspaceParents(ws, target);
-                const full = resolveWorkspacePath(ws, target);
-                const name = full[full.length - 1];
-                if (isDir) {
-                    out.push(FileSystem.createFolder(full.slice(0, -1), name) ? `Created directory ${target}` : `New-Item: already exists '${target}'`);
-                } else {
-                    out.push(FileSystem.createFile(full.slice(0, -1), name, '', name.includes('.') ? name.split('.').pop() : '') ? `Created file ${target}` : `New-Item: already exists '${target}'`);
-                }
-                continue;
-            }
-            if ((m = line.match(/^(Remove-Item|rm|del)\b\s+(.+)$/i))) {
-                const p = resolveWorkspacePath(ws, unquote(expand(m[2])));
-                if (!FileSystem.itemExists(p)) out.push(`Remove-Item: cannot find path '${m[2]}'`);
-                else { try { FileSystem.deleteItem(p); out.push(`Removed ${m[2]}`); } catch (e) { out.push(`Remove-Item failed: ${e && e.message || e}`); } }
-                continue;
-            }
-            if (/^(Clear-Host|cls)\b/i.test(line)) { out.push('(screen cleared)'); continue; }
-            passthrough.push(rawLine);
-        }
-        flushPassthrough();
-        return truncateOut(out.join('\n') || '(no output)');
+        return runScriptCapture(script, ws, 'powershell');
+    }
+    function runVbsCapture(script, ws) {
+        return runScriptCapture(script, ws, 'vbs');
     }
 
     // ---------- tool executors ----------
@@ -558,8 +494,10 @@ Available tools:
                 }
                 case 'cmd': {
                     const script = a.script != null ? a.script : a.command;
-                    if (!script || !String(script).trim()) return { ok: false, output: 'cmd: missing required "script" argument. Retry with {"tool":"cmd","args":{"script":"<real CMD commands>"}}. Never send {} and never put chat text in "script".', images: [] };
-                    return { ok: true, output: runBatchCapture(String(script), ws), images: [] };
+                    if (!script || !String(script).trim()) return { ok: false, output: 'cmd: missing required "script" argument. Retry with {"tool":"cmd","args":{"script":"<real commands>"}}. Never send {} and never put chat text in "script".', images: [] };
+                    const lang = normalizeScriptLanguage(a.language != null ? a.language : (a.lang != null ? a.lang : (a.type != null ? a.type : 'cmd')));
+                    if (!lang) return { ok: false, output: `cmd: unknown "language" '${a.language != null ? a.language : a.lang}'. Use "cmd", "vbs" or "powershell".`, images: [] };
+                    return { ok: true, output: runScriptCapture(String(script), ws, lang), images: [] };
                 }
                 case 'write': {
                     if (!a.path || !String(a.path).trim()) return { ok: false, output: 'write: missing required "path". Retry with {"tool":"write","args":{"path":"notes.txt","content":"<full file text>"}}. Never send {}.', images: [] };
@@ -773,7 +711,7 @@ Available tools:
                     return { ok: true, output: `File ${rel} (${txt.length} chars, ${txt.split('\n').length} lines):\n` + truncateOut(txt, parseInt(a.limit, 10) || 4000), images: [] };
                 }
                 default:
-                    return { ok: false, output: `Unknown tool "${tool}". Available: datetime, cmd, write, read, edit, grep, websearch, webfetch, analyze, zip. Note: PowerShell is not available in this environment; use cmd or other built-in tools.`, images: [] };
+                    return { ok: false, output: `Unknown tool "${tool}". Available: datetime, cmd (cmd|vbs|powershell via "language"), write, read, edit, grep, websearch, webfetch, analyze, zip.`, images: [] };
             }
         } catch (e) {
             return { ok: false, output: `Tool ${tool} crashed: ${e && e.message || e}`, images: [] };

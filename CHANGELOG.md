@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4967] - 2026-09-23
+
+### Changed
+- CopilotButBetter `cmd` tool is now one unified runner for CMD, VBScript and PowerShell: new `language` arg (`cmd` default, `vbs`, `powershell`) dispatches to the real OS engines (same code as Terminal/PowerShell/VBScript, workspace-rooted). The hand-rolled PowerShell emulation is gone and the "PowerShell is not available" notice is removed from the agent prompt
+
 ## [12.0.4966] - 2026-09-23
 
 ### Added
