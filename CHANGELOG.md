@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4968] - 2026-09-23
+
+### Added
+- Icons for the 8 games missing from the central registry (chess, motoX3M, slope2, slope3, slopeGame, stickmanHook, templeRun2, tunnelRush), matching each game's own window icon — taskbar, start menu and desktop no longer show the grey fallback for any app
+
 ## [12.0.4967] - 2026-09-23
 
 ### Changed
