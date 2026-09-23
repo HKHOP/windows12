@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4966] - 2026-09-23
+
+### Added
+- Everyday PowerShell cmdlets: `Select-String` (`sls`, `-CaseSensitive`/`-SimpleMatch`/`-Context`/`-Quiet`/`-List`, `MatchInfo` objects), `Out-GridView` (`ogv`, picker dialog in the app with honest passthrough headless), `Write-Progress` (ASCII bar, `-Completed`), `Get-Random` (`-Minimum`/`-Maximum`/`-Count`/`-SetSeed`, pipeline pick), `New-Guid`, `Get-Unique`, `Get-Member` (`gm`, `-Name`/`-MemberType`), `Get-PSProvider`; `Read-Host -AsSecureString` now returns a masked `SecureString` (`***`); blue PowerShell app echoes each executed line with syntax coloring (cmdlets yellow, strings orange, `$vars` blue, comments green, numbers light-green, operators gray)
+
+### Fixed
+- `Copy-Item -Recurse` deep-copies folders (folder sources were skipped) with `-Force` overwrite semantics across Copy/Move; Move/Rename onto an existing destination now errors like Windows instead of silently overwriting; `Get-Content -Tail`/`-Wait` (one-shot content plus an honest live-tail notice); `Test-Path -PathType Leaf|Container`/`-IsValid`; `Resolve-Path` wildcards return all matches and require existence; `Split-Path -Qualifier`; `Select-Object -ExpandProperty` on a missing property emits a `$null` blank line instead of dropping the row
+
 ## [12.0.4965] - 2026-09-23
 
 ### Added

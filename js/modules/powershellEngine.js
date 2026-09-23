@@ -205,7 +205,9 @@ const PowershellEngine = (() => {
             }
             const text = lines.join('\n');
             if (!redirect || !redirect.file) {
-                if (text) emit(text);
+                // Emit even when the row is $null (empty line), like real PS.
+                // Empty pipelines (no rows) stay silent.
+                if (lines.length) emit(text);
                 return;
             }
             writeRedirect(redirect, text);
@@ -1615,10 +1617,11 @@ const PowershellEngine = (() => {
             tee: 'Tee-Object',
             ft: 'Format-Table', fl: 'Format-List', fw: 'Format-Wide',
             gps: 'Get-Process', ps: 'Get-Process', saps: 'Start-Process', start: 'Start-Process',
-            sleep: 'Start-Sleep', gsv: 'Get-Service', gdr: 'Get-PSDrive',
+            sleep: 'Start-Sleep',             gsv: 'Get-Service', gdr: 'Get-PSDrive',
             sajb: 'Start-Job', gjb: 'Get-Job', rcjb: 'Receive-Job',
             iwr: 'Invoke-WebRequest', curl: 'Invoke-WebRequest', wget: 'Invoke-WebRequest',
-            ping: 'Test-Connection', tnc: 'Test-Connection'
+            ping: 'Test-Connection', tnc: 'Test-Connection',
+            sls: 'Select-String', ogv: 'Out-GridView', gm: 'Get-Member'
         };
         const customAliases = {};
 
@@ -1728,6 +1731,73 @@ const PowershellEngine = (() => {
                 if (!FileSystem.itemExists(next)) FileSystem.createFolder(cur, seg);
                 cur = next;
             }
+        }
+
+        function copyFileNode(srcArr, dstArr, force) {
+            const content = FileSystem.readFile(srcArr);
+            if (content === null || content === undefined) {
+                const n = FileSystem.getNode(srcArr);
+                if (n && n.blobRef) throw new Error('Copy-Item : Cannot copy binary file (blob-backed).');
+                throw new Error('Copy-Item : Cannot find path \'' + psDisplayPath(srcArr) + '\' because it does not exist.');
+            }
+            ensureParentDirs(dstArr);
+            if (FileSystem.itemExists(dstArr)) {
+                const ex = FileSystem.getNode(dstArr);
+                if (ex && ex.type === 'folder') throw new Error('Copy-Item : Cannot create a file when that file already exists: \'' + psDisplayPath(dstArr) + '\'.');
+                if (!force) throw new Error('Copy-Item : Cannot create a file when that file already exists: \'' + psDisplayPath(dstArr) + '\'. Use -Force to overwrite.');
+                const ok = FileSystem.writeFile(dstArr, content);
+                if (!ok) throw new Error('Copy-Item : Access to the path \'' + psDisplayPath(dstArr) + '\' is denied.');
+                return;
+            }
+            const nm = dstArr[dstArr.length - 1];
+            const dot = nm.lastIndexOf('.');
+            const ok = FileSystem.createFile(dstArr.slice(0, -1), nm, content, dot >= 0 ? nm.slice(dot + 1) : '');
+            if (!ok) throw new Error('Copy-Item : Access to the path \'' + psDisplayPath(dstArr) + '\' is denied.');
+        }
+
+        function copyTree(srcArr, dstArr, force) {
+            const node = FileSystem.getNode(srcArr);
+            if (!node) throw new Error('Copy-Item : Cannot find path \'' + psDisplayPath(srcArr) + '\' because it does not exist.');
+            if (node.type === 'file') {
+                copyFileNode(srcArr, dstArr, force);
+                return;
+            }
+            // folder: dst becomes the copied folder (create if missing)
+            if (FileSystem.itemExists(dstArr)) {
+                const ex = FileSystem.getNode(dstArr);
+                if (ex && ex.type === 'file') throw new Error('Copy-Item : Cannot create a file when that file already exists: \'' + psDisplayPath(dstArr) + '\'.');
+                // dst folder exists -> merge (recurse), -Force not needed for merge
+            } else {
+                ensureParentDirs(dstArr);
+                FileSystem.createFolder(dstArr.slice(0, -1), dstArr[dstArr.length - 1]);
+            }
+            const kids = FileSystem.getChildren(srcArr) || [];
+            for (const k of kids) {
+                copyTree([...srcArr, k.name], [...dstArr, k.name], force);
+            }
+        }
+
+        function makeSecureString(s) {
+            const str = String(s ?? '');
+            return psObj('SecureString', { Length: str.length }, '***');
+        }
+
+        function seededRandom(seed) {
+            let a = Number(seed) >>> 0;
+            return function () {
+                a |= 0; a = (a + 0x6D2B79F5) | 0;
+                let t = Math.imul(a ^ (a >>> 15), 1 | a);
+                t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+        }
+
+        function newGuid() {
+            try {
+                if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+            } catch { /* fall through */ }
+            const h = () => Math.floor(Math.random() * 0xffff).toString(16).padStart(4, '0');
+            return `${h().slice(0, 4)}${h()}-${h()}-4${h().slice(1)}-${((Math.floor(Math.random() * 4) + 8).toString(16))}${h().slice(1)}-${h()}${h()}${h().slice(0, 4)}`;
         }
         // ---------- cmdlet implementations ----------
 
@@ -1851,23 +1921,33 @@ const PowershellEngine = (() => {
 
             'Copy-Item'(ctx) {
                 const src = ctx.named.path ?? ctx.pos[0];
-                const dst = ctx.named.destination ?? ctx.pos[1];
+                const dst = ctx.named.destination ?? ctx.named.dest ?? ctx.pos[1];
+                const force = ctx.named.force || false;
+                const rec = ctx.named.recurse || ctx.named.recursive || false;
                 if (src === undefined || dst === undefined) throw new Error('Copy-Item : Cannot bind argument to parameter \'Path\' because it is missing.');
                 const wx = /[*?]/.test(String(src)) ? expandWildcard(String(src)) : null;
-                const sources = wx ? wx.matches.filter(m2 => m2.type !== 'folder').map(m2 => [...wx.dir, m2.name]) : [resolvePSPath(String(src))];
+                const sources = wx ? wx.matches.map(m2 => [...wx.dir, m2.name]) : [resolvePSPath(String(src))];
+                if (!sources.length) throw new Error('Copy-Item : Cannot find path \'' + src + '\' because it does not exist.');
                 const dstPath = resolvePSPath(String(dst));
                 const dstIsDir = FileSystem.isFolder(dstPath);
                 let count = 0;
+                // multi-source copy into a file path is ambiguous
+                if (sources.length > 1 && !dstIsDir && !FileSystem.itemExists(dstPath)) {
+                    throw new Error('Copy-Item : Cannot copy multiple items to a single file. Specify a folder destination.');
+                }
                 for (const s of sources) {
-                    const content = FileSystem.readFile(s);
-                    if (content === null || content === undefined) continue;
-                    const final = dstIsDir ? [...dstPath, s[s.length - 1]] : dstPath;
-                    ensureParentDirs(final);
-                    if (FileSystem.itemExists(final)) FileSystem.writeFile(final, content);
-                    else {
-                        const nm = final[final.length - 1];
-                        const dot = nm.lastIndexOf('.');
-                        FileSystem.createFile(final.slice(0, -1), nm, content, dot >= 0 ? nm.slice(dot + 1) : '');
+                    const node = FileSystem.getNode(s);
+                    if (!node) throw new Error('Copy-Item : Cannot find path \'' + src + '\' because it does not exist.');
+                    if (node.type === 'folder' && !rec) {
+                        throw new Error('Copy-Item : The source \'' + src + '\' is a directory. Use -Recurse to copy directories.');
+                    }
+                    let final = dstPath;
+                    if (node.type === 'folder') {
+                        final = dstIsDir ? [...dstPath, s[s.length - 1]] : dstPath;
+                        copyTree(s, final, force);
+                    } else {
+                        final = dstIsDir ? [...dstPath, s[s.length - 1]] : dstPath;
+                        copyFileNode(s, final, force);
                     }
                     count++;
                 }
@@ -1876,11 +1956,47 @@ const PowershellEngine = (() => {
             },
 
             'Move-Item'(ctx) {
-                CMDLETS['Copy-Item'](ctx);
                 const src = ctx.named.path ?? ctx.pos[0];
+                const dst = ctx.named.destination ?? ctx.named.dest ?? ctx.pos[1];
+                const force = ctx.named.force || false;
+                if (src === undefined || dst === undefined) throw new Error('Move-Item : Cannot bind argument to parameter \'Path\' because it is missing.');
                 const wx = /[*?]/.test(String(src)) ? expandWildcard(String(src)) : null;
                 const sources = wx ? wx.matches.map(m2 => [...wx.dir, m2.name]) : [resolvePSPath(String(src))];
-                for (const s of sources) { try { FileSystem.deleteItem(s); } catch { /* noop */ } }
+                if (!sources.length) throw new Error(`Move-Item : Cannot find path '${src}' because it does not exist.`);
+                const dstPath = resolvePSPath(String(dst));
+                const dstIsDir = FileSystem.isFolder(dstPath);
+                if (sources.length > 1 && !dstIsDir && !FileSystem.itemExists(dstPath)) {
+                    throw new Error('Move-Item : Cannot move multiple items to a single file. Specify a folder destination.');
+                }
+                for (const s of sources) {
+                    const node = FileSystem.getNode(s);
+                    if (!node) throw new Error(`Move-Item : Cannot find path '${src}' because it does not exist.`);
+                    const final = dstIsDir ? [...dstPath, s[s.length - 1]] : dstPath;
+                    if (FileSystem.itemExists(final) && !force) {
+                        throw new Error('Move-Item : Cannot create a file when that file already exists: \'' + psDisplayPath(final) + '\'. Use -Force to overwrite.');
+                    }
+                    if (FileSystem.itemExists(final) && force) {
+                        try { FileSystem.deleteItem(final); } catch { /* noop */ }
+                    }
+                    ensureParentDirs(final);
+                    if (node.type === 'folder') {
+                        copyTree(s, final, true);
+                        try { FileSystem.deleteItem(s); } catch { /* noop */ }
+                    } else {
+                        // fast path: same-parent rename when dest is a new leaf
+                        const sameParent = s.slice(0, -1).join('/') === final.slice(0, -1).join('/');
+                        if (sameParent) {
+                            const leaf = final[final.length - 1];
+                            if (!FileSystem.renameItem(s, leaf)) {
+                                copyFileNode(s, final, true);
+                                try { FileSystem.deleteItem(s); } catch { /* noop */ }
+                            }
+                        } else {
+                            copyFileNode(s, final, true);
+                            try { FileSystem.deleteItem(s); } catch { /* noop */ }
+                        }
+                    }
+                }
                 return [];
             },
 
@@ -1889,8 +2005,14 @@ const PowershellEngine = (() => {
                 const nn = ctx.named.newname ?? ctx.pos[1];
                 if (p === undefined || nn === undefined) throw new Error('Rename-Item : Cannot bind argument to parameter because it is missing.');
                 const full = resolvePSPath(String(p));
+                if (!FileSystem.itemExists(full)) throw new Error(`Rename-Item : Cannot find path '${p}' because it does not exist.`);
                 const leaf = String(nn).split(/[/\\]/).pop();
-                if (!FileSystem.renameItem(full, leaf)) throw new Error(`Rename-Item : Cannot rename '${p}'.`);
+                if (!leaf) throw new Error('Rename-Item : Cannot bind argument to parameter \'NewName\' because it is an empty string.');
+                const parent = full.slice(0, -1);
+                if (FileSystem.itemExists([...parent, leaf])) {
+                    throw new Error('Rename-Item : Cannot create a file when that file already exists: \'' + leaf + '\'.');
+                }
+                if (!FileSystem.renameItem(full, leaf)) throw new Error(`Rename-Item : Cannot rename '${p}' to '${nn}'.`);
                 return [];
             },
 
@@ -1905,12 +2027,30 @@ const PowershellEngine = (() => {
 
             'Test-Path'(ctx) {
                 const p = ctx.named.path ?? ctx.pos[0];
+                const pathtype = String(ctx.named.pathtype ?? ctx.named.type ?? 'any').toLowerCase();
+                const isValid = ctx.named.isvalid || false;
                 if (p === undefined) return [false];
+                if (isValid) {
+                    const s = String(p);
+                    if (!s || s.includes('\0')) return [false];
+                    // syntax-only: drive prefix + no NUL; wildcards count as valid syntax
+                    if (/[<>"|]/.test(s.replace(/^[A-Za-z]:/, ''))) return [false];
+                    try { resolvePSPath(s); return [true]; }
+                    catch { return [false]; }
+                }
+                const exists = (arr) => FileSystem.itemExists(arr);
                 if (/[*?]/.test(String(p))) {
                     const wx = expandWildcard(String(p));
-                    return [!!wx && wx.matches.length > 0];
+                    if (!wx || !wx.matches.length) return [false];
+                    if (pathtype === 'leaf') return [wx.matches.some(m2 => m2.type !== 'folder')];
+                    if (pathtype === 'container') return [wx.matches.some(m2 => m2.type === 'folder')];
+                    return [true];
                 }
-                return [FileSystem.itemExists(resolvePSPath(String(p)))];
+                const full = resolvePSPath(String(p));
+                if (!exists(full)) return [false];
+                if (pathtype === 'leaf') return [!FileSystem.isFolder(full)];
+                if (pathtype === 'container') return [FileSystem.isFolder(full)];
+                return [true];
             },
 
             'Get-Content'(ctx) {
@@ -1918,17 +2058,25 @@ const PowershellEngine = (() => {
                 if (p === undefined) throw new Error('Get-Content : Cannot bind argument to parameter \'Path\' because it is an empty string.');
                 const raw = ctx.named.raw || ctx.named.rawtext || false;
                 const total = ctx.named.totalcount ?? ctx.named.first ?? null;
+                const tail = ctx.named.tail ?? ctx.named.last ?? null;
+                const wait = ctx.named.wait || false;
                 const full = resolvePSPath(String(p));
                 const node = FileSystem.getNode(full);
                 if (!node) throw new Error(`Get-Content : Cannot find path '${p}' because it does not exist.`);
                 if (node.type === 'folder') throw new Error(`Get-Content : Access to the path '${p}' is denied (is a directory).`);
                 if (node.blobRef) throw new Error(`Get-Content : '${p}' is a binary file and cannot be displayed as text.`);
                 const content = FileSystem.readFile(full) ?? '';
-                if (raw) return [content];
+                if (raw) {
+                    if (wait) emit('Get-Content : -Wait is not emulated live; showing current content once.');
+                    return [content];
+                }
                 let lines = String(content).split('\n');
                 if (lines.length && lines[lines.length - 1] === '') lines.pop();
+                lines = lines.map(l => l.replace(/\r$/, ''));
                 if (total !== null && total !== undefined) lines = lines.slice(0, Number(total));
-                return lines.map(l => l.replace(/\r$/, ''));
+                else if (tail !== null && tail !== undefined) lines = lines.slice(-Math.max(0, Number(tail)));
+                if (wait) emit('Get-Content : -Wait is not emulated live; showing current content once.');
+                return lines;
             },
 
             'Set-Content'(ctx) {
@@ -1987,21 +2135,43 @@ const PowershellEngine = (() => {
             'Split-Path'(ctx) {
                 const p = String(ctx.named.path ?? ctx.pos[0] ?? '');
                 const leaf = ctx.named.leaf || false;
-                const parent = ctx.named.parent || (!leaf && ctx.pos.length < 2);
+                const parent = ctx.named.parent || false;
+                const qual = ctx.named.qualifier || false;
                 const noqual = ctx.named.noqualifier || false;
                 let s = p.replace(/\//g, '\\');
+                const m = s.match(/^[A-Za-z]:/);
+                const drive = m ? m[0] : '';
+                if (qual) return [drive];
                 if (noqual) s = s.replace(/^[A-Za-z]:/, '');
-                if (leaf || (!parent && ctx.named.leaf === undefined && ctx.pos[1] === undefined)) {
+                if (leaf) {
+                    const parts = s.split('\\').filter(Boolean);
+                    return [parts.pop() || ''];
+                }
+                if (!parent && ctx.named.leaf === undefined && ctx.pos[1] === undefined && !ctx.named.parent) {
                     const parts = s.split('\\').filter(Boolean);
                     return [parts.pop() || ''];
                 }
                 const idx = s.lastIndexOf('\\');
-                return [idx <= 0 ? (s.startsWith('\\') ? '\\' : '') : s.slice(0, idx)];
+                if (idx <= 0) return [drive || (s.startsWith('\\') ? '\\' : '')];
+                return [s.slice(0, idx)];
             },
 
             'Resolve-Path'(ctx) {
                 const p = ctx.named.path ?? ctx.pos[0];
-                const full = p !== undefined ? resolvePSPath(String(p)) : [...getCwd()];
+                if (p === undefined) {
+                    const cwd = [...getCwd()];
+                    return [psObj('PathInfo', { Path: psDisplayPath(cwd) }, psDisplayPath(cwd))];
+                }
+                if (/[*?]/.test(String(p))) {
+                    const wx = expandWildcard(String(p));
+                    if (!wx || !wx.matches.length) throw new Error(`Resolve-Path : Cannot find path '${p}' because it does not exist.`);
+                    return wx.matches.map(m2 => {
+                        const full = [...wx.dir, m2.name];
+                        return psObj('PathInfo', { Path: psDisplayPath(full) }, psDisplayPath(full));
+                    });
+                }
+                const full = resolvePSPath(String(p));
+                if (!FileSystem.itemExists(full)) throw new Error(`Resolve-Path : Cannot find path '${p}' because it does not exist.`);
                 return [psObj('PathInfo', { Path: psDisplayPath(full) }, psDisplayPath(full))];
             },
 
@@ -2053,18 +2223,22 @@ const PowershellEngine = (() => {
             'Read-Host'(ctx) {
                 const prompt = String(ctx.named.prompt ?? ctx.pos[0] ?? 'Enter value');
                 const asSecure = ctx.named.assecurestring || false;
+                const wrap = (v) => (asSecure ? makeSecureString(v) : String(v ?? ''));
+                if (ctx.input && ctx.input.length) {
+                    return [wrap(psStr(ctx.input[0]))];
+                }
                 if (typeof opts.readHost === 'function') {
                     try {
-                        const r = opts.readHost(prompt);
+                        const r = opts.readHost(prompt, asSecure);
                         if (r && typeof r.then === 'function') {
                             r.then(v => emit(asSecure ? '***' : String(v ?? '')));
-                            return [''];
+                            return [asSecure ? makeSecureString('') : ''];
                         }
-                        return [String(r ?? '')];
-                    } catch { return ['']; }
+                        return [wrap(r)];
+                    } catch { return [asSecure ? makeSecureString('') : '']; }
                 }
                 emit(prompt + ': (interactive input is unavailable headless — pipe a value instead)');
-                return [''];
+                return [asSecure ? makeSecureString('') : ''];
             },
 
             'Clear-Host'() {
@@ -2256,7 +2430,10 @@ const PowershellEngine = (() => {
                 const unique = ctx.named.unique || false;
                 const expand = ctx.named.expandproperty ?? null;
                 let items = [...(ctx.input || [])];
-                if (expand) return items.map(o => getProp(o, String(expand)));
+                if (expand) return items.map(o => {
+                    const v = getProp(o, String(expand));
+                    return v === undefined ? null : v;
+                });
                 if (props !== null && props !== undefined) {
                     const list = Array.isArray(props) ? props : String(props).split(',').map(s => s.trim());
                     items = items.map(o => {
@@ -2714,6 +2891,219 @@ const PowershellEngine = (() => {
                     throw new Error('Invoke-WebRequest : ' + (e && e.message ? e.message : e));
                 }
                 return [];
+            },
+
+            'Select-String'(ctx) {
+                const pattern = ctx.named.pattern ?? ctx.pos[0];
+                const pathArg = ctx.named.path ?? (ctx.pos.length > 1 ? ctx.pos[1] : undefined);
+                const caseSens = ctx.named.casesensitive || false;
+                const simple = ctx.named.simplematch || false;
+                const quiet = ctx.named.quiet || false;
+                const listOnly = ctx.named.list || false;
+                const contextN = Number(ctx.named.context ?? 0);
+                if (pattern === undefined) throw new Error('Select-String : Cannot bind argument to parameter \'Pattern\' because it is missing.');
+                const patStr = String(pattern);
+                let re = null;
+                if (!simple) {
+                    try { re = new RegExp(patStr, caseSens ? '' : 'i'); }
+                    catch { throw new Error(`Select-String : Invalid regular expression '${patStr}'. Use -SimpleMatch for literal text.`); }
+                }
+                const matchLine = (line) => {
+                    if (simple) {
+                        return caseSens ? String(line).includes(patStr) : String(line).toLowerCase().includes(patStr.toLowerCase());
+                    }
+                    return re.test(String(line));
+                };
+                const collect = (lines, filename) => {
+                    const hits = [];
+                    lines.forEach((ln, idx) => {
+                        if (matchLine(ln)) {
+                            hits.push({ line: String(ln), num: idx + 1, idx });
+                        }
+                    });
+                    return { hits, lines, filename };
+                };
+                const sources = [];
+                if (pathArg !== undefined) {
+                    const wx = /[*?]/.test(String(pathArg)) ? expandWildcard(String(pathArg)) : null;
+                    const files = wx ? wx.matches.map(m2 => [...wx.dir, m2.name]) : [resolvePSPath(String(pathArg))];
+                    if (!files.length) throw new Error(`Select-String : Cannot find path '${pathArg}' because it does not exist.`);
+                    for (const f of files) {
+                        const node = FileSystem.getNode(f);
+                        if (!node) throw new Error(`Select-String : Cannot find path '${pathArg}' because it does not exist.`);
+                        if (node.type === 'folder') continue;
+                        if (node.blobRef) continue;
+                        const content = FileSystem.readFile(f) ?? '';
+                        let lines = String(content).split('\n');
+                        if (lines.length && lines[lines.length - 1] === '') lines.pop();
+                        lines = lines.map(l => l.replace(/\r$/, ''));
+                        sources.push(collect(lines, psDisplayPath(f)));
+                    }
+                } else if (ctx.input && ctx.input.length) {
+                    sources.push(collect(ctx.input.map(psStr), null));
+                } else {
+                    throw new Error('Select-String : No input. Provide -Path or pipe lines.');
+                }
+                if (quiet) {
+                    return [sources.some(s => s.hits.length > 0)];
+                }
+                const out = [];
+                for (const s of sources) {
+                    let emitted = 0;
+                    for (const h of s.hits) {
+                        if (listOnly && emitted >= 1) break;
+                        const pre = contextN > 0 ? s.lines.slice(Math.max(0, h.idx - contextN), h.idx) : [];
+                        const post = contextN > 0 ? s.lines.slice(h.idx + 1, h.idx + 1 + contextN) : [];
+                        const label = (s.filename ? s.filename + ':' : '') + h.num + ':' + h.line;
+                        out.push(psObj('MatchInfo', {
+                            Line: h.line, LineNumber: h.num,
+                            Filename: s.filename, Path: s.filename,
+                            Matches: [patStr], ContextPre: pre, ContextPost: post
+                        }, label));
+                        pre.forEach(l => out.push(psObj('MatchInfoContext', { Line: l }, '  ' + l)));
+                        post.forEach(l => out.push(psObj('MatchInfoContext', { Line: l }, '  ' + l)));
+                        emitted++;
+                    }
+                }
+                return out;
+            },
+
+            'Out-GridView'(ctx) {
+                const title = String(ctx.named.title ?? 'Out-GridView');
+                const mode = String(ctx.named.outputmode ?? 'single').toLowerCase();
+                const items = [...(ctx.input || [])];
+                if (!items.length && ctx.pos.length) return [...ctx.pos];
+                if (typeof opts.outGrid === 'function') {
+                    try {
+                        const r = opts.outGrid(items.map(v => psStr(v)), title);
+                        if (r && typeof r.then === 'function') {
+                            r.then(v => {
+                                if (v === null || v === undefined) return;
+                                if (Array.isArray(v)) emit(v.map(psStr).join('\n'));
+                                else emit(psStr(v));
+                            });
+                            return [];
+                        }
+                        if (Array.isArray(r)) return mode.startsWith('multiple') ? r : r.slice(0, 1);
+                        if (r !== undefined && r !== null) return [r];
+                        return [];
+                    } catch { /* fall through to passthrough */ }
+                }
+                emit(`Out-GridView : interactive grid is unavailable headless — passing through ${items.length} object(s).`);
+                return items;
+            },
+
+            'Write-Progress'(ctx) {
+                const activity = String(ctx.named.activity ?? ctx.pos[0] ?? 'Working');
+                const status = String(ctx.named.status ?? ctx.pos[1] ?? '');
+                const pct = ctx.named.percentcomplete ?? ctx.named.percent ?? null;
+                const completed = ctx.named.completed || false;
+                if (completed) {
+                    emit(`${activity}: Completed.`);
+                    return [];
+                }
+                if (pct !== null && pct !== undefined) {
+                    const n = Math.max(0, Math.min(100, Number(pct)));
+                    const width = 20;
+                    const filled = Math.round((n / 100) * width);
+                    const bar = '[' + '#'.repeat(filled) + '-'.repeat(width - filled) + ']';
+                    emit(`${bar} ${n}% ${activity}${status ? ': ' + status : ''}`);
+                } else {
+                    emit(`${activity}${status ? ': ' + status : ''}`);
+                }
+                return [];
+            },
+
+            'Get-Random'(ctx) {
+                const hasMin = ctx.named.minimum !== undefined;
+                const hasMax = ctx.named.maximum !== undefined;
+                const min = hasMin ? Number(ctx.named.minimum) : 0;
+                const count = ctx.named.count !== undefined ? Math.max(0, Number(ctx.named.count)) : 1;
+                const seed = ctx.named.setseed ?? null;
+                const rand = seed !== null && seed !== undefined ? seededRandom(seed) : Math.random;
+                // pipeline pick: ... | Get-Random [-Count n]
+                if (ctx.input && ctx.input.length && !hasMin && !hasMax && ctx.pos.length === 0) {
+                    const pool = [...ctx.input];
+                    const n = ctx.named.count !== undefined ? Math.min(count, pool.length) : 1;
+                    const picked = [];
+                    for (let i = 0; i < n; i++) {
+                        const idx = Math.floor(rand() * pool.length);
+                        picked.push(pool.splice(idx, 1)[0]);
+                    }
+                    return ctx.named.count !== undefined ? picked : [picked[0]];
+                }
+                let max = hasMax ? Number(ctx.named.maximum) : 2147483647;
+                if (ctx.pos.length >= 1 && !hasMax && !hasMin) max = Number(ctx.pos[0]);
+                else if (ctx.pos.length >= 2) { /* Get-Random min max positional */ }
+                if (Number.isNaN(min) || Number.isNaN(max)) throw new Error('Get-Random : Minimum and Maximum must be numbers.');
+                if (max <= min) throw new Error('Get-Random : Maximum must be greater than Minimum.');
+                const one = () => Math.floor(rand() * (max - min)) + min;
+                if (count <= 1 && ctx.named.count === undefined) return [one()];
+                return Array.from({ length: Math.max(1, count) }, one);
+            },
+
+            'New-Guid'() {
+                return [newGuid()];
+            },
+
+            'Get-Unique'(ctx) {
+                const asString = ctx.named.asstring || false;
+                void asString;
+                const src = ctx.input && ctx.input.length ? ctx.input : ctx.pos;
+                const seen = new Set();
+                const out = [];
+                for (const v of src) {
+                    const k = psStr(v);
+                    if (seen.has(k)) continue;
+                    seen.add(k);
+                    out.push(v);
+                }
+                return out;
+            },
+
+            'Get-Member'(ctx) {
+                const filter = ctx.named.name ?? ctx.pos[0] ?? '*';
+                const mtype = String(ctx.named.membertype ?? 'all').toLowerCase();
+                const re = wildcardToRegExp(String(filter));
+                const items = ctx.input && ctx.input.length ? ctx.input : [];
+                if (!items.length) return [];
+                const propTypes = new Map();
+                for (const o of items) {
+                    const props = isPs(o) ? o.props : (o !== null && typeof o === 'object' ? o : { Value: o });
+                    for (const k of Object.keys(props)) {
+                        if (!propTypes.has(k)) {
+                            const v = isPs(o) ? o.props[k] : o[k];
+                            const t = Array.isArray(v) ? 'Object[]' : (v === null ? 'object' : typeof v);
+                            propTypes.set(k, t);
+                        }
+                    }
+                }
+                const rows = [];
+                const wantProp = ['all', 'noteproperty', 'property', 'properties'].includes(mtype);
+                const wantMethod = ['all', 'method', 'methods'].includes(mtype);
+                if (wantProp) {
+                    for (const [k, t] of [...propTypes.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+                        if (!re.test(k)) continue;
+                        rows.push(psObj('MemberDefinition', {
+                            Name: k, MemberType: 'NoteProperty', Definition: `${t} ${k}`
+                        }, `   ${k}  NoteProperty  ${t}`));
+                    }
+                }
+                if (wantMethod && re.test('ToString')) {
+                    rows.push(psObj('MemberDefinition', {
+                        Name: 'ToString', MemberType: 'Method', Definition: 'string ToString()'
+                    }, '   ToString  Method  string ToString()'));
+                }
+                return rows;
+            },
+
+            'Get-PSProvider'() {
+                return [
+                    psObj('ProviderInfo', { Name: 'FileSystem', Capabilities: 'Filter, Credentials', Drives: 'C' }, 'FileSystem'),
+                    psObj('ProviderInfo', { Name: 'Environment', Capabilities: '', Drives: 'Env' }, 'Environment'),
+                    psObj('ProviderInfo', { Name: 'Variable', Capabilities: '', Drives: 'Variable' }, 'Variable'),
+                    psObj('ProviderInfo', { Name: 'Alias', Capabilities: '', Drives: 'Alias' }, 'Alias')
+                ];
             }
         };
 
@@ -2746,21 +3136,29 @@ const PowershellEngine = (() => {
             ['Pop-Location', 'popd', 'Pop-Location', 'Pops the directory stack.'],
             ['New-Item', 'ni, md', 'New-Item [-Path] <p> [-ItemType file|directory] [-Value <t>] [-Force]', 'Creates files or folders (parents auto-created).'],
             ['Remove-Item', 'rm, del, erase, rd, ri', 'Remove-Item [-Path] <p> [-Recurse] [-Force]', 'Deletes files/folders (use -Recurse for non-empty).'],
-            ['Copy-Item', 'cp, copy', 'Copy-Item [-Path] <s> [-Destination] <d>', 'Copies files (wildcards ok).'],
-            ['Move-Item', 'mv, move', 'Move-Item [-Path] <s> [-Destination] <d>', 'Moves files.'],
+            ['Copy-Item', 'cp, copy', 'Copy-Item [-Path] <s> [-Destination] <d> [-Recurse] [-Force]', 'Copies files and folders (wildcards ok, -Recurse for trees).'],
+            ['Move-Item', 'mv, move', 'Move-Item [-Path] <s> [-Destination] <d> [-Force]', 'Moves files and folders (errors when the destination exists).'],
             ['Rename-Item', 'ren, rni', 'Rename-Item [-Path] <p> [-NewName] <n>', 'Renames a file or folder.'],
             ['Get-Item', 'gi', 'Get-Item [-Path] <p>', 'Gets the item at a path.'],
-            ['Test-Path', '-', 'Test-Path [-Path] <p>', 'True when the path exists (wildcards ok). Returns Boolean.'],
-            ['Get-Content', 'cat, type, gc', 'Get-Content [-Path] <file> [-Raw] [-TotalCount <n>]', 'Reads text lines (use -Raw for one string).'],
+            ['Test-Path', '-', 'Test-Path [-Path] <p> [-PathType Any|Leaf|Container] [-IsValid]', 'True when the path exists (wildcards ok). Returns Boolean.'],
+            ['Get-Content', 'cat, type, gc', 'Get-Content [-Path] <file> [-Raw] [-TotalCount <n>] [-Tail <n>] [-Wait]', 'Reads text lines (use -Raw for one string, -Tail for last n).'],
             ['Set-Content', 'sc', 'Set-Content [-Path] <f> [-Value] <text>', 'Overwrites a file (pipeline input ok).'],
             ['Add-Content', 'ac', 'Add-Content [-Path] <f> [-Value] <text>', 'Appends to a file.'],
             ['Clear-Content', 'clc', 'Clear-Content [-Path] <f>', 'Empties a file.'],
             ['Join-Path', '-', 'Join-Path [-Path] <b> [-ChildPath] <c>', 'Joins path segments.'],
-            ['Split-Path', '-', 'Split-Path [-Path] <p> [-Leaf] [-Parent] [-NoQualifier]', 'Splits a path.'],
-            ['Resolve-Path', '-', 'Resolve-Path [[-Path] <p>]', 'Resolves to a full C:\\ style path.'],
+            ['Split-Path', '-', 'Split-Path [-Path] <p> [-Leaf] [-Parent] [-Qualifier] [-NoQualifier]', 'Splits a path.'],
+            ['Resolve-Path', '-', 'Resolve-Path [[-Path] <p>]', 'Resolves to full C:\\ paths (wildcards return all matches).'],
+            ['Select-String', 'sls', 'Select-String [-Pattern] <p> [-Path] <f> [-CaseSensitive] [-SimpleMatch] [-Context n] [-Quiet] [-List]', 'Searches text (regex by default, MatchInfo objects).'],
+            ['Out-GridView', 'ogv', '... | Out-GridView [-Title <t>] [-OutputMode Single|Multiple]', 'Interactive picker in the app, passthrough headless.'],
+            ['Write-Progress', '-', 'Write-Progress [-Activity] <a> [-Status <s>] [-PercentComplete n] [-Completed]', 'Shows an ASCII progress bar.'],
+            ['Get-Random', '-', 'Get-Random [[-Minimum] 0] [[-Maximum] n] [-Count n] [-SetSeed n]', 'Random number or random pipeline pick.'],
+            ['New-Guid', '-', 'New-Guid', 'Creates a new GUID.'],
+            ['Get-Unique', '-', '... | Get-Unique', 'Returns unique values in order.'],
+            ['Get-Member', 'gm', '... | Get-Member [[-Name] <wild>] [-MemberType All|Property|Method]', 'Lists property names and types.'],
+            ['Get-PSProvider', '-', 'Get-PSProvider', 'Lists FileSystem/Environment/Variable/Alias providers.'],
             ['Write-Host', '-', 'Write-Host <text> [-ForegroundColor c] [-NoNewline]', 'Writes directly to the host (not the pipeline).'],
             ['Write-Output', 'echo, write', 'Write-Output <value>', 'Sends values down the pipeline.'],
-            ['Read-Host', '-', 'Read-Host [-Prompt] <p> [-AsSecureString]', 'Prompts for input (dialog in the app, piped value headless).'],
+            ['Read-Host', '-', 'Read-Host [-Prompt] <p> [-AsSecureString]', 'Prompts for input (dialog in the app, piped value headless; -AsSecureString returns a masked SecureString).'],
             ['Clear-Host', 'cls, clear', 'Clear-Host', 'Clears the screen.'],
             ['Get-Help', 'help, man', 'Get-Help [[-Name] <cmd>]', 'Shows help for cmdlets and about-topics.'],
             ['Get-Command', 'gcm', 'Get-Command [[-Name] <wild>] [-CommandType cmdlet|alias|function]', 'Lists cmdlets, aliases and functions.'],

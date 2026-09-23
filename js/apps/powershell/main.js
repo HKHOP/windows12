@@ -111,6 +111,10 @@ const PowerShell = (() => {
                     catch { /* toasts unavailable */ }
                 },
                 readHost: (prompt) => Popup.textbox('Windows PowerShell', prompt),
+                outGrid: (labels, title) => {
+                    try { return Popup.pick('Out-GridView', title, labels); }
+                    catch { return labels; }
+                },
                 onHistory: (line) => {
                     history.push(line);
                     history = history.slice(-500);
@@ -134,6 +138,82 @@ const PowerShell = (() => {
         function escHtml(s) {
             return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // PowerShell syntax coloring for the echoed command line only (zero
+        // focus/caret risk: the live <input> stays plain while typing).
+        // Quote/brace-aware scan: cmdlets yellow, strings orange, $vars blue,
+        // comments green, numbers light-green, operators gray.
+        function highlightPs(line) {
+            let cmds = new Set();
+            try {
+                const names = engine.cmdletNames().map(n => String(n).toLowerCase());
+                const aliases = Object.keys(engine.getAliases()).map(a => String(a).toLowerCase());
+                cmds = new Set([...names, ...aliases]);
+            } catch { cmds = new Set(); }
+            const Y = '#FFD700', S = '#CE9178', V = '#9CDCFE';
+            const C = '#6A9955', N = '#B5CEA8', O = '#D4D4D4', W = '#F2F2F2';
+            const span = (html, color) => `<span style="color:${color}">${html}</span>`;
+            const esc = (t) => escHtml(t);
+            const isCmd = (w) => cmds.has(String(w).toLowerCase());
+            const isNum = (w) => /^-?\d+(\.\d+)?$/.test(w);
+            // split $variables inside double-quoted strings so they stay blue
+            const paintDqInner = (inner) => esc(inner).replace(/\$(\w+(?::\w+)?(?:\.\w+)*|\{[^}]+\}|_(\.\w+)?|\?)/g,
+                (m) => span(esc(m).replace(/&amp;/g, '&'), V));
+            let out = '';
+            let buf = '';
+            let sq = false, dq = false;
+            const flushBare = () => {
+                if (!buf) return;
+                if (isCmd(buf)) out += span(esc(buf), Y);
+                else if (isNum(buf)) out += span(esc(buf), N);
+                else if (buf[0] === '$') out += span(esc(buf), V);
+                else out += span(esc(buf), W);
+                buf = '';
+            };
+            const flushSq = () => { out += span(esc(buf), S); buf = ''; };
+            const src = String(line ?? '');
+            let i = 0;
+            while (i < src.length) {
+                const c = src[i];
+                if (sq) {
+                    if (c === "'" && src[i + 1] === "'") { buf += "''"; i += 2; continue; }
+                    buf += c; i++;
+                    if (c === "'") { flushSq(); sq = false; }
+                    continue;
+                }
+                if (dq) {
+                    if (c === '`' && i + 1 < src.length) { buf += c + src[i + 1]; i += 2; continue; }
+                    buf += c; i++;
+                    if (c === '"') {
+                        const inner = buf.slice(1, -1);
+                        out += span('&quot;' + paintDqInner(inner) + '&quot;', S);
+                        buf = '';
+                        dq = false;
+                    }
+                    continue;
+                }
+                if (c === "'") { flushBare(); sq = true; buf = c; i++; continue; }
+                if (c === '"') { flushBare(); dq = true; buf = c; i++; continue; }
+                if (c === '#' && (i === 0 || /[\s;({|]/.test(src[i - 1]))) {
+                    flushBare();
+                    out += span(esc(src.slice(i)), C);
+                    break;
+                }
+                if (c === '$') {
+                    flushBare();
+                    const m = src.slice(i).match(/^\$(?:\w+(?:::\w+|:\w+)?(?:\.\w+)*|\{[^}]+\}|_(\.\w+)*|\?)/);
+                    if (m) { out += span(esc(m[0]), V); i += m[0].length; }
+                    else { out += span(esc('$'), V); i++; }
+                    continue;
+                }
+                if (/\s/.test(c)) { flushBare(); out += esc(c); i++; continue; }
+                if (/[|&;(){}\[\],+*/%=<>!]/.test(c)) { flushBare(); out += span(esc(c), O); i++; continue; }
+                buf += c; i++;
+            }
+            if (sq || dq) { out += span(esc(buf), S); }
+            else flushBare();
+            return out;
         }
 
         function print(text) {
@@ -171,7 +251,11 @@ const PowerShell = (() => {
         function execute(raw) {
             const trimmed = raw.trim();
             if (!trimmed) return;
-            print(getPrompt() + raw);
+            try {
+                printHTML(escHtml(getPrompt()) + highlightPs(raw));
+            } catch {
+                print(getPrompt() + raw);
+            }
             try {
                 engine.run(trimmed);
             } catch (e) {
