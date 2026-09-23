@@ -2984,6 +2984,10 @@ const PowershellEngine = (() => {
             completeCommand, cmdletNames,
             getAliases: () => ({ ...ALIASES, ...customAliases }),
             getCwdDisplay: () => psDisplayPath(getCwd()),
+            // Format captured values exactly like the final pipeline stage
+            // does (for callers that run scripts directly and print the
+            // returned values themselves, e.g. the SDK and file openers).
+            formatValues: (values) => (values || []).filter(v => v !== undefined).map(formatOne),
             get lastOk() { return lastOk; },
             get lastExit() { return lastExit; }
         };

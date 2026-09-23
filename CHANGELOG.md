@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4965] - 2026-09-23
+
+### Added
+- SDK `Scripts` namespace (v1.4.0, flat + bound `app.scripts`): `runBatch`/`runVBScript`/`runPowerShell` for source strings and `runFile` dispatching `.bat/.cmd/.vbs/.vbe/.ps1/.psm1` through the real OS engines (same code as Terminal/PowerShell, sync, `{output, errors, exitCode, cwd}` + `onOutput` streaming, per-user PS ExecutionPolicy enforced, job toasts tagged to the calling app, network follows the manifest). Bound guide row + example in `APP_DEVELOPMENT_GUIDE.md`, typings in `types.d.ts`, 12 new smoke checks
+
+### Fixed
+- PowerShell `.ps1` output silently swallowed when a script runs via file openers: `runScriptFile`/`runScriptContent` return values were never printed by direct callers (PowerShell app `open()`, Terminal `./script.ps1`, SDK `runFile`). New engine `formatValues()` formats them exactly like a final pipeline stage; all three callers now emit them once
+
 ## [12.0.4964] - 2026-09-23
 
 ### Added

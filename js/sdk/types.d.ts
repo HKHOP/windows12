@@ -1,5 +1,5 @@
 // Windows 12 SDK — TypeScript declarations (reference only; the runtime
-// stays dependency-free vanilla JS). SDK contract version 1.2.0.
+// stays dependency-free vanilla JS). SDK contract version 1.4.0.
 declare module '../../sdk/index.js' {
     export const SDK_VERSION: string;
     export function createApp(def: { id: string; name?: string }): BoundApp;
@@ -202,6 +202,7 @@ declare module '../../sdk/index.js' {
         associations: typeof FileAssociations;
         system: typeof System;
         events: typeof Events;
+        scripts: typeof Scripts;
     }
 
     export const WindowManager: {
@@ -458,6 +459,28 @@ declare module '../../sdk/index.js' {
         requestCamera(appId: string, constraints?: object): Promise<MediaStream>;
         camera(appId: string, constraints?: object): Promise<MediaStream>;
     };
+    export interface ScriptOptions {
+        cwd?: string[];
+        args?: string[];
+        onOutput?: (line: string) => void;
+        noProfile?: boolean;
+        allowNetwork?: boolean;
+    }
+    export interface ScriptResult {
+        output: string[];
+        errors: string[];
+        exitCode: number;
+        cwd: string[];
+    }
+    export type ScriptLanguage = 'batch' | 'vbscript' | 'powershell';
+    export const Scripts: {
+        runBatch(source: string, options?: ScriptOptions): ScriptResult;
+        runVBScript(source: string, options?: ScriptOptions): ScriptResult;
+        runPowerShell(source: string, options?: ScriptOptions): ScriptResult;
+        runFile(path: string[], options?: ScriptOptions): ScriptResult;
+        detectLanguage(name: string): ScriptLanguage | null;
+        supportedExtensions(): string[];
+    };
     export class SDKError extends Error {
         code: string;
         details: unknown;
@@ -489,6 +512,7 @@ declare module '../../sdk/index.js' {
         PointerLock: typeof PointerLock;
         Input: typeof Input;
         Audio: typeof Audio;
+        Scripts: typeof Scripts;
         SDKError: typeof SDKError;
         ErrorCodes: Record<string, string>;
     };

@@ -156,7 +156,7 @@ console.log('[surface]');
 for (const name of ['WindowManager', 'FileSystem', 'Files', 'Notifications', 'Dialogs', 'Keyboard',
     'Clipboard', 'Apps', 'Settings', 'Shell', 'FileAssociations', 'System', 'Events',
     'Permissions', 'Lifecycle', 'Background', 'Media', 'PointerLock', 'Input', 'Audio',
-    'SDKError', 'ErrorCodes', 'createApp']) {
+    'Scripts', 'SDKError', 'ErrorCodes', 'createApp']) {
     check(`exports ${name}`, SDK[name] !== undefined && Windows12[name] !== undefined);
 }
 check('SDK_VERSION is semver', /^\d+\.\d+\.\d+$/.test(SDK.SDK_VERSION), SDK.SDK_VERSION);
@@ -527,6 +527,57 @@ check('simple layouts exclude Ctrl/Alt/Tab', (() => {
     return ok && VK.getMode() === 'generic';
 })());
 check('repaint() is safe headless', (() => { try { VK.repaint(); return true; } catch (e) { return false; } })());
+
+console.log('[scripts]');
+check('Scripts.runBatch echo', (() => {
+    const r = SDK.Scripts.runBatch('@echo off\necho hi-sdk');
+    return r.output.includes('hi-sdk') && r.exitCode === 0 && Array.isArray(r.cwd);
+})());
+check('Scripts.runVBScript echo', (() => {
+    const r = SDK.Scripts.runVBScript('WScript.Echo "vb-sdk"');
+    return r.output.includes('vb-sdk') && r.exitCode === 0;
+})());
+check('Scripts.runPowerShell pipeline', (() => {
+    const r = SDK.Scripts.runPowerShell('1,2,3 | Measure-Object | Select-Object -ExpandProperty Count', { noProfile: true });
+    return r.output.join('\n').trim() === '3' && r.exitCode === 0 && r.errors.length === 0;
+})());
+check('Scripts.runPowerShell error lands in errors[]', (() => {
+    const r = SDK.Scripts.runPowerShell('Nope-Command', { noProfile: true });
+    return r.errors.length === 1 && /not recognized/.test(r.errors[0]);
+})());
+check('Scripts.runFile dispatches .ps1', (() => {
+    SDK.FileSystem.createFile(['/', 'users', 'default', 'Documents'], 'sdk-smoke.ps1', 'Write-Output "ps1-sdk"', 'ps1');
+    const r = SDK.Scripts.runFile(['/', 'users', 'default', 'Documents', 'sdk-smoke.ps1'], { noProfile: true });
+    SDK.FileSystem.delete(['/', 'users', 'default', 'Documents', 'sdk-smoke.ps1']);
+    return r.output.includes('ps1-sdk');
+})());
+check('Scripts.runFile dispatches .bat', (() => {
+    SDK.FileSystem.createFile(['/', 'users', 'default', 'Documents'], 'sdk-smoke.bat', '@echo off\necho bat-sdk', 'bat');
+    const r = SDK.Scripts.runFile(['/', 'users', 'default', 'Documents', 'sdk-smoke.bat']);
+    SDK.FileSystem.delete(['/', 'users', 'default', 'Documents', 'sdk-smoke.bat']);
+    return r.output.includes('bat-sdk');
+})());
+check('Scripts.runFile unknown ext → UNSUPPORTED', (() => {
+    try { SDK.Scripts.runFile(['/', 'users', 'default', 'Documents', 'x.txt']); return false; }
+    catch (e) { return e.code === 'UNSUPPORTED'; }
+})());
+check('Scripts.runFile missing → NOT_FOUND', (() => {
+    try { SDK.Scripts.runFile(['/', 'users', 'default', 'Documents', 'nope-sdk.bat']); return false; }
+    catch (e) { return e.code === 'NOT_FOUND'; }
+})());
+check('Scripts.runBatch rejects non-string', (() => {
+    try { SDK.Scripts.runBatch(42); return false; }
+    catch (e) { return e.code === 'INVALID_ARGS'; }
+})());
+check('Scripts.detectLanguage', SDK.Scripts.detectLanguage('setup.PS1') === 'powershell' &&
+    SDK.Scripts.detectLanguage('a.vbs') === 'vbscript' &&
+    SDK.Scripts.detectLanguage('runme') === null);
+check('Scripts.supportedExtensions', SDK.Scripts.supportedExtensions().join(',') === 'bat,cmd,vbs,vbe,ps1,psm1');
+check('app.scripts bound runs PowerShell', (() => {
+    const app = SDK.createApp({ id: 'sdkprobe' });
+    const r = app.scripts.runPowerShell('Write-Output "bound-sdk"', { noProfile: true });
+    return r.output.includes('bound-sdk');
+})());
 
 console.log('\n----------------------------------------');
 console.log(`passed ${passed}, failed ${failures.length}`);

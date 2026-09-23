@@ -316,7 +316,8 @@ const PowerShell = (() => {
         if (initialScript) {
             print(getPrompt() + initialScript.split('\n')[0] + (initialScript.includes('\n') ? ' ...' : ''));
             try {
-                engine.runScriptContent(initialScript, null, []);
+                const vals = engine.runScriptContent(initialScript, null, []) || [];
+                engine.formatValues(vals).forEach((ln) => print(ln));
             } catch (e) {
                 print('PS-ERROR: ' + (e && e.message ? e.message : String(e)));
             }

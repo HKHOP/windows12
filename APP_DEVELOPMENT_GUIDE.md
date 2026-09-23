@@ -1095,6 +1095,18 @@ Each `js/sdk/*.js` file is a thin facade over one internal module -- no logic is
 | `app.background` / `Background` | headless | `canRun/isService/isBackground/running/goBackground/bringToForeground/startService/stopService` |
 | `app.net` / `Net` | peer messaging | `createChannel({name, transport})` → `{ send/sendTo/close, on('message/peer-open/peer-close') }`; transports `local` (BroadcastChannel `w12-net/<name>`) + `webrtc` (manual invite/answer codes, STUN-only); `discover(name)` presence pings; 6-char rendezvous pairing `createShortInvite` → `{ code, waitForController }` / `acceptShortInvite` → `{ connected }` (needs internet for the relay; full codes stay the offline fallback) |
 | `app.inject` / `Inject` | synthetic input | `key({type, code, key})` (dispatches to focused element/document), `pointer(element, {x,y,type,button})` |
+| `app.scripts` / `Scripts` | script engines | `runBatch/runVBScript/runPowerShell(source, {cwd,args,onOutput,noProfile,allowNetwork})` → `{output,errors,exitCode,cwd}`; `runFile(path, opts)` dispatches `.bat/.cmd/.vbs/.vbe/.ps1/.psm1` (PS policy enforced); `detectLanguage/supportedExtensions`. Bound `app.scripts` tags job toasts to your app and follows your `network` permission; scripts run with your app's filesystem access |
+
+```js
+// Run a user script file with the engine matching its extension
+// (.bat/.cmd/.vbs/.vbe/.ps1/.psm1); output streams live via onOutput:
+const res = app.scripts.runFile(['/', 'users', 'default', 'Documents', 'setup.ps1'], {
+    args: ['/quiet'],
+    onOutput: (line) => log(line),
+    noProfile: true
+});
+if (res.errors.length) showErrors(res.errors);
+```
 
 ### Errors
 

@@ -57,7 +57,8 @@ const Terminal = (() => {
         function runPsFile(filePath, args) {
             const eng = ensurePsEngine();
             try {
-                eng.runScriptFile(filePath, args || []);
+                const vals = eng.runScriptFile(filePath, args || []) || [];
+                eng.formatValues(vals).forEach((ln) => print(ln));
             } catch (e) {
                 print(e && e.message ? e.message : String(e));
             }
