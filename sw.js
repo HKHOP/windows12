@@ -61,6 +61,7 @@ const urlsToCache = [
     './js/sdk/pointerLock.js',
     './js/sdk/input.js',
     './js/sdk/audio.js',
+    './js/apps/apexDrive/main.js',
     './js/apps/appStore/main.js',
     './js/apps/archiver/main.js',
     './js/apps/browser/main.js',

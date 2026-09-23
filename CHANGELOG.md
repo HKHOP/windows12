@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4970] - 2026-09-23
+
+### Added
+- Apex Drive 3D (installable from the Microsoft Store): a full 3D driving simulator with zero-dependency WebGL — Circuit Race (3 laps vs 3 AI rivals on a lakeside mountain circuit with checkpoints, positions and countdown) and Free Roam (open 800×800 world with lake, forests, rocks, ramps and 12 collectible boost rings). Detailed sports car (cabin, spoiler, headlights, spinning steered wheels), arcade physics with drift and jumps, chase camera, minimap, procedural engine audio, boost pads, and persistent best lap / top speed. Controls: WASD/arrows + Space boost, R reset, C camera, N sound
+
 ## [12.0.4969] - 2026-09-23
 
 ### Added
