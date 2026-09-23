@@ -2,6 +2,9 @@ import WindowManager from '../../modules/windowManager.js';
 import FileSystem from '../../modules/fileSystem.js';
 import AppIcons from '../../modules/appIcons.js';
 import Users from '../../modules/users.js';
+import SystemConfig from '../../modules/systemConfig.js';
+import Notifications from '../../modules/notifications.js';
+import Popup from '../../modules/popup.js';
 
 const Photos = (() => {
     const icon = AppIcons.get('photos');
@@ -102,7 +105,10 @@ const Photos = (() => {
             <div class="photo-viewer" style="position:absolute;inset:0;background:rgba(0,0,0,0.95);display:flex;flex-direction:column;z-index:10;">
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
                     <span style="color:#ddd;font-size:13px;">${image.name}</span>
-                    <button class="photo-viewer-close" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer;padding:4px 8px;border-radius:4px;line-height:1;">&times;</button>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <button class="photo-viewer-wallpaper" style="background:rgba(255,255,255,0.08);border:none;color:#ddd;font-size:12px;cursor:pointer;padding:6px 12px;border-radius:5px;">Set as desktop background</button>
+                        <button class="photo-viewer-close" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer;padding:4px 8px;border-radius:4px;line-height:1;">&times;</button>
+                    </div>
                 </div>
                 <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:20px;overflow:hidden;">
                     ${image.data ? 
@@ -116,6 +122,13 @@ const Photos = (() => {
         contentEl.insertAdjacentHTML('beforeend', viewerHTML);
         contentEl.querySelector('.photo-viewer-close').addEventListener('click', () => {
             contentEl.querySelector('.photo-viewer')?.remove();
+        });
+        contentEl.querySelector('.photo-viewer-wallpaper').addEventListener('click', () => {
+            if (!SystemConfig.setWallpaperImage(image.path)) {
+                Popup.warn('Cannot use image', `"${image.name}" is not a supported image file.`);
+                return;
+            }
+            Notifications.info('Desktop background', `Background set to ${image.name}.`, { appId: 'photos' });
         });
     }
 

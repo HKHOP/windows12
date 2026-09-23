@@ -3,6 +3,8 @@ import UIIcons from './uiIcons.js';
 import ContextMenu from './contextMenu.js';
 import WindowManager from './windowManager.js';
 import UserActivity from './userActivity.js';
+import SystemConfig from './systemConfig.js';
+import Notifications from './notifications.js';
 import { AppRegistry } from './taskbar.js';
 import Popup from './popup.js';
 import Scaling from './scaling.js';
@@ -475,6 +477,7 @@ const DesktopIcons = (() => {
             return;
         }
         const isDir = entry.type === 'folder';
+        const isImage = !isDir && ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'].includes(String(entry.ext || '').toLowerCase());
         const items = isDir ? [
             { label: 'Open', icon: UIIcons.action('open'), action: () => openFolderInExplorer(itemPath) },
             'separator',
@@ -482,11 +485,21 @@ const DesktopIcons = (() => {
             { label: 'Delete', icon: UIIcons.action('delete'), action: () => deleteItem(itemPath) }
         ] : [
             { label: 'Open', icon: UIIcons.action('open'), action: () => openFile(itemPath) },
+            ...(isImage ? [{ label: 'Set as desktop background', icon: UIIcons.action('personalize'), action: () => setAsWallpaper(itemPath) }] : []),
             'separator',
             { label: 'Rename', icon: UIIcons.action('rename'), action: () => renameItem(itemPath) },
             { label: 'Delete', icon: UIIcons.action('delete'), action: () => deleteItem(itemPath) }
         ];
         ContextMenu.show(x, y, items);
+    }
+
+    function setAsWallpaper(itemPath) {
+        const name = itemPath[itemPath.length - 1];
+        if (!SystemConfig.setWallpaperImage(itemPath)) {
+            Popup.warn('Cannot use image', `"${name}" is not a supported image file.`);
+            return;
+        }
+        Notifications.info('Desktop background', `Background set to ${name}.`, { appId: 'system' });
     }
 
     function openSelected() {

@@ -938,6 +938,11 @@ const Settings = (() => {
             </div>
 
             <div class="settings-section" style="margin-bottom:24px;">
+                <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Custom image</h3>
+                ${customBgSection()}
+            </div>
+
+            <div class="settings-section" style="margin-bottom:24px;">
                 <h3 style="font-size:16px;font-weight:500;margin-bottom:4px;">Mouse Cursor</h3>
                 <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Applies to the real mouse and the virtual touchpad cursor.</p>
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
@@ -1290,10 +1295,74 @@ const Settings = (() => {
     }
 
     function bgOption(id, name, preview) {
-        const active = SystemConfig.get('backgroundStyle') === id;
+        const active = SystemConfig.get('backgroundStyle') === id && !SystemConfig.get('wallpaperImage');
         return `<div class="bg-option" data-style="${id}" style="width:80px;height:50px;border-radius:6px;background:${preview};cursor:pointer;outline:${active ? '2px solid white' : 'none'};outline-offset:2px;display:flex;align-items:flex-end;padding:4px;transition:outline 0.15s;">
             <span style="font-size:10px;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.8);">${name}</span>
         </div>`;
+    }
+
+    const CUSTOM_BG_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'];
+
+    function customBgSection() {
+        const imgPath = SystemConfig.get('wallpaperImage');
+        const imgName = Array.isArray(imgPath) && imgPath.length ? imgPath[imgPath.length - 1] : '';
+        const fit = SystemConfig.get('wallpaperFit') || 'fill';
+        const fitLabel = { fill: 'Fill', fit: 'Fit', stretch: 'Stretch', tile: 'Tile', center: 'Center' };
+        const fitOpts = Object.entries(fitLabel).map(([v, l]) =>
+            `<option value="${v}"${v === fit ? ' selected' : ''}>${l}</option>`).join('');
+        return `
+            <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+                <div class="custom-bg-preview" style="width:160px;height:100px;border-radius:8px;background-color:rgba(255,255,255,0.04);background-position:center;background-size:cover;background-repeat:no-repeat;border:1px solid ${imgPath ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'};display:flex;align-items:flex-end;padding:4px;flex:none;">
+                    <span style="font-size:10px;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${imgPath ? imgName : 'None'}</span>
+                </div>
+                <div style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:8px;">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button class="custom-bg-choose" style="background:var(--accent-color);color:#fff;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;font-size:13px;">Choose from my files…</button>
+                        <button class="custom-bg-upload" style="background:rgba(255,255,255,0.06);color:var(--text-primary,#fff);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:8px 14px;cursor:pointer;font-size:13px;">Upload image…</button>
+                        ${imgPath ? '<button class="custom-bg-remove" style="background:transparent;color:#ff9b9b;border:1px solid rgba(255,100,100,0.4);border-radius:6px;padding:8px 14px;cursor:pointer;font-size:13px;">Remove</button>' : ''}
+                    </div>
+                    <label style="font-size:13px;display:flex;align-items:center;gap:8px;">Picture position
+                        <select class="custom-bg-fit" style="background:rgba(255,255,255,0.06);color:inherit;border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:6px 8px;font-size:13px;">${fitOpts}</select>
+                    </label>
+                    <div style="font-size:12px;color:var(--text-secondary);">Shows on desktops set to “Follow system” (System → Multitasking).</div>
+                </div>
+            </div>`;
+    }
+
+    // All virtual-FS images a user could reasonably pick as wallpaper.
+    function collectWallpaperImages() {
+        const found = [];
+        const seen = new Set();
+        const roots = [];
+        try { roots.push({ base: Users.home(['Pictures']), label: 'Pictures' }); } catch { /* noop */ }
+        try { roots.push({ base: Users.home(['Desktop']), label: 'Desktop' }); } catch { /* noop */ }
+        const walk = (dir, prefix) => {
+            let kids = [];
+            try { kids = FileSystem.getChildren(dir) || []; } catch { return; }
+            for (const k of kids) {
+                if (k.type === 'folder') { walk([...dir, k.name], `${prefix}${k.name}/`); continue; }
+                const ext = String(k.ext || '').toLowerCase();
+                if (!CUSTOM_BG_EXTS.includes(ext)) continue;
+                const full = [...dir, k.name];
+                const key = full.join('/');
+                if (seen.has(key)) continue;
+                seen.add(key);
+                found.push({ label: `${prefix}${k.name}`, path: full });
+            }
+        };
+        for (const r of roots) {
+            try {
+                if (FileSystem.itemExists(r.base)) walk(r.base, `${r.label}/`);
+            } catch { /* noop */ }
+        }
+        return found.sort((a, b) => a.label.localeCompare(b.label));
+    }
+
+    function refreshPersonalization() {
+        try {
+            const content = win.element.querySelector('.settings-content');
+            if (content) renderPersonalization(content);
+        } catch { /* noop */ }
     }
 
     function cursorThemeOption(t, activeId) {
@@ -1369,10 +1438,90 @@ const Settings = (() => {
 
         win.element.querySelectorAll('.bg-option').forEach(opt => {
             opt.addEventListener('click', () => {
-                SystemConfig.set('backgroundStyle', opt.dataset.style);
+                SystemConfig.setMultiple({ backgroundStyle: opt.dataset.style, wallpaperImage: null });
                 renderPersonalization(win.element.querySelector('.settings-content'));
             });
         });
+
+        // Custom-image preview (async: rebuild the URL from the stored file).
+        const preview = win.element.querySelector('.custom-bg-preview');
+        if (preview) {
+            SystemConfig.wallpaperImageURL().then(url => {
+                if (!preview.isConnected || !url) return;
+                preview.style.backgroundImage = `url("${String(url).replace(/"/g, '%22')}")`;
+            }).catch(() => { /* preview stays empty */ });
+        }
+
+        const chooseBtn = win.element.querySelector('.custom-bg-choose');
+        if (chooseBtn) {
+            chooseBtn.addEventListener('click', () => {
+                const images = collectWallpaperImages();
+                if (!images.length) {
+                    Popup.info('No images found', 'Add images to your Pictures or Desktop folder first (or use Upload image).');
+                    return;
+                }
+                Popup.pick('Choose background', 'Pick an image from your files:', images).then(sel => {
+                    if (!sel) return;
+                    const picked = typeof sel === 'string' ? images.find(i => i.label === sel) : sel;
+                    if (!picked || !picked.path) return;
+                    if (!SystemConfig.setWallpaperImage(picked.path)) {
+                        Popup.warn('Cannot use image', 'That file is not a supported image.');
+                        return;
+                    }
+                    renderPersonalization(win.element.querySelector('.settings-content'));
+                });
+            });
+        }
+
+        const uploadBtn = win.element.querySelector('.custom-bg-upload');
+        if (uploadBtn) {
+            uploadBtn.addEventListener('click', () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.addEventListener('change', async () => {
+                    const file = input.files && input.files[0];
+                    if (!file) return;
+                    try {
+                        let pics;
+                        try { pics = Users.home(['Pictures']); } catch { pics = null; }
+                        if (!pics) throw new Error('no home');
+                        if (!FileSystem.itemExists(pics)) {
+                            FileSystem.createFolder(pics.slice(0, -1), pics[pics.length - 1]);
+                        }
+                        const safe = String(file.name || 'wallpaper').replace(/[\\/]/g, '_').slice(0, 80) || 'wallpaper';
+                        const dot = safe.lastIndexOf('.');
+                        const ext = (dot >= 0 ? safe.slice(dot + 1) : '').toLowerCase() || 'png';
+                        const target = [...pics, safe];
+                        const existing = FileSystem.itemExists(target) ? FileSystem.getNode(target) : null;
+                        if (existing && existing.type === 'folder') throw new Error('name taken');
+                        const blob = file.slice(0, file.size, file.type || undefined);
+                        const ok = await FileSystem.writeFileBlob(pics, safe, blob, ext);
+                        if (!ok) throw new Error('save failed');
+                        if (!SystemConfig.setWallpaperImage(target)) throw new Error('unsupported type');
+                        renderPersonalization(win.element.querySelector('.settings-content'));
+                    } catch (e) {
+                        Popup.warn('Upload failed', 'Could not save that image to your Pictures folder.');
+                    }
+                });
+                input.click();
+            });
+        }
+
+        const removeBtn = win.element.querySelector('.custom-bg-remove');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', () => {
+                SystemConfig.setWallpaperImage(null);
+                renderPersonalization(win.element.querySelector('.settings-content'));
+            });
+        }
+
+        const fitSel = win.element.querySelector('.custom-bg-fit');
+        if (fitSel) {
+            fitSel.addEventListener('change', () => {
+                SystemConfig.setWallpaperFit(fitSel.value);
+            });
+        }
 
         win.element.querySelectorAll('.cursor-theme-option').forEach(opt => {
             opt.addEventListener('click', () => {

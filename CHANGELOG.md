@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4969] - 2026-09-23
+
+### Added
+- Custom image wallpaper: Settings → Personalization → Custom image with preview tile, Choose-from-my-files picker (Pictures/Desktop scan), Upload-image (saved to Pictures), picture position (Fill/Fit/Stretch/Tile/Center), and Windows-style right-click “Set as desktop background” on image files in File Explorer, desktop icons, plus a Photos viewer button. The file path is stored per-user and the image URL is rebuilt on every boot (blob/data-URL aware); per-desktop overrides still win when set
+
 ## [12.0.4968] - 2026-09-23
 
 ### Added

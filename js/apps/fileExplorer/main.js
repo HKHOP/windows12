@@ -13,6 +13,7 @@ import FileAssociations from '../../modules/fileAssociations.js';
 import Keyboard from '../../modules/keyboard.js';
 import Zip from '../../modules/zip.js';
 import Users from '../../modules/users.js';
+import Notifications from '../../modules/notifications.js';
 
 const FileExplorer = (() => {
     const icon = AppIcons.get('fileExplorer');
@@ -488,6 +489,9 @@ const FileExplorer = (() => {
                     ...((selCount === 1 && (entry.ext || '').toLowerCase() === 'zip')
                         ? [{ label: 'Extract All…', icon: UIIcons.action('open'), action: () => extractZipFlow(win, itemPath, wstate) }]
                         : []),
+                    ...((selCount === 1 && IMAGE_EXTS.includes((entry.ext || '').toLowerCase()))
+                        ? [{ label: 'Set as desktop background', icon: UIIcons.action('personalize'), action: () => setAsWallpaper(itemPath) }]
+                        : []),
                     ...(searchMode ? [] : [{ label: `Compress to ZIP file${selCount > 1 ? ` (${selCount} items)` : ''}`, icon: UIIcons.action('newFile'), action: () => compressSelection(win, path, [...state.selected], wstate) }]),
                     'separator',
                     { label: `Cut${multiLabel}`, icon: UIIcons.action('cut'), action: () => { searchMode ? copySearchSelection('cut') : cutSelected(win, wstate); } },
@@ -856,6 +860,20 @@ const FileExplorer = (() => {
         // No handler or viewer claims it — fall back to Notepad, which
         // renders anything as text.
         openFileWithNotepad(itemPath);
+    }
+
+    // Windows-style right-click → wallpaper (SystemConfig stores the file
+    // path per-user and rebuilds the image URL on every boot).
+    function setAsWallpaper(itemPath) {
+        const name = itemPath[itemPath.length - 1];
+        if (!SystemConfig.setWallpaperImage(itemPath)) {
+            Popup.warn('Cannot use image', `"${name}" is not a supported image file.`);
+            return;
+        }
+        try {
+            UserActivity.trackFileOpen(itemPath, name);
+        } catch { /* best effort */ }
+        Notifications.info('Desktop background', `Background set to ${name}.`, { appId: 'fileExplorer' });
     }
 
     function openFileWithPhotos(itemPath, entry) {

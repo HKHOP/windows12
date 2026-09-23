@@ -37,10 +37,177 @@ const SystemConfig = (() => {
     const HAS_TOUCH = (typeof window !== 'undefined') &&
         (('ontouchstart' in window) || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0));
 
+    // Custom image wallpaper: stored as a virtual-FS path array so the
+    // object/data URL (session-only) is rebuilt from the file on every
+    // boot. Fit keywords mirror Windows: fill=cover, fit=contain.
+    const WALLPAPER_FITS = ['fill', 'fit', 'stretch', 'tile', 'center'];
+    const WALLPAPER_MIME = {
+        png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+        gif: 'image/gif', bmp: 'image/bmp', webp: 'image/webp', svg: 'image/svg+xml'
+    };
+    let activeWallpaperURL = null;
+    let activeWallpaperPath = null;
+    let wallpaperSeq = 0;
+
+    function sanitizeWallpaperImage(v) {
+        if (!Array.isArray(v) || v.length === 0) return null;
+        if (!v.every(s => typeof s === 'string' && s)) return null;
+        return [...v];
+    }
+
+    function wallpaperMime(path) {
+        const leaf = String((path && path[path.length - 1]) || '');
+        const dot = leaf.lastIndexOf('.');
+        const ext = (dot >= 0 ? leaf.slice(dot + 1) : '').toLowerCase();
+        return WALLPAPER_MIME[ext] || null;
+    }
+
+    // Shell-owned read: wallpaper files live under /system/users/**, which
+    // fsGuard denies to app-attributed callers (e.g. apply() re-running
+    // while Settings is focused). Rendering OS chrome is shell work.
+    const resolveWallpaperURL = asShell(async function resolveWallpaperURL(path) {
+        try {
+            const FileSystem = window._FileSystem;
+            const clean = sanitizeWallpaperImage(path);
+            const mime = clean && wallpaperMime(clean);
+            if (!FileSystem || !clean || !mime) return null;
+            let node = null;
+            try { node = FileSystem.getNode(clean); } catch { return null; }
+            if (!node || node.type !== 'file') return null;
+            if (node.blobRef) {
+                const blob = await FileSystem.readFileBlob(clean);
+                if (!blob) return null;
+                return URL.createObjectURL(blob);
+            }
+            const content = FileSystem.readFile(clean);
+            if (content == null) return null;
+            const text = String(content).trim();
+            if (/^data:image\//i.test(text)) return text;
+            if (mime === 'image/svg+xml') {
+                return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(text);
+            }
+            return null;
+        } catch { return null; }
+    });
+
+    function setWallpaperImageProps(desktop, url, fit) {
+        const f = WALLPAPER_FITS.includes(fit) ? fit : 'fill';
+        desktop.style.backgroundImage = `url("${String(url).replace(/"/g, '%22')}")`;
+        if (f === 'fill') {
+            desktop.style.backgroundSize = 'cover';
+            desktop.style.backgroundPosition = 'center';
+            desktop.style.backgroundRepeat = 'no-repeat';
+        } else if (f === 'fit') {
+            desktop.style.backgroundSize = 'contain';
+            desktop.style.backgroundPosition = 'center';
+            desktop.style.backgroundRepeat = 'no-repeat';
+        } else if (f === 'stretch') {
+            desktop.style.backgroundSize = '100% 100%';
+            desktop.style.backgroundPosition = 'center';
+            desktop.style.backgroundRepeat = 'no-repeat';
+        } else if (f === 'tile') {
+            desktop.style.backgroundSize = 'auto';
+            desktop.style.backgroundPosition = 'left top';
+            desktop.style.backgroundRepeat = 'repeat';
+        } else { // center
+            desktop.style.backgroundSize = 'auto';
+            desktop.style.backgroundPosition = 'center';
+            desktop.style.backgroundRepeat = 'no-repeat';
+        }
+    }
+
+    function clearWallpaperImageProps(desktop) {
+        if (!desktop) return;
+        desktop.style.backgroundImage = '';
+        desktop.style.backgroundSize = '';
+        desktop.style.backgroundPosition = '';
+        desktop.style.backgroundRepeat = '';
+    }
+
+    function dropActiveWallpaperURL() {
+        if (activeWallpaperURL && activeWallpaperURL.startsWith('blob:')) {
+            try { URL.revokeObjectURL(activeWallpaperURL); } catch { /* noop */ }
+        }
+        activeWallpaperURL = null;
+        activeWallpaperPath = null;
+    }
+
+    function samePath(a, b) {
+        if (!a || !b || a.length !== b.length) return false;
+        return a.every((s, i) => s === b[i]);
+    }
+
+    // Applies the configured image wallpaper to a desktop element.
+    // Returns true when an image is configured; false when there is none.
+    // The file is read only on cache miss (boot / path change) so routine
+    // repaints never re-hit the FS — and never nag a consent dialog at an
+    // unrelated focused app. A failed load keeps the stored path and the
+    // gradient fallback (never wipes the user's setting on a transient
+    // denial). Shared by apply() and VirtualDesktops.
+    function applyImageWallpaper(desktop) {
+        const path = sanitizeWallpaperImage(config.wallpaperImage);
+        if (!path || !desktop) return false;
+        if (activeWallpaperURL && samePath(activeWallpaperPath, path)) {
+            setWallpaperImageProps(desktop, activeWallpaperURL, config.wallpaperFit);
+            return true;
+        }
+        const mySeq = ++wallpaperSeq;
+        resolveWallpaperURL(path).then(url => {
+            if (mySeq !== wallpaperSeq) {
+                if (url && url.startsWith('blob:')) {
+                    try { URL.revokeObjectURL(url); } catch { /* noop */ }
+                }
+                return;
+            }
+            if (!url) return; // keep path + gradient; retry on next cache miss
+            dropActiveWallpaperURL();
+            activeWallpaperURL = url;
+            activeWallpaperPath = [...path];
+            setWallpaperImageProps(desktop, url, config.wallpaperFit);
+        }).catch(() => { /* gradient fallback stays */ });
+        return true;
+    }
+
+    function setWallpaperImage(path) {
+        if (path === null || path === undefined) {
+            config.wallpaperImage = null;
+        } else {
+            const clean = sanitizeWallpaperImage(path);
+            if (!clean || !wallpaperMime(clean)) return false;
+            config.wallpaperImage = clean;
+        }
+        wallpaperSeq++; // cancel any in-flight load from the old path
+        save();
+        apply();
+        syncToFilesystem();
+        return true;
+    }
+
+    function setWallpaperFit(fit) {
+        if (!WALLPAPER_FITS.includes(fit)) return false;
+        config.wallpaperFit = fit;
+        save();
+        apply();
+        syncToFilesystem();
+        return true;
+    }
+
+    // Display URL for previews/pickers (prefers the live cache so a
+    // preview never re-hits the FS while another app is focused).
+    function wallpaperImageURL() {
+        const path = sanitizeWallpaperImage(config.wallpaperImage);
+        if (path && activeWallpaperURL && samePath(activeWallpaperPath, path)) {
+            return Promise.resolve(activeWallpaperURL);
+        }
+        return resolveWallpaperURL(path);
+    }
+
     const defaults = {
         accentColor: '#0078D4',
         backgroundStyle: 'gradient',
         wallpaper: 'gradient',
+        wallpaperImage: null,
+        wallpaperFit: 'fill',
         taskbarOpacity: 85,
         taskbarPosition: 'bottom',
         windowAnimation: true,
@@ -281,8 +448,9 @@ const SystemConfig = (() => {
 
         const desktop = document.getElementById('desktop');
         if (desktop) {
+            let wallpapers;
             if (isDark) {
-                const wallpapers = {
+                wallpapers = {
                     gradient: 'linear-gradient(135deg, #0a1628 0%, #1a1a3e 30%, #2d1b4e 60%, #0a1628 100%)',
                     blue: 'linear-gradient(135deg, #001a33 0%, #003366 50%, #001a33 100%)',
                     purple: 'linear-gradient(135deg, #1a0033 0%, #4a0080 50%, #1a0033 100%)',
@@ -290,9 +458,8 @@ const SystemConfig = (() => {
                     sunset: 'linear-gradient(135deg, #1a0a00 0%, #663300 30%, #cc6600 60%, #1a0a00 100%)',
                     solid: '#1a1a2e'
                 };
-                desktop.style.background = wallpapers[config.backgroundStyle] || wallpapers.gradient;
             } else {
-                const wallpapers = {
+                wallpapers = {
                     gradient: 'linear-gradient(135deg, #e8f0fe 0%, #d0e0f5 30%, #c5d5f0 60%, #e8f0fe 100%)',
                     blue: 'linear-gradient(135deg, #e0f0ff 0%, #b0d4f1 50%, #e0f0ff 100%)',
                     purple: 'linear-gradient(135deg, #f0e8ff 0%, #d5c0f0 50%, #f0e8ff 100%)',
@@ -300,7 +467,17 @@ const SystemConfig = (() => {
                     sunset: 'linear-gradient(135deg, #fff5e8 0%, #f0d5b0 50%, #fff5e8 100%)',
                     solid: '#e8e8f0'
                 };
-                desktop.style.background = wallpapers[config.backgroundStyle] || wallpapers.gradient;
+            }
+            // Gradient is always painted first: it is the plain-style
+            // result and the letterbox backdrop behind a custom image.
+            desktop.style.background = wallpapers[config.backgroundStyle] || wallpapers.gradient;
+            if (sanitizeWallpaperImage(config.wallpaperImage)) {
+                applyImageWallpaper(desktop);
+            } else {
+                config.wallpaperImage = null;
+                wallpaperSeq++; // cancel any in-flight image load
+                dropActiveWallpaperURL();
+                clearWallpaperImageProps(desktop);
             }
         }
 
@@ -332,6 +509,8 @@ const SystemConfig = (() => {
                 const json = FileSystem.readFile(path);
                 if (json) {
                     config = { ...defaults, ...JSON.parse(json) };
+                    config.wallpaperImage = sanitizeWallpaperImage(config.wallpaperImage);
+                    if (!WALLPAPER_FITS.includes(config.wallpaperFit)) config.wallpaperFit = 'fill';
                     apply();
                     return true;
                 }
@@ -379,6 +558,7 @@ const SystemConfig = (() => {
         init, get, getAll, set, setMultiple, reset, apply, load, onChange,
         get CONFIG_PATH() { return configPath(); },
         syncToFilesystem,
+        setWallpaperImage, setWallpaperFit, applyImageWallpaper, wallpaperImageURL,
         getNativeWidth, getNativeHeight, getResolutionOptions, getCurrentResolution
     };
 })();

@@ -134,8 +134,20 @@ const VirtualDesktops = (() => {
             const current = desktops.find(d => d.id === activeId);
             const override = current && current.wallpaper;
             const theme = SystemConfig.get('darkMode') === false ? 'light' : 'dark';
+            if (!override && typeof SystemConfig.applyImageWallpaper === 'function' && SystemConfig.applyImageWallpaper(desktopEl)) {
+                // Custom image configured: gradient fallback is painted by
+                // SystemConfig.apply() underneath; the image lands on top.
+                // Re-assert the fallback in case a previous override set it.
+                const fallback = SystemConfig.get('backgroundStyle') || 'gradient';
+                desktopEl.style.background = (WALLPAPERS[theme] && WALLPAPERS[theme][fallback]) || WALLPAPERS[theme].gradient;
+                return;
+            }
             const style = override || SystemConfig.get('backgroundStyle') || 'gradient';
             desktopEl.style.background = (WALLPAPERS[theme] && WALLPAPERS[theme][style]) || WALLPAPERS[theme].gradient;
+            desktopEl.style.backgroundImage = '';
+            desktopEl.style.backgroundSize = '';
+            desktopEl.style.backgroundPosition = '';
+            desktopEl.style.backgroundRepeat = '';
         } catch { /* desktop not ready */ }
     }
 
