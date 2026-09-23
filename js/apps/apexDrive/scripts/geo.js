@@ -96,7 +96,10 @@ export class Batch {
         gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vbo);
         gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.ibo);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(this.idx), gl.STATIC_DRAW);
+        // Uint16 (not Uint32): UNSIGNED_INT indices need the
+        // OES_element_index_uint extension, which many WebGL1 contexts lack.
+        // Every Apex mesh is far below the 65535-vertex limit.
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.idx), gl.STATIC_DRAW);
         return mesh;
     }
 }

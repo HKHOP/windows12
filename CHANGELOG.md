@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4971] - 2026-09-23
+
+### Fixed
+- Apex Drive 3D `WebGL: INVALID_ENUM: drawElements: invalid type` crash: index buffers now use 16-bit (`UNSIGNED_SHORT`) instead of 32-bit indices, which require the `OES_element_index_uint` extension that many WebGL1 contexts lack. All game meshes are far below the 65,535-vertex limit
+
 ## [12.0.4970] - 2026-09-23
 
 ### Added

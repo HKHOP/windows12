@@ -195,7 +195,7 @@ export function startGame(env) {
         gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 36, 12);
         gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 36, 24);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.ibo);
-        gl.drawElements(gl.TRIANGLES, mesh.count, gl.UNSIGNED_INT, 0);
+        gl.drawElements(gl.TRIANGLES, mesh.count, gl.UNSIGNED_SHORT, 0);
     }
     function carModel(p) {
         return mat4TRS(p.x, p.y, p.z, p.heading, 0);
