@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4972] - 2026-09-23
+
+### Fixed
+- Apex Drive 3D reversed steering: A/Left and D/Right signs were flipped relative to the chase camera (D turned the nose toward screen-left). Swapped so A steers screen-left and D screen-right; AI drivers and the reverse-driving behavior are unchanged
+
 ## [12.0.4971] - 2026-09-23
 
 ### Fixed

@@ -139,7 +139,7 @@ export function startGame(env) {
         const k = S.keys;
         return {
             throttle: ((k['KeyW'] || k['ArrowUp'] || tKeys.gas) ? 1 : 0) + ((k['KeyS'] || k['ArrowDown'] || tKeys.brake) ? -1 : 0),
-            steer: ((k['KeyA'] || k['ArrowLeft'] || tKeys.left) ? -1 : 0) + ((k['KeyD'] || k['ArrowRight'] || tKeys.right) ? 1 : 0),
+            steer: ((k['KeyA'] || k['ArrowLeft'] || tKeys.left) ? 1 : 0) + ((k['KeyD'] || k['ArrowRight'] || tKeys.right) ? -1 : 0),
             boost: !!(k['Space'] || tKeys.boost)
         };
     }
