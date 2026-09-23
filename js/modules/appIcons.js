@@ -26,6 +26,8 @@ const AppIcons = (() => {
 
         terminal: `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="18" rx="3" fill="#1a1a2e"/><path d="M6 9l4 3-4 3" stroke="#4ade80" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 15h5" stroke="#4ade80" stroke-width="1.8" stroke-linecap="round"/></svg>`,
 
+        powershell: `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="18" rx="3" fill="#012456"/><path d="M6 9l4 3-4 3" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 15h5" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+
         sampleApp: `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="5" fill="#6a11cb"/><path d="M8 8h3v8H8zM13 8h3v5h-3z" fill="white" fill-opacity="0.9"/></svg>`,
         engine3d: `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="5" fill="#0f2027"/><path d="M12 4.5 19 8.5v7L12 19.5 5 15.5v-7z" stroke="#4dd0e1" stroke-width="1.4" stroke-linejoin="round" fill="none"/><path d="M12 4.5v7.4M12 11.9 5 8.5M12 11.9l7-3.4" stroke="#4dd0e1" stroke-width="1.1" stroke-linejoin="round" fill="none"/><circle cx="12" cy="11.9" r="1.1" fill="#ffd54f"/></svg>`,
 

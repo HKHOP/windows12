@@ -1,0 +1,11 @@
+{
+    "manifestVersion": 1,
+    "id": "powershell",
+    "uuid": "77909576-2ba9-4763-827b-e8fbf286ebf5",
+    "name": "PowerShell",
+    "version": "1.0.0",
+    "distribution": "builtin",
+    "entry": "main.js",
+    "associations": ["ps1", "psm1"],
+    "permissions": ["filesystem", "notifications", "network"]
+}

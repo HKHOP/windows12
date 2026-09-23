@@ -87,6 +87,7 @@ const urlsToCache = [
     './js/apps/passwordVault/main.js',
     './js/apps/photos/main.js',
     './js/apps/pomodoro/main.js',
+    './js/apps/powershell/main.js',
     './js/apps/qrStudio/main.js',
     './js/apps/remoteDesktop/main.js',
     './js/apps/riftboundRunner/main.js',

@@ -2,6 +2,7 @@ import WindowManager from '../../modules/windowManager.js';
 import FileSystem from '../../modules/fileSystem.js';
 import SystemConfig from '../../modules/systemConfig.js';
 import BatchEngine from '../../modules/batchEngine.js';
+import PowershellEngine from '../../modules/powershellEngine.js';
 import VBEngine from '../../modules/vbsEngine.js';
 import AppIcons from '../../modules/appIcons.js';
 import Users from '../../modules/users.js';
@@ -15,6 +16,53 @@ const Terminal = (() => {
         let cwd = [...HOME()];
         let history = [];
         let historyIdx = -1;
+        // Nested PowerShell mode: bare `powershell` switches this window to
+        // the PS engine until `exit` returns to CMD (like real Windows).
+        let psMode = false;
+        let psEngine = null;
+
+        function ensurePsEngine() {
+            if (psEngine) return psEngine;
+            const ESC = String.fromCharCode(27);
+            const psPrint = (text) => {
+                if (text === ESC + 'CLS') { clearOutput(); return; }
+                if (text && text.startsWith(ESC + 'TITLE:')) {
+                    const titleEl = el.querySelector('.window-title');
+                    if (titleEl) titleEl.textContent = text.substring((ESC + 'TITLE:').length);
+                    return;
+                }
+                // The blue PowerShell app colors PS-ERROR: red; here we show
+                // the same stream plainly, CMD-style.
+                print(String(text ?? '').replace(/^PS-ERROR: /, ''));
+            };
+            psEngine = PowershellEngine.create(
+                psPrint,
+                () => [...cwd],
+                (nc) => { cwd = nc; updatePrompt(); },
+                { shell: 'terminal', allowNet: true }
+            );
+            return psEngine;
+        }
+
+        function runPsLine(line) {
+            const eng = ensurePsEngine();
+            try {
+                eng.run(line);
+            } catch (e) {
+                print(e && e.message ? e.message : String(e));
+            }
+            updatePrompt();
+        }
+
+        function runPsFile(filePath, args) {
+            const eng = ensurePsEngine();
+            try {
+                eng.runScriptFile(filePath, args || []);
+            } catch (e) {
+                print(e && e.message ? e.message : String(e));
+            }
+            updatePrompt();
+        }
 
         const win = WindowManager.createWindow('terminal', 'Terminal', icon, '', {
             width: 700, height: 450, minWidth: 400, minHeight: 250
@@ -57,6 +105,10 @@ const Terminal = (() => {
         }
 
         function getPrompt() {
+            if (psMode) {
+                try { return `PS ${ensurePsEngine().getCwdDisplay()}> `; }
+                catch { /* fall through to CMD prompt */ }
+            }
             const p = cwd.join('/').replace('//', '/');
             const short = p === '/' + HOME().slice(1).join('/') ? '~' : '~' + p.replace('/' + HOME().slice(1).join('/'), '');
             return `${currentUserName()}@PC ${short}> `;
@@ -194,7 +246,10 @@ const Terminal = (() => {
                 print('  write <file> <text>  Write text to a file');
                 print('  rm [-r] <path>    Delete file or folder (-r for folders)');
                 print('  rename <old> <new>   Rename a file or folder');
-                print('  run <file>        Run a .bat/.cmd/.vbs script');
+                print('  run <file>        Run a .bat/.cmd/.vbs/.ps1 script');
+                print('  script.ps1 args Run a PowerShell script directly');
+                print('  powershell [cmd] PowerShell: bare enters nested PS mode,');
+                print('                    `powershell Get-Process` runs one command,');
                 print('  script.bat args   Run a batch script directly');
                 print('  clear | cls       Clear the terminal');
                 print('  history           Show command history');
@@ -503,6 +558,44 @@ const Terminal = (() => {
             history.push(trimmed);
             historyIdx = history.length;
 
+            // Nested PowerShell session: everything runs through the PS
+            // engine until `exit` drops back to CMD.
+            if (psMode) {
+                if (/^exit(\s|$)/i.test(trimmed)) {
+                    psMode = false;
+                    updatePrompt();
+                    return;
+                }
+                runPsLine(trimmed);
+                return;
+            }
+
+            // `powershell [args]` / `pwsh [args]` — like real Windows, the
+            // remainder is PowerShell. Bare `powershell` nests a session.
+            const psPrefix = trimmed.match(/^(powershell(?:\.exe)?|pwsh)(?=\s|$)/i);
+            if (psPrefix) {
+                const tail = trimmed.slice(psPrefix[0].length).trim();
+                if (!tail) {
+                    psMode = true;
+                    updatePrompt();
+                    print('Windows PowerShell');
+                    print("Type 'Get-Help' for help, 'exit' to return to CMD.\n");
+                    return;
+                }
+                const eng = ensurePsEngine();
+                try {
+                    if (/^-(file|command|c|noprofile|executionpolicy|noexit|nologo|noninteractive)\b/i.test(tail)) {
+                        eng.runCliTail(tail);
+                    } else {
+                        eng.run(tail);
+                    }
+                } catch (e) {
+                    print(e && e.message ? e.message : String(e));
+                }
+                updatePrompt();
+                return;
+            }
+
             // Keep the original case for paths; only the command word itself
             // is matched case-insensitively.
             const { first: rawCmd, rest } = splitFirst(trimmed);
@@ -518,18 +611,25 @@ const Terminal = (() => {
                 return;
             }
 
+            if (cmd.endsWith('.ps1') || cmd.endsWith('.psm1')) {
+                runPsFile(rawCmd, args ? splitTokens(args) : []);
+                return;
+            }
+
             if (cmd.endsWith('.vbs') || cmd.endsWith('.vbe')) {
                 runVBS(rawCmd, args ? splitTokens(args) : []);
                 return;
             }
 
             if (cmd === 'run') {
-                if (!args) { print('run: usage: run <script.bat|script.vbs> [args]'); return; }
+                if (!args) { print('run: usage: run <script.bat|script.vbs|script.ps1> [args]'); return; }
                 const { first: scriptFile, rest: scriptRest } = splitFirst(args);
                 const scriptArgs = scriptRest ? splitTokens(scriptRest) : [];
                 const low = scriptFile.toLowerCase();
                 if (low.endsWith('.vbs') || low.endsWith('.vbe')) {
                     runVBS(scriptFile, scriptArgs);
+                } else if (low.endsWith('.ps1') || low.endsWith('.psm1')) {
+                    runPsFile(scriptFile, scriptArgs);
                 } else {
                     runBatch(scriptFile, scriptArgs);
                 }
@@ -558,8 +658,14 @@ const Terminal = (() => {
 
             if (completingCommand) {
                 const frag = (pieces[0] || '').toLowerCase();
-                const names = [...new Set([...Object.keys(commands), ...BATCH_COMMANDS, 'run'])];
-                const hits = names.filter(n => n.startsWith(frag)).sort();
+                const names = [...new Set([...Object.keys(commands), ...BATCH_COMMANDS, 'run', 'powershell', 'pwsh'])];
+                let hits;
+                if (psMode) {
+                    try { hits = ensurePsEngine().completeCommand(frag).filter(n => n.toLowerCase().startsWith(frag)).sort(); }
+                    catch { hits = []; }
+                } else {
+                    hits = names.filter(n => n.startsWith(frag)).sort();
+                }
                 if (hits.length === 1) {
                     input.value = (val.match(/^\s*/) || [''])[0] + hits[0] + ' ';
                 } else if (hits.length > 1) {

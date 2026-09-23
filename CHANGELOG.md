@@ -4,6 +4,13 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4964] - 2026-09-23
+
+### Added
+- **PowerShell engine** (`js/modules/powershellEngine.js`, same `create(printFn, getCwd, setCwd, opts)` shape as the CMD/VBS engines): real `PSObject` pipeline (`Get-ChildItem | Where-Object Length -gt 100 | Sort-Object Name`), ~75 cmdlets with Windows aliases (FS provider, `Where/ForEach/Select/Sort/Group/Measure/Compare/Tee`, `Format-Table/List/Wide`, `ConvertTo/From-Json/Csv`, `Get-Process/Start-Process` wired to open windows, `Get-Service`, `Get-ComputerInfo`, `Start-Job` with completion toasts, `Test-Connection`, `Invoke-WebRequest`, `Get/Set-ExecutionPolicy`), language blocks (`if/foreach/for/while/do/switch/try-catch-finally/function/param`), `Env:/Variable:/Alias:` providers, `C:\`-style paths, `> >> 2>` redirection, `&& ||` chains, per-user `$PROFILE` + execution policy + history under `AppData/powershell`
+- **PowerShell builtin app** (`js/apps/powershell/`, blue `#012456` theme, red error stream, `PS C:\...> ` prompt, Tab completion for cmdlets + paths, persisted history, `Read-Host` dialogs): runs `.ps1`/`.psm1` via file association (`open`), double-clicking a script opens and executes it
+- Terminal integration: `powershell`/`pwsh` prefix runs one command (`powershell Get-Process`, `powershell -File x.ps1`, `-Command`), bare `powershell` nests a PS session until `exit`, and `./script.ps1` + `run script.ps1` execute through the PS engine with ExecutionPolicy enforcement
+
 ## [12.0.4963] - 2026-09-22
 
 ### Added
