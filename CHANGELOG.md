@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4977] - 2026-09-24
+
+### Fixed
+- Roblox showed the generic gray letter-tile icon everywhere outside its own window (Microsoft Store cards, store hero, Start menu, taskbar, search): `AppIcons` is a static per-app map and had no `roblox` entry — added the Roblox logo mark so all icon surfaces match the app window
+
 ## [12.0.4976] - 2026-09-24
 
 ### Changed
