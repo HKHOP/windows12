@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4973] - 2026-09-24
+
+### Fixed
+- iOS/iPadOS Safari iframe letterboxing (embedded page rendered in the top-left with big white gaps at the right and bottom): new `iframeViewportFix` module (iPhone/iPad only, incl. iPadOS desktop-mode UA) keeps every iframe's pixel `width`/`height` attributes synced to its real CSS box via MutationObserver + ResizeObserver — attribute updates are the one WebKit workaround that forces the inner document viewport to relayout after CSS/flex/zoom resizes. Inert on desktop and Android
+- Arcade game and Chess iframes had no definite height (`flex:1` only), the exact pattern that makes WebKit fall back to the iframe's intrinsic 300x150 size — they now use `flex:1 1 0%; width:100%; height:100%` like the Browser app
+
 ## [12.0.4972] - 2026-09-23
 
 ### Fixed
