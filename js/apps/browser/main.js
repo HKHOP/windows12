@@ -4,6 +4,7 @@ import FileSystem from '../../modules/fileSystem.js';
 import AppIcons from '../../modules/appIcons.js';
 import Touch from '../../modules/touch.js';
 import Users from '../../modules/users.js';
+import IframeViewportFix from '../../modules/iframeViewportFix.js';
 
 const Browser = (() => {
     const icon = AppIcons.get('browser');
@@ -370,6 +371,18 @@ const Browser = (() => {
 
         function applyZoom(tab) {
             if (!tab || !tab.iframeEl) return;
+            // On iPhone/iPad the viewport fix owns the frame's pixel sizing
+            // (body-zoom compensation — see iframeViewportFix). There we only
+            // drive the visual transform: rescale() lays the inner viewport
+            // out `zoom` times larger and this transform scales it back.
+            if (IframeViewportFix.active) {
+                const z = Math.abs(tab.zoom - 1) < 0.001 ? 1 : tab.zoom;
+                tab.iframeEl.style.transform = z !== 1 ? `scale(${z})` : '';
+                tab.iframeEl.style.transformOrigin = z !== 1 ? '0 0' : '';
+                IframeViewportFix.rescale(tab.iframeEl, z);
+                updateZoomDisplay();
+                return;
+            }
             // At 100% the frame must be an exact, untransformed fill:
             // restore explicit 100% (never clear to '' — the stylesheet
             // fallback must not be height:auto, which iPad Safari sizes
