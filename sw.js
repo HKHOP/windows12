@@ -93,6 +93,7 @@ const urlsToCache = [
     './js/apps/qrStudio/main.js',
     './js/apps/remoteDesktop/main.js',
     './js/apps/riftboundRunner/main.js',
+    './js/apps/roblox/main.js',
     './js/apps/sampleApp/main.js',
     './js/apps/settings/main.js',
     './js/apps/sledgePoint/main.js',

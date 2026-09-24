@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4975] - 2026-09-24
+
+### Added
+- Roblox (installable from the Microsoft Store): embedded roblox.com client in an iframe, following the same pattern as the other embedded game clients — toolbar with Reload and Open-in-Browser, keyboard capture on load/click, and sign-in supported inside the frame
+
 ## [12.0.4974] - 2026-09-24
 
 ### Fixed

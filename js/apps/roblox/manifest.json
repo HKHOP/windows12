@@ -1,0 +1,29 @@
+{
+  "manifestVersion": 1,
+  "id": "roblox",
+  "uuid": "e8a1c4d2-7b3f-4a96-9c05-2f1d8b6e4a70",
+  "name": "Roblox",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": ["network"],
+  "store": {
+    "developer": "Roblox Corporation",
+    "category": "Games",
+    "rating": 4.4,
+    "reviews": 25430,
+    "description": "Millions of experiences await — play games made by the community or jump into your favorites. Sign in with your Roblox account inside the embedded client.",
+    "features": [
+      "Full roblox.com client in an embedded frame",
+      "Sign in to your account, browse and play experiences",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      { "bg": "linear-gradient(135deg, #0f0f12, #e2231a)", "text": "Millions of experiences" },
+      { "bg": "linear-gradient(135deg, #e2231a, #0f0f12)", "text": "Play with friends" }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "9+"
+  }
+}
