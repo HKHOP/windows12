@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4976] - 2026-09-24
+
+### Changed
+- Roblox app icon redrawn as the actual Roblox logo mark — tilted white square with the square hole on the dark rounded tile — replacing the rough hand-drawn approximation
+
 ## [12.0.4975] - 2026-09-24
 
 ### Added

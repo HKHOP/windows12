@@ -4,7 +4,7 @@ const Roblox = (() => {
     const APP_ID = 'roblox';
     const GAME_URL = 'https://www.roblox.com';
     const HOME_URL = 'https://www.roblox.com';
-    const icon = `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="4" fill="#0f0f12"/><path d="M9.2 5.5 18.5 8l-2.5 9.3L6.7 14.8 9.2 5.5Z" fill="#e2e2e6" transform="rotate(0)" opacity="0"/><path d="M8.5 6 17 8.3l-2.2 8.2L6.3 14.2 8.5 6Z" fill="#fff"/><path d="m10.6 8.9 4.4 1.2-.9 3.3-4.4-1.2.9-3.3Z" fill="#0f0f12"/></svg>`;
+    const icon = `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="4" fill="#0f0f12"/><g transform="rotate(14 12 12)"><rect x="6.8" y="6.8" width="10.4" height="10.4" fill="#fff"/><rect x="10.35" y="10.35" width="3.3" height="3.3" fill="#0f0f12"/></g></svg>`;
 
     function getContent() {
         return `
