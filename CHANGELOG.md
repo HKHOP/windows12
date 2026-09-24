@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4974] - 2026-09-24
+
+### Fixed
+- Real root cause of the iOS/iPadOS Safari iframe letterboxing: the shell-wide `body { zoom }` (display scaling) shrinks an iframe's inner document viewport by the zoom factor while the element box keeps its CSS size — the embedded page fills only `zoom` of every frame with white gaps right/bottom, and no width/height CSS or attributes can correct the units. `iframeViewportFix` now compensates on Apple touch devices: each iframe gets `zoom: 1/Z` (canceling the body zoom inside its subtree) plus pixel dimensions derived from its allotted box, so the frame lays out at net zoom 1 where element box, inner viewport and rendered pixels are identical. Resyncs on window resize/maximize, tab switches and rotation via ResizeObserver; Browser app page zoom now drives the fix (transform-only) on iOS instead of resizing the frame itself
+
 ## [12.0.4973] - 2026-09-24
 
 ### Fixed
