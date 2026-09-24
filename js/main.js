@@ -23,6 +23,7 @@ import VirtualKeyboard from './modules/virtualKeyboard.js';
 import Users from './modules/users.js';
 import FSGuard from './modules/fsGuard.js';
 import LoginScreen from './modules/loginScreen.js';
+import IframeViewportFix from './modules/iframeViewportFix.js';
 
 // Filesystem access policy: app code may always touch its own AppData,
 // anything else requires the 'filesystem' permission (see fsGuard.js).
@@ -57,6 +58,10 @@ document.addEventListener('DOMContentLoaded', () => {
     Scaling.setOnScaleChange((newScale) => {
         WindowManager.setScale(newScale);
     });
+
+    // iPhone/iPad Safari iframe letterboxing fix — must be live before the
+    // first window with an iframe is created; no-op on other engines.
+    IframeViewportFix.init();
 
     WindowManager.init();
     Taskbar.init();

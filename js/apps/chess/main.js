@@ -27,7 +27,7 @@ const Chess = (() => {
             <iframe class="chess-frame" title="Chess — Live TV" tabindex="0" src="${MODES.tv.url}"
                 allow="autoplay; fullscreen; clipboard-write"
                 sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-scripts allow-same-origin allow-downloads"
-                style="flex:1;width:100%;min-height:0;border:none;display:block;background:#161512;"></iframe>
+                style="flex:1 1 0%;width:100%;height:100%;min-height:0;min-width:0;border:none;display:block;background:#161512;"></iframe>
         </div>`;
     }
 

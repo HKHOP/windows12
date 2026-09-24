@@ -38,6 +38,7 @@ const urlsToCache = [
     './js/modules/virtualKeyboard.js',
     './js/modules/permissions.js',
     './js/modules/crashMonitor.js',
+    './js/modules/iframeViewportFix.js',
     './js/modules/zip.js',
     './js/sdk/index.js',
     './js/sdk/errors.js',

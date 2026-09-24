@@ -18,7 +18,7 @@ const MotoX3M = (() => {
             <iframe class="arc-frame" title="Moto X3M" tabindex="0" src="${GAME_URL}"
                 allow="autoplay; fullscreen; gamepad; keyboard-lock; pointer-lock; clipboard-write; screen-wake-lock"
                 sandbox="allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-scripts allow-same-origin allow-downloads"
-                style="flex:1;width:100%;min-height:0;border:none;display:block;background:#000;"></iframe>
+                style="flex:1 1 0%;width:100%;height:100%;min-height:0;min-width:0;border:none;display:block;background:#000;"></iframe>
         </div>`;
     }
 
