@@ -330,6 +330,12 @@ const SystemConfig = (() => {
 
     function applyResolution() {
         const root = document.documentElement;
+        // Apple touch devices must never run under body zoom — it mis-sizes
+        // iframe inner viewports in Safari (see iframeViewportFix.js).
+        if (window._isAppleTouch) {
+            root.style.setProperty('--res-scale', '1');
+            return;
+        }
         const target = getCurrentResolution();
 
         if (target.width === nativeWidth && target.height === nativeHeight) {

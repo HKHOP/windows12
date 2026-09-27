@@ -51,6 +51,11 @@ const IframeViewportFix = (() => {
     let resizeObserver = null;
     let bodyZoom = 1;
 
+    // Exported for scaling.js / systemConfig.js: they must skip all body-zoom
+    // scaling on Apple touch devices (set at module-evaluation time, before
+    // boot applies any scaling).
+    if (isAppleTouch) window._isAppleTouch = true;
+
     function probeZoom() {
         const probe = document.createElement('div');
         probe.style.cssText = 'position:absolute;top:0;left:0;width:100px;height:100px;visibility:hidden;pointer-events:none;';
