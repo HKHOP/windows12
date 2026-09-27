@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4978] - 2026-09-27
+
+### Fixed
+- iOS iframe sizing overshoot (embedded content rendered larger than its frame and clipped off right/bottom): removed the root cause on Apple touch devices instead of fighting WebKit's zoom math — the shell now always renders at zoom 1 on iPhone/iPad (UI scale and display-resolution zoom forced off there via `window._isAppleTouch`), so iframe inner viewports size exactly like on desktop. The OS desktop lays out 1:1 on iPad-size screens; `iframeViewportFix` remains as a resize-resync safety net (its zoom compensation self-neutralizes at zoom 1)
+
 ## [12.0.4977] - 2026-09-24
 
 ### Fixed
