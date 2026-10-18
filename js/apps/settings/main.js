@@ -80,6 +80,36 @@ const Settings = (() => {
         catch { return false; }
     }
 
+    // Countdown "keep these display settings?" dialog — a real Popup window.
+    // Resolves true when the user keeps the change, false to revert (also on
+    // timeout or when the dialog is closed). Display settings are
+    // machine-wide, so a bad choice is confirmed before it is kept.
+    function confirmDisplayChange(title, message, seconds = 15) {
+        let remaining = seconds;
+        const p = Popup.custom(title, `
+            <div class="popup-message">${message} Reverting in <span class="display-confirm-countdown">${remaining}</span>s unless you keep the changes.</div>
+        `, [
+            { label: 'Revert', value: false },
+            { label: 'Keep changes', value: true, primary: true }
+        ]);
+
+        const timer = setInterval(() => {
+            remaining--;
+            const el = WindowManager.getWindowsByApp('popup').find(w => w.id === p._winId)?.element;
+            const count = el && el.querySelector('.display-confirm-countdown');
+            if (count) count.textContent = remaining;
+            if (remaining <= 0) {
+                clearInterval(timer);
+                try { p._cleanup(false); WindowManager.closeWindow(p._winId); } catch (e) { /* already closed */ }
+            }
+        }, 1000);
+
+        return Promise.resolve(p).then(
+            kept => { clearInterval(timer); return kept === true; },
+            () => { clearInterval(timer); return false; }
+        );
+    }
+
     function getContent() {
         return `
             <div style="display:flex;height:100%;">
@@ -230,7 +260,8 @@ const Settings = (() => {
                     </div>
                 </div>
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
-                    <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Scale & layout</div>
+                    <div style="font-size:14px;font-weight:500;margin-bottom:2px;">Scale &amp; layout</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Applies to every user and the lock screen · requires administrator approval</div>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                         <span style="font-size:13px;">Display scaling</span>
                         <select class="scaling-select" style="font-size:13px;">
@@ -274,143 +305,72 @@ const Settings = (() => {
             SystemConfig.set('nightLight', e.target.checked);
         });
 
-        el.querySelector('.resolution-select').addEventListener('change', (e) => {
+        el.querySelector('.resolution-select').addEventListener('change', async (e) => {
             const prevRes = currentRes;
             const newRes = e.target.value;
+            if (newRes === prevRes) return;
 
-            SystemConfig.set('displayResolution', newRes);
-
-            const resLabel = el.querySelector('.current-res-label');
-            if (resLabel) {
-                const target = SystemConfig.getCurrentResolution();
-                resLabel.textContent = `Rendering at: ${target.width}x${target.height}`;
+            if (!(await requireAdmin('Change the display resolution for all users on this device?'))) {
+                e.target.value = prevRes;
+                return;
             }
 
-            let reverted = false;
-            const overlay = document.createElement('div');
-            overlay.style.cssText = 'position:fixed;bottom:70px;right:20px;background:var(--window-bg);border:1px solid var(--window-border);border-radius:10px;padding:16px 20px;font-size:13px;color:var(--text-primary);box-shadow:0 8px 32px rgba(0,0,0,0.4);z-index:99999;display:flex;flex-direction:column;gap:12px;min-width:300px;animation:windowOpen 0.2s ease-out;';
+            const resLabel = el.querySelector('.current-res-label');
+            const updateResLabel = () => {
+                if (!resLabel) return;
+                const target = SystemConfig.getCurrentResolution();
+                resLabel.textContent = `Rendering at: ${target.width}x${target.height}`;
+            };
 
-            let remaining = 15;
+            SystemConfig.set('displayResolution', newRes);
+            updateResLabel();
 
-            overlay.innerHTML = `
-                <div style="display:flex;align-items:center;gap:10px;">
-                    <span style="width:20px;height:20px;display:inline-flex;flex-shrink:0;">${UIIcons.setting('display', 20)}</span>
-                    <div style="flex:1;">
-                        <div style="font-weight:500;">Resolution changed</div>
-                        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Reverting in <span class="res-countdown">${remaining}</span>s unless you keep changes.</div>
-                    </div>
-                </div>
-                <div style="display:flex;gap:8px;justify-content:flex-end;">
-                    <button class="res-revert-btn" style="background:rgba(255,255,255,0.08);border:1px solid var(--window-border);border-radius:6px;padding:6px 14px;color:var(--text-primary);cursor:pointer;font-size:12px;">Revert</button>
-                    <button class="res-keep-btn" style="background:var(--accent-color);border:none;border-radius:6px;padding:6px 14px;color:white;cursor:pointer;font-size:12px;font-weight:500;">Keep changes</button>
-                </div>
-            `;
-
-            document.body.appendChild(overlay);
-
-            const countdownEl = overlay.querySelector('.res-countdown');
-
-            function doRevert() {
-                if (reverted) return;
-                reverted = true;
+            const keep = await confirmDisplayChange('Display settings', 'Keep the new display resolution?');
+            if (!keep) {
                 SystemConfig.set('displayResolution', prevRes);
                 const selectEl = el.querySelector('.resolution-select');
                 if (selectEl) selectEl.value = prevRes;
-                const label = el.querySelector('.current-res-label');
-                if (label) {
-                    const target = SystemConfig.getCurrentResolution();
-                    label.textContent = `Rendering at: ${target.width}x${target.height}`;
-                }
-                overlay.remove();
-                clearInterval(interval);
+                updateResLabel();
             }
-
-            function doKeep() {
-                reverted = true;
-                overlay.remove();
-                clearInterval(interval);
-            }
-
-            overlay.querySelector('.res-keep-btn').addEventListener('click', doKeep);
-            overlay.querySelector('.res-revert-btn').addEventListener('click', doRevert);
-
-            const interval = setInterval(() => {
-                remaining--;
-                if (countdownEl) countdownEl.textContent = remaining;
-                if (remaining <= 0) {
-                    doRevert();
-                }
-            }, 1000);
         });
 
-        el.querySelector('.orientation-select').addEventListener('change', (e) => {
-            SystemConfig.set('displayOrientation', e.target.value);
+        el.querySelector('.orientation-select').addEventListener('change', async (e) => {
+            const prevOri = config.displayOrientation;
+            const newOri = e.target.value;
+            if (newOri === prevOri) return;
+
+            if (!(await requireAdmin('Change the display orientation for all users on this device?'))) {
+                e.target.value = prevOri;
+                return;
+            }
+            SystemConfig.set('displayOrientation', newOri);
         });
 
-        el.querySelector('.scaling-select').addEventListener('change', (e) => {
+        el.querySelector('.scaling-select').addEventListener('change', async (e) => {
             const prevMode = Scaling.getMode();
             const newMode = e.target.value;
+            if (newMode === prevMode) return;
+
+            if (!(await requireAdmin('Change the display scaling for all users on this device?'))) {
+                e.target.value = prevMode;
+                return;
+            }
+
+            const label = el.querySelector('.current-scale-label');
+            const updateScaleLabel = () => {
+                if (label) label.textContent = `Current scale: ${Math.round(Scaling.getScale() * 100)}%`;
+            };
 
             Scaling.setMode(newMode);
-            const label = el.querySelector('.current-scale-label');
-            if (label) {
-                label.textContent = `Current scale: ${Math.round(Scaling.getScale() * 100)}%`;
-            }
+            updateScaleLabel();
 
-            let reverted = false;
-            const overlay = document.createElement('div');
-            overlay.style.cssText = 'position:fixed;bottom:70px;right:20px;background:var(--window-bg);border:1px solid var(--window-border);border-radius:10px;padding:16px 20px;font-size:13px;color:var(--text-primary);box-shadow:0 8px 32px rgba(0,0,0,0.4);z-index:99999;display:flex;flex-direction:column;gap:12px;min-width:300px;animation:windowOpen 0.2s ease-out;';
-
-            const timerDuration = 15;
-            let remaining = timerDuration;
-
-            overlay.innerHTML = `
-                <div style="display:flex;align-items:center;gap:10px;">
-                    <span style="width:20px;height:20px;display:inline-flex;flex-shrink:0;">${UIIcons.setting('display', 20)}</span>
-                    <div style="flex:1;">
-                        <div style="font-weight:500;">Display scaling changed</div>
-                        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Reverting in <span class="scaling-countdown">${remaining}</span>s unless you keep changes.</div>
-                    </div>
-                </div>
-                <div style="display:flex;gap:8px;justify-content:flex-end;">
-                    <button class="scaling-revert-btn" style="background:rgba(255,255,255,0.08);border:1px solid var(--window-border);border-radius:6px;padding:6px 14px;color:var(--text-primary);cursor:pointer;font-size:12px;">Revert</button>
-                    <button class="scaling-keep-btn" style="background:var(--accent-color);border:none;border-radius:6px;padding:6px 14px;color:white;cursor:pointer;font-size:12px;font-weight:500;">Keep changes</button>
-                </div>
-            `;
-
-            document.body.appendChild(overlay);
-
-            const countdownEl = overlay.querySelector('.scaling-countdown');
-
-            function doRevert() {
-                if (reverted) return;
-                reverted = true;
+            const keep = await confirmDisplayChange('Display settings', 'Keep the new display scaling?');
+            if (!keep) {
                 Scaling.setMode(prevMode);
-                if (label) {
-                    label.textContent = `Current scale: ${Math.round(Scaling.getScale() * 100)}%`;
-                }
                 const selectEl = el.querySelector('.scaling-select');
                 if (selectEl) selectEl.value = prevMode;
-                overlay.remove();
-                clearInterval(interval);
+                updateScaleLabel();
             }
-
-            function doKeep() {
-                reverted = true;
-                overlay.remove();
-                clearInterval(interval);
-            }
-
-            overlay.querySelector('.scaling-keep-btn').addEventListener('click', doKeep);
-            overlay.querySelector('.scaling-revert-btn').addEventListener('click', doRevert);
-
-            const interval = setInterval(() => {
-                remaining--;
-                if (countdownEl) countdownEl.textContent = remaining;
-                if (remaining <= 0) {
-                    doRevert();
-                }
-            }, 1000);
         });
     }
 

@@ -34,7 +34,7 @@ const Users = (() => {
     const OS_RESERVED = new Set([
         'taskbar', 'startmenu', 'permissions', 'fileAssociations',
         'clipboard', 'userActivity', 'notifications', 'virtualDesktops',
-        'windowState', 'desktopIcons'
+        'windowState', 'desktopIcons', 'display'
     ]);
     // OS modules whose storage becomes per-user on migration.
     const PER_USER_OS_DIRS = ['startmenu', 'userActivity', 'notifications', 'virtualDesktops'];

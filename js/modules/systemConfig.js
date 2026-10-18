@@ -249,6 +249,18 @@ const SystemConfig = (() => {
     let nativeWidth = window.innerWidth;
     let nativeHeight = window.innerHeight;
 
+    // Device-level display settings (resolution, DPI scaling, orientation).
+    // Unlike the rest of the config these are machine-wide, not per-profile:
+    // they are stored in one global file so every profile — and the
+    // login/lock screens, which render before any profile is active — share
+    // them. Changing them is privileged (Settings raises a UAC prompt).
+    const GLOBAL_KEYS = ['scaling', 'displayResolution', 'displayOrientation'];
+    let globalConfig = {
+        scaling: defaults.scaling,
+        displayResolution: defaults.displayResolution,
+        displayOrientation: defaults.displayOrientation
+    };
+
     // Gradient wallpapers, shared by apply() and the login/lock screens
     // (which mirror the administrator's personalization before any profile
     // is activated).
@@ -318,6 +330,7 @@ const SystemConfig = (() => {
     function init() {
         nativeWidth = window.innerWidth;
         nativeHeight = window.innerHeight;
+        loadGlobal();
         load();
     }
 
@@ -330,16 +343,20 @@ const SystemConfig = (() => {
         wallpaperSeq++;                 // cancel any in-flight image load
         dropActiveWallpaperURL();
         config = { ...defaults };
+        loadGlobal();                   // machine-wide display settings
         load();
     }
 
     function get(key) {
         if (key === 'userName') return displayName();
+        if (isGlobalKey(key)) return globalConfig[key];
         return config[key];
     }
 
     function getAll() {
-        return { ...config, userName: displayName() };
+        // Global display keys overlay the per-user config so callers always
+        // see the effective value, wherever it is stored.
+        return { ...config, ...globalConfig, userName: displayName() };
     }
 
     function getNativeWidth() { return nativeWidth; }
@@ -383,7 +400,7 @@ const SystemConfig = (() => {
     }
 
     function getCurrentResolution() {
-        const res = config.displayResolution;
+        const res = globalConfig.displayResolution;
         if (!res || res === 'native') {
             return { width: nativeWidth, height: nativeHeight };
         }
@@ -411,9 +428,17 @@ const SystemConfig = (() => {
         }
     }
 
+    function isGlobalKey(key) {
+        return GLOBAL_KEYS.includes(key);
+    }
+
     function set(key, value) {
         if (key === 'userName') {
             renameAccountTo(value);
+            return;
+        }
+        if (isGlobalKey(key)) {
+            setGlobal(key, value);
             return;
         }
         config[key] = value;
@@ -424,6 +449,12 @@ const SystemConfig = (() => {
 
     function setMultiple(obj) {
         const rest = { ...(obj || {}) };
+        // Machine-wide display keys never land in the per-user config.
+        const globals = {};
+        GLOBAL_KEYS.forEach(k => {
+            if (Object.hasOwn(rest, k)) { globals[k] = rest[k]; delete rest[k]; }
+        });
+        if (Object.keys(globals).length > 0) setGlobals(globals);
         if (Object.hasOwn(rest, 'userName')) {
             const name = rest.userName;
             delete rest.userName;
@@ -538,7 +569,12 @@ const SystemConfig = (() => {
         try {
             const FileSystem = window._FileSystem;
             if (FileSystem) {
-                const json = JSON.stringify(config, null, 2);
+                // Machine-wide display keys are not this profile's to own;
+                // keep them out of the per-user file (they live in the
+                // global display store).
+                const persisted = { ...config };
+                GLOBAL_KEYS.forEach(k => { delete persisted[k]; });
+                const json = JSON.stringify(persisted, null, 2);
                 const path = configPath();
                 ensureParentDirs(path);
                 const parentPath = path.slice(0, -1);
@@ -576,6 +612,110 @@ const SystemConfig = (() => {
         apply();
     }
 
+    // ---------- machine-wide display settings ----------
+    //
+    // Resolution, DPI scaling and orientation belong to the device, not to a
+    // profile: they live in one global file (outside the per-user config) so
+    // every profile and the login/lock screens share them. main.js primes
+    // them with initGlobal() before the first sign-in.
+
+    function globalConfigPath() {
+        return ['/', 'system', 'programs data', 'display', 'settings.json'];
+    }
+
+    const persistGlobal = asShell(function persistGlobal() {
+        try {
+            const FileSystem = window._FileSystem;
+            if (!FileSystem) return;
+            const path = globalConfigPath();
+            ensureParentDirs(path);
+            const json = JSON.stringify(globalConfig, null, 2);
+            if (FileSystem.itemExists(path)) {
+                FileSystem.writeFile(path, json);
+            } else {
+                FileSystem.createFile(path.slice(0, -1), 'settings.json', json, 'json');
+            }
+        } catch (e) { /* best effort */ }
+    });
+
+    const loadGlobalFromFilesystem = asShell(function loadGlobalFromFilesystem() {
+        try {
+            const FileSystem = window._FileSystem;
+            const path = globalConfigPath();
+            if (FileSystem && FileSystem.itemExists(path)) {
+                const raw = FileSystem.readFile(path);
+                if (raw) {
+                    const data = JSON.parse(raw) || {};
+                    GLOBAL_KEYS.forEach(k => {
+                        if (data[k] !== undefined) globalConfig[k] = data[k];
+                    });
+                    return true;
+                }
+            }
+        } catch (e) { /* keep defaults */ }
+        return false;
+    });
+
+    // Upgrade path: installs from before the display settings were global
+    // stored them per profile. Adopt the primary administrator's values as
+    // the machine-wide ones so the device doesn't jump back to defaults.
+    const seedGlobalFromAdmin = asShell(function seedGlobalFromAdmin() {
+        try {
+            const FileSystem = window._FileSystem;
+            const adminId = Users.primaryAdminId();
+            if (!FileSystem || !adminId) return false;
+            const path = Users.userDataFor(adminId, ['config.json']);
+            if (!FileSystem.itemExists(path)) return false;
+            const cfg = JSON.parse(FileSystem.readFile(path) || '{}') || {};
+            let touched = false;
+            GLOBAL_KEYS.forEach(k => {
+                if (cfg[k] !== undefined) { globalConfig[k] = cfg[k]; touched = true; }
+            });
+            return touched;
+        } catch (e) { return false; }
+    });
+
+    function loadGlobal() {
+        if (!loadGlobalFromFilesystem()) {
+            if (seedGlobalFromAdmin()) persistGlobal();
+        }
+    }
+
+    // Scaling's zoom factor lives in its own module; nudge it after a global
+    // scaling change (window._Scaling is wired in main.js).
+    function notifyScaling(key) {
+        if (key !== 'scaling') return;
+        try { if (window._Scaling) window._Scaling.apply(); } catch (e) { /* not ready */ }
+    }
+
+    // Persist + apply a machine-wide display patch. This is the low-level
+    // writer; the user-facing path is Settings, which raises UAC first.
+    function setGlobals(patch) {
+        let touched = false;
+        GLOBAL_KEYS.forEach(k => {
+            if (Object.hasOwn(patch, k)) { globalConfig[k] = patch[k]; touched = true; }
+        });
+        if (!touched) return false;
+        persistGlobal();
+        apply();
+        notifyScaling('scaling');
+        return true;
+    }
+
+    function setGlobal(key, value) {
+        if (!isGlobalKey(key)) return false;
+        return setGlobals({ [key]: value });
+    }
+
+    // Phase-1 boot (no profile yet): load the device display settings and
+    // paint the resolution scale, so the boot/login/lock screens honour them.
+    function initGlobal() {
+        nativeWidth = window.innerWidth;
+        nativeHeight = window.innerHeight;
+        loadGlobal();
+        applyResolution();
+    }
+
     // One-time-per-boot convergence for pre-existing split-brain stores:
     // the account record and the cached config userName can disagree
     // (name set via legacy personalization after multi-user, or a rename
@@ -605,7 +745,8 @@ const SystemConfig = (() => {
     }
 
     return {
-        init, activate, get, getAll, set, setMultiple, reset, apply, load, onChange,
+        init, initGlobal, activate, get, getAll, set, setMultiple, reset, apply, load, onChange,
+        isGlobalKey, setGlobal, setGlobals, loadGlobal,
         get CONFIG_PATH() { return configPath(); },
         syncToFilesystem,
         setWallpaperImage, setWallpaperFit, applyImageWallpaper, wallpaperImageURL,

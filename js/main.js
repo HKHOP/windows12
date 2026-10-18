@@ -41,6 +41,9 @@ window._Users = Users;
 window._UAC = UAC;
 window._FileSystem = FileSystem;
 window._Sessions = Sessions;
+// Scaling owns the shell's zoom factor; SystemConfig nudges it when the
+// machine-wide display scaling changes.
+window._Scaling = Scaling;
 // Small shell API for apps that must trigger a session transition (e.g.
 // Settings > Accounts > Sign out) without importing the shell modules.
 window._Shell = {
@@ -68,9 +71,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // /js/apps/<id>/… to serve installed packages from the filesystem.
     registerServiceWorker();
 
-    Scaling.init();
-    WindowManager.setScale(Scaling.getScale());
-
     // Phase 1 — the MACHINE, not a user: filesystem + account store only.
     // The login screen can therefore show the picker immediately; nothing
     // per-user is preloaded. The CHOSEN profile boots in phase 2, after
@@ -78,6 +78,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // a profile only once you pick it.
     await FileSystem.init();
     Users.loadAccounts();
+
+    // Device display settings (resolution, scaling, orientation) are global:
+    // read them before the shell exists so the boot / login / lock screens
+    // already render at the device's configuration.
+    SystemConfig.initGlobal();
+    Scaling.init();
+    WindowManager.setScale(Scaling.getScale());
 
     // Concurrent sessions: main owns the shell, so it injects the hooks that
     // Sessions calls to build the shell once and re-point it per profile.

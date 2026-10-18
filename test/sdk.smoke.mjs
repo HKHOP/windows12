@@ -318,6 +318,29 @@ check('signOut ends one session and leaves the other', SessionsMod.isSignedIn(ad
 check('signOut ran the close hook', sessionLog[sessionLog.length - 1] === `close:${adminAcc.id}`);
 SessionsMod.reset();
 
+console.log('[machine-wide display settings]');
+const SysCfg = (await import('../js/modules/systemConfig.js')).default;
+SysCfg.load();
+SysCfg.initGlobal();
+const DISPLAY_PATH = ['/', 'system', 'programs data', 'display', 'settings.json'];
+check('display keys are recognised as global',
+    ['scaling', 'displayResolution', 'displayOrientation'].every(k => SysCfg.isGlobalKey(k)) && SysCfg.isGlobalKey('brightness') === false);
+check('global writes route through get()', (() => { SysCfg.set('scaling', '150'); return SysCfg.get('scaling') === '150'; })());
+check('global values surface in getAll()', SysCfg.getAll().scaling === '150');
+check('global display store persists to the device path', (() => {
+    if (!FSMod.default.itemExists(DISPLAY_PATH)) return false;
+    try { return JSON.parse(FSMod.default.readFile(DISPLAY_PATH)).scaling === '150'; } catch { return false; }
+})());
+check('per-user writes leave the global store alone', (() => {
+    SysCfg.set('brightness', 55);
+    const stored = JSON.parse(FSMod.default.readFile(DISPLAY_PATH)) || {};
+    return stored.brightness === undefined && SysCfg.get('brightness') === 55;
+})());
+check('machine-wide keys stay out of the per-user config file', (() => {
+    const cfg = JSON.parse(FSMod.default.readFile(UsersMod.default.userData(['config.json'])) || '{}');
+    return cfg.scaling === undefined && cfg.displayResolution === undefined && cfg.displayOrientation === undefined;
+})());
+
 console.log('[clipboard honesty]');
 check('readText without browser API → UNSUPPORTED',
     await (async () => { try { await SDK.Clipboard.readText(); return false; } catch (e) { return e.code === 'UNSUPPORTED'; } })());

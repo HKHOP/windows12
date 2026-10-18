@@ -1,15 +1,17 @@
 // Windows 12 SDK — Settings.
 //
 // Read user settings freely. Writes go through the same validated path as
-// the Settings app. Sensitive keys are NOT specially gated by the OS
-// today, so treat set() as a user-trust operation: change only what your
-// app owns or what the user explicitly asked to change, and prefer
-// app-local storage (createApp().files.settings) for your own prefs.
+// the Settings app. The device display keys below are machine-wide and
+// privileged: set() rejects them and the user changes them from Settings,
+// which raises a UAC prompt. For every other key treat set() as a
+// user-trust operation: change only what your app owns or what the user
+// explicitly asked to change, and prefer app-local storage
+// (createApp().files.settings) for your own prefs.
 import InternalConfig from '../modules/systemConfig.js';
 import { Taskbar } from '../modules/taskbar.js';
 import { ErrorCodes, SDKError, requireString } from './errors.js';
 
-/** Keys no third-party app should touch (documented, not force-blocked — the OS has no kernel boundary). */
+/** Machine-wide display settings (resolution, scaling, orientation): privileged, rejected by set(). */
 const SENSITIVE_KEYS = ['displayResolution', 'displayOrientation', 'scaling'];
 
 /**

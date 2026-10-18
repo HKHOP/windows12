@@ -28,6 +28,7 @@ const FSGuard = (() => {
     const OS_ONLY_PREFIXES = [
         'system/users',
         'system/programs data/permissions',
+        'system/programs data/display',
         'system/$Recycle.Bin',
         'system/config.json',
         'system/desktop-layout.json'
