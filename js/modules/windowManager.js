@@ -913,7 +913,38 @@ const WindowManager = (() => {
         return Array.from(windows.values());
     }
 
-    return { init, setScale, getScale, getDesktopArea, setDesktopProvider, setUserProvider, isWindowVisible, applyVisibility, setMinimized, isMinimized, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, setOnWindowMinimized, setOnDragStateChanged, setOnResizeStateChanged, setOnBoundsChanged, setCloseHandler, removeCloseHandler, addWindowCloseHook, removeWindowCloseHook, requestClose, closeAllWindows, requestCloseAllWindows, closeWindowsForUser, createWindow, focusWindow, closeWindow, getWindowsByApp, getWindowsForUser, getAllWindows, getFocused, minimizeAll, toggleMaximize, setMaximized, isMaximized, isFocused, getBounds, setBounds, center, setResizable, isResizable, isDragging, isResizing, setTitle, setMinSize, _getWindow };
+    // Aero peek: temporarily show one window and dim all others of the same app
+    function peekWindow(windowId, enable) {
+        if (enable && windowId) {
+            const targetData = windows.get(windowId);
+            if (!targetData) return;
+            const appId = targetData.appId;
+
+            // Find all windows of the same app on the active desktop (visible)
+            windows.forEach((data, id) => {
+                if (id === windowId) return;
+                if (data.appId !== appId) return;
+                if (!isWindowVisible(data)) return;
+                if (data.minimized) return;
+                data.element.classList.add('peek-dimmed');
+            });
+
+            // Bring target to front
+            if (isWindowVisible(targetData) && !targetData.minimized) {
+                targetData.element.classList.add('peek-target');
+                targetData.element.style.zIndex = '999999';
+            }
+        } else {
+            // Disable peek - restore all
+            windows.forEach((data) => {
+                data.element.classList.remove('peek-dimmed');
+                data.element.classList.remove('peek-target');
+                data.element.style.zIndex = '';
+            });
+        }
+    }
+
+    return { init, setScale, getScale, getDesktopArea, setDesktopProvider, setUserProvider, isWindowVisible, applyVisibility, setMinimized, isMinimized, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, setOnWindowMinimized, setOnDragStateChanged, setOnResizeStateChanged, setOnBoundsChanged, setCloseHandler, removeCloseHandler, addWindowCloseHook, removeWindowCloseHook, requestClose, closeAllWindows, requestCloseAllWindows, closeWindowsForUser, createWindow, focusWindow, closeWindow, getWindowsByApp, getWindowsForUser, getAllWindows, getFocused, minimizeAll, toggleMaximize, setMaximized, isMaximized, isFocused, getBounds, setBounds, center, setResizable, isResizable, isDragging, isResizing, setTitle, setMinSize, _getWindow, peekWindow };
 })();
 
 export default WindowManager;

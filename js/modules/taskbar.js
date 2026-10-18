@@ -6,6 +6,7 @@ import Flyout from './flyout.js';
 import Search from './search.js';
 import AppLoader from './appLoader.js';
 import FileAssociations from './fileAssociations.js';
+import SystemConfig from './systemConfig.js';
 
 const AppRegistry = (() => {
     const apps = {};
@@ -64,6 +65,16 @@ const Taskbar = (() => {
     let pinnedApps = [];
     // Taskbar pins stay machine-global (shared shell surface).
     const PINS_PATH = ['/', 'system', 'programs data', 'taskbar', 'pins.json'];
+
+    // Switcher popup state
+    let switcherPopup = null;
+    let switcherHoverTimer = null;
+    let currentSwitcherAppId = null;
+    let peekEnabled = false;
+
+    // Tray overflow state
+    let trayOverflowFlyout = null;
+    let trayOverflowBtn = null;
 
     // Shell-owned FS access (shield from fsGuard app attribution).
     function asShell(fn) {
@@ -156,6 +167,9 @@ const Taskbar = (() => {
         const center = document.getElementById('taskbar-center');
         center.innerHTML = '';
 
+        // Close any open switcher when re-rendering
+        hideSwitcher();
+
         const startBtn = document.createElement('button');
         startBtn.id = 'start-btn';
         startBtn.className = 'taskbar-btn';
@@ -190,12 +204,17 @@ const Taskbar = (() => {
         separator.className = 'taskbar-separator';
         center.appendChild(separator);
 
-        pinnedApps.forEach(appId => {
-            try {
-                if (AppLoader.isService(appId)) return;
-            } catch (e) { /* fall through */ }
-            const meta = AppMetadata.get(appId);
-            const btn = createAppButton(appId, meta);
+        // Determine grouping mode
+        const groupingMode = SystemConfig.get('taskbarGrouping') || 'always';
+        const shouldGroup = getShouldGroup(groupingMode);
+
+        // Collect all apps that should appear on the taskbar
+        const appEntries = collectAppEntries(shouldGroup);
+
+        // Render pinned apps first
+        const pinnedSet = new Set(pinnedApps);
+        appEntries.filter(e => pinnedSet.has(e.appId)).forEach(entry => {
+            const btn = createAppButton(entry);
             center.appendChild(btn);
         });
 
@@ -204,80 +223,441 @@ const Taskbar = (() => {
         runningSeparator.style.display = 'none';
         center.appendChild(runningSeparator);
 
-        const nonPinnedRunning = [];
-        runningApps.forEach((windows, appId) => {
-            if (!pinnedApps.includes(appId) && appId !== 'search' && hasWindowOnActiveDesktop(appId)) {
-                nonPinnedRunning.push(appId);
-            }
-        });
-
-        if (nonPinnedRunning.length > 0) {
+        // Render non-pinned running apps
+        const nonPinned = appEntries.filter(e => !pinnedSet.has(e.appId));
+        if (nonPinned.length > 0) {
             runningSeparator.style.display = 'block';
-            nonPinnedRunning.forEach(appId => {
-                const meta = AppMetadata.get(appId);
-                const btn = createAppButton(appId, meta);
+            nonPinned.forEach(entry => {
+                const btn = createAppButton(entry);
                 center.appendChild(btn);
             });
         }
 
         updateRunningState();
-        setupAppButtonEvents();
+        setupAppButtonEvents(shouldGroup);
+        updateTrayOverflow();
     }
 
-    function createAppButton(appId, meta) {
+    // Collect all app entries for the taskbar based on grouping mode
+    function collectAppEntries(shouldGroup) {
+        const entries = [];
+        const seen = new Set();
+
+        // First, pinned apps (always shown)
+        pinnedApps.forEach(appId => {
+            try {
+                if (AppLoader.isService(appId)) return;
+            } catch (e) { /* fall through */ }
+            if (seen.has(appId)) return;
+            seen.add(appId);
+            const meta = AppMetadata.get(appId);
+            const windows = getWindowsForApp(appId);
+            entries.push({ appId, meta, windows, isPinned: true });
+        });
+
+        // Then running apps on active desktop
+        runningApps.forEach((windowIds, appId) => {
+            if (appId === 'search') return;
+            if (seen.has(appId)) return;
+            const windows = getWindowsForApp(appId);
+            if (windows.length === 0) return;
+            seen.add(appId);
+            const meta = AppMetadata.get(appId);
+            entries.push({ appId, meta, windows, isPinned: false });
+        });
+
+        if (shouldGroup) {
+            // Grouped: one entry per app (already the case above)
+            return entries;
+        } else {
+            // Ungrouped: one entry per window
+            const ungrouped = [];
+            entries.forEach(entry => {
+                entry.windows.forEach(win => {
+                    ungrouped.push({
+                        appId: entry.appId,
+                        windowId: win.id,
+                        meta: { ...entry.meta, name: win.title || entry.meta.name },
+                        icon: win.icon || entry.meta.icon,
+                        windows: [win],
+                        isPinned: entry.isPinned,
+                        isUngrouped: true
+                    });
+                });
+            });
+            return ungrouped;
+        }
+    }
+
+    function getShouldGroup(mode) {
+        if (mode === 'never') return false;
+        if (mode === 'always') return true;
+        // 'whenFull' - check if taskbar would overflow
+        return checkTaskbarWouldOverflow();
+    }
+
+    function checkTaskbarWouldOverflow() {
+        const center = document.getElementById('taskbar-center');
+        if (!center) return false;
+
+        // Estimate button count and available space
+        const taskbar = document.getElementById('taskbar');
+        if (!taskbar) return false;
+
+        const tray = document.getElementById('taskbar-tray');
+        const taskbarRect = taskbar.getBoundingClientRect();
+        const trayRect = tray ? tray.getBoundingClientRect() : { width: 200 };
+
+        // Available space for center section (roughly half the taskbar minus tray)
+        const availableWidth = taskbarRect.width / 2 - trayRect.width - 40; // 40px for start button area
+
+        // Count total buttons that would be shown ungrouped
+        let buttonCount = 0;
+        pinnedApps.forEach(appId => {
+            try { if (!AppLoader.isService(appId)) buttonCount++; } catch {}
+        });
+
+        runningApps.forEach((windowIds, appId) => {
+            if (appId === 'search' || pinnedApps.includes(appId)) return;
+            const windows = getWindowsForApp(appId);
+            buttonCount += windows.length;
+        });
+
+        // Each button is ~44px (40px + gap), plus separators
+        const estimatedWidth = buttonCount * 44 + 20;
+        return estimatedWidth > availableWidth;
+    }
+
+    // Get windows for an app on the active desktop
+    function getWindowsForApp(appId) {
+        const result = [];
+        if (!runningApps.has(appId)) return result;
+        for (const id of runningApps.get(appId)) {
+            if (isOnActiveDesktop(id)) {
+                const win = WindowManager._getWindow(id);
+                if (win) result.push(win);
+            }
+        }
+        return result;
+    }
+
+    function createAppButton(entry) {
         const btn = document.createElement('button');
         btn.className = 'taskbar-btn app-btn';
-        btn.dataset.app = appId;
-        btn.title = meta.name;
-        btn.innerHTML = meta.icon;
+        btn.dataset.app = entry.appId;
+        if (entry.windowId) btn.dataset.windowId = entry.windowId;
+        btn.title = entry.meta.name;
+        btn.innerHTML = entry.icon || entry.meta.icon;
+
+        // Add indicator for grouped apps with multiple windows
+        if (!entry.isUngrouped && entry.windows.length > 1) {
+            btn.classList.add('grouped');
+            btn.setAttribute('data-window-count', entry.windows.length);
+        }
+
         return btn;
     }
 
-    function setupAppButtonEvents() {
+    function setupAppButtonEvents(shouldGroup) {
         document.querySelectorAll('.taskbar-btn.app-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const app = btn.dataset.app;
-                if (app && app !== 'search') openApp(app);
+            const appId = btn.dataset.app;
+            const windowId = btn.dataset.windowId;
+
+            if (shouldGroup && !windowId && !btn.classList.contains('grouped')) {
+                // Single window app - simple click behavior
+                btn.addEventListener('click', () => {
+                    if (appId && appId !== 'search') openApp(appId);
+                });
+            } else if (shouldGroup && btn.classList.contains('grouped')) {
+                // Grouped app with multiple windows - show switcher on click/hover
+                let clickHandled = false;
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (clickHandled) return;
+                    clickHandled = true;
+                    setTimeout(() => { clickHandled = false; }, 300);
+                    toggleSwitcher(appId, btn);
+                });
+
+                // Hover to show switcher after delay
+                btn.addEventListener('mouseenter', () => {
+                    switcherHoverTimer = setTimeout(() => {
+                        if (!switcherPopup || !switcherPopup.classList.contains('show')) {
+                            showSwitcher(appId, btn);
+                        }
+                    }, 300);
+                });
+                btn.addEventListener('mouseleave', () => {
+                    if (switcherHoverTimer) {
+                        clearTimeout(switcherHoverTimer);
+                        switcherHoverTimer = null;
+                    }
+                    // Don't hide immediately - let the switcher handle its own hide
+                });
+            } else if (!shouldGroup && windowId) {
+                // Ungrouped mode - each window has its own button
+                btn.addEventListener('click', () => {
+                    focusWindowById(windowId);
+                });
+
+                // Context menu for ungrouped window buttons
+                btn.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const win = WindowManager._getWindow(windowId);
+                    if (!win) return;
+                    const meta = AppMetadata.get(appId);
+                    const items = [
+                        { label: win.title || meta.name, icon: '', disabled: true },
+                        'separator',
+                        { label: 'Close', icon: UIIcons.action('close'), action: () => WindowManager.closeWindow(windowId) },
+                        'separator',
+                        { label: 'Minimize', icon: UIIcons.action('minimize'), action: () => WindowManager.setMinimized(windowId, true) },
+                    ];
+                    const { ContextMenu } = window._modules || {};
+                    if (ContextMenu) ContextMenu.show(e.clientX, e.clientY, items);
+                });
+            }
+
+            // Context menu for grouped/pinned apps (right-click on the button itself)
+            if (shouldGroup && !windowId) {
+                btn.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    hideSwitcher(); // Close switcher on right-click
+                    const meta = AppMetadata.get(appId);
+                    const isRunning = hasWindowOnActiveDesktop(appId);
+                    const pinned = isPinned(appId);
+
+                    const items = [
+                        { label: meta.name, icon: '', disabled: true },
+                        'separator'
+                    ];
+
+                    if (isRunning) {
+                        items.push({ label: 'Close all windows', icon: UIIcons.action('close'), action: () => {
+                            const wins = WindowManager.getWindowsByApp(appId).filter(w => isOnActiveDesktop(w.id));
+                            wins.forEach(w => WindowManager.closeWindow(w.id));
+                        }});
+                    } else {
+                        items.push({ label: 'Open', icon: UIIcons.action('open'), action: () => { openApp(appId); }});
+                    }
+
+                    items.push('separator');
+
+                    if (pinned) {
+                        items.push({ label: 'Unpin from taskbar', icon: UIIcons.action('unpin'), action: () => unpinApp(appId) });
+                    } else {
+                        items.push({ label: 'Pin to taskbar', icon: UIIcons.action('pin'), action: () => pinApp(appId) });
+                    }
+
+                    const { ContextMenu } = window._modules || {};
+                    if (ContextMenu) {
+                        ContextMenu.show(e.clientX, e.clientY, items);
+                    }
+                });
+            }
+        });
+
+        // Click outside to close switcher
+        document.addEventListener('click', (e) => {
+            if (switcherPopup && !switcherPopup.contains(e.target) && !e.target.closest('.taskbar-btn.grouped')) {
+                hideSwitcher();
+            }
+        }, true);
+    }
+
+    // Switcher popup functions
+    function showSwitcher(appId, anchorBtn) {
+        if (switcherPopup) hideSwitcher();
+
+        const windows = getWindowsForApp(appId);
+        if (windows.length <= 1) {
+            // Single window - just focus it
+            if (windows.length === 1) {
+                focusWindowById(windows[0].id);
+            }
+            return;
+        }
+
+        currentSwitcherAppId = appId;
+
+        const popup = document.createElement('div');
+        popup.id = 'taskbar-switcher';
+        popup.className = 'taskbar-switcher hidden';
+        document.body.appendChild(popup);
+
+        const meta = AppMetadata.get(appId);
+        let html = `<div class="switcher-header"><span class="switcher-app-icon">${meta.icon}</span><span class="switcher-app-name">${meta.name}</span></div><div class="switcher-list">`;
+
+        windows.forEach((win, index) => {
+            const isMinimized = WindowManager.isMinimized(win.id);
+            const isFocused = win.element.classList.contains('focused');
+            html += `
+                <div class="switcher-item${isFocused ? ' focused' : ''}${isMinimized ? ' minimized' : ''}" 
+                     data-window-id="${win.id}" 
+                     data-app-id="${appId}"
+                     title="${win.title}">
+                    <span class="switcher-item-icon">${win.icon || meta.icon}</span>
+                    <span class="switcher-item-title">${win.title || 'Untitled'}</span>
+                    ${isMinimized ? '<span class="switcher-item-minimized">Minimized</span>' : ''}
+                </div>`;
+        });
+
+        html += '</div>';
+        popup.innerHTML = html;
+
+        // Position above the anchor button
+        const anchorRect = anchorBtn.getBoundingClientRect();
+        const taskbar = document.getElementById('taskbar');
+        const taskbarRect = taskbar.getBoundingClientRect();
+        const isTop = taskbarRect.top < window.innerHeight / 2;
+
+        if (isTop) {
+            // Taskbar at top - popup goes below
+            popup.style.top = `${anchorRect.bottom + 4}px`;
+            popup.style.bottom = 'auto';
+        } else {
+            // Taskbar at bottom - popup goes above
+            popup.style.bottom = `${window.innerHeight - anchorRect.top + 4}px`;
+            popup.style.top = 'auto';
+        }
+        popup.style.left = `${anchorRect.left + anchorRect.width / 2}px`;
+        popup.style.transform = 'translateX(-50%)';
+
+        // Event listeners for switcher items
+        popup.querySelectorAll('.switcher-item').forEach(item => {
+            const winId = item.dataset.windowId;
+            const appId = item.dataset.appId;
+
+            // Click to focus
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                focusWindowById(winId);
+                hideSwitcher();
             });
 
-            btn.addEventListener('contextmenu', (e) => {
+            // Hover for Aero peek
+            item.addEventListener('mouseenter', () => {
+                peekWindow(winId, true);
+            });
+            item.addEventListener('mouseleave', () => {
+                peekWindow(winId, false);
+            });
+
+            // Right-click for window context menu
+            item.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const appId = btn.dataset.app;
-                if (appId === 'search') return;
-
+                const win = WindowManager._getWindow(winId);
+                if (!win) return;
                 const meta = AppMetadata.get(appId);
-                const isRunning = hasWindowOnActiveDesktop(appId);
-                const pinned = isPinned(appId);
-
                 const items = [
-                    { label: meta.name, icon: '', disabled: true },
-                    'separator'
+                    { label: win.title || meta.name, icon: '', disabled: true },
+                    'separator',
+                    { label: 'Close', icon: UIIcons.action('close'), action: () => WindowManager.closeWindow(winId) },
+                    'separator',
+                    { label: 'Minimize', icon: UIIcons.action('minimize'), action: () => WindowManager.setMinimized(winId, true) },
+                    { label: isMinimized ? 'Restore' : 'Maximize', icon: UIIcons.action(isMinimized ? 'restore' : 'maximize'), action: () => WindowManager.toggleMaximize(win) },
                 ];
-
-                if (isRunning) {
-                    items.push({ label: 'Close window', icon: UIIcons.action('close'), action: () => {
-                        const wins = WindowManager.getWindowsByApp(appId).filter(w => isOnActiveDesktop(w.id));
-                        wins.forEach(w => WindowManager.closeWindow(w.id));
-                    }});
-                } else {
-                    items.push({ label: 'Open', icon: UIIcons.action('open'), action: () => { openApp(appId); }});
-                }
-
-                items.push('separator');
-
-                if (pinned) {
-                    items.push({ label: 'Unpin from taskbar', icon: UIIcons.action('unpin'), action: () => unpinApp(appId) });
-                } else {
-                    items.push({ label: 'Pin to taskbar', icon: UIIcons.action('pin'), action: () => pinApp(appId) });
-                }
-
                 const { ContextMenu } = window._modules || {};
-                if (ContextMenu) {
-                    ContextMenu.show(e.clientX, e.clientY, items);
-                }
+                if (ContextMenu) ContextMenu.show(e.clientX, e.clientY, items);
             });
         });
+
+        // Prevent switcher from closing when hovering over it
+        popup.addEventListener('mouseenter', () => {
+            if (switcherHoverTimer) {
+                clearTimeout(switcherHoverTimer);
+                switcherHoverTimer = null;
+            }
+        });
+        popup.addEventListener('mouseleave', () => {
+            // Start a timer to hide if not re-entered
+            switcherHoverTimer = setTimeout(() => hideSwitcher(), 200);
+        });
+
+        switcherPopup = popup;
+        // Force reflow then show
+        requestAnimationFrame(() => {
+            popup.classList.add('show');
+        });
+    }
+
+    function hideSwitcher() {
+        if (switcherPopup) {
+            switcherPopup.classList.remove('show');
+            switcherPopup.classList.add('closing');
+            setTimeout(() => {
+                if (switcherPopup && switcherPopup.parentNode) {
+                    switcherPopup.parentNode.removeChild(switcherPopup);
+                }
+                switcherPopup = null;
+                currentSwitcherAppId = null;
+            }, 150);
+        }
+        if (switcherHoverTimer) {
+            clearTimeout(switcherHoverTimer);
+            switcherHoverTimer = null;
+        }
+        // End any active peek
+        if (peekEnabled) {
+            WindowManager.peekWindow(null, false);
+            peekEnabled = false;
+        }
+    }
+
+    function toggleSwitcher(appId, anchorBtn) {
+        if (switcherPopup && switcherPopup.classList.contains('show') && currentSwitcherAppId === appId) {
+            hideSwitcher();
+        } else {
+            showSwitcher(appId, anchorBtn);
+        }
+    }
+
+    function focusWindowById(windowId) {
+        const win = WindowManager._getWindow(windowId);
+        if (!win) return;
+        if (WindowManager.isMinimized(windowId)) {
+            WindowManager.setMinimized(windowId, false);
+        }
+        WindowManager.focusWindow(windowId);
+    }
+
+    function peekWindow(windowId, enable) {
+        if (enable) {
+            if (!peekEnabled) {
+                // First time enabling peek for this app - dim all other windows
+                const appId = currentSwitcherAppId;
+                if (appId) {
+                    const wins = WindowManager.getWindowsByApp(appId).filter(w => isOnActiveDesktop(w.id));
+                    wins.forEach(w => {
+                        if (w.id !== windowId && !WindowManager.isMinimized(w.id)) {
+                            w.element.classList.add('peek-dimmed');
+                        }
+                    });
+                    // Bring the target window to front visually
+                    const targetWin = WindowManager._getWindow(windowId);
+                    if (targetWin && !WindowManager.isMinimized(windowId)) {
+                        targetWin.element.classList.add('peek-target');
+                        targetWin.element.style.zIndex = 999999;
+                    }
+                }
+                peekEnabled = true;
+            }
+        } else if (peekEnabled) {
+            // Disable peek - restore all windows
+            const appId = currentSwitcherAppId;
+            if (appId) {
+                const wins = WindowManager.getWindowsByApp(appId).filter(w => isOnActiveDesktop(w.id));
+                wins.forEach(w => {
+                    w.element.classList.remove('peek-dimmed');
+                    w.element.classList.remove('peek-target');
+                    w.element.style.zIndex = '';
+                });
+            }
+            peekEnabled = false;
+        }
     }
 
     function getVD() {
@@ -424,21 +804,36 @@ const Taskbar = (() => {
         const btns = document.querySelectorAll('.taskbar-btn.app-btn');
         btns.forEach(btn => {
             const app = btn.dataset.app;
-            if (hasWindowOnActiveDesktop(app)) {
-                btn.classList.add('running');
+            const windowId = btn.dataset.windowId;
+            if (windowId) {
+                // Ungrouped mode - check specific window
+                const win = WindowManager._getWindow(windowId);
+                if (win && !WindowManager.isMinimized(windowId) && isOnActiveDesktop(windowId)) {
+                    btn.classList.add('running');
+                } else {
+                    btn.classList.remove('running');
+                    btn.classList.remove('active');
+                }
             } else {
-                btn.classList.remove('running');
-                btn.classList.remove('active');
+                // Grouped mode - check if any window of this app is running
+                if (hasWindowOnActiveDesktop(app)) {
+                    btn.classList.add('running');
+                } else {
+                    btn.classList.remove('running');
+                    btn.classList.remove('active');
+                }
             }
         });
+        updateTrayOverflow();
     }
 
     function setActiveApp(appId) {
         const btns = document.querySelectorAll('.taskbar-btn.app-btn');
         btns.forEach(btn => {
-            if (btn.dataset.app === appId) {
+            // In grouped mode, match by appId; in ungrouped, don't set active on window buttons
+            if (!btn.dataset.windowId && btn.dataset.app === appId) {
                 btn.classList.add('active');
-            } else {
+            } else if (!btn.dataset.windowId) {
                 btn.classList.remove('active');
             }
         });
@@ -446,7 +841,195 @@ const Taskbar = (() => {
 
     function clearActiveApp() {
         const btns = document.querySelectorAll('.taskbar-btn.app-btn');
-        btns.forEach(btn => btn.classList.remove('active'));
+        btns.forEach(btn => {
+            if (!btn.dataset.windowId) btn.classList.remove('active');
+        });
+    }
+
+    // Tray overflow handling
+    function updateTrayOverflow() {
+        const trayAppIcons = document.getElementById('tray-app-icons');
+        const trayIcons = document.getElementById('tray-icons');
+        const trayNetwork = document.getElementById('tray-network');
+        const clock = document.getElementById('clock');
+        const taskbarTray = document.getElementById('taskbar-tray');
+
+        if (!trayAppIcons || !trayIcons || !taskbarTray) return;
+
+        // Get all tray icons (system + app)
+        const systemIcons = Array.from(trayIcons.querySelectorAll('svg, button')).filter(el => el.id !== 'tray-network' && el.id !== 'tray-chevron');
+        const appIcons = Array.from(trayAppIcons.querySelectorAll('.tray-app-icon'));
+        const networkBtn = trayNetwork;
+        const chevron = document.getElementById('tray-chevron');
+        const clockEl = clock;
+
+        // Check if we need overflow (more than 5 visible icons or app icons pushing into system area)
+        const allVisibleIcons = [...systemIcons, ...appIcons, networkBtn].filter(el => {
+            const style = window.getComputedStyle(el);
+            return style.display !== 'none' && style.visibility !== 'hidden';
+        });
+
+        const needsOverflow = allVisibleIcons.length > 5;
+
+        // Use the existing chevron as overflow button
+        if (chevron) {
+            if (needsOverflow) {
+                chevron.style.display = 'flex';
+                chevron.style.alignItems = 'center';
+                chevron.style.justifyContent = 'center';
+                chevron.style.width = '28px';
+                chevron.style.height = '28px';
+                chevron.style.padding = '2px';
+                chevron.style.borderRadius = '4px';
+                chevron.style.cursor = 'pointer';
+                chevron.style.color = 'var(--text-primary)';
+                chevron.title = 'Show hidden icons';
+                // Replace the chevron icon with the overflow icon
+                if (!chevron.dataset.overflowSet) {
+                    chevron.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+                    chevron.dataset.overflowSet = 'true';
+                    setupTrayOverflow(chevron);
+                }
+            } else {
+                chevron.style.display = 'none';
+                // Also close flyout if open
+                if (trayOverflowFlyout) {
+                    hideTrayOverflowFlyout();
+                }
+            }
+        }
+    }
+
+    function setupTrayOverflow(overflowBtn) {
+        // Remove any existing listener
+        overflowBtn.removeEventListener('click', overflowBtn._overflowHandler);
+        const handler = (e) => {
+            e.stopPropagation();
+            toggleTrayOverflowFlyout(overflowBtn);
+        };
+        overflowBtn._overflowHandler = handler;
+        overflowBtn.addEventListener('click', handler);
+    }
+
+    function toggleTrayOverflowFlyout(anchorBtn) {
+        if (trayOverflowFlyout && trayOverflowFlyout.classList.contains('show')) {
+            hideTrayOverflowFlyout();
+        } else {
+            showTrayOverflowFlyout(anchorBtn);
+        }
+    }
+
+    function showTrayOverflowFlyout(anchorBtn) {
+        if (trayOverflowFlyout) hideTrayOverflowFlyout();
+
+        const trayAppIcons = document.getElementById('tray-app-icons');
+        const trayIcons = document.getElementById('tray-icons');
+
+        const flyout = document.createElement('div');
+        flyout.id = 'tray-overflow-flyout';
+        flyout.className = 'tray-overflow-flyout hidden';
+        document.body.appendChild(flyout);
+
+        // Collect hidden icons (icons that don't fit or are pushed out)
+        // For simplicity, show all app icons in the flyout
+        const appIcons = Array.from(trayAppIcons.querySelectorAll('.tray-app-icon')).filter(el => {
+            const style = window.getComputedStyle(el);
+            return style.display !== 'none';
+        });
+
+        let html = '<div class="overflow-header">Hidden icons</div><div class="overflow-list">';
+
+        appIcons.forEach(icon => {
+            const appId = icon.dataset.app;
+            const iconId = icon.dataset.trayIcon;
+            const tooltip = icon.title || icon.getAttribute('aria-label') || '';
+            const badge = icon.querySelector('.tray-app-badge');
+            const badgeText = badge ? badge.textContent : '';
+            const iconHtml = icon.innerHTML;
+
+            html += `
+                <div class="overflow-item" data-app="${appId}" data-icon="${iconId}" title="${tooltip}">
+                    ${iconHtml}
+                    <span class="overflow-item-name">${tooltip || appId}</span>
+                    ${badgeText ? `<span class="overflow-item-badge">${badgeText}</span>` : ''}
+                </div>`;
+        });
+
+        // Also include system tray icons that might be hidden
+        const systemIcons = Array.from(trayIcons.querySelectorAll('button')).filter(el => {
+            const style = window.getComputedStyle(el);
+            return style.display !== 'none' && el.id !== 'tray-network' && el.id !== 'tray-overflow';
+        });
+
+        systemIcons.forEach(icon => {
+            const tooltip = icon.title || icon.getAttribute('aria-label') || '';
+            const iconHtml = icon.innerHTML;
+            html += `
+                <div class="overflow-item system" title="${tooltip}">
+                    ${iconHtml}
+                    <span class="overflow-item-name">${tooltip}</span>
+                </div>`;
+        });
+
+        html += '</div>';
+        flyout.innerHTML = html;
+
+        // Position the flyout
+        const anchorRect = anchorBtn.getBoundingClientRect();
+        const taskbar = document.getElementById('taskbar');
+        const taskbarRect = taskbar.getBoundingClientRect();
+        const isTop = taskbarRect.top < window.innerHeight / 2;
+
+        if (isTop) {
+            flyout.style.top = `${anchorRect.bottom + 4}px`;
+            flyout.style.bottom = 'auto';
+        } else {
+            flyout.style.bottom = `${window.innerHeight - anchorRect.top + 4}px`;
+            flyout.style.top = 'auto';
+        }
+        flyout.style.right = `${window.innerWidth - anchorRect.right}px`;
+        flyout.style.left = 'auto';
+
+        // Click handlers for overflow items
+        flyout.querySelectorAll('.overflow-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const appId = item.dataset.app;
+                const iconId = item.dataset.icon;
+                if (appId && iconId) {
+                    // Simulate click on the actual tray icon
+                    const trayIcon = document.querySelector(`.tray-app-icon[data-app="${appId}"][data-tray-icon="${iconId}"]`);
+                    if (trayIcon) trayIcon.click();
+                }
+                hideTrayOverflowFlyout();
+            });
+        });
+
+        // Close on outside click
+        const closeHandler = (e) => {
+            if (!flyout.contains(e.target) && !anchorBtn.contains(e.target)) {
+                hideTrayOverflowFlyout();
+                document.removeEventListener('click', closeHandler);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closeHandler), 0);
+
+        trayOverflowFlyout = flyout;
+        requestAnimationFrame(() => {
+            flyout.classList.add('show');
+        });
+    }
+
+    function hideTrayOverflowFlyout() {
+        if (trayOverflowFlyout) {
+            trayOverflowFlyout.classList.remove('show');
+            trayOverflowFlyout.classList.add('closing');
+            setTimeout(() => {
+                if (trayOverflowFlyout && trayOverflowFlyout.parentNode) {
+                    trayOverflowFlyout.parentNode.removeChild(trayOverflowFlyout);
+                }
+                trayOverflowFlyout = null;
+            }, 150);
+        }
     }
 
     function getPinnedApps() {
@@ -458,7 +1041,12 @@ const Taskbar = (() => {
         renderTaskbarButtons();
     }
 
-    return { init, activate, openApp, addRunningApp, removeRunningApp, updateRunningState, setActiveApp, clearActiveApp, getPinnedApps, pinApp, unpinApp, isPinned, renderTaskbarButtons };
+    // Public method to refresh taskbar when grouping setting changes
+    function refreshGrouping() {
+        renderTaskbarButtons();
+    }
+
+    return { init, activate, openApp, addRunningApp, removeRunningApp, updateRunningState, setActiveApp, clearActiveApp, getPinnedApps, pinApp, unpinApp, isPinned, renderTaskbarButtons, refreshGrouping };
 })();
 
 export { Taskbar, AppRegistry, AppMetadata };

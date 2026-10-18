@@ -7,7 +7,7 @@ import Scaling from '../../modules/scaling.js';
 import Popup from '../../modules/popup.js';
 import AppSystem from '../../modules/appSystem.js';
 import AppLoader from '../../modules/appLoader.js';
-import { AppMetadata } from '../../modules/taskbar.js';
+import { AppMetadata, Taskbar } from '../../modules/taskbar.js';
 import WindowsUpdate from '../../modules/windowsUpdate.js';
 import Touch from '../../modules/touch.js';
 import VirtualKeyboard from '../../modules/virtualKeyboard.js';
@@ -959,6 +959,14 @@ const Settings = (() => {
             </div>
 
             <div class="settings-section" style="margin-bottom:24px;">
+                <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Taskbar Grouping</h3>
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Choose how taskbar buttons are grouped when multiple windows of the same app are open.</p>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    ${GROUPING_MODES.map(g => groupingOption(g, config.taskbarGrouping)).join('')}
+                </div>
+            </div>
+
+            <div class="settings-section" style="margin-bottom:24px;">
                 <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">User Name</h3>
                 <div style="font-size:14px;color:var(--text-secondary);">Your account name is managed in <b>Accounts</b>.</div>
             </div>
@@ -1420,6 +1428,12 @@ const Settings = (() => {
         { id: 'right', name: 'Right' }
     ];
 
+    const GROUPING_MODES = [
+        { id: 'always', name: 'Always', desc: 'Combine taskbar buttons (one button per app)' },
+        { id: 'whenFull', name: 'When taskbar is full', desc: 'Group only when space runs out' },
+        { id: 'never', name: 'Never', desc: 'Show each window as a separate button' }
+    ];
+
     function taskbarPositionPreview(pos) {
         // Mini screen mock with the taskbar bar on the given edge.
         const bar = {
@@ -1436,6 +1450,17 @@ const Settings = (() => {
         return `<div class="taskbar-pos-option" data-pos="${p.id}" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid ${active ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'};border-radius:8px;padding:10px 8px;cursor:pointer;text-align:center;transition:border-color 0.15s;">
             ${taskbarPositionPreview(p.id)}
             <div style="font-size:11px;font-weight:${active ? '600' : '400'};margin-top:6px;">${p.name}</div>
+        </div>`;
+    }
+
+    function groupingOption(g, activeId) {
+        const active = (activeId || 'always') === g.id;
+        return `<div class="grouping-option" data-grouping="${g.id}" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid ${active ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'};border-radius:8px;padding:12px 16px;cursor:pointer;transition:border-color 0.15s;display:flex;align-items:center;gap:12px;">
+            <div style="flex:1;text-align:left;">
+                <div style="font-size:14px;font-weight:${active ? '600' : '400'};">${g.name}</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">${g.desc}</div>
+            </div>
+            ${active ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
         </div>`;
     }
 
@@ -1586,6 +1611,15 @@ const Settings = (() => {
         win.element.querySelectorAll('.taskbar-pos-option').forEach(opt => {
             opt.addEventListener('click', () => {
                 SystemConfig.set('taskbarPosition', opt.dataset.pos);
+                renderPersonalization(win.element.querySelector('.settings-content'));
+            });
+        });
+
+        win.element.querySelectorAll('.grouping-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                SystemConfig.set('taskbarGrouping', opt.dataset.grouping);
+                // Also refresh the taskbar immediately
+                try { Taskbar.refreshGrouping(); } catch (e) {}
                 renderPersonalization(win.element.querySelector('.settings-content'));
             });
         });

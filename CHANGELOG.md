@@ -4,6 +4,18 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4988] - 2026-10-18
+
+### Added
+- **Taskbar app grouping with switcher popup.** Multiple windows of the same app are now grouped under a single taskbar button (default behavior). When a grouped button has multiple windows, clicking or hovering it shows a slide-out switcher popup listing all windows with their titles and icons. Click a window to focus it; hover a window entry for an Aero-peek effect that temporarily dims all other windows of that app and highlights the hovered one.
+- **Customizable grouping modes** in Settings > Personalization: "Always" (default, one button per app), "When taskbar is full" (group only when space runs out), or "Never" (one button per window, classic style).
+- **Tray overflow chevron** that appears only when the notification area has more than 5 icons. Clicking it opens a flyout listing the overflowed app tray icons and system icons.
+
+### Changed
+- Taskbar rendering now supports both grouped and ungrouped modes, with live switching based on the setting or available space (`js/modules/taskbar.js`, `css/taskbar.css`).
+- Added `peekWindow` API to WindowManager for the Aero-peek effect used by the switcher (`js/modules/windowManager.js`).
+- New per-user config key `taskbarGrouping` stored in SystemConfig (`js/modules/systemConfig.js`).
+
 ## [12.0.4987] - 2026-10-18
 
 ### Added

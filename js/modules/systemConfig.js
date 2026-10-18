@@ -210,6 +210,8 @@ const SystemConfig = (() => {
         wallpaperFit: 'fill',
         taskbarOpacity: 85,
         taskbarPosition: 'bottom',
+        // Taskbar grouping: 'always' (one button per app), 'never' (one button per window), 'whenFull' (group when taskbar overflows)
+        taskbarGrouping: 'always',
         windowAnimation: true,
         showSeconds: false,
         userName: 'User',
