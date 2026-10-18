@@ -2,8 +2,8 @@ import WindowManager from '../../modules/windowManager.js';
 
 const TempleRun2 = (() => {
     const APP_ID = 'templeRun2';
-    const GAME_URL = 'https://subwayonline.io/temple-run-2.embed';
-    const HOME_URL = 'https://subwayonline.io/temple-run-2';
+    const GAME_URL = 'https://archive777.com/Temple%20Run/Temple%20Run%202%20Game/';
+    const HOME_URL = 'https://archive777.com/Temple%20Run/Temple%20Run%202%20Game/';
     const icon = `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="4" fill="#1c1410"/><path d="M4 9h16l-2 9H6L4 9z" fill="#3a2c1e"/><path d="M4 9l8-4 8 4" fill="#8a6d3b"/><circle cx="12" cy="13.5" r="2.4" fill="#ffd166"/><circle cx="17" cy="7" r="1" fill="#ff5d5d"/></svg>`;
 
     function getContent() {

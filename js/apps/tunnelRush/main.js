@@ -2,8 +2,8 @@ import WindowManager from '../../modules/windowManager.js';
 
 const TunnelRush = (() => {
     const APP_ID = 'tunnelRush';
-    const GAME_URL = 'https://slope-slope.github.io/tunnel-rush';
-    const HOME_URL = 'https://slope-slope.github.io/tunnel-rush';
+    const GAME_URL = 'https://iframe.unblocked-76-games.org/tunnel-rush-main';
+    const HOME_URL = 'https://iframe.unblocked-76-games.org/tunnel-rush-main';
     const icon = `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="10" fill="#0b0b10"/><circle cx="12" cy="12" r="7.5" stroke="#ff5d8f" stroke-width="1.8"/><circle cx="12" cy="12" r="4.8" stroke="#ffb3c9" stroke-width="1.4"/><circle cx="12" cy="12" r="2" fill="#ff5d8f"/></svg>`;
 
     function getContent() {

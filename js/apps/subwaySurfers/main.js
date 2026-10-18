@@ -7,7 +7,7 @@ const SubwaySurfers = (() => {
 
     function getContent() {
         return `
-            <iframe id="game-element" allowfullscreen="true" allow="autoplay; fullscreen; camera; gamepad; keyboard-map; xr-spatial-tracking; clipboard-write; web-share; accelerometer; magnetometer; gyroscope; microphone; screen-wake-lock" name="gameFrame" scrolling="no" sandbox="allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-scripts allow-same-origin allow-downloads" src="https://subwayonline.io/subway-surfers.embed" title="Game" style="width:100%;height:100%;border:none;"></iframe>
+            <iframe id="game-element" allowfullscreen="true" allow="autoplay; fullscreen; camera; gamepad; keyboard-map; xr-spatial-tracking; clipboard-write; web-share; accelerometer; magnetometer; gyroscope; microphone; screen-wake-lock" name="gameFrame" scrolling="no" sandbox="allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-scripts allow-same-origin allow-downloads" src="https://files.gamezhero.com/game/905/1d1/9051d1173be765fb/data/index.html" title="Game" style="width:100%;height:100%;border:none;"></iframe>
         `;
     }
 

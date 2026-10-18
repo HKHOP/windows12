@@ -2,8 +2,8 @@ import WindowManager from '../../modules/windowManager.js';
 
 const Slope3 = (() => {
     const APP_ID = 'slope3';
-    const GAME_URL = 'https://subwayonline.io/slope-3.embed';
-    const HOME_URL = 'https://subwayonline.io/slope-3';
+    const GAME_URL = 'https://games.yoplay.io/slope-3/?v=1';
+    const HOME_URL = 'https://games.yoplay.io/slope-3/?v=1';
     const icon = `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="4" fill="#1a0f2e"/><path d="M4 18 13 9l7-3-3 7-8 5H4v-0z" fill="#2c1c55"/><circle cx="15" cy="12" r="3.2" fill="#c77dff"/><circle cx="9" cy="16" r="1.1" fill="#ffd166"/></svg>`;
 
     function getContent() {

@@ -2,8 +2,8 @@ import WindowManager from '../../modules/windowManager.js';
 
 const StickmanHook = (() => {
     const APP_ID = 'stickmanHook';
-    const GAME_URL = 'https://slope2unblocked.github.io/play/stickman-hook.html';
-    const HOME_URL = 'https://slope2unblocked.github.io/play/stickman-hook.html';
+    const GAME_URL = 'https://lnahtml.github.io/a/stickman-hook';
+    const HOME_URL = 'https://lnahtml.github.io/a/stickman-hook';
     const icon = `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="4" fill="#0d1b12"/><circle cx="14" cy="6.5" r="2.2" fill="#7cff9d"/><path d="M14 9v4m0-2.5L10 8m4 2.5L18 8m-4 5.5-3 5m3-5 3 5" stroke="#7cff9d" stroke-width="1.6" stroke-linecap="round"/><path d="M5 5c2 4 5 5 7 5" stroke="#ffd166" stroke-width="1.6" stroke-linecap="round"/></svg>`;
 
     function getContent() {

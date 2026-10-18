@@ -2,8 +2,8 @@ import WindowManager from '../../modules/windowManager.js';
 
 const MotoX3M = (() => {
     const APP_ID = 'motoX3M';
-    const GAME_URL = 'https://slope-slope.github.io/moto-x3m';
-    const HOME_URL = 'https://slope-slope.github.io/moto-x3m';
+    const GAME_URL = 'https://iframe.unblocked-76-games.org/moto-x3m-main';
+    const HOME_URL = 'https://iframe.unblocked-76-games.org/moto-x3m-main';
     const icon = `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="4" fill="#241206"/><circle cx="7" cy="16.5" r="3" stroke="#ff9f1c" stroke-width="1.8"/><circle cx="17.5" cy="16.5" r="3" stroke="#ff9f1c" stroke-width="1.8"/><path d="M7 16.5 11 9h3l3.5 7.5M11 9 9.5 6H8" stroke="#ffd166" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
     function getContent() {

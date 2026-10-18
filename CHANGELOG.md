@@ -4,6 +4,19 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4990] - 2026-10-18
+
+### Changed
+- **Store iframe games** updated with new embed URLs:
+  - **Moto X3M** → `https://iframe.unblocked-76-games.org/moto-x3m-main`
+  - **Slope 2** → `https://games.yoplay.io/slope-2/?v=1`
+  - **Slope 3** → `https://games.yoplay.io/slope-3/?v=1`
+  - **Tunnel Rush** → `https://iframe.unblocked-76-games.org/tunnel-rush-main`
+  - **Stickman Hook** → `https://lnahtml.github.io/a/stickman-hook`
+  - **Temple Run 2** → `https://archive777.com/Temple%20Run/Temple%20Run%202%20Game/`
+  - **Subway Surfers** → `https://files.gamezhero.com/game/905/1d1/9051d1173be765fb/data/index.html`
+  (`js/apps/motoX3M/main.js`, `js/apps/slope2/main.js`, `js/apps/slope3/main.js`, `js/apps/tunnelRush/main.js`, `js/apps/stickmanHook/main.js`, `js/apps/templeRun2/main.js`, `js/apps/subwaySurfers/main.js`)
+
 ## [12.0.4989] - 2026-10-18
 
 ### Changed
