@@ -258,6 +258,26 @@ const Packages = (() => {
         return removed;
     }
 
+    // Factory reset: clear all installed packages (both system and user scope)
+    function clearAll() {
+        // Clear system packages
+        for (const id of installed.keys()) {
+            const dir = [...SYSTEM_ROOT, id];
+            if (sh(() => FileSystem.itemExists(dir))) sh(() => FileSystem.permanentDelete(dir));
+        }
+        // Clear user packages
+        try {
+            const uRoot = userRoot();
+            for (const id of installed.keys()) {
+                const dir = [...uRoot, id];
+                if (sh(() => FileSystem.itemExists(dir))) sh(() => FileSystem.permanentDelete(dir));
+            }
+        } catch { /* user root may not exist */ }
+        installed.clear();
+        writeSession();
+        window.dispatchEvent(new CustomEvent('apps-changed'));
+    }
+
     // ---- update ----
 
     async function update(id, opts = {}) {
@@ -396,7 +416,7 @@ const Packages = (() => {
     }
 
     return {
-        init, install, uninstall, update,
+        init, install, uninstall, update, clearAll,
         getInstalled, isInstalled, getRecord, scopeOf,
         manifests, legacyInstalled, getLegacy,
         vfsActive, writeSession, pkgUrl,

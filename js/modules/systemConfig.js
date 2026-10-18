@@ -501,6 +501,14 @@ const SystemConfig = (() => {
         syncToFilesystem();
     }
 
+    // Factory reset: reset ALL config including userName
+    function factoryReset() {
+        config = { ...defaults };
+        save();
+        apply();
+        syncToFilesystem();
+    }
+
     function apply() {
         const root = document.documentElement;
         root.style.setProperty('--accent-color', config.accentColor);
@@ -745,7 +753,7 @@ const SystemConfig = (() => {
     }
 
     return {
-        init, initGlobal, activate, get, getAll, set, setMultiple, reset, apply, load, onChange,
+        init, initGlobal, activate, get, getAll, set, setMultiple, reset, factoryReset, apply, load, onChange,
         isGlobalKey, setGlobal, setGlobals, loadGlobal,
         get CONFIG_PATH() { return configPath(); },
         syncToFilesystem,

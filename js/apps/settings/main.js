@@ -877,6 +877,12 @@ const Settings = (() => {
                     <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Edit config.json in File Explorer > Documents to change settings directly.</p>
                     <button class="reset-btn" style="background:rgba(255,80,80,0.2);border:1px solid rgba(255,80,80,0.3);border-radius:6px;padding:8px 16px;color:#ff6666;cursor:pointer;font-size:14px;">Reset to Defaults</button>
                 </div>
+
+                <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;border:1px solid rgba(255,80,80,0.3);">
+                    <div style="font-size:14px;font-weight:500;margin-bottom:4px;color:#ff6666;">Factory Reset</div>
+                    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Removes all user accounts, files, apps, and settings. This cannot be undone.</p>
+                    <button class="factory-reset-btn" style="background:rgba(255,60,60,0.25);border:1px solid rgba(255,80,80,0.5);border-radius:6px;padding:8px 16px;color:#ff6666;cursor:pointer;font-size:14px;font-weight:500;">Factory Reset</button>
+                </div>
             </div>
         `;
 
@@ -886,6 +892,103 @@ const Settings = (() => {
                 SystemConfig.reset();
             });
         }
+
+        const factoryBtn = el.querySelector('.factory-reset-btn');
+        if (factoryBtn) {
+            factoryBtn.addEventListener('click', async () => {
+                await handleFactoryReset();
+            });
+        }
+    }
+
+    async function handleFactoryReset() {
+        // Confirm with UAC (admin required for system-wide destructive action)
+        const approved = await UAC.request({
+            name: 'Windows Settings',
+            message: 'Factory reset will delete ALL user accounts, files, apps, and settings. This cannot be undone. Continue?'
+        });
+        if (!approved) return;
+
+        // Final confirmation dialog
+        const confirmed = await Popup.confirm(
+            'Factory Reset',
+            'This will PERMANENTLY DELETE everything:\n• All user accounts and passwords\n• All personal files (Documents, Pictures, etc.)\n• All installed apps and their data\n• All system settings\n\nThe system will restart in 10 seconds after reset.\n\nAre you absolutely sure?'
+        );
+        if (!confirmed) return;
+
+        // Show countdown overlay
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:10000;
+            display:flex;flex-direction:column;align-items:center;justify-content:center;
+            color:white;font-family:inherit;
+        `;
+        overlay.innerHTML = `
+            <div style="font-size:28px;font-weight:600;margin-bottom:16px;">Factory Reset in Progress</div>
+            <div style="font-size:18px;margin-bottom:24px;">Please do not close or refresh the page.</div>
+            <div class="countdown" style="font-size:72px;font-weight:700;color:#ff6666;font-variant-numeric:tabular-nums;">10</div>
+            <div style="margin-top:24px;font-size:14px;color:#aaa;">Resetting all data...</div>
+        `;
+        document.body.appendChild(overlay);
+
+        let count = 10;
+        const countdownEl = overlay.querySelector('.countdown');
+        const tick = setInterval(() => {
+            count--;
+            if (countdownEl) countdownEl.textContent = count;
+            if (count <= 0) clearInterval(tick);
+        }, 1000);
+
+        try {
+            // Clear all data
+            await performFactoryReset();
+
+            // Wait for countdown to finish
+            await new Promise(r => setTimeout(r, Math.max(0, count * 1000)));
+
+            // Restart
+            if (window._Shell) window._Shell.restart();
+        } catch (e) {
+            console.error('Factory reset failed:', e);
+            clearInterval(tick);
+            document.body.removeChild(overlay);
+            Popup.error('Factory Reset Failed', 'An error occurred during factory reset. Please try again.');
+        }
+    }
+
+    async function performFactoryReset() {
+        // 1. Reset FileSystem to default
+        const FsStorage = (await import('../../modules/fsStorage.js')).default;
+        const FileSystem = (await import('../../modules/fileSystem.js')).default;
+        const Users = (await import('../../modules/users.js')).default;
+        const SystemConfig = (await import('../../modules/systemConfig.js')).default;
+        const Packages = (await import('../../modules/packages.js')).default;
+
+        // Reset FileSystem to default tree
+        FileSystem.resetToDefault();
+
+        // 2. Reset Users to single default admin
+        await Users.factoryReset();
+
+        // 3. Reset SystemConfig to defaults (full reset, not keeping username)
+        SystemConfig.factoryReset();
+
+        // 4. Clear all installed packages (store apps)
+        try { Packages.clearAll(); } catch (e) { /* noop */ }
+
+        // 5. Clear localStorage/IndexedDB leftovers
+        try {
+            localStorage.clear();
+            if (window.indexedDB && indexedDB.databases) {
+                const dbs = await indexedDB.databases();
+                for (const db of dbs) {
+                    if (db.name) indexedDB.deleteDatabase(db.name);
+                }
+            }
+        } catch (e) { /* noop */ }
+
+        // Force persist the reset state
+        await FileSystem.flushAsync();
     }
 
     function renderPersonalization(el) {

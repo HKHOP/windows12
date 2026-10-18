@@ -452,6 +452,12 @@ const FileSystem = (() => {
         return node !== null && node.type === 'folder';
     }
 
+    // Reset filesystem to factory default (used by factory reset)
+    function resetToDefault() {
+        root = getDefaultFS();
+        save(true); // immediate persist
+    }
+
     // ---------- access policy (set by main.js -> FSGuard.check) ----------
 
     function setAccessChecker(fn) {
@@ -488,7 +494,7 @@ const FileSystem = (() => {
         return allowed(path) && writeAllowed(path);
     }
 
-    return { setAccessChecker, setWriteChecker, init, save, flush, flushAsync, backendId, serializedSize, wouldFit, storageInfo, STORAGE_BUDGET,
+    return { setAccessChecker, setWriteChecker, init, save, flush, flushAsync, backendId, serializedSize, wouldFit, storageInfo, STORAGE_BUDGET, resetToDefault,
         // Guarded public surface: every path-reaching operation consults the
         // access checker first. Internal implementations above stay unguarded
         // so shell internals (recycle bin bookkeeping, migrations) can't be

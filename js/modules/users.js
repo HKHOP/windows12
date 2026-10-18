@@ -520,13 +520,20 @@ const Users = (() => {
         return !!acc && !!acc.hash;
     }
 
+    // Factory reset: remove all accounts, create single default admin
+    async function factoryReset() {
+        users = [{ id: 'default', name: 'User', type: 'administrator', salt: null, hash: null, createdAt: Date.now(), lastLogin: Date.now() }];
+        writeAccounts();
+        current = users[0];
+    }
+
     return {
         init, loadAccounts, activate, home, appData, userData,
         homeFor, appDataFor, userDataFor,
         getAccounts, getAccount, getCurrent: () => current ? { ...current } : null,
         setCurrent, signIn, beginSwitch, lastUserId, primaryAdminId,
         countAdmins, getAccountType, isAdmin, setAccountType,
-        createAccount, deleteAccount, renameAccount, setPassword, verifyPassword, hasPassword
+        createAccount, deleteAccount, renameAccount, setPassword, verifyPassword, hasPassword, factoryReset
     };
 })();
 
