@@ -4,6 +4,17 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4987] - 2026-10-18
+
+### Added
+- **Apps can now add icons to the system tray.** A new Tray API (`js/modules/tray.js`, SDK `js/sdk/tray.js`, bound `app.tray` / flat `Tray`) lets a background-capable app register notification-area icons with left-click, double-click and right-click handlers, a right-click context menu, a tooltip, a small badge/count overlay, and a live icon that can be changed at any time. Icons outlive the app's window — that is the point — so the API requires background access (manifest `"background": true`, the `"background"` permission, or `"service": true`); without it the SDK throws `PERMISSION_DENIED`. Icons are scoped to the foreground session (concurrent sessions only see their own) and are removed automatically when the app is uninstalled, its session signs out, or a headless app is stopped; apps can also manage them with the returned handle (`setIcon/setTooltip/setBadge/setVisible/setMenu/onClick/update/remove`) or the `remove/removeAll/get/list/canUse` helpers. Wired into boot in `js/main.js`; SDK contract bumped to **1.5.0** (`js/sdk/index.js`, `js/sdk/types.d.ts`, `APP_DEVELOPMENT_GUIDE.md` §22.5 + §26), with smoke-test coverage (`test/sdk.smoke.mjs`)
+
+### Removed
+- **The dead search glyph in the taskbar tray.** It had no handler and did nothing; Search is already the center taskbar button and the Search panel (`index.html`)
+
+### Changed
+- A headless app's tray icons are now cleared when it shuts down (`BackgroundApps` shutdown hooks call `Tray.removeAll`), so a stopped background app leaves no stale icons behind (`js/modules/backgroundApps.js`)
+
 ## [12.0.4986] - 2026-10-18
 
 ### Added
