@@ -2,13 +2,15 @@
 
 This document contains everything you need to build a new app for the Windows 12 web OS simulation. Each app is a folder using the IIFE module pattern, described by a manifest, and wired into the OS by a generated registry — no manual registration in system files.
 
+Apps are **packages**: a self-contained folder that the OS imports lazily on first launch. Builtin packages ship with the OS; store packages are downloaded by the Microsoft Store and installed into the virtual filesystem, then executed from there (see §2.5).
+
 ---
 
 ## Quick Start
 
-1. Create `js/apps/<id>/` with `manifest.json` + `main.js` (copy `js/apps/sampleApp/`)
+1. Create `js/apps/<id>/` with `manifest.json` + `main.js` + `assets/icon.svg` (copy `js/apps/sampleApp/`)
 2. Run `node build-registry.js` to regenerate `js/apps/registry.js` (+ `sw.js` precache)
-3. If `distribution` is `"store"`, it appears in the Microsoft Store automatically
+3. If `distribution` is `"store"`, also run `node build-packages.js` to build its downloadable archive — it then appears in the Microsoft Store automatically
 
 That's it. The OS handles windows, taskbar, dragging, resizing, snapping, and persistence for you.
 
@@ -23,8 +25,10 @@ js/apps/myReddit/
   manifest.json   # id, uuid (v4, frozen), name, version, distribution, associations, store info
   main.js         # wired entry: `export default` an object with at least { launch }
   scripts/        # extra modules (optional, import via ./scripts/x.js)
-  assets/         # static files (optional)
+  assets/         # static files — icon.svg is the app icon (optional but recommended)
 ```
+
+The app icon lives in the package as `assets/icon.svg`; the build records `hasIcon` in the registry and every list surface (Start, Search, Store, taskbar, title bar) renders it as an `<img>`. Apps without one fall back to the inline glyph table in `js/modules/appIcons.js` (which now only carries shell-only glyphs).
 
 Minimal `manifest.json` for a builtin app:
 
@@ -37,6 +41,7 @@ Minimal `manifest.json` for a builtin app:
     "version": "1.0.0",
     "distribution": "builtin",
     "entry": "main.js",
+    "icon": "assets/icon.svg",
     "associations": [],
     "permissions": ["filesystem", "notifications"]
 }
@@ -46,9 +51,9 @@ Known permissions: `filesystem` (virtual files), `notifications` (toasts + panel
 
 Store apps show their permissions on the Store page, install asks for consent, and users can revoke per app in Settings > Apps (a revoked `notifications` permission blocks that app's toasts). Builtins are first-party and always granted. Check at runtime with `Permissions.isGranted(appId, perm)` (see §24).
 
-For a store app use `"distribution": "store"` and add `associations` (file extensions it opens, requires an exported `open(path, content)` function) plus a `store` block (`developer`, `category`, `rating`, `reviews`, `description`, `features[]`, `screenshots[]`, `size`, `ageRating`).
+For a store app use `"distribution": "store"` and add `associations` (file extensions it opens, requires an exported `open(path, content)` function) plus a `store` block (`developer`, `category`, `rating`, `reviews`, `description`, `features[]`, `screenshots[]`, `size`, `ageRating`). Then run `node build-packages.js` so its `.w12pkg` archive exists for the Store to download.
 
-Generate the uuid once with `node -e "console.log(crypto.randomUUID())"` and never change it — installs are tracked by uuid.
+Generate the uuid once with `node -e "console.log(crypto.randomUUID())"` and never change it — installs are recorded by package folder, keyed by uuid during legacy migration.
 
 ---
 
@@ -79,7 +84,7 @@ const MyReddit = (() => {
         const win = WindowManager.createWindow(
             'myReddit',           // app ID
             'MyReddit',           // window title
-            icon,                 // SVG icon string
+            icon,                 // icon string (<img> for packaged apps)
             getContent(),         // HTML content
             { width: 800, height: 600, minWidth: 400, minHeight: 300 }
         );
@@ -102,14 +107,15 @@ export default MyReddit;
 
 After creating your app folder, there are only 2 steps:
 
-### Step 1: Add icon to `js/modules/appIcons.js`
+### Step 1: Add the app icon
 
-```js
-const icons = {
-    // ...existing entries...
-    myReddit: `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#FF4500"/><circle cx="9" cy="11" r="1.5" fill="white"/><circle cx="15" cy="11" r="1.5" fill="white"/><path d="M8.5 14.5c0 0 1.5 2 3.5 2s3.5-2 3.5-2" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>`,
-};
+Drop an SVG at `js/apps/myReddit/assets/icon.svg`:
+
+```svg
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#FF4500"/><circle cx="9" cy="11" r="1.5" fill="white"/><circle cx="15" cy="11" r="1.5" fill="white"/></svg>
 ```
+
+Use it in the app via `AppIcons.get('myReddit')` (returns an `<img>` for packaged apps). Only shell glyphs that are not apps belong in the inline table in `js/modules/appIcons.js`. The optional manifest field `"icon": "assets/icon.svg"` overrides the default path.
 
 ### Step 2: Regenerate the registry
 
@@ -117,11 +123,38 @@ const icons = {
 node build-registry.js
 ```
 
-This validates all manifests, rewrites `js/apps/registry.js` (module + metadata tables the loader reads at boot), and refreshes the `sw.js` precache. Commit the regenerated files.
+This validates all manifests, rewrites `js/apps/registry.js` (metadata only — module imports are lazy, see §2.5), and refreshes the `sw.js` precache (core shell assets + every builtin app file). Commit the regenerated files.
+
+If the app is a store app, also build its download archive:
+
+```sh
+node build-packages.js
+```
+
+This writes `packages/<id>.w12pkg` (an uncompressed ZIP of the whole app folder) that the Store downloads on install. Commit those too.
 
 Everything else is automatic: display name (manifest `name`), taskbar/start menu/search listings, store listing (from the manifest `store` block), install/uninstall by uuid, and file associations (manifest `associations` wired to your exported `open`).
 
-> **Rule:** app modules must not call `AppLoader` / `AppRegistry` / `AppMetadata` at module scope (top-level). The registry ↔ app import cycle leaves those bindings uninitialized during evaluation — only call them inside functions like `launch()`.
+> **Rule:** app modules must not call `AppLoader` / `AppRegistry` / `AppMetadata` / `Packages` at module scope (top-level). The registry ↔ app import cycle leaves those bindings uninitialized during evaluation — only call them inside functions like `launch()`.
+
+### 2.5 Packages, lazy loading and the Store
+
+**Catalog vs. code.** `js/apps/registry.js` now carries *metadata only* (`APP_MANIFESTS`: id, uuid, name, version, distribution, entry, `hasIcon`, icon path, permissions, associations, store block). The shell reads the catalog for Start/Search/Store/permissions without ever importing an app. A package's `main.js` is `import()`-ed the first time it launches (`AppLoader.ensureLoaded(id)`), so 50+ apps no longer evaluate at boot.
+
+**Where packages live.**
+- Builtins ship with the OS (served from the network) and are always installed; they cannot be uninstalled.
+- Store apps install as real package folders in the virtual filesystem:
+  - system-wide (`Install for all users`): `/Program Files/<id>/`
+  - per-user: `/users/<uid>/AppData/Programs/<id>/`
+- The *presence of the folder* is the install record — there is no separate install list.
+
+**How they run from disk.** Installing downloads `packages/<id>.w12pkg`, unpacks it with `js/modules/zip.js` and writes each file into the vFS (code/assets as blob-backed nodes so the tree snapshot stays small; `manifest.json` inline so the catalog stays synchronous). A service worker (`sw.js`, registered in `js/main.js`) intercepts the canonical app URL `/js/apps/<id>/…` and serves the **installed copy from the vFS** — so no import path is ever rewritten, and store code genuinely executes from "disk". When the worker is not controlling, or the storage backend is the non-OPFS fallback, the same URL falls through to the shipped bundle (so store apps still run, just not from disk).
+
+**Key modules.** `js/modules/packages.js` (scan/install/uninstall, legacy migration, session user pointer), `build-packages.js` (archive builder), `build-registry.js` (registry + `sw.js` blocks), `sw.js` (virtual host + offline precache).
+
+**An app id is resolvable but not loaded** until its first launch — `AppLoader.getModule(id)` returns `null` before that, so always go through `AppLoader.ensureLoaded(id)` / `Taskbar.openApp(id)` (both async) rather than reading modules directly.
+
+**Store installs ask for a scope** (Just me / All users) and stream progress; uninstall deletes the package folder and wipes that app's permission grants. Legacy installs recorded in the old `installed_apps_*` localStorage keys are honored immediately and migrated to per-user packages in the background.
 
 ---
 
@@ -1144,7 +1177,7 @@ The SDK is a **stability facade, not a sandbox** -- apps share one JS context, s
 
 ### Test coverage
 
-`node test/sdk.smoke.mjs` (zero dependencies) stubs the browser surface, imports the real SDK + all 38 apps through the real registry, and asserts 102 checks: surface, error codes, shortcut dispatch/passthrough/unregister, events (incl. window lifecycle), filesystem roundtrip + recycle, sandbox scoping + traversal rejection, catalogs (incl. microphone/camera grants), clipboard denial honesty, headless window create/close, window geometry + state (bounds, resizable lock, maximize, minimize, drag/resize subscriptions, lifecycle subscriptions, per-window close veto, fullscreen refusal mapping), pointer lock validation, Input keyState tracking/clearing, Audio lazy context + master volume + beep, media denial honesty, virtual-keyboard init/gating/layouts/auto-show. DOM-painted paths (toast animation, live permission prompts) are exercised in-OS via the sample app.
+`node test/sdk.smoke.mjs` (zero dependencies) stubs the browser surface and imports the real SDK, filesystem, catalog and lazy loader, asserting 117 checks: surface, error codes, shortcut dispatch/passthrough/unregister, events (incl. window lifecycle), filesystem roundtrip + recycle, sandbox scoping + traversal rejection, catalogs (incl. microphone/camera grants and package icons / lazy-entry flags), clipboard denial honesty, headless window create/close, window geometry + state (bounds, resizable lock, maximize, minimize, drag/resize subscriptions, lifecycle subscriptions, per-window close veto, fullscreen refusal mapping), pointer lock validation, Input keyState tracking/clearing, Audio lazy context + master volume + beep, media denial honesty, virtual-keyboard init/gating/layouts/auto-show. DOM-painted paths (toast animation, live permission prompts) are exercised in-OS via the sample app. Package *installation* (network download → vFS) runs in the browser, not in this headless suite.
 
 ---
 

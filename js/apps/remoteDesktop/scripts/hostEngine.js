@@ -18,7 +18,8 @@
 // fsGuard zones stay off limits — file commands resolve strictly inside
 // the signed-in user's home.
 import WindowManager from '../../../modules/windowManager.js';
-import { Taskbar, AppMetadata, AppRegistry } from '../../../modules/taskbar.js';
+import { Taskbar, AppMetadata } from '../../../modules/taskbar.js';
+import AppLoader from '../../../modules/appLoader.js';
 import FileSystem from '../../../modules/fileSystem.js';
 import ClipboardManager from '../../../modules/clipboardManager.js';
 import Notifications from '../../../modules/notifications.js';
@@ -876,9 +877,10 @@ export class HostEngine {
             isDir = !!hit && hit.type === 'folder';
         } catch { /* treat as file */ }
         if (isDir) {
-            const explorer = AppRegistry.get('fileExplorer');
-            if (explorer && typeof explorer.openPath === 'function') explorer.openPath(path);
-            else if (explorer) explorer.launch();
+            AppLoader.ensureLoaded('fileExplorer').then(explorer => {
+                if (explorer && typeof explorer.openPath === 'function') explorer.openPath(path);
+                else if (explorer && typeof explorer.launch === 'function') explorer.launch();
+            }).catch(() => { /* load failure surfaces via the crash monitor */ });
             return true;
         }
         const content = FileSystem.readFile(path);

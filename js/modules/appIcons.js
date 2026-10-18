@@ -1,3 +1,11 @@
+// App icons — package assets first, inline SVG fallback second.
+//
+// Every app ships its icon inside the package at assets/icon.svg (list
+// surfaces render it without ever importing the app module). The inline
+// table below remains for shell-only glyphs that are not apps (e.g. the
+// Windows Update badge) and as a safety net.
+import { APP_MANIFESTS } from '../apps/registry.js';
+
 const AppIcons = (() => {
     const icons = {
         fileExplorer: `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="4" width="20" height="16" rx="2" fill="#FFC107"/><path d="M2 8h20" stroke="white" stroke-opacity="0.4" stroke-width="1"/><path d="M9 4V8M2 8l3-4h4l3 4" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`,
@@ -77,7 +85,28 @@ const AppIcons = (() => {
 
     const fallback = `<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="2" fill="#666"/></svg>`;
 
+    // Apps whose package ships assets/icon.svg (build-registry stamps hasIcon).
+    const ICON_APPS = new Set(
+        APP_MANIFESTS.filter(m => m.hasIcon).map(m => m.id)
+    );
+
+    // Packages live at the canonical app URL; the service worker serves the
+    // installed copy from the virtual filesystem and falls back to the
+    // shipped bundle for static assets, so this works before and after install.
+    function packagedIcon(id) {
+        try {
+            const url = new URL(`../apps/${id}/assets/icon.svg`, import.meta.url).href;
+            return `<img class="app-icon-img" src="${url}" alt="" draggable="false">`;
+        } catch (e) {
+            return null;
+        }
+    }
+
     function get(id) {
+        if (ICON_APPS.has(id)) {
+            const img = packagedIcon(id);
+            if (img) return img;
+        }
         return icons[id] || fallback;
     }
 

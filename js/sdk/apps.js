@@ -44,8 +44,7 @@ function getAll() {
  */
 function isInstalled(id) {
     requireString(id, 'id');
-    return AppLoader.getInstalledIds().includes(id)
-        || AppLoader.getBuiltins().some(m => m.id === id);
+    return AppLoader.isInstalled(id);
 }
 
 /**
@@ -53,7 +52,7 @@ function isInstalled(id) {
  * Services can never be launched.
  * @param {string} id
  * @param {object} [options] forwarded (e.g. Settings pages)
- * @returns {boolean} false when the app is unknown or a service
+ * @returns {Promise<boolean>} false when the app is unknown or a service
  * @throws {SDKError} NOT_FOUND when the app does not exist
  */
 function launch(id, options) {
@@ -83,7 +82,6 @@ async function install(idOrUuid) {
     if (!ok) return false;
     return AppLoader.install(man.id);
 }
-
 /**
  * Uninstall a Store app. Always confirms with the user first and wipes
  * the app's stored permission grants.
@@ -101,7 +99,7 @@ async function uninstall(idOrUuid) {
     }
     const ok = await InternalDialogs.confirm('Uninstall app', `Uninstall ${man.name || man.id}? Its stored data stays on disk.`);
     if (!ok) return false;
-    AppLoader.uninstall(man.id);
+    await AppLoader.uninstall(man.id);
     try {
         InternalPermissions.clearGrants(man.id);
     } catch { /* grants already gone */ }

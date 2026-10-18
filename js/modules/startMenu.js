@@ -2,7 +2,7 @@ import WindowManager from './windowManager.js';
 import UIIcons from './uiIcons.js';
 import Flyout from './flyout.js';
 import Search from './search.js';
-import { Taskbar, AppRegistry, AppMetadata } from './taskbar.js';
+import { Taskbar, AppMetadata } from './taskbar.js';
 import UserActivity from './userActivity.js';
 import FileSystem from './fileSystem.js';
 import SystemConfig from '../modules/systemConfig.js';
@@ -448,8 +448,7 @@ const StartMenu = (() => {
                 WindowManager.focusWindow(win.id);
             }
         } else {
-            const appModule = AppRegistry.get(appId);
-            if (appModule) appModule.launch();
+            AppLoader.launch(appId).catch(() => { /* crash monitor reports */ });
         }
     }
 

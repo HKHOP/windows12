@@ -24,6 +24,12 @@
     stroke: var(--text-primary);
 }
 
+/* App icons are package assets rendered as <img> (see appIcons.js). */
+.taskbar-btn .app-icon-img {
+    width: 24px;
+    height: 24px;
+}
+
 #tray-icons svg,
 #tray-icons svg path {
     fill: var(--text-primary);

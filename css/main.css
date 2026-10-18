@@ -4,6 +4,16 @@
     box-sizing: border-box;
 }
 
+/* App icons live inside each package (assets/icon.svg) and are rendered as
+   <img class="app-icon-img"> — fills its container unless a context sizes it
+   (e.g. the taskbar / window title bar). */
+.app-icon-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
 :root {
     --scale: 1;
     --res-scale: 1;

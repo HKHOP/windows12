@@ -65,6 +65,11 @@
     height: 16px;
 }
 
+.window-icon .app-icon-img {
+    width: 16px;
+    height: 16px;
+}
+
 .window-title {
     font-size: 12px;
     color: var(--text-primary);

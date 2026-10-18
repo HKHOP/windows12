@@ -14,6 +14,10 @@ const AppRegistry = (() => {
         apps[id] = app;
     }
 
+    function unregister(id) {
+        delete apps[id];
+    }
+
     function get(id) {
         return apps[id];
     }
@@ -22,7 +26,7 @@ const AppRegistry = (() => {
         return { ...apps };
     }
 
-    return { register, get, getAll };
+    return { register, unregister, get, getAll };
 })();
 
 const AppMetadata = (() => {
@@ -324,10 +328,11 @@ const Taskbar = (() => {
         });
     }
 
-    function openApp(appId, options = {}) {
+    async function openApp(appId, options = {}) {
         try {
             if (AppLoader.isService(appId)) return false;
         } catch (e) { /* manifest unreadable — fall through */ }
+        if (!AppLoader.isLaunchable(appId)) return false;
         // Only windows on the active desktop take part: clicking an app
         // that runs solely elsewhere opens a fresh window here.
         const existing = WindowManager.getWindowsByApp(appId).filter(w => isOnActiveDesktop(w.id));
@@ -343,41 +348,41 @@ const Taskbar = (() => {
                 WindowManager.focusWindow(win.id);
             }
             if (options.page) {
-                const app = AppRegistry.get(appId);
-                if (app && typeof app.showPage === 'function') {
-                    app.showPage(options.page, options.subPage);
-                }
+                try {
+                    const app = await AppLoader.ensureLoaded(appId);
+                    if (app && typeof app.showPage === 'function') {
+                        app.showPage(options.page, options.subPage);
+                    }
+                } catch (e) { /* page target unavailable */ }
             }
         } else {
-            launchApp(appId, options);
+            await launchApp(appId, options);
         }
         Flyout.hide(document.getElementById('start-menu'));
         return true;
     }
 
-    function launchApp(appId, options = {}) {
+    async function launchApp(appId, options = {}) {
         try {
             if (AppLoader.isService(appId)) return false;
         } catch (e) { /* manifest unreadable — fall through */ }
-        const app = AppRegistry.get(appId);
-        if (app) {
-            try {
-                app.launch(options);
-            } catch (err) {
-                // Synchronous launch failure -> crash recovery dialog.
-                // (Lazy access: crashMonitor imports this module, so a
-                // static import here would be a cycle.)
-                try {
-                    window._modules?.CrashMonitor?.reportCrash(appId, {
-                        message: err && err.message ? err.message : String(err),
-                        stack: err && err.stack ? err.stack : '',
-                        source: 'launch'
-                    });
-                } catch (e) { /* recovery UI unavailable */ }
-            }
+        if (!AppLoader.isLaunchable(appId)) return false;
+        try {
+            await AppLoader.launch(appId, options);
             return true;
+        } catch (err) {
+            // Load or launch failure -> crash recovery dialog.
+            // (Lazy access: crashMonitor imports this module, so a
+            // static import here would be a cycle.)
+            try {
+                window._modules?.CrashMonitor?.reportCrash(appId, {
+                    message: err && err.message ? err.message : String(err),
+                    stack: err && err.stack ? err.stack : '',
+                    source: 'launch'
+                });
+            } catch (e) { /* recovery UI unavailable */ }
+            return false;
         }
-        return false;
     }
 
     function addRunningApp(appId, windowData) {

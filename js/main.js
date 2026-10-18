@@ -4,6 +4,7 @@ import { Taskbar } from './modules/taskbar.js';
 import StartMenu from './modules/startMenu.js';
 import ContextMenu from './modules/contextMenu.js';
 import FileSystem from './modules/fileSystem.js';
+import Packages from './modules/packages.js';
 import UserActivity from './modules/userActivity.js';
 import SystemConfig from './modules/systemConfig.js';
 import Scaling from './modules/scaling.js';
@@ -39,18 +40,24 @@ FileSystem.setAccessChecker(FSGuard.check);
 document.addEventListener('DOMContentLoaded', async () => {
     window.SystemConfig = SystemConfig;
 
+    // Register the service worker as early as possible: it virtualizes
+    // /js/apps/<id>/… to serve installed packages from the filesystem.
+    registerServiceWorker();
+
     Scaling.init();
     const s = Scaling.getScale();
     WindowManager.setScale(s);
 
     // Boot order matters: FS first, then users (resolves the boot target,
-    // runs one-time migration), then user-aware app registration and
-    // per-user config/activity. FS init is async because the OPFS backend
-    // reads its tree snapshot (possibly through a worker) before the
-    // synchronous FS API can answer anything.
+    // runs one-time migration), then the package store (scans installed
+    // packages / migrates legacy installs), then the app catalog + lazy
+    // loader, then per-user config/activity. FS init is async because the
+    // OPFS backend reads its tree snapshot (possibly through a worker)
+    // before the synchronous FS API can answer anything.
     await FileSystem.init();
     Users.init();
-    AppSystem.init();
+    await Packages.init();
+    await AppSystem.init();
     UserActivity.init();
     SystemConfig.init();
 
@@ -128,6 +135,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Boot animation → user picker → sign-in → desktop (loginScreen.js).
     LoginScreen.bootSequence();
 });
+
+// Offline shell + virtual package host. Best-effort: without it the OS still
+// runs (builtins load from the network, store apps fall back to the shipped
+// bundle), it just can't serve packages from the filesystem.
+function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    if (location.protocol === 'file:') return;
+    try {
+        const swUrl = new URL('sw.js', document.baseURI).href;
+        navigator.serviceWorker.register(swUrl, { scope: './' }).catch(() => {
+            /* offline/packaging features unavailable — ignore */
+        });
+    } catch (e) { /* noop */ }
+}
 
 function setupDesktopContextMenu() {
     const desktop = document.getElementById('desktop');

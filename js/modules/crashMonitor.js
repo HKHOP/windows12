@@ -152,14 +152,21 @@ const CrashMonitor = (() => {
         clear(appId);
     }
 
-    function launchApp(appId) {
+    async function launchApp(appId) {
         let mod = null;
         try {
-            mod = AppLoader.getModule(appId);
-        } catch { mod = null; }
+            mod = await AppLoader.ensureLoaded(appId);
+        } catch (err) {
+            reportCrash(appId, {
+                message: err && err.message ? err.message : String(err),
+                stack: err && err.stack ? err.stack : '',
+                source: 'launch'
+            });
+            return false;
+        }
         if (!mod || typeof mod.launch !== 'function') return false;
         try {
-            mod.launch();
+            await mod.launch();
         } catch (err) {
             reportCrash(appId, {
                 message: err && err.message ? err.message : String(err),
@@ -172,7 +179,7 @@ const CrashMonitor = (() => {
         return true;
     }
 
-    function restartApp(appId) {
+    async function restartApp(appId) {
         hideDialog(appId);
         try {
             WindowManager.closeAllWindows(appId);

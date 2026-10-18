@@ -250,6 +250,16 @@ const FileSystem = (() => {
         Promise.resolve(backend.delBlob(ref)).catch(() => { /* best effort cleanup */ });
     }
 
+    // Free every blob a node (or folder subtree) points at. Packages store
+    // their files as blob nodes, so removing a folder must not leak bytes.
+    function dropBlobsRecursive(item) {
+        if (!item) return;
+        if (item.blobRef) dropBlob(item.blobRef);
+        if (item.type === 'folder' && item.children) {
+            for (const child of Object.values(item.children)) dropBlobsRecursive(child);
+        }
+    }
+
     function newBlobRef() {
         return 'blob_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e9).toString(36);
     }
@@ -340,7 +350,7 @@ const FileSystem = (() => {
         if (!parent || parent.type !== 'folder') return false;
         if (!parent.children[name]) return false;
         const item = parent.children[name];
-        if (item.blobRef) dropBlob(item.blobRef);
+        dropBlobsRecursive(item);
         delete parent.children[name];
         save();
         return true;
@@ -374,9 +384,7 @@ const FileSystem = (() => {
     function emptyRecycleBin() {
         const recycleBin = getNode(RECYCLE_BIN_PATH);
         if (!recycleBin) return false;
-        Object.values(recycleBin.children).forEach(item => {
-            if (item && item.blobRef) dropBlob(item.blobRef);
-        });
+        Object.values(recycleBin.children).forEach(item => dropBlobsRecursive(item));
         recycleBin.children = {};
         save();
         return true;

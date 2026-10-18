@@ -95,7 +95,7 @@ const BackgroundApps = (() => {
         if (!man) return false;
         if (man.distribution === 'builtin') return true;
         try {
-            return AppLoader.getInstalledIds().includes(id);
+            return AppLoader.isInstalled(id);
         } catch (e) {
             return false;
         }
@@ -103,7 +103,9 @@ const BackgroundApps = (() => {
 
     async function callLifecycle(id, method) {
         try {
-            const mod = AppLoader.getModule(id);
+            // Modules load lazily; background apps/services are the exception
+            // that needs the code at boot (they run without a window).
+            const mod = await AppLoader.ensureLoaded(id);
             if (mod && typeof mod[method] === 'function') {
                 await mod[method]();
             }

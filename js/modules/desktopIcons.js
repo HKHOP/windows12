@@ -5,7 +5,7 @@ import WindowManager from './windowManager.js';
 import UserActivity from './userActivity.js';
 import SystemConfig from './systemConfig.js';
 import Notifications from './notifications.js';
-import { AppRegistry } from './taskbar.js';
+import AppLoader from './appLoader.js';
 import Popup from './popup.js';
 import Scaling from './scaling.js';
 import Sounds from './sounds.js';
@@ -843,12 +843,14 @@ const DesktopIcons = (() => {
     function openFolderInExplorer(path) {
         // Route through the Explorer module so the window actually lands on
         // the folder (reused or freshly opened) instead of just appearing.
-        const explorer = AppRegistry.get('fileExplorer');
-        if (explorer && typeof explorer.openPath === 'function') {
-            explorer.openPath(path);
-        } else if (explorer) {
-            explorer.launch();
-        }
+        // fileExplorer is a builtin, but its module loads lazily on demand.
+        AppLoader.ensureLoaded('fileExplorer').then(explorer => {
+            if (explorer && typeof explorer.openPath === 'function') {
+                explorer.openPath(path);
+            } else if (explorer && typeof explorer.launch === 'function') {
+                explorer.launch();
+            }
+        }).catch(() => { /* crash monitor reports load failures */ });
     }
 
     function openFile(path) {

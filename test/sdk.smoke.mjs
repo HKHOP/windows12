@@ -206,7 +206,7 @@ check('names() lists the nine supported events', SDK.Events.names().length === 9
 
 console.log('[filesystem]');
 const FSMod = await import('../js/modules/fileSystem.js');
-FSMod.default.init();
+await FSMod.default.init();
 check('seed tree exists', SDK.FileSystem.exists(['/', 'users', 'default', 'Documents']));
 check('write→read roundtrip', (() => {
     SDK.FileSystem.createFile(['/', 'users', 'default', 'Documents'], 'sdk-smoke.txt', 'hello-sdk', 'txt');
@@ -252,7 +252,7 @@ check('permissions.require throws when undeclared path revoked', (() => {
 
 console.log('[catalogs]');
 const AppLoaderMod = await import('../js/modules/appLoader.js');
-AppLoaderMod.default.init();
+await AppLoaderMod.default.init();
 check('discord declares network', SDK.Permissions.getDeclared('discord').includes('network'));
 check('copilot declares 4 permissions', SDK.Permissions.getDeclared('copilotButBetter').length === 4);
 check('catalog knows microphone + camera', SDK.Permissions.known().includes('microphone') && SDK.Permissions.known().includes('camera'));
@@ -261,7 +261,12 @@ check('qrStudio declares camera', SDK.Permissions.getDeclared('qrStudio').includ
 check('notepad metadata resolves', SDK.Apps.getMetadata('notepad').name === 'Notepad');
 check('builtin counts as installed', SDK.Apps.isInstalled('notepad') === true);
 check('store list non-empty', SDK.Apps.getAll().filter(m => m.distribution === 'store').length > 5);
-check('shell icons resolve', SDK.Shell.icons.app('notepad').includes('<svg') && SDK.Shell.icons.action('copy').includes('<svg'));
+check('every catalog app resolves a package icon', SDK.Apps.getAll().every(m => typeof SDK.Shell.icons.app(m.id) === 'string' && SDK.Shell.icons.app(m.id).length > 0));
+check('shell icons resolve', SDK.Shell.icons.app('notepad').length > 0 && SDK.Shell.icons.action('copy').includes('<svg'));
+check('catalog exposes lazy entry + icon flags', (() => {
+    const m = AppLoaderMod.default.getManifest('notepad');
+    return !!m && m.entry === 'main.js' && m.hasIcon === true && AppLoaderMod.default.isLoaded('notepad') === false;
+})());
 check('system info shape', (() => { const i = SDK.System.info(); return i.name === 'Windows 12' && typeof i.version === 'string'; })());
 
 console.log('[clipboard honesty]');

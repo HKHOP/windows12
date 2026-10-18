@@ -1,9 +1,11 @@
 import WindowManager from '../../modules/windowManager.js';
 import AppSystem from '../../modules/appSystem.js';
 import AppIcons from '../../modules/appIcons.js';
-import { AppMetadata, AppRegistry } from '../../modules/taskbar.js';
+import { AppMetadata } from '../../modules/taskbar.js';
 import AppLoader from '../../modules/appLoader.js';
+import Packages from '../../modules/packages.js';
 import Permissions from '../../modules/permissions.js';
+import Popup from '../../modules/popup.js';
 import CrashMonitor from '../../modules/crashMonitor.js';
 
 const AppStore = (() => {
@@ -84,9 +86,13 @@ const AppStore = (() => {
     }
 
     function appIconHtml(appId, size = 48) {
-        const svg = AppIcons.get(appId);
-        if (svg) {
-            const sized = svg.replace(/<svg/, `<svg width="${size}" height="${size}"`);
+        const icon = AppIcons.get(appId);
+        if (icon) {
+            // Package icons render as an <img> that already fills its box;
+            // legacy inline SVGs get explicit pixel dimensions.
+            const sized = icon.includes('<img')
+                ? icon
+                : icon.replace(/<svg/, `<svg width="${size}" height="${size}"`);
             return `<div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;border-radius:${size > 40 ? 10 : 8}px;overflow:hidden;flex-shrink:0;">${sized}</div>`;
         }
         const meta = AppMetadata.get(appId);
@@ -293,11 +299,12 @@ const AppStore = (() => {
                 <div style="display:flex;flex-direction:column;gap:8px;">
                     ${ids.map(id => {
                         const d = appDetails[id];
+                        const scope = (Packages.getRecord(id) || {}).scope === 'system' ? 'All users' : 'This user';
                         return `<div style="display:flex;align-items:center;gap:14px;background:#222;border:1px solid #333;border-radius:10px;padding:12px 16px;">
                             ${appIconHtml(id, 44)}
                             <div style="flex:1;min-width:0;">
                                 <div style="font-size:14px;font-weight:600;">${d.name}</div>
-                                <div style="font-size:12px;color:#888;">${d.category || ''}${d.size ? ` • ${d.size}` : ''}</div>
+                                <div style="font-size:12px;color:#888;">${d.category || ''}${d.size ? ` • ${d.size}` : ''} • ${scope}</div>
                             </div>
                             ${isService(id) ? '' : `<button class="store-open-btn" data-app="${id}" style="background:rgba(255,255,255,0.1);border:none;color:white;padding:8px 24px;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px;">Open</button>`}
                             <button class="store-uninstall-btn" data-app="${id}" style="background:transparent;border:1px solid #4d4d4d;color:#ccc;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:12px;">Uninstall</button>
@@ -471,29 +478,86 @@ const AppStore = (() => {
             wireDetail(body);
         }
 
-        function openAppById(appId) {
+        async function openAppById(appId) {
             if (isService(appId)) return;
-            const mod = AppRegistry.get(appId);
-            if (mod && typeof mod.launch === 'function') {
-                try {
-                    mod.launch();
-                } catch (err) {
-                    CrashMonitor.reportCrash(appId, {
-                        message: err && err.message ? err.message : String(err),
-                        stack: err && err.stack ? err.stack : '',
-                        source: 'launch'
-                    });
-                }
+            try {
+                await AppLoader.launch(appId);
+            } catch (err) {
+                CrashMonitor.reportCrash(appId, {
+                    message: err && err.message ? err.message : String(err),
+                    stack: err && err.stack ? err.stack : '',
+                    source: 'launch'
+                });
             }
         }
 
-        // Install with permission consent: apps declaring permissions show
-        // what they want first; declining aborts the install.
-        function doInstall(appId, after) {
-            Permissions.requestInstallConsent(appId).then(ok => {
-                if (ok) AppSystem.installApp(appId);
-                after();
+        // Install = real download: ask for consent, pick the install scope,
+        // then stream the .w12pkg into the virtual filesystem with progress.
+        function askScope() {
+            return Popup.pick(
+                'Install location',
+                'Who should be able to use this app? Installing for all users copies it to Program Files.',
+                ['Just me', 'All users']
+            ).then(choice => {
+                if (choice === 'All users') return 'system';
+                if (choice === 'Just me') return 'user';
+                return null; // cancelled
             });
+        }
+
+        function showProgress(appId) {
+            const name = (appDetails[appId] && appDetails[appId].name) || appId;
+            const overlay = document.createElement('div');
+            overlay.className = 'store-progress-overlay';
+            overlay.style.cssText = 'position:absolute;inset:0;background:rgba(12,12,12,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:50;';
+            overlay.innerHTML = `
+                <div style="display:flex;align-items:center;gap:14px;">
+                    ${appIconHtml(appId, 48)}
+                    <div>
+                        <div style="font-size:15px;font-weight:600;color:white;">Installing ${name}</div>
+                        <div class="store-progress-label" style="font-size:12px;color:#aaa;margin-top:2px;">Starting…</div>
+                    </div>
+                </div>
+                <div style="width:320px;height:6px;border-radius:3px;background:#333;overflow:hidden;">
+                    <div class="store-progress-bar" style="width:0%;height:100%;background:#0078D4;transition:width 0.2s;"></div>
+                </div>`;
+            el.appendChild(overlay);
+            return overlay;
+        }
+
+        function updateProgress(overlay, ratio, label) {
+            const bar = overlay.querySelector('.store-progress-bar');
+            const lbl = overlay.querySelector('.store-progress-label');
+            if (bar) bar.style.width = Math.round(Math.max(0, Math.min(1, ratio || 0)) * 100) + '%';
+            if (lbl && label) lbl.textContent = label + '…';
+        }
+
+        async function doInstall(appId, after) {
+            const consented = await Permissions.requestInstallConsent(appId);
+            if (!consented) { after(); return; }
+
+            const scope = await askScope();
+            if (!scope) { after(); return; }
+
+            const overlay = showProgress(appId);
+            try {
+                await AppSystem.installApp(appId, {
+                    scope,
+                    onProgress: (ratio, label) => updateProgress(overlay, ratio, label)
+                });
+            } catch (err) {
+                overlay.remove();
+                Popup.error('Install failed', (err && err.message) || 'The app could not be installed.');
+                after();
+                return;
+            }
+            overlay.remove();
+            after();
+        }
+
+        async function doUninstall(appId, after) {
+            await AppSystem.uninstallApp(appId);
+            after();
         }
 
         function wire(container) {
@@ -553,8 +617,7 @@ const AppStore = (() => {
                     e.stopPropagation();
                     const appId = btn.getAttribute('data-app');
                     if (!appId) return;
-                    AppSystem.uninstallApp(appId);
-                    refresh();
+                    doUninstall(appId, refresh);
                 });
             });
 
@@ -598,8 +661,7 @@ const AppStore = (() => {
                     e.stopPropagation();
                     const appId = btn.getAttribute('data-app');
                     if (!appId) return;
-                    AppSystem.uninstallApp(appId);
-                    showAppDetail(appId);
+                    doUninstall(appId, () => showAppDetail(appId));
                 });
             });
             container.querySelectorAll('.store-discover-card').forEach(card => {

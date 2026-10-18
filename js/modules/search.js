@@ -1,4 +1,4 @@
-import { AppRegistry, AppMetadata } from './taskbar.js';
+import { AppMetadata } from './taskbar.js';
 import UserActivity from './userActivity.js';
 import FileSystem from './fileSystem.js';
 import AppIcons from './appIcons.js';
@@ -29,21 +29,16 @@ const Search = (() => {
     }
 
     function getAllApps() {
-        const all = AppRegistry.getAll();
-        return Object.entries(all)
-            .filter(([id]) => {
-                // Services are uninstall-only: never searchable/launchable.
-                try {
-                    return !AppLoader.isService(id);
-                } catch (e) {
-                    return true;
-                }
-            })
-            .map(([id, app]) => ({
-                id,
-                name: AppMetadata.get(id).name,
-                icon: AppIcons.get(id)
-            }));
+        // The catalog is the source of truth; installed store apps join the
+        // builtins, services stay hidden, names/icons come from manifests.
+        return AppLoader.getAll()
+            .filter(m => !m.service && AppLoader.isLaunchable(m.id))
+            .map(m => ({
+                id: m.id,
+                name: AppMetadata.get(m.id).name,
+                icon: AppIcons.get(m.id)
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
     }
 
     function getRecentApps() {
@@ -56,7 +51,7 @@ const Search = (() => {
         return ids.map(id => {
             const meta = AppMetadata.get(id);
             return { id, name: meta.name, icon: AppIcons.get(id) };
-        }).filter(a => AppRegistry.get(a.id));
+        }).filter(a => AppLoader.isLaunchable(a.id));
     }
 
     function searchFiles(query) {
@@ -207,9 +202,8 @@ const Search = (() => {
         panel.querySelectorAll('[data-app]').forEach(el => {
             el.addEventListener('click', () => {
                 const appId = el.dataset.app;
-                const app = AppRegistry.get(appId);
-                if (app) {
-                    app.launch();
+                if (AppLoader.isLaunchable(appId)) {
+                    AppLoader.launch(appId).catch(() => { /* crash monitor reports */ });
                     close();
                 }
             });
@@ -219,17 +213,13 @@ const Search = (() => {
             el.addEventListener('click', () => {
                 const filePath = el.dataset.file.split('/');
                 const fileName = filePath.pop();
-                const ext = fileName.split('.').pop().toLowerCase();
                 // Shell-owned read on behalf of the user's search click.
                 const g = window._FSGuard;
                 const read = g ? g.asShell(() => FileSystem.readFile(filePath)) : () => FileSystem.readFile(filePath);
                 const content = read();
                 if (content === null) return;
-                const app = AppRegistry.get('notepad');
-                if (app) {
-                    app.launch();
-                    close();
-                }
+                AppLoader.launch('notepad').catch(() => { /* crash monitor reports */ });
+                close();
             });
         });
     }
