@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4982] - 2026-10-18
+
+### Changed
+- UAC now uses a true **secure desktop**: while the prompt is open every window, desktop icon and the taskbar are hidden and the wallpaper is stretched to fill the screen and dimmed, leaving only the centered User Account Control dialog visible. New `body.uac-active` rules in `css/main.css`, toggled by `js/modules/uac.js`
+
 ## [12.0.4981] - 2026-10-18
 
 ### Added
