@@ -30,6 +30,7 @@ import Sessions from './modules/sessions.js';
 import LockScreen from './modules/lockScreen.js';
 import WindowState from './modules/windowState.js';
 import NetworkStatus from './modules/networkStatus.js';
+import Tray from './modules/tray.js';
 
 // Filesystem access policy: app code may always touch its own AppData,
 // anything else requires the 'filesystem' permission (see fsGuard.js).
@@ -136,6 +137,7 @@ async function bootShell() {
 
     WindowManager.init();
     Taskbar.init();
+    Tray.init();
     StartMenu.init();
     ContextMenu.init();
     DesktopIcons.init();
@@ -208,6 +210,7 @@ async function activateSession(userId) {
     Taskbar.activate();
     VirtualDesktops.activate(userId);
     try { await BackgroundApps.activate(userId); } catch (e) { /* keep the session usable */ }
+    Tray.activate(userId);
     WindowManager.applyVisibility();
 }
 
@@ -216,6 +219,7 @@ async function activateSession(userId) {
 async function closeSession(userId) {
     try { WindowManager.closeWindowsForUser(userId); } catch (e) { /* noop */ }
     try { await BackgroundApps.stopUser(userId); } catch (e) { /* noop */ }
+    try { Tray.closeUser(userId); } catch (e) { /* noop */ }
 }
 
 // Offline shell + virtual package host. Best-effort: without it the OS still

@@ -994,6 +994,67 @@ return {
 
 ---
 
+## 22.5 System Tray (app icons)
+
+Apps that can run in the background can put an icon in the taskbar notification area (next to the Wi-Fi indicator). The icon outlives the app's window, so a headless app stays reachable: click handlers, a right-click menu, a tooltip, and a live icon + badge.
+
+**Requirement:** the app must be background-capable — `"background": true` (or the `"background"` permission, or `"service": true`) in `manifest.json`. Otherwise an icon could not outlive the window it belongs to, and the SDK throws `PERMISSION_DENIED`.
+
+**Import (SDK):**
+
+```js
+import { createApp } from '../../sdk/index.js';
+// inside launch() and/or onBackground():
+const app = createApp({ id: 'myApp', name: 'My App' });
+
+const icon = app.tray.register({
+    id: 'status',                              // unique per app; default 'default'
+    icon: '<svg viewBox="0 0 24 24">…</svg>',  // inline SVG, a URL, or a descriptor
+    tooltip: 'My App — idle',
+    badge: 3,                                  // small count/dot overlay (null clears)
+    onClick: () => app.background.bringToForeground(),
+    menu: [
+        { label: 'Open', action: () => app.background.bringToForeground() },
+        'separator',
+        { label: 'Hide icon', action: () => app.tray.remove('status') }
+    ]
+});
+
+// Live updates (all chainable):
+icon.setIcon(nextSvg).setTooltip('Working…').setBadge(0);
+icon.remove();
+```
+
+**Icon forms:** inline SVG markup (`'<svg…>'`), an image URL (build app-relative URLs with `new URL('assets/tray.svg', import.meta.url)`), or a descriptor `{ svg }`, `{ app: 'notepad' }`, `{ action: 'refresh' }`, `{ setting: 'power' }`, `{ url, size }`. Leave it out to use the app's own package icon. Unlike the shell system icons, app tray icons are **not** recolored — your authored colors are kept.
+
+**`register(spec)` returns a handle:**
+
+| Handle method | Description |
+|---|---|
+| `setIcon(icon)` / `setTooltip(text)` / `setBadge(value)` / `setVisible(bool)` | Live-update one property (chainable). |
+| `setMenu(items)` | Replace the right-click menu (same item shape as `Shell.contextMenu`). |
+| `onClick(fn)` / `onDoubleClick(fn)` / `onContextMenu(fn)` | Replace handlers: `fn({ appId, id })` (context menu: `{ appId, id, x, y }`). |
+| `update(patch)` | Apply several fields at once: `{ icon, tooltip, badge, visible, menu, onClick, … }`. |
+| `remove()` | Remove this icon. |
+
+**Namespace (`app.tray` / SDK `Tray`):**
+
+| Method | Description |
+|---|---|
+| `canUse(appId)` → `boolean` | Background-capability check. |
+| `register(spec)` / `registerMany(specs)` | Add one / many icons (idempotent per `spec.id`). |
+| `update(iconId, patch)` | Update an icon by id (throws `NOT_FOUND`). |
+| `remove(iconId)` / `removeAll()` | Remove one / every icon of the app. |
+| `get(iconId)` / `list()` | Inspect registered handles. |
+
+**Behaviour & lifecycle:**
+- **Default left click** (no `onClick`): opens/focuses the app if it is launchable. Right-click shows the `menu` you supply, or calls `onContextMenu` for a custom surface; with neither it does nothing.
+- Icons are **per session**: only the foreground profile's icons are shown (see concurrent sessions).
+- Icons are removed automatically when the app is uninstalled, its session signs out, or a headless app is stopped (`BackgroundApps`) — but a well-behaved app clears its own icons in `onShutdown()`.
+- Register icons from `launch()` and/or `onBackground()`. `register` is idempotent per `id`, so re-registering on a session switch just refreshes the icon.
+
+---
+
 ## 23. Keyboard Shortcuts
 
 **Import:** `import Keyboard from '../../modules/keyboard.js';`
@@ -1073,7 +1134,7 @@ Rules of the road:
 
 **Why it exists.** Apps used to import OS internals directly (`../../modules/windowManager.js`, ...), coupling every app to file paths that may move. The SDK (`js/sdk/`) is the stable public contract: one entry point, validated arguments, coherent errors, and a bound per-app context. Internals keep evolving underneath; SDK apps keep working.
 
-**Status: stable/public** (contract v1.1.0, `SDK_VERSION`). Experimental: nothing in v1 -- every namespace below is stable. Internal: everything under `js/modules/` remains internal; use it only when the SDK genuinely lacks something, and expect it to move.
+**Status: stable/public** (contract v1.5.0, `SDK_VERSION`). Experimental: nothing in v1 -- every namespace below is stable. Internal: everything under `js/modules/` remains internal; use it only when the SDK genuinely lacks something, and expect it to move.
 
 ### Import (primary style: one bound context)
 
@@ -1128,6 +1189,7 @@ Each `js/sdk/*.js` file is a thin facade over one internal module -- no logic is
 | `app.permissions` / `Permissions` | capabilities | `has/require(throws)/getDeclared/catalog/iconFor/request` (grants stay user-owned); known ids: `filesystem`, `notifications`, `network`, `clipboard`, `background`, `microphone`, `camera` |
 | `app.lifecycle` / `Lifecycle` | close veto | `onClose/offClose` (per app), `onWindowClose/offWindowClose` (per window — runs before the app handler, any `false` vetoes just that window); background hooks (`onBackground/onForeground/onShutdown` exports) are manifest-declared |
 | `app.background` / `Background` | headless | `canRun/isService/isBackground/running/goBackground/bringToForeground/startService/stopService` |
+| `app.tray` / `Tray` | system tray | `register(spec)` → handle (`setIcon/setTooltip/setBadge/setVisible/setMenu/onClick/onDoubleClick/onContextMenu/update/remove`), `registerMany/update/remove/removeAll/get/list/canUse` — app icons in the notification area (click/right-click/badge, live icon), requires background capability (§22.5) |
 | `app.net` / `Net` | peer messaging | `createChannel({name, transport})` → `{ send/sendTo/close, on('message/peer-open/peer-close') }`; transports `local` (BroadcastChannel `w12-net/<name>`) + `webrtc` (manual invite/answer codes, STUN-only); `discover(name)` presence pings; 6-char rendezvous pairing `createShortInvite` → `{ code, waitForController }` / `acceptShortInvite` → `{ connected }` (needs internet for the relay; full codes stay the offline fallback) |
 | `app.inject` / `Inject` | synthetic input | `key({type, code, key})` (dispatches to focused element/document), `pointer(element, {x,y,type,button})` |
 | `app.scripts` / `Scripts` | script engines | `runBatch/runVBScript/runPowerShell(source, {cwd,args,onOutput,noProfile,allowNetwork})` → `{output,errors,exitCode,cwd}`; `runFile(path, opts)` dispatches `.bat/.cmd/.vbs/.vbe/.ps1/.psm1` (PS policy enforced); `detectLanguage/supportedExtensions`. Bound `app.scripts` tags job toasts to your app and follows your `network` permission; scripts run with your app's filesystem access |
@@ -1174,11 +1236,11 @@ The SDK is a **stability facade, not a sandbox** -- apps share one JS context, s
 
 ### Versioning
 
-`SDK_VERSION` (`'1.3.0'`) is independent of the OS version. Within major 1, namespaces only gain methods; renames/removals wait for a major bump and a migration note here. v1.1.0 added: window geometry/state (`getBounds/setBounds`, `isMaximized/maximize/unmaximize`, `isResizable/setResizable`, `isDragging/isResizing` + `onDragState/onResizeState/onBoundsChanged`, `setTitle/setMinSize/center/getDesktopArea/getFocused`), the `microphone` + `camera` permissions, and the `Media` namespace (`app.media`). v1.2.0 added: game/real-time support — `PointerLock` (`app.pointerLock`), `Input.keyState` (`app.input`), `Audio` (`app.audio`), window lifecycle subscriptions (`WindowManager.onClosed/onMinimizeState/onFocusChanged` + matching `Events` names), true fullscreen (`setFullscreen/exitFullscreen/isFullscreen`), and per-window close hooks (`Lifecycle.onWindowClose`). v1.3.0 added: peer messaging — `Net` (`app.net`, `local` + manual-signaling `webrtc` transports, `discover`) and synthetic input — `Inject` (`app.inject`, `key` + `pointer`); `Apps.install(id, { scope })` gained the optional `scope` ('user' | 'system') argument.
+`SDK_VERSION` (`'1.5.0'`) is independent of the OS version. Within major 1, namespaces only gain methods; renames/removals wait for a major bump and a migration note here. v1.1.0 added: window geometry/state (`getBounds/setBounds`, `isMaximized/maximize/unmaximize`, `isResizable/setResizable`, `isDragging/isResizing` + `onDragState/onResizeState/onBoundsChanged`, `setTitle/setMinSize/center/getDesktopArea/getFocused`), the `microphone` + `camera` permissions, and the `Media` namespace (`app.media`). v1.2.0 added: game/real-time support — `PointerLock` (`app.pointerLock`), `Input.keyState` (`app.input`), `Audio` (`app.audio`), window lifecycle subscriptions (`WindowManager.onClosed/onMinimizeState/onFocusChanged` + matching `Events` names), true fullscreen (`setFullscreen/exitFullscreen/isFullscreen`), and per-window close hooks (`Lifecycle.onWindowClose`). v1.3.0 added: peer messaging — `Net` (`app.net`, `local` + manual-signaling `webrtc` transports, `discover`) and synthetic input — `Inject` (`app.inject`, `key` + `pointer`); `Apps.install(id, { scope })` gained the optional `scope` ('user' | 'system') argument. v1.4.0 added: script engines — `Scripts` (`app.scripts`, `runBatch/runVBScript/runPowerShell/runFile`, `.bat/.cmd/.vbs/.vbe/.ps1/.psm1`). v1.5.0 added: the system tray — `Tray` (`app.tray`): background-capable apps can register notification-area icons with click/double-click/right-click handlers, a context menu, a tooltip and a live icon + badge (§22.5).
 
 ### Test coverage
 
-`node test/sdk.smoke.mjs` (zero dependencies) stubs the browser surface and imports the real SDK, filesystem, catalog and lazy loader, asserting 124 checks: surface, error codes, shortcut dispatch/passthrough/unregister, events (incl. window lifecycle), filesystem roundtrip + recycle, sandbox scoping + traversal rejection, catalogs (incl. microphone/camera grants and package icons / lazy-entry flags), accounts + UAC (default administrator, standard-by-default new accounts, last-administrator demote/delete guardrails, UAC API), clipboard denial honesty, headless window create/close, window geometry + state (bounds, resizable lock, maximize, minimize, drag/resize subscriptions, lifecycle subscriptions, per-window close veto, fullscreen refusal mapping), pointer lock validation, Input keyState tracking/clearing, Audio lazy context + master volume + beep, media denial honesty, virtual-keyboard init/gating/layouts/auto-show. DOM-painted paths (toast animation, live permission prompts, the UAC dialog itself) are exercised in-OS via the sample app. Package *installation* (network download → vFS) runs in the browser, not in this headless suite.
+`node test/sdk.smoke.mjs` (zero dependencies) stubs the browser surface and imports the real SDK, filesystem, catalog and lazy loader, asserting 151 checks: surface, error codes, shortcut dispatch/passthrough/unregister, events (incl. window lifecycle), filesystem roundtrip + recycle, sandbox scoping + traversal rejection, catalogs (incl. microphone/camera grants and package icons / lazy-entry flags), accounts + UAC (default administrator, standard-by-default new accounts, last-administrator demote/delete guardrails, UAC API), clipboard denial honesty, headless window create/close, window geometry + state (bounds, resizable lock, maximize, minimize, drag/resize subscriptions, lifecycle subscriptions, per-window close veto, fullscreen refusal mapping), pointer lock validation, Input keyState tracking/clearing, Audio lazy context + master volume + beep, media denial honesty, tray icon registration/capability/updates/handles, virtual-keyboard init/gating/layouts/auto-show. DOM-painted paths (toast animation, live permission prompts, the UAC dialog itself) are exercised in-OS via the sample app. Package *installation* (network download → vFS) runs in the browser, not in this headless suite.
 
 ---
 

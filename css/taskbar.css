@@ -141,6 +141,60 @@
     background: var(--hover-bg);
 }
 
+/* App tray icons (see js/modules/tray.js). Kept outside #tray-icons so an
+   app's authored SVG keeps its own colors instead of the monochrome recolor. */
+#tray-app-icons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.tray-app-icon {
+    position: relative;
+    width: 24px;
+    height: 24px;
+    padding: 2px;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+    transition: background 0.15s, opacity 0.15s;
+}
+
+.tray-app-icon:hover {
+    background: var(--hover-bg);
+}
+
+.tray-app-icon svg,
+.tray-app-icon img,
+.tray-app-icon .app-icon-img {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
+.tray-app-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3px;
+    box-sizing: border-box;
+    border-radius: 7px;
+    background: #e81123;
+    color: #ffffff;
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 14px;
+    text-align: center;
+    pointer-events: none;
+}
+
 #clock {
     font-size: 12px;
     color: var(--text-primary);
@@ -331,6 +385,12 @@ html[data-taskbar="right"] #taskbar-tray {
 
 html[data-taskbar="left"] #tray-icons,
 html[data-taskbar="right"] #tray-icons {
+    flex-direction: column;
+    gap: 4px;
+}
+
+html[data-taskbar="left"] #tray-app-icons,
+html[data-taskbar="right"] #tray-app-icons {
     flex-direction: column;
     gap: 4px;
 }

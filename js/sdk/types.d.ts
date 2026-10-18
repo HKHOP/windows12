@@ -1,5 +1,5 @@
 // Windows 12 SDK — TypeScript declarations (reference only; the runtime
-// stays dependency-free vanilla JS). SDK contract version 1.4.0.
+// stays dependency-free vanilla JS). SDK contract version 1.5.0.
 declare module '../../sdk/index.js' {
     export const SDK_VERSION: string;
     export function createApp(def: { id: string; name?: string }): BoundApp;
@@ -72,6 +72,32 @@ declare module '../../sdk/index.js' {
         shortcut?: string;
         action?: () => void;
         disabled?: boolean;
+    }
+    export interface TrayIconSpec {
+        id?: string;
+        icon?: string | { svg?: string; app?: string; action?: string; setting?: string; url?: string; size?: number };
+        tooltip?: string;
+        badge?: string | number | null;
+        visible?: boolean;
+        menu?: Array<MenuItem | 'separator'> | (() => Array<MenuItem | 'separator'>);
+        onClick?: (info: { appId: string; id: string }) => void;
+        onDoubleClick?: (info: { appId: string; id: string }) => void;
+        onContextMenu?: (info: { appId: string; id: string; x: number; y: number }) => void;
+    }
+    export interface TrayIconHandle {
+        id: string;
+        appId: string;
+        readonly element: Element | null;
+        setIcon(icon: TrayIconSpec['icon']): TrayIconHandle;
+        setTooltip(text: string): TrayIconHandle;
+        setBadge(value: string | number | null): TrayIconHandle;
+        setVisible(visible: boolean): TrayIconHandle;
+        setMenu(menu: TrayIconSpec['menu']): TrayIconHandle;
+        onClick(fn: TrayIconSpec['onClick'] | null): TrayIconHandle;
+        onDoubleClick(fn: TrayIconSpec['onDoubleClick'] | null): TrayIconHandle;
+        onContextMenu(fn: TrayIconSpec['onContextMenu'] | null): TrayIconHandle;
+        update(patch: Partial<TrayIconSpec>): TrayIconHandle;
+        remove(): boolean;
     }
     export interface BoundApp {
         id: string;
@@ -188,6 +214,16 @@ declare module '../../sdk/index.js' {
             isBackground(): boolean;
             goBackground(): Promise<boolean>;
             bringToForeground(): boolean;
+        };
+        tray: {
+            canUse(): boolean;
+            register(spec?: TrayIconSpec): TrayIconHandle;
+            registerMany(specs: TrayIconSpec[]): TrayIconHandle[];
+            update(id: string, patch: Partial<TrayIconSpec>): TrayIconHandle;
+            remove(id: string): boolean;
+            removeAll(): number;
+            get(id: string): TrayIconHandle | null;
+            list(): TrayIconHandle[];
         };
         media: {
             microphone(constraints?: object): Promise<MediaStream>;
@@ -459,6 +495,16 @@ declare module '../../sdk/index.js' {
         requestCamera(appId: string, constraints?: object): Promise<MediaStream>;
         camera(appId: string, constraints?: object): Promise<MediaStream>;
     };
+    export const Tray: {
+        canUse(appId: string): boolean;
+        register(appId: string, spec?: TrayIconSpec): TrayIconHandle;
+        registerMany(appId: string, specs: TrayIconSpec[]): TrayIconHandle[];
+        update(appId: string, id: string, patch: Partial<TrayIconSpec>): TrayIconHandle;
+        remove(appId: string, id: string): boolean;
+        removeAll(appId: string): number;
+        get(appId: string, id: string): TrayIconHandle | null;
+        list(appId: string): TrayIconHandle[];
+    };
     export interface ScriptOptions {
         cwd?: string[];
         args?: string[];
@@ -509,6 +555,7 @@ declare module '../../sdk/index.js' {
         Lifecycle: typeof Lifecycle;
         Background: typeof Background;
         Media: typeof Media;
+        Tray: typeof Tray;
         PointerLock: typeof PointerLock;
         Input: typeof Input;
         Audio: typeof Audio;

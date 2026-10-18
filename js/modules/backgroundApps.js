@@ -134,6 +134,11 @@ const BackgroundApps = (() => {
                 await mod[method]();
             }
         } catch (e) { /* a broken hook must never take the OS down */ }
+        // A real shutdown is where a headless app stops for good: drop any
+        // tray icons it left behind (window._Tray avoids a static cycle).
+        if (method === 'onShutdown') {
+            try { window._Tray?.removeAll?.(id); } catch (e) { /* noop */ }
+        }
     }
 
     // Is the app running headless for any profile?

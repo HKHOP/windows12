@@ -193,6 +193,7 @@ const CORE_PRECACHE = [
     "./js/modules/systemConfig.js",
     "./js/modules/taskbar.js",
     "./js/modules/touch.js",
+    "./js/modules/tray.js",
     "./js/modules/uac.js",
     "./js/modules/uiIcons.js",
     "./js/modules/userActivity.js",
@@ -235,6 +236,7 @@ const CORE_PRECACHE = [
     "./js/sdk/settings.js",
     "./js/sdk/shell.js",
     "./js/sdk/system.js",
+    "./js/sdk/tray.js",
     "./js/sdk/windowManager.js",
     "./js/workers/opfsWorker.js",
 ];

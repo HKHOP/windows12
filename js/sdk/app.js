@@ -30,6 +30,7 @@ import { Events } from './events.js';
 import { Permissions } from './permissions.js';
 import { Lifecycle } from './lifecycle.js';
 import { Background } from './background.js';
+import { Tray } from './tray.js';
 import { PointerLock } from './pointerLock.js';
 import { Input } from './input.js';
 import { Audio } from './audio.js';
@@ -397,6 +398,20 @@ function createApp(def) {
         bringToForeground: () => Background.bringToForeground(id)
     };
 
+    const tray = {
+        /** Tray icons require background capability. */
+        canUse: () => Tray.canUse(id),
+        /** @param {object} [spec] { id, icon, tooltip, badge, visible, menu, onClick, onDoubleClick, onContextMenu } */
+        register: (spec) => Tray.register(id, spec),
+        /** @param {object[]} specs */
+        registerMany: (specs) => Tray.registerMany(id, specs),
+        update: (iconId, patch) => Tray.update(id, iconId, patch),
+        remove: (iconId) => Tray.remove(id, iconId),
+        removeAll: () => Tray.removeAll(id),
+        get: (iconId) => Tray.get(id, iconId),
+        list: () => Tray.list(id)
+    };
+
     const net = {
         /** @param {object} opts { name, transport?: 'local', meta? } */
         createChannel: (opts) => Net.createChannel(opts),
@@ -459,6 +474,7 @@ function createApp(def) {
         events: Events,
         lifecycle,
         background,
+        tray,
         media,
         pointerLock,
         input,

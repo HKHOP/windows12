@@ -46,6 +46,7 @@ function makeEl(tag) {
                 return { add() {}, remove() {}, contains() { return false; }, toggle() {} };
             }
             if (p === 'appendChild') return (c) => { t.children.push(c); return c; };
+            if (p === 'insertBefore') return (c) => { t.children.push(c); return c; };
             if (p === 'removeChild') return (c) => c;
             if (p === 'addEventListener') return (ev, fn) => { (t._listeners[ev] ||= []).push(fn); };
             if (p === 'removeEventListener') return () => {};
@@ -155,7 +156,7 @@ console.log('import ok\n');
 console.log('[surface]');
 for (const name of ['WindowManager', 'FileSystem', 'Files', 'Notifications', 'Dialogs', 'Keyboard',
     'Clipboard', 'Apps', 'Settings', 'Shell', 'FileAssociations', 'System', 'Events',
-    'Permissions', 'Lifecycle', 'Background', 'Media', 'PointerLock', 'Input', 'Audio',
+    'Permissions', 'Lifecycle', 'Background', 'Media', 'Tray', 'PointerLock', 'Input', 'Audio',
     'Scripts', 'SDKError', 'ErrorCodes', 'createApp']) {
     check(`exports ${name}`, SDK[name] !== undefined && Windows12[name] !== undefined);
 }
@@ -681,6 +682,39 @@ check('app.scripts bound runs PowerShell', (() => {
     const app = SDK.createApp({ id: 'sdkprobe' });
     const r = app.scripts.runPowerShell('Write-Output "bound-sdk"', { noProfile: true });
     return r.output.includes('bound-sdk');
+})());
+
+console.log('[tray]');
+check('Tray.canUse reflects background capability', SDK.Tray.canUse('clock') === true && SDK.Tray.canUse('notepad') === false);
+check('register without background capability → PERMISSION_DENIED',
+    (() => { try { SDK.Tray.register('notepad', {}); return false; } catch (e) { return e.code === 'PERMISSION_DENIED'; } })());
+check('register an icon for a background app', (() => {
+    const h = SDK.Tray.register('clock', { id: 'status', icon: '<svg></svg>', tooltip: 'Clock', badge: 2 });
+    const ok = !!h && h.id === 'status' && h.appId === 'clock'
+        && typeof h.setIcon === 'function' && SDK.Tray.list('clock').length === 1;
+    h.setBadge(0).setTooltip('Done').setVisible(false).setVisible(true);
+    const painted = h.element && h.element.title === 'Done';
+    h.remove();
+    return ok && painted && SDK.Tray.list('clock').length === 0;
+})());
+check('unknown icon update → NOT_FOUND',
+    (() => { try { SDK.Tray.update('clock', 'nope', {}); return false; } catch (e) { return e.code === 'NOT_FOUND'; } })());
+check('remove one + removeAll', (() => {
+    SDK.Tray.register('clock', { id: 'a' });
+    SDK.Tray.register('clock', { id: 'b' });
+    const oneGone = SDK.Tray.remove('clock', 'a') === true && SDK.Tray.get('clock', 'a') === null;
+    const n = SDK.Tray.removeAll('clock');
+    return oneGone && n === 1 && SDK.Tray.list('clock').length === 0;
+})());
+check('bad spec throws INVALID_ARGS',
+    (() => { try { SDK.Tray.register('clock', { onClick: 'x' }); return false; } catch (e) { return e.code === 'INVALID_ARGS'; } })());
+check('app.tray is bound to the app id', (() => {
+    const bound = SDK.createApp({ id: 'clock', name: 'Clock' });
+    if (bound.tray.canUse() !== true) return false;
+    const h = bound.tray.register({ id: 'bound', icon: '<svg></svg>' });
+    const ok = !!h && h.appId === 'clock' && bound.tray.list().length === 1;
+    bound.tray.removeAll();
+    return ok;
 })());
 
 console.log('\n----------------------------------------');
