@@ -4,6 +4,21 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4984] - 2026-10-18
+
+### Added
+- **Machine-wide display settings.** Resolution, display scaling and orientation are now device settings, not per-profile ones: they live in a single global store (`/system/programs data/display/settings.json`, shell-owned) and are read back by `SystemConfig.initGlobal()` / `setGlobal()` / `setGlobals()` / `loadGlobal()` / `isGlobalKey()` in `js/modules/systemConfig.js`. Because they are loaded before any profile exists, the boot, login and lock screens now render at the device's configuration too
+- FSGuard treats the display store as an OS-only zone, so app code can't read or tamper with it
+
+### Changed
+- `js/main.js` loads the global display settings (`SystemConfig.initGlobal()`) before starting `Scaling`, and exposes `window._Scaling` so a machine-wide scaling change repaints the shell
+- Settings > System > Display now says the settings apply to every user and the lock screen, and **changing resolution, scaling or orientation raises a UAC prompt** (administrator consent, or an administrator credential for standard users)
+- The resolution/scaling "keep these changes?" prompt is now a **real Popup window** (`Popup.custom`, via `confirmDisplayChange`) with Revert / Keep changes buttons and the same 15-second auto-revert, replacing the old bottom-right notification-style overlay
+- Global display keys are no longer written to the per-user `config.json` (they were per-profile); the SDK `Settings` JSDoc now describes these keys as machine-wide and privileged
+
+### Fixed
+- Display scaling and resolution no longer drift per profile: a change made by one user now applies to the lock screen and to every other user
+
 ## [12.0.4983] - 2026-10-18
 
 ### Added
