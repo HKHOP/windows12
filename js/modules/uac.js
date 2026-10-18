@@ -8,9 +8,10 @@
 //     a password approves by being selected — a simulation affordance).
 //
 // Elevation is never persistent: every privileged action asks again. The
-// dialog is a fixed, modal overlay drawn above the taskbar and every window
-// (not a draggable shell window) — a stand-in for the Windows secure
-// desktop. Prompts are serialized, one at a time.
+// prompt runs on a real "secure desktop": every window, desktop icon and the
+// taskbar are hidden (body.uac-active, see css/main.css) so only the dimmed,
+// full-screen wallpaper and the centered dialog remain. Prompts are
+// serialized, one at a time.
 //
 // Callers:
 //   UAC.request({ name, message, publisher }) -> Promise<boolean>
@@ -78,7 +79,7 @@ const UAC = (() => {
 
             const root = document.createElement('div');
             root.className = 'uac-root';
-            root.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
+            root.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);';
             root.innerHTML = `
                 <div class="uac-dialog" style="width:480px;max-width:calc(100vw - 40px);background:var(--window-bg,#202020);border:1px solid var(--window-border,#3a3a3a);border-radius:10px;box-shadow:0 24px 70px rgba(0,0,0,0.65);overflow:hidden;animation:windowOpen 0.15s ease-out;">
                     <div style="padding:10px 16px;background:linear-gradient(180deg,#2f63ad,#1f4c8c);color:#fff;font-size:13px;font-weight:600;">User Account Control</div>
@@ -118,10 +119,14 @@ const UAC = (() => {
                 return { user, password: pass ? pass.value : '' };
             };
 
+            let done = false;
             const finish = (approve) => {
+                if (done) return;
+                done = true;
                 let value = false;
                 if (approve && canApprove) value = isAdmin ? true : readCreds();
                 document.removeEventListener('keydown', onKey, true);
+                document.body.classList.remove('uac-active');
                 if (root.parentNode) root.parentNode.removeChild(root);
                 resolve(value);
             };
@@ -134,6 +139,9 @@ const UAC = (() => {
             yesBtn.addEventListener('click', () => finish(true));
             document.addEventListener('keydown', onKey, true);
 
+            // Secure desktop: hide every window, icon and the taskbar, leaving
+            // only the dimmed wallpaper behind the prompt (see css/main.css).
+            document.body.classList.add('uac-active');
             document.body.appendChild(root);
             const focusable = root.querySelector('#uac-pass') || root.querySelector('#uac-user') || yesBtn;
             if (focusable && focusable.focus) focusable.focus();

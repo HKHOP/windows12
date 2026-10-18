@@ -685,3 +685,28 @@ input[type="number"].vk-focused, input[type="search"].vk-focused, input[type="ur
         min-height: 44px;
     }
 }
+
+/* UAC "secure desktop": while a User Account Control prompt is open, only the
+   desktop wallpaper and the prompt remain — every window, icon and the
+   taskbar are hidden (visibility keeps their geometry so they return intact),
+   and the wallpaper is stretched to fill the screen. uac.js toggles
+   body.uac-active. */
+body.uac-active > *:not(.uac-root) {
+    visibility: hidden;
+}
+
+body.uac-active #resolution-layer,
+body.uac-active #desktop {
+    visibility: visible;
+}
+
+body.uac-active #desktop {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+}
+
+body.uac-active #desktop > *,
+body.uac-active #taskbar {
+    visibility: hidden;
+}
