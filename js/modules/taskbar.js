@@ -608,9 +608,9 @@ const Taskbar = (() => {
             clearTimeout(switcherHoverTimer);
             switcherHoverTimer = null;
         }
-        // End any active peek
+        // End any active peek - use local peekWindow to properly reset peekEnabled flag
         if (peekEnabled) {
-            WindowManager.peekWindow(null, false);
+            peekWindow(null, false);
             peekEnabled = false;
         }
     }
@@ -634,7 +634,7 @@ const Taskbar = (() => {
     }
 
     function peekWindow(windowId, enable) {
-        if (enable) {
+        if (enable && windowId) {
             if (!peekEnabled) {
                 // First time enabling peek for this app - dim all other windows
                 const appId = currentSwitcherAppId;
@@ -654,17 +654,9 @@ const Taskbar = (() => {
                 }
                 peekEnabled = true;
             }
-        } else if (peekEnabled) {
-            // Disable peek - restore all windows
-            const appId = currentSwitcherAppId;
-            if (appId) {
-                const wins = WindowManager.getWindowsByApp(appId).filter(w => isOnActiveDesktop(w.id));
-                wins.forEach(w => {
-                    w.element.classList.remove('peek-dimmed');
-                    w.element.classList.remove('peek-target');
-                    w.element.style.zIndex = '';
-                });
-            }
+        } else {
+            // Disable peek - restore all windows (not just current app)
+            WindowManager.peekWindow(null, false);
             peekEnabled = false;
         }
     }
