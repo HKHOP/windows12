@@ -4,6 +4,29 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4980] - 2026-10-18
+
+### Added
+- **App packages.** Apps are now self-contained *packages* (`js/apps/<id>/`) that the shell imports **lazily on first launch** — `js/apps/registry.js` became a metadata-only catalog and `js/modules/appLoader.js` imports an app's `main.js` with a dynamic `import()` the first time it opens (`ensureLoaded`/`launch` are async; `getModule` stays synchronous, returning loaded-or-null). Start, Search, the Store and file associations read the catalog without evaluating any app, so 50+ apps no longer evaluate at boot
+- Package icon assets: every app now ships `assets/icon.svg` (extracted from the old inline `appIcons.js` table); the registry records `hasIcon`, and `AppIcons.get(id)` returns an `<img>` for packaged apps (the inline table now carries shell-only glyphs). New `.app-icon-img` sizing, overridden by the taskbar (24px) and window title bar (16px)
+- `js/modules/packages.js` — the package service: scans installed package folders, downloads + unpacks `.w12pkg` archives into the virtual filesystem, uninstalls, migrates legacy installs, and publishes the active user to the service worker
+- Microsoft Store installs are real: **Download → copy into the vFS → execute from disk**. Install asks permission consent, then asks the install scope (*Just me* → `/users/<uid>/AppData/Programs/<id>/`, *All users* → `/Program Files/<id>/`) and shows an inline progress overlay; the library shows each app's scope. The package folder existing *is* the install record (no separate install list)
+- `build-packages.js` — zero-dependency builder that packs each store app into `packages/<id>.w12pkg` (uncompressed ZIP, read back by `js/modules/zip.js`)
+- `sw.js` (registered from `js/main.js`) — a service worker that (1) precaches the shell and every builtin app file for offline use and (2) acts as a **virtual package host**: it intercepts the canonical `/js/apps/<id>/…` URL and serves installed packages straight out of the OPFS virtual filesystem, so no import path is ever rewritten. Uninstalled store *code* returns 404; static assets fall through to the shipped bundle so catalogs can render icons before install; with no OPFS tree (legacy backend) the worker defers entirely
+
+### Changed
+- `build-registry.js` now emits a metadata-only registry (`entry`, `hasIcon`, `icon`, `permissions`, associations, store block) plus GENERATED `sw.js` blocks — the app distribution map, the core shell precache and the full builtin-app precache (no more hand-maintained lists)
+- Installed store apps resolve through the canonical app URL with a `?w12pkg=<version>` cache-buster; builtins (and the no-worker fallback) load from the shipped bundle unchanged
+- `Taskbar.openApp`/`launchApp`, `AppLoader.launch` and association `open` handlers are async (lazy import); call sites in Search, the Start menu, Desktop icons and Remote Desktop were updated
+- App icons render as `<img src="js/apps/<id>/assets/icon.svg">` everywhere the shell shows an app (Start, Search, Store, taskbar, title bar)
+
+### Removed
+- Static app imports from the registry (`APP_MODULES`) — the shell no longer evaluates every app module at boot
+
+### Fixed
+- Deleting a folder (or emptying the recycle bin) now frees the blob storage of the files inside it, not just the top-level item — uninstalling a package no longer leaks its unpacked files
+- The SDK smoke test now awaits the async `FileSystem.init()` / `AppLoader.init()` (and asserts package icons + lazy-entry catalog flags)
+
 ## [12.0.4979] - 2026-10-18
 
 ### Added
