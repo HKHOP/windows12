@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4992] - 2026-10-18
+
+### Changed
+- **Settings > Personalization** — Moved "Config File" reset section to a new "Recovery" category under System; removed "User Name" section (account name is managed in Accounts)
+
+### Added
+- **Settings > System > Recovery** — New subpage for recovery, format, and reset options including Config File reset to defaults
+
 ## [12.0.4991] - 2026-10-18
 
 ### Added

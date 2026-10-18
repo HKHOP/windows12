@@ -47,7 +47,8 @@ const Settings = (() => {
         storage: { name: 'Storage', icon: UIIcons.setting('storage', 20) },
         multitasking: { name: 'Multitasking', icon: UIIcons.setting('multitasking', 20) },
         touchpad: { name: 'Touchpad', icon: UIIcons.setting('touchpad', 20) },
-        touchKeyboard: { name: 'Touch keyboard', icon: TOUCH_KBD_ICON }
+        touchKeyboard: { name: 'Touch keyboard', icon: TOUCH_KBD_ICON },
+        recovery: { name: 'Recovery', icon: UIIcons.setting('recovery', 20) }
     };
 
     function currentUserName() {
@@ -218,6 +219,7 @@ const Settings = (() => {
             case 'multitasking': renderMultitaskingSettings(el); break;
             case 'touchpad': renderTouchpadSettings(el); break;
             case 'touchKeyboard': renderTouchKeyboardSettings(el); break;
+            case 'recovery': renderRecoverySettings(el); break;
         }
     }
 
@@ -866,6 +868,25 @@ const Settings = (() => {
         });
     }
 
+    function renderRecoverySettings(el) {
+        el.innerHTML += `
+            <div style="display:flex;flex-direction:column;gap:16px;">
+                <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
+                    <div style="font-size:14px;font-weight:500;margin-bottom:8px;">Config File</div>
+                    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Edit config.json in File Explorer > Documents to change settings directly.</p>
+                    <button class="reset-btn" style="background:rgba(255,80,80,0.2);border:1px solid rgba(255,80,80,0.3);border-radius:6px;padding:8px 16px;color:#ff6666;cursor:pointer;font-size:14px;">Reset to Defaults</button>
+                </div>
+            </div>
+        `;
+
+        const resetBtn = el.querySelector('.reset-btn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                SystemConfig.reset();
+            });
+        }
+    }
+
     function renderPersonalization(el) {
         const config = SystemConfig.getAll();
         el.innerHTML = `
@@ -964,17 +985,6 @@ const Settings = (() => {
                 <div style="display:flex;flex-direction:column;gap:8px;">
                     ${GROUPING_MODES.map(g => groupingOption(g, config.taskbarGrouping)).join('')}
                 </div>
-            </div>
-
-            <div class="settings-section" style="margin-bottom:24px;">
-                <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">User Name</h3>
-                <div style="font-size:14px;color:var(--text-secondary);">Your account name is managed in <b>Accounts</b>.</div>
-            </div>
-
-            <div class="settings-section">
-                <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Config File</h3>
-                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">Edit config.json in File Explorer > Documents to change settings directly.</p>
-                <button class="reset-btn" style="background:rgba(255,80,80,0.2);border:1px solid rgba(255,80,80,0.3);border-radius:6px;padding:8px 16px;color:#ff6666;cursor:pointer;font-size:14px;">Reset to Defaults</button>
             </div>
         `;
 
@@ -1623,14 +1633,6 @@ const Settings = (() => {
                 renderPersonalization(win.element.querySelector('.settings-content'));
             });
         });
-
-        const resetBtn = win.element.querySelector('.reset-btn');
-        if (resetBtn) {
-            resetBtn.addEventListener('click', () => {
-                SystemConfig.reset();
-                renderPersonalization(win.element.querySelector('.settings-content'));
-            });
-        }
     }
 
     function showPage(page, subPage = null) {
