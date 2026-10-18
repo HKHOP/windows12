@@ -5,6 +5,7 @@ import AppIcons from '../../modules/appIcons.js';
 import Touch from '../../modules/touch.js';
 import Users from '../../modules/users.js';
 import IframeViewportFix from '../../modules/iframeViewportFix.js';
+import NetworkStatus from '../../modules/networkStatus.js';
 
 const Browser = (() => {
     const icon = AppIcons.get('browser');
@@ -547,6 +548,8 @@ const Browser = (() => {
             const tab = tabState.tabs.get(tabState.activeTabId);
             if (!tab) return;
 
+            hideOfflinePage();
+
             if (tab.iframeEl) {
                 tab.iframeEl.style.display = 'none';
             }
@@ -629,6 +632,50 @@ const Browser = (() => {
             syncPane();
         }
 
+        // A remote page cannot load with no connection — show a clean,
+        // retryable "offline" card instead of a blank/broken frame.
+        function isExternalUrl(url) {
+            return /^https?:\/\//i.test(url || '');
+        }
+
+        function offlinePanel() {
+            let panel = contentEl.querySelector('.browser-offline');
+            if (!panel) {
+                panel = document.createElement('div');
+                panel.className = 'browser-offline';
+                contentEl.appendChild(panel);
+            }
+            return panel;
+        }
+
+        function showOfflinePage(tab) {
+            hideNewTab();
+            if (tab.iframeEl) tab.iframeEl.style.display = 'none';
+            statusDot.className = 'browser-status-dot error';
+            statusText.textContent = 'Offline';
+            statusHost.textContent = getHost(tab.url);
+
+            const panel = offlinePanel();
+            panel.innerHTML =
+                '<div class="browser-offline-card">' +
+                    '<div class="browser-offline-glyph">📶</div>' +
+                    '<div class="browser-offline-title">You\'re not connected</div>' +
+                    '<div class="browser-offline-text">This page can\'t be reached because you\'re offline. Your files and installed apps keep working without a connection.</div>' +
+                    '<div class="browser-offline-url"></div>' +
+                    '<button class="browser-offline-retry">Try again</button>' +
+                '</div>';
+            panel.querySelector('.browser-offline-url').textContent = tab.url || '';
+            panel.querySelector('.browser-offline-retry')
+                .addEventListener('click', () => loadUrlInTab(tab, tab.url || ''));
+            panel.style.display = 'flex';
+            syncPane();
+        }
+
+        function hideOfflinePage() {
+            const panel = contentEl.querySelector('.browser-offline');
+            if (panel) panel.style.display = 'none';
+        }
+
         function navigateTo(url) {
             const tab = tabState.tabs.get(tabState.activeTabId);
             if (!tab) return;
@@ -656,6 +703,15 @@ const Browser = (() => {
             tab.displayUrl = url;
 
             updateUrlBar(tab);
+
+            // No connection + a remote URL: show the offline card instead of a
+            // frame that will only ever render blank.
+            if (isExternalUrl(url) && !NetworkStatus.isOnline()) {
+                tab.isLoading = false;
+                showOfflinePage(tab);
+                return;
+            }
+            hideOfflinePage();
 
             if (clockInterval) { clearInterval(clockInterval); clockInterval = null; }
             statusDot.className = 'browser-status-dot loading';
@@ -965,6 +1021,17 @@ const Browser = (() => {
         // listener once the window is gone.
         window.addEventListener('touchpad-change', onTouchpadChange);
         syncPane();
+
+        // Back online while an offline card is showing: reload that page.
+        const stopNetworkWatch = NetworkStatus.onChange((isOnlineNow) => {
+            if (!el.isConnected) { stopNetworkWatch(); return; }
+            if (!isOnlineNow) return;
+            const panel = contentEl.querySelector('.browser-offline');
+            const tab = tabState.tabs.get(tabState.activeTabId);
+            if (panel && panel.style.display !== 'none' && tab && tab.url) {
+                loadUrlInTab(tab, tab.url);
+            }
+        });
 
         if (!isExtNoticeDismissed()) {
             setTimeout(() => showExtNotice(), 600);

@@ -35,16 +35,20 @@ const WindowsUpdate = (() => {
     }
 
     async function checkForUpdates(silent = false) {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            if (!silent) Popup.warn('Windows Update', "You're offline. Connect to the internet to check for updates.");
+            return false;
+        }
         try {
             const response = await fetch('https://raw.githubusercontent.com/HKHOP/windows12/main/CHANGELOG.md?t=' + Date.now());
             if (!response.ok) {
-                if (!silent) Popup.warn('Windows Update', 'Unable to check for updates. Please try again later.');
+                if (!silent) Popup.warn('Windows Update', 'Unable to check for updates. Check your connection and try again.');
                 return false;
             }
             const text = await response.text();
             const match = text.match(/## \[(\d+\.\d+\.\d+)\]/);
             if (!match) {
-                if (!silent) Popup.warn('Windows Update', 'Unable to check for updates. Please try again later.');
+                if (!silent) Popup.warn('Windows Update', 'Unable to check for updates. Check your connection and try again.');
                 return false;
             }
             latestVersion = match[1];
@@ -59,7 +63,7 @@ const WindowsUpdate = (() => {
                 return false;
             }
         } catch (err) {
-            if (!silent) Popup.warn('Windows Update', 'Unable to check for updates. Please try again later.');
+            if (!silent) Popup.warn('Windows Update', 'Unable to check for updates. Check your connection and try again.');
             return false;
         }
     }

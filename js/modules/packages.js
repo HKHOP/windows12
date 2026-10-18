@@ -174,11 +174,14 @@ const Packages = (() => {
         }
 
         onProgress && onProgress(0.02, 'Connecting');
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            throw new Error("You're offline — connect to the internet to download apps from the Store.");
+        }
         let res;
         try {
             res = await fetch(pkgUrl(id), { cache: 'no-store' });
         } catch (e) {
-            throw new Error('Package download failed (offline?)');
+            throw new Error("Couldn't reach the Store — check your internet connection and try again.");
         }
         if (!res.ok) throw new Error('Package download failed (' + res.status + ')');
         const buf = new Uint8Array(await res.arrayBuffer());

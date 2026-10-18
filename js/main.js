@@ -29,6 +29,7 @@ import IframeViewportFix from './modules/iframeViewportFix.js';
 import Sessions from './modules/sessions.js';
 import LockScreen from './modules/lockScreen.js';
 import WindowState from './modules/windowState.js';
+import NetworkStatus from './modules/networkStatus.js';
 
 // Filesystem access policy: app code may always touch its own AppData,
 // anything else requires the 'filesystem' permission (see fsGuard.js).
@@ -70,6 +71,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Register the service worker as early as possible: it virtualizes
     // /js/apps/<id>/… to serve installed packages from the filesystem.
     registerServiceWorker();
+
+    // Device connectivity: paints the tray Wi-Fi indicator and gives online
+    // features a shared, clean "you're offline" surface. Runs before the
+    // shell so the icon is correct from the first paint.
+    NetworkStatus.init();
 
     // Phase 1 — the MACHINE, not a user: filesystem + account store only.
     // The login screen can therefore show the picker immediately; nothing

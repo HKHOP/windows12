@@ -95,7 +95,7 @@ function launch() {
                 });
                 results.appendChild(b);
             });
-        } catch { results.innerHTML = '<div style="font-size:12px;">Search failed — offline?</div>'; }
+        } catch { results.innerHTML = '<div style="font-size:12px;">Search failed — check your connection and try again.</div>'; }
     }
     el.querySelector('.w-go').addEventListener('click', search);
     q.addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
