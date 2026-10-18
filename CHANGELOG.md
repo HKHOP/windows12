@@ -4,6 +4,22 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4985] - 2026-10-18
+
+### Removed
+- **Display orientation.** It never affected anything the resolution/scaling settings didn't already handle, so the `displayOrientation` global key, its Settings > System > Display control, its SDK entry and its smoke test are gone (`js/modules/systemConfig.js`, `js/apps/settings/main.js`, `js/sdk/settings.js`)
+
+### Changed
+- The desktop wallpaper is now painted on a full-screen `#wallpaper` layer inside `#resolution-layer` (instead of on `#desktop`), so it extends beneath the taskbar; `#desktop` remains the (now transparent) work area for icons and windows (`index.html`, `css/main.css`, `js/modules/systemConfig.js`, `js/modules/virtualDesktops.js`). The UAC/lock "secure desktop" no longer needs to stretch the wallpaper, and the wallpaper fades in with the desktop on sign-in
+- The Start menu is a flex column: the search box and the footer (user + power) stay pinned while only the middle (`Pinned` / `Recommended`, or the All-apps drawer) scrolls, so a short screen no longer clips the footer; it also compacts on short viewports (`index.html`, `css/startmenu.css`, `js/modules/startMenu.js`)
+- `AppLoader.launch` forwards an options object only when it has keys and otherwise calls the app's `launch()` with no arguments, so apps that take a path as their first parameter no longer receive a meaningless `{}` (`js/modules/appLoader.js`)
+
+### Fixed
+- **Photos, Notepad and the other file-handler apps no longer crash on launch.** The shell was passing `{}` as their file path, which threw (`segments is not iterable` / `name.split` on undefined) and left a crash window
+- **The Classic and Hands cursors are filled in.** The Classic arrow and the Denali hand shipped as outline icons whose inner contour cut a hole through the middle, so they read as hollow on both the real mouse and the virtual touch cursor; they now use their solid outer silhouette (`js/modules/cursor.js`, and the Settings previews follow)
+- **Taskbar opacity works.** The translucent taskbar used to reveal the black page background through it; with the wallpaper layer behind it, it now shows the blurred desktop wallpaper
+- **Mobile File Explorer**: a single tap opens a folder/file (instead of selecting it), long-press opens the item's context menu (instead of starting a drag), native drag is disabled on touch, and the per-item selection checkboxes only appear in selection mode (`js/apps/fileExplorer/main.js`)
+
 ## [12.0.4984] - 2026-10-18
 
 ### Added
