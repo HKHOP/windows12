@@ -287,7 +287,17 @@ const Users = (() => {
     // Stash the next session's user (or '' for the picker) and reload.
     function beginSwitch(userId) {
         try { sessionStorage.setItem(TARGET_KEY, userId || ''); } catch { /* session-only */ }
-        try { fs().flush(); } catch { /* best effort */ }
+        // Persist before the reload tears the page (and the OPFS worker)
+        // down. flushAsync resolves once the snapshot actually landed;
+        // older/custom FS shims without it fall back to the sync flush.
+        try {
+            const f = fs();
+            const flushed = f && f.flushAsync ? f.flushAsync() : (f && f.flush());
+            if (flushed && typeof flushed.then === 'function') {
+                flushed.then(() => window.location.reload(), () => window.location.reload());
+                return;
+            }
+        } catch { /* best effort */ }
         window.location.reload();
     }
 

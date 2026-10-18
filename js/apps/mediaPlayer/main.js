@@ -1052,10 +1052,14 @@ const MediaPlayer = (() => {
                 } else if (label === 'Storage info') {
                     const info = await FileSystem.storageInfo();
                     const mb = n => n == null ? 'unknown' : (n / 1048576).toFixed(1) + ' MB';
+                    const isOpfs = info.backend === 'opfs';
                     await Popup.info('Storage info',
-                        `File index (localStorage): ${mb(info.localBytes)}\n` +
-                        `Media + files on disk (IndexedDB): ${mb(info.usage)} of ${mb(info.quota)}\n\n` +
-                        `Songs and videos live in IndexedDB; if usage reads 0 MB after saving, the browser is discarding stored bytes.`);
+                        `Storage backend: ${isOpfs ? 'OPFS (origin private file system)' : 'localStorage + IndexedDB'}\n` +
+                        `File index: ${mb(info.localBytes)}\n` +
+                        `Origin storage on disk: ${mb(info.usage)} of ${mb(info.quota)}\n\n` +
+                        (isOpfs
+                            ? 'Files and media are stored as real files in the browser\'s private file system.'
+                            : 'Songs and videos live in IndexedDB; if usage reads 0 MB after saving, the browser is discarding stored bytes.'));
                 } else if (label === 'Clear resume data') {
                     st.resume = {}; saveState(st);
                     setStatus(s, 'Resume data cleared');

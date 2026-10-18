@@ -1,4 +1,10 @@
-// Large-file backend for the virtual filesystem (IndexedDB).
+// Legacy large-file backend for the virtual filesystem (IndexedDB).
+//
+// Used whenever OPFS is unavailable (see fsStorage.js), and as the source
+// for the one-time copy-forward of pre-OPFS blobs. When OPFS is active,
+// large files are stored as OPFS files instead and this store only ever
+// holds data written before the migration.
+//
 // localStorage caps at ~5MB total for the whole origin; Blobs here live
 // under the real origin quota (often GBs). Values are stored raw — no
 // base64 inflation. All methods are async and fail honestly (reject/false)

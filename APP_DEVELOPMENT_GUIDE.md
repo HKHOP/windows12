@@ -223,7 +223,9 @@ Retrieves window data by ID.
 
 **Import:** `import FileSystem from '../../modules/fileSystem.js';`
 
-All data is a virtual JSON tree stored in `localStorage`. Paths are **arrays of strings** starting with `/`. The OS is **multi-user** — always derive user-relative paths from the `Users` module, never hardcode a user id.
+All data is a virtual JSON tree. The persistence backend is chosen automatically at boot (`js/modules/fsStorage.js`): OPFS (Origin Private File System) when the browser supports it, otherwise the legacy `localStorage` tree + IndexedDB blob store — your app never has to know which is active. Paths are **arrays of strings** starting with `/`. The OS is **multi-user** — always derive user-relative paths from the `Users` module, never hardcode a user id.
+
+> The FileSystem API is **synchronous**, but persistence is asynchronous. Call `await FileSystem.flushAsync()` before any deliberate reload if you just wrote data.
 
 **Path examples:**
 - Root: `['/']`

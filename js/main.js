@@ -36,7 +36,7 @@ window._Users = Users;
 window._FileSystem = FileSystem;
 FileSystem.setAccessChecker(FSGuard.check);
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     window.SystemConfig = SystemConfig;
 
     Scaling.init();
@@ -45,8 +45,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Boot order matters: FS first, then users (resolves the boot target,
     // runs one-time migration), then user-aware app registration and
-    // per-user config/activity.
-    FileSystem.init();
+    // per-user config/activity. FS init is async because the OPFS backend
+    // reads its tree snapshot (possibly through a worker) before the
+    // synchronous FS API can answer anything.
+    await FileSystem.init();
     Users.init();
     AppSystem.init();
     UserActivity.init();

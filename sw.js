@@ -1,4 +1,4 @@
-const CACHE_NAME = 'windows12-v1';
+const CACHE_NAME = 'windows12-v2';
 const urlsToCache = [
     './',
     './index.html',
@@ -19,6 +19,10 @@ const urlsToCache = [
     './js/modules/startMenu.js',
     './js/modules/contextMenu.js',
     './js/modules/fileSystem.js',
+    './js/modules/fsStorage.js',
+    './js/modules/opfsClient.js',
+    './js/modules/blobStore.js',
+    './js/workers/opfsWorker.js',
     './js/modules/popup.js',
     './js/modules/systemConfig.js',
     './js/modules/scaling.js',

@@ -1,17 +1,21 @@
-import BlobStore from './blobStore.js';
+import FsStorage from './fsStorage.js';
 
 const FileSystem = (() => {
     let root = {};
     let saveTimeout = null;
+    // Selected persistence backend: OPFS when the browser supports it,
+    // otherwise the original localStorage + IndexedDB pair. Chosen in
+    // init(); see fsStorage.js for the probe and the fallback rules.
+    let backend = null;
     // Access policy hook (multi-user AppData model): main.js injects
     // FSGuard.check here. Denying a call makes it return the usual
     // null/false failure value without touching the tree.
     let accessChecker = null;
     const RECYCLE_BIN_PATH = ['/', 'system', '$Recycle.Bin'];
-    const STORAGE_KEY = 'windows12-filesystem';
-    // Stay under the typical ~5MB localStorage quota so one big file can
-    // never silently fail to persist (and take the whole save down with it).
-    const STORAGE_BUDGET = Math.floor(4.5 * 1024 * 1024);
+    // Legacy backend ceiling: localStorage caps the whole serialized tree at
+    // ~5MB, so one huge file can't silently take every save down with it.
+    // The OPFS backend is quota-based and ignores this.
+    const STORAGE_BUDGET = FsStorage.LEGACY_BUDGET;
 
     function getDefaultFS() {
         return {
@@ -83,56 +87,61 @@ const FileSystem = (() => {
         };
     }
 
-    function init() {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            try {
-                root = JSON.parse(saved);
-            } catch {
-                root = getDefaultFS();
-                save();
-            }
+    // Async: the OPFS backend must read the tree snapshot back before the
+    // synchronous API can answer any query. Callers must await this before
+    // touching the filesystem (main.js does).
+    async function init() {
+        backend = await FsStorage.select();
+        const loaded = await backend.loadTree();
+        if (loaded) {
+            root = loaded;
         } else {
             root = getDefaultFS();
-            save();
+            persistTree();
         }
         // Flush pending saves when the page unloads so a quick refresh
-        // right after a big write can't lose it to the 500ms debounce.
+        // right after a big write has the best chance of persisting.
         window.addEventListener('beforeunload', () => {
-            try { flush(); } catch (e) { /* noop */ }
+            try { persistTree(); } catch (e) { /* noop */ }
         });
+        return backend.id;
     }
 
-    function tryPersist() {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(root));
-            return true;
-        } catch (e) {
-            console.error('FileSystem: Failed to save to localStorage:', e.name);
-            return false;
-        }
+    // Persistence is asynchronous (the OPFS backend writes through a worker),
+    // so the sync helpers below report whether a write was *queued*, not
+    // whether the bytes reached disk. Use flushAsync() when you can await.
+    function persistTree() {
+        if (!backend) return Promise.resolve(false);
+        return Promise.resolve(backend.saveTree(root)).catch(() => false);
     }
 
     function save(immediate = false) {
         if (immediate) {
-            return tryPersist();
+            persistTree();
+            return true;
         }
         if (saveTimeout) clearTimeout(saveTimeout);
         saveTimeout = setTimeout(() => {
-            tryPersist();
             saveTimeout = null;
+            persistTree();
         }, 500);
         return true;
     }
 
-    // Write through immediately and report whether it actually persisted.
-    // Always use this after writing files larger than a few KB.
-    function flush() {
+    // Write through now and resolve once the snapshot is persisted. Prefer
+    // this before any deliberate reload (sign-out, restart, update).
+    function flushAsync() {
         if (saveTimeout) {
             clearTimeout(saveTimeout);
             saveTimeout = null;
         }
-        return tryPersist();
+        return persistTree();
+    }
+
+    // Fire-and-forget flush for the many existing synchronous callers.
+    function flush() {
+        flushAsync();
+        return true;
     }
 
     function serializedSize() {
@@ -143,19 +152,21 @@ const FileSystem = (() => {
         }
     }
 
-    // Pre-flight check before writing a large file: estimates whether the
-    // whole filesystem (plus extraBytes) still fits in the storage budget.
+    // Pre-flight check before writing a large file. The OPFS backend is
+    // quota-based and always reports fit; the legacy backend keeps its
+    // ~4.5MB localStorage ceiling.
     function wouldFit(extraBytes) {
+        if (backend && !backend.limited) return true;
         return serializedSize() + (extraBytes || 0) < STORAGE_BUDGET;
     }
 
-    // Diagnostics for the storage UI: localStorage footprint plus the real
-    // origin usage/quota (covers IndexedDB blobs).
+    // Diagnostics for the storage UI: the backend's own footprint plus the
+    // real origin usage/quota (which also covers every blob store).
     async function storageInfo() {
-        let localBytes = 0;
+        let base = { backend: backend ? backend.id : 'legacy', localBytes: 0 };
         try {
-            localBytes = (localStorage.getItem(STORAGE_KEY) || '').length;
-        } catch (e) { /* noop */ }
+            if (backend) base = await backend.storageInfo();
+        } catch (e) { /* keep defaults */ }
         let usage = null, quota = null;
         try {
             if (navigator.storage && navigator.storage.estimate) {
@@ -166,7 +177,11 @@ const FileSystem = (() => {
                 }
             }
         } catch (e) { /* noop */ }
-        return { localBytes, usage, quota };
+        return { ...base, usage, quota };
+    }
+
+    function backendId() {
+        return backend ? backend.id : 'legacy';
     }
 
     function getNode(path) {
@@ -231,8 +246,8 @@ const FileSystem = (() => {
     }
 
     function dropBlob(ref) {
-        if (!ref) return;
-        BlobStore.del(ref).catch(() => { /* best effort cleanup */ });
+        if (!ref || !backend) return;
+        Promise.resolve(backend.delBlob(ref)).catch(() => { /* best effort cleanup */ });
     }
 
     function newBlobRef() {
@@ -240,22 +255,18 @@ const FileSystem = (() => {
     }
 
     // Store a large file (audio, video, images) as raw bytes in IndexedDB.
-    // The tree keeps a tiny pointer, so localStorage never sees the bulk.
+    // The tree keeps a tiny pointer, so the snapshot never sees the bulk.
     // The write is read back and verified — a success return means the bytes
     // were confirmed on disk, never just "sent and hoped".
-    // Returns Promise<boolean> — false means missing IDB support or quota.
+    // Returns Promise<boolean>.
     async function writeFileBlob(path, name, blob, ext = '') {
         const parent = getNode(path);
         if (!parent || parent.type !== 'folder') return false;
         if (!(blob instanceof Blob)) return false;
+        if (!backend) return false;
         const ref = newBlobRef();
         try {
-            await BlobStore.put(ref, blob);
-            const check = await BlobStore.get(ref);
-            if (!check || check.size !== blob.size) {
-                try { await BlobStore.del(ref); } catch (e2) { /* noop */ }
-                return false;
-            }
+            if (!await backend.putBlob(ref, blob)) return false;
         } catch (e) {
             return false;
         }
@@ -263,7 +274,7 @@ const FileSystem = (() => {
         if (existing && existing.type === 'file' && existing.blobRef && existing.blobRef !== ref) {
             dropBlob(existing.blobRef);
         }
-        parent.children[name] = { type: 'file', name, ext, modified: Date.now(), blobRef: ref, size: blob.size };
+        parent.children[name] = { type: 'file', name, ext, modified: Date.now(), blobRef: ref, size: blob.size, blobType: blob.type || '' };
         save();
         return true;
     }
@@ -271,11 +282,19 @@ const FileSystem = (() => {
     async function readFileBlob(path) {
         const node = getNode(path);
         if (!node || node.type !== 'file' || !node.blobRef) return null;
+        if (!backend) return null;
+        let blob = null;
         try {
-            return await BlobStore.get(node.blobRef);
+            blob = await backend.getBlob(node.blobRef, node.blobType || '');
         } catch (e) {
-            return null;
+            blob = null;
         }
+        // Heal the MIME type for blobs written before blobType was recorded.
+        if (blob && blob.type && node.blobType !== blob.type) {
+            node.blobType = blob.type;
+            save();
+        }
+        return blob;
     }
 
     function writeFile(path, content) {
@@ -438,7 +457,7 @@ const FileSystem = (() => {
         return [...path.slice(0, -1), newName];
     }
 
-    return { setAccessChecker, init, save, flush, serializedSize, wouldFit, storageInfo, STORAGE_BUDGET,
+    return { setAccessChecker, init, save, flush, flushAsync, backendId, serializedSize, wouldFit, storageInfo, STORAGE_BUDGET,
         // Guarded public surface: every path-reaching operation consults the
         // access checker first. Internal implementations above stay unguarded
         // so shell internals (recycle bin bookkeeping, migrations) can't be

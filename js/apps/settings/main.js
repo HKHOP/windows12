@@ -559,8 +559,9 @@ const Settings = (() => {
     }
 
     // Recursively totals a filesystem subtree. Inline file contents live in
-    // localStorage (their string length is the footprint); blob-backed files
-    // live in IndexedDB (their verified `size` is the footprint).
+    // the tree snapshot (localStorage, or OPFS on the OPFS backend); the
+    // string length is the footprint. Blob-backed files store raw bytes in
+    // IndexedDB (legacy) or OPFS files, and their verified `size` is used.
     function measureNode(node) {
         if (!node) return { local: 0, blob: 0, files: 0 };
         if (node.type === 'file') {
@@ -582,6 +583,12 @@ const Settings = (() => {
         try { totalLocal = FileSystem.serializedSize(); } catch (e) { totalLocal = 0; }
         const budget = FileSystem.STORAGE_BUDGET || Math.floor(4.5 * 1024 * 1024);
         const usedPct = Math.min(100, Math.max(0, (totalLocal / budget) * 100));
+        const backendId = FileSystem.backendId ? FileSystem.backendId() : 'legacy';
+        const isOpfs = backendId === 'opfs';
+        const barWidth = isOpfs ? 0 : usedPct;
+        const diskCaption = isOpfs
+            ? `${formatBytes(totalLocal)} in the file index (OPFS is quota-based, no fixed ceiling)`
+            : `${formatBytes(totalLocal)} of ${formatBytes(budget)} used (${usedPct.toFixed(1)}%)`;
 
         const home = Users.home();
         const categories = [
@@ -600,16 +607,19 @@ const Settings = (() => {
         });
 
         const blobTotal = categories.reduce((sum, c) => sum + c.blob, 0);
+        const diskSub = isOpfs
+            ? 'Backend: OPFS • files and media stored as real files'
+            : `Media files (IndexedDB): ${formatBytes(blobTotal)}${blobTotal > 0 ? '' : ' • nothing stored off-index yet'}`;
 
         el.innerHTML += `
             <div style="display:flex;flex-direction:column;gap:16px;">
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
-                    <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Virtual disk (browser storage)</div>
+                    <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Virtual disk (${isOpfs ? 'OPFS' : 'browser storage'})</div>
                     <div style="height:20px;background:rgba(255,255,255,0.06);border-radius:10px;overflow:hidden;margin-bottom:8px;">
-                        <div style="height:100%;width:${usedPct.toFixed(1)}%;background:linear-gradient(90deg,#0078D4,#00a8e8);border-radius:10px;"></div>
+                        <div class="storage-disk-bar" style="height:100%;width:${barWidth.toFixed(1)}%;background:linear-gradient(90deg,#0078D4,#00a8e8);border-radius:10px;"></div>
                     </div>
-                    <div style="font-size:13px;color:var(--text-secondary);">${formatBytes(totalLocal)} of ${formatBytes(budget)} used (${usedPct.toFixed(1)}%)</div>
-                    <div class="storage-disk-line" style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Media files (IndexedDB): ${formatBytes(blobTotal)}${blobTotal > 0 ? '' : ' • nothing stored off-index yet'}</div>
+                    <div class="storage-disk-caption" style="font-size:13px;color:var(--text-secondary);">${diskCaption}</div>
+                    <div class="storage-disk-line" style="font-size:12px;color:var(--text-secondary);margin-top:4px;">${diskSub}</div>
                 </div>
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Storage usage</div>
@@ -631,11 +641,18 @@ const Settings = (() => {
         try {
             FileSystem.storageInfo().then(info => {
                 if (!el.isConnected) return;
-                const line = el.querySelector('.storage-disk-line');
-                if (!line) return;
                 const usage = info.usage == null ? 'unknown' : formatBytes(info.usage);
                 const quota = info.quota == null ? 'unknown' : formatBytes(info.quota);
-                line.textContent = `Media files (IndexedDB): ${formatBytes(blobTotal)} • On-disk usage: ${usage} of ${quota}`;
+                const line = el.querySelector('.storage-disk-line');
+                if (line) {
+                    line.textContent = isOpfs
+                        ? `Backend: OPFS • On-disk usage: ${usage} of ${quota}`
+                        : `Media files (IndexedDB): ${formatBytes(blobTotal)} • On-disk usage: ${usage} of ${quota}`;
+                }
+                const bar = el.querySelector('.storage-disk-bar');
+                if (isOpfs && bar && info.usage != null && info.quota) {
+                    bar.style.width = Math.min(100, (info.usage / info.quota) * 100).toFixed(1) + '%';
+                }
             }).catch(() => { /* keep the synchronous numbers */ });
         } catch (e) { /* keep the synchronous numbers */ }
     }

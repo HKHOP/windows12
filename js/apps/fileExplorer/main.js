@@ -190,18 +190,15 @@ const FileExplorer = (() => {
     }
 
     async function getStorageInfo() {
-        let used = 0;
-        for (let key in localStorage) {
-            if (localStorage.hasOwnProperty(key)) {
-                used += localStorage.getItem(key).length * 2;
-            }
+        // Real origin usage (covers the OPFS backend and the legacy
+        // IndexedDB/localStorage pair alike) instead of guessing from
+        // localStorage keys.
+        try {
+            const info = await FileSystem.storageInfo();
+            return { used: info.usage || 0, quota: info.quota || 0 };
+        } catch (e) {
+            return { used: 0, quota: 0 };
         }
-        let quota = 0;
-        if (navigator.storage && navigator.storage.estimate) {
-            const estimate = await navigator.storage.estimate();
-            quota = estimate.quota || 0;
-        }
-        return { used, quota };
     }
 
     function formatBytes(bytes) {
