@@ -362,37 +362,34 @@ const Taskbar = (() => {
         document.querySelectorAll('.taskbar-btn.app-btn').forEach(btn => {
             const appId = btn.dataset.app;
             const windowId = btn.dataset.windowId;
+            const isGrouped = btn.classList.contains('grouped');
 
-            if (shouldGroup && !windowId && !btn.classList.contains('grouped')) {
+            if (shouldGroup && !windowId && !isGrouped) {
                 // Single window app - simple click behavior
                 btn.addEventListener('click', () => {
                     if (appId && appId !== 'search') openApp(appId);
                 });
-            } else if (shouldGroup && btn.classList.contains('grouped')) {
+            } else if (shouldGroup && isGrouped) {
                 // Grouped app with multiple windows - show switcher on click/hover
-                let clickHandled = false;
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    if (clickHandled) return;
-                    clickHandled = true;
-                    setTimeout(() => { clickHandled = false; }, 300);
                     toggleSwitcher(appId, btn);
                 });
 
                 // Hover to show switcher after delay
                 btn.addEventListener('mouseenter', () => {
+                    if (switcherHoverTimer) clearTimeout(switcherHoverTimer);
                     switcherHoverTimer = setTimeout(() => {
                         if (!switcherPopup || !switcherPopup.classList.contains('show')) {
                             showSwitcher(appId, btn);
                         }
-                    }, 300);
+                    }, 200);
                 });
                 btn.addEventListener('mouseleave', () => {
                     if (switcherHoverTimer) {
                         clearTimeout(switcherHoverTimer);
                         switcherHoverTimer = null;
                     }
-                    // Don't hide immediately - let the switcher handle its own hide
                 });
             } else if (!shouldGroup && windowId) {
                 // Ungrouped mode - each window has its own button
@@ -581,6 +578,7 @@ const Taskbar = (() => {
         // Force reflow then show
         requestAnimationFrame(() => {
             popup.classList.add('show');
+            popup.classList.remove('hidden');
         });
     }
 
