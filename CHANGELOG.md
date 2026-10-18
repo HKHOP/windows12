@@ -4,6 +4,19 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4979] - 2026-10-18
+
+### Added
+- OPFS (Origin Private File System) storage backend for the virtual filesystem. `js/modules/fsStorage.js` probes capability at boot and, when supported, stores the file tree (`w12/fs.json`) plus every large/media file as real OPFS files — lifting the old ~5MB localStorage ceiling and moving large files out of IndexedDB. All OPFS I/O runs in a dedicated worker (`js/workers/opfsWorker.js`, driven by `js/modules/opfsClient.js`) using `createSyncAccessHandle()`, the only OPFS write API that works on every OPFS-capable browser — Chrome 102+, Firefox 111+ and Safari 15.2+ including all iOS browsers, which cannot write OPFS from the main thread before Safari 26
+
+### Changed
+- Filesystem persistence now falls back automatically to the previous localStorage + IndexedDB backend whenever OPFS is unavailable (older browsers, Firefox/Safari Private Browsing, HTTP, or a blocked worker). The synchronous FileSystem API is unchanged, so no app code had to change
+- Existing localStorage/IndexedDB data is copied into OPFS non-destructively on first run; the localStorage copy is kept so the fallback path still has data. Pre-OPFS blobs in IndexedDB are copied forward the first time they are read
+- `FileSystem.init()` is now async and must be awaited before any filesystem use; `main.js` boot awaits it first (Users/apps still initialize after it). New `FileSystem.flushAsync()` resolves once a write has actually landed
+- Sign-out and user switching await `FileSystem.flushAsync()` before reloading, so pending writes cannot be lost to the reload
+- Storage UI is backend-aware (Settings → Storage, File Explorer "This PC", Media Player → Organize → Storage info) and reports the active backend instead of assuming localStorage/IndexedDB; File Explorer usage now reads the real origin estimate
+- `js/modules/blobStore.js` is now the legacy/fallback blob store (still used when OPFS is unavailable and as the source for the one-time copy-forward)
+
 ## [12.0.4978] - 2026-09-27
 
 ### Fixed
