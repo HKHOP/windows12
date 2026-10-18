@@ -11,8 +11,8 @@ import InternalConfig from '../modules/systemConfig.js';
 import { Taskbar } from '../modules/taskbar.js';
 import { ErrorCodes, SDKError, requireString } from './errors.js';
 
-/** Machine-wide display settings (resolution, scaling, orientation): privileged, rejected by set(). */
-const SENSITIVE_KEYS = ['displayResolution', 'displayOrientation', 'scaling'];
+/** Machine-wide display settings (resolution, scaling): privileged, rejected by set(). */
+const SENSITIVE_KEYS = ['displayResolution', 'scaling'];
 
 /**
  * Read one setting.

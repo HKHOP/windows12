@@ -193,8 +193,10 @@ const LoginScreen = (() => {
         }
         const desktop = document.getElementById('desktop');
         const taskbar = document.getElementById('taskbar');
+        const wallpaper = document.getElementById('wallpaper');
         if (desktop) { desktop.style.transition = 'opacity 0.5s ease-out'; desktop.style.opacity = '1'; }
         if (taskbar) { taskbar.style.transition = 'opacity 0.5s ease-out'; taskbar.style.opacity = '1'; }
+        if (wallpaper) { wallpaper.style.transition = 'opacity 0.5s ease-out'; wallpaper.style.opacity = '1'; }
     }
 
     // Full boot sequence: boot screen fade → login screen → profile load.

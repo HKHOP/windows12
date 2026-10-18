@@ -227,7 +227,7 @@ const StartMenu = (() => {
         if (!drawer) {
             drawer = document.createElement('div');
             drawer.id = 'all-apps-drawer';
-            drawer.style.cssText = 'max-height:420px;overflow-y:auto;padding:0 16px;animation:slideInRight 0.2s ease-out;';
+            drawer.style.cssText = 'overflow:visible;padding:0 16px;animation:slideInRight 0.2s ease-out;';
             sections[0].parentNode.insertBefore(drawer, sections[0]);
         }
         drawer.innerHTML = '';

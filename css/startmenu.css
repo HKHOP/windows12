@@ -6,7 +6,9 @@
     width: 600px;
     max-width: calc(100vw - 24px);
     max-height: calc(100vh - var(--taskbar-height) - 24px);
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     background: var(--start-menu-bg);
     backdrop-filter: blur(40px);
     -webkit-backdrop-filter: blur(40px);
@@ -15,6 +17,13 @@
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     z-index: 10000;
     animation: startMenuIn 0.2s ease-out;
+}
+
+/* Search stays pinned on top and the footer on the bottom; only the middle
+   scrolls, so a short viewport never clips the power button. */
+#start-menu > .start-menu-search,
+#start-menu > #start-menu-footer {
+    flex: 0 0 auto;
 }
 
 /* Start menu follows the taskbar edge. */
@@ -357,9 +366,59 @@ html[data-taskbar="right"] #start-menu.closing {
     to { transform: translateX(0); opacity: 1; }
 }
 
+/* The scrollable middle of the Start menu (Pinned + Recommended, or the
+   All apps drawer). Flexes to fill the gap between the pinned search box
+   and the pinned footer, and only this part scrolls. */
 .start-menu-body {
     position: relative;
-    overflow: hidden;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+.start-menu-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.start-menu-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.start-menu-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.22);
+    border-radius: 4px;
+}
+
+.start-menu-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+/* Short viewports: tighten the layout so the full menu (including the
+   footer) still fits without an awkward clipped/scrolling panel. */
+@media (max-height: 620px) {
+    .start-menu-section {
+        padding-top: 10px;
+        padding-bottom: 6px;
+    }
+
+    .start-menu-grid .app-item {
+        padding: 8px 2px;
+        gap: 4px;
+    }
+
+    .start-menu-grid .app-item .app-icon,
+    .start-menu-list .app-icon {
+        width: 28px;
+        height: 28px;
+    }
+
+    #start-menu-footer {
+        padding-top: 8px;
+        padding-bottom: 8px;
+    }
 }
 
 @keyframes powerMenuSlideUp {

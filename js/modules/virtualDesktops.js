@@ -167,7 +167,7 @@ const VirtualDesktops = (() => {
 
     function applyWallpaper() {
         try {
-            const desktopEl = document.getElementById('desktop');
+            const desktopEl = document.getElementById('wallpaper') || document.getElementById('desktop');
             if (!desktopEl) return;
             const st = state();
             const current = st.desktops.find(d => d.id === st.activeId);

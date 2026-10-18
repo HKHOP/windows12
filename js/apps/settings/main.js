@@ -283,13 +283,6 @@ const Settings = (() => {
                         </select>
                     </div>
                     <div class="current-res-label" style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Rendering at: ${currentResLabel}</div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <span style="font-size:13px;">Display orientation</span>
-                        <select class="orientation-select" style="font-size:13px;">
-                            <option value="landscape" ${config.displayOrientation === 'landscape' ? 'selected' : ''}>Landscape</option>
-                            <option value="portrait" ${config.displayOrientation === 'portrait' ? 'selected' : ''}>Portrait</option>
-                        </select>
-                    </div>
                 </div>
             </div>
         `;
@@ -332,18 +325,6 @@ const Settings = (() => {
                 if (selectEl) selectEl.value = prevRes;
                 updateResLabel();
             }
-        });
-
-        el.querySelector('.orientation-select').addEventListener('change', async (e) => {
-            const prevOri = config.displayOrientation;
-            const newOri = e.target.value;
-            if (newOri === prevOri) return;
-
-            if (!(await requireAdmin('Change the display orientation for all users on this device?'))) {
-                e.target.value = prevOri;
-                return;
-            }
-            SystemConfig.set('displayOrientation', newOri);
         });
 
         el.querySelector('.scaling-select').addEventListener('change', async (e) => {

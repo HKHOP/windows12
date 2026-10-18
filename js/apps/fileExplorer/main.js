@@ -18,14 +18,17 @@ import Notifications from '../../modules/notifications.js';
 const FileExplorer = (() => {
     const icon = AppIcons.get('fileExplorer');
 
-    // Coarse-pointer / touch UI: selection checkboxes stay visible so
-    // multi-select is discoverable without a keyboard (Ctrl/Shift).
+    // Coarse-pointer / touch UI: a single tap opens items and a long-press
+    // opens the context menu (see the item handlers below).
     const IS_TOUCH_UI = (typeof window !== 'undefined') && (
         (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
         ('ontouchstart' in window) ||
         (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0)
     );
     const LONG_PRESS_SELECT_MS = 550;
+    // Touch taps open items; debounce so a double-tap can't also open the
+    // first item of the view the first tap just navigated into.
+    let lastTouchOpenAt = 0;
 
     const VIEW_PATH = () => Users.appData('fileExplorer', ['view.json']);
     const view = { sortBy: 'name', sortDir: 'asc', groupBy: 'none' };
@@ -338,7 +341,10 @@ const FileExplorer = (() => {
             const isDir = entry.type === 'folder';
             const item = document.createElement('div');
             item.className = 'fe-item';
-            item.draggable = true;
+            // Native HTML5 drag: mouse/pen only. On touch the long-press is
+            // reserved for the context menu, so the browser's press-and-drag
+            // must not hijack it into a file drag.
+            item.draggable = !IS_TOUCH_UI;
             item.dataset.name = entry.name;
             item.dataset.type = entry.type;
             item.dataset.ext = entry.ext || '';
@@ -352,9 +358,9 @@ const FileExplorer = (() => {
                 ${relDir}
             `;
 
-            // Selection checkbox: always visible on touch devices, otherwise
-            // only in selection mode. Tapping it toggles without leaving
-            // selection mode — the touch-friendly multi-select path.
+            // Selection checkbox: shown only in selection mode. Tapping it
+            // toggles without leaving selection mode — the touch-friendly
+            // multi-select path (entered from the toolbar Select button).
             const check = document.createElement('div');
             check.className = 'fe-check';
             check.title = 'Tap to select this item';
@@ -385,26 +391,8 @@ const FileExplorer = (() => {
                 if (!state || !state.selected.has(entry.name)) item.style.background = 'transparent';
             });
 
-            item.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (!state) return;
-                // Synthetic click arriving right after a long-press select
-                // must not toggle the item back.
-                if (wstate._lpSuppressUntil && Date.now() < wstate._lpSuppressUntil) return;
-                if (wstate.selectMode) {
-                    if (state.selected.has(entry.name)) state.selected.delete(entry.name);
-                    else state.selected.add(entry.name);
-                    state.lastClicked = entry.name;
-                } else {
-                    selectItem(state, entry.name, e.ctrlKey || e.metaKey, e.shiftKey, allNames);
-                }
-                repaintSelection(contentEl, wstate);
-                renderPreview(win, wstate);
-            });
-
-            item.addEventListener('dblclick', () => {
-                // A double-tap in selection mode toggles twice; make sure
-                // the opened item ends up selected.
+            function openEntry() {
+                // Opening implies selection (matches double-click on desktop).
                 if (state && !state.selected.has(entry.name)) {
                     state.selected.add(entry.name);
                     state.lastClicked = entry.name;
@@ -421,15 +409,44 @@ const FileExplorer = (() => {
                 } else {
                     openFileWithDefaultApp(fullPath, entry);
                 }
+            }
+
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!state) return;
+                // A click synthesized right after our own long-press menu
+                // must not also open/toggle the item.
+                if (wstate._lpSuppressUntil && Date.now() < wstate._lpSuppressUntil) return;
+                if (wstate.selectMode) {
+                    if (state.selected.has(entry.name)) state.selected.delete(entry.name);
+                    else state.selected.add(entry.name);
+                    state.lastClicked = entry.name;
+                    repaintSelection(contentEl, wstate);
+                    renderPreview(win, wstate);
+                    return;
+                }
+                if (IS_TOUCH_UI) {
+                    // Touch: a single tap opens (folder navigates, file
+                    // launches) — the expected mobile file-manager behavior.
+                    const now = Date.now();
+                    if (now - lastTouchOpenAt < 400) return;
+                    lastTouchOpenAt = now;
+                    openEntry();
+                    return;
+                }
+                selectItem(state, entry.name, e.ctrlKey || e.metaKey, e.shiftKey, allNames);
+                repaintSelection(contentEl, wstate);
+                renderPreview(win, wstate);
             });
 
-            item.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                // Native menu arriving right after a long-press select: the
-                // press already toggled selection, don't pop a menu over it.
-                if (wstate._lpSuppressUntil && Date.now() < wstate._lpSuppressUntil) return;
-                wstate._ctxMenuAt = Date.now();
+            item.addEventListener('dblclick', () => {
+                // Touch already opens on the first tap; ignore the synthesized
+                // second tap so it can't act on the freshly navigated view.
+                if (IS_TOUCH_UI) return;
+                openEntry();
+            });
+
+            function showItemMenu(clientX, clientY) {
                 if (state && !state.selected.has(entry.name)) {
                     state.selected.clear();
                     state.selected.add(entry.name);
@@ -499,13 +516,23 @@ const FileExplorer = (() => {
                     'separator',
                     { label: 'Properties', icon: UIIcons.action('properties'), action: () => showProperties(entry, itemPath) }
                 ];
-                ContextMenu.show(e.clientX, e.clientY, menuItems);
+                ContextMenu.show(clientX, clientY, menuItems);
+            }
+
+            item.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // A menu opened by our own touch long-press just fired — the
+                // browser's synthesized contextmenu follows right after it, so
+                // swallow that duplicate.
+                if (wstate._ctxMenuAt && Date.now() - wstate._ctxMenuAt < 900) return;
+                wstate._ctxMenuAt = Date.now();
+                showItemMenu(e.clientX, e.clientY);
             });
 
-            // Touch long-press: enter selection mode and toggle the item
-            // (standard mobile multi-select). A long-press on an already
-            // selected item falls through to the context menu above, so
-            // touch users can still reach Cut/Copy/Delete/etc.
+            // Touch long-press: open the item's context menu (the touch
+            // equivalent of right-click). Previously it toggled selection,
+            // which made long-press feel like a drag/select instead of a menu.
             let lpTimer = null;
             let lpX = 0, lpY = 0;
             const lpCancel = () => {
@@ -522,17 +549,14 @@ const FileExplorer = (() => {
                 lpTimer = setTimeout(() => {
                     lpTimer = null;
                     if (!state || !wstate) return;
-                    // The native long-press menu beat us to it (browser fired
-                    // contextmenu first): leave the menu alone, skip toggling.
+                    // The browser's own long-press menu beat us to it: leave
+                    // that menu alone and skip ours.
                     if (wstate._ctxMenuAt && Date.now() - wstate._ctxMenuAt < 1200) return;
-                    if (wstate.selectMode && state.selected.has(entry.name)) return;
-                    if (!wstate.selectMode) setSelectMode(win, wstate, true);
-                    if (state.selected.has(entry.name)) state.selected.delete(entry.name);
-                    else state.selected.add(entry.name);
-                    state.lastClicked = entry.name;
+                    // Suppress the click the browser fires when the finger
+                    // lifts, so the menu isn't followed by an open/toggle.
                     wstate._lpSuppressUntil = Date.now() + 900;
-                    repaintSelection(contentEl, wstate);
-                    renderPreview(win, wstate);
+                    wstate._ctxMenuAt = Date.now();
+                    showItemMenu(lpX, lpY);
                     try {
                         if (navigator.vibrate) navigator.vibrate(12);
                     } catch (e2) { /* noop */ }
@@ -1477,8 +1501,9 @@ const FileExplorer = (() => {
 
     // ---------- touch-friendly selection mode ----------
     // selectMode lives on wstate (shared across tabs of a window). While on,
-    // tapping an item toggles it instead of single-selecting, and every item
-    // shows a checkbox. Long-press enters the mode automatically.
+    // tapping an item toggles it instead of opening/single-selecting, and
+    // every item shows a checkbox. It is entered from the toolbar Select
+    // button (touch and desktop alike).
 
     function paintItemSelection(el, selected, selectMode) {
         if (selected) {
@@ -1490,7 +1515,10 @@ const FileExplorer = (() => {
         }
         const chk = el.querySelector('.fe-check');
         if (chk) {
-            chk.style.display = (selectMode || IS_TOUCH_UI) ? 'flex' : 'none';
+            // Checkboxes belong to selection mode only — never shown on a
+            // plain view, so the "selection box" no longer appears while the
+            // user is just browsing.
+            chk.style.display = selectMode ? 'flex' : 'none';
             const tick = chk.querySelector('svg');
             if (tick) tick.style.display = selected ? 'block' : 'none';
             chk.style.borderColor = selected ? 'var(--accent-color)' : 'rgba(255,255,255,0.55)';
@@ -1518,7 +1546,7 @@ const FileExplorer = (() => {
             btn.style.background = wstate.selectMode ? 'rgba(0,120,212,0.2)' : 'none';
             btn.title = wstate.selectMode
                 ? 'Selection mode ON — tap items to toggle. Click for Select all / Clear / Exit.'
-                : 'Select: multi-select mode (tap checkboxes, or long-press an item)';
+                : 'Select: multi-select mode (tap items to toggle checkboxes)';
         }
         repaintSelection(win.element.querySelector('.fe-content'), wstate);
     }

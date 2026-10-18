@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await FileSystem.init();
     Users.loadAccounts();
 
-    // Device display settings (resolution, scaling, orientation) are global:
+    // Device display settings (resolution and scaling) are global:
     // read them before the shell exists so the boot / login / lock screens
     // already render at the device's configuration.
     SystemConfig.initGlobal();
@@ -92,8 +92,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const desktop = document.getElementById('desktop');
     const taskbar = document.getElementById('taskbar');
+    const wallpaper = document.getElementById('wallpaper');
     desktop.style.opacity = '0';
     taskbar.style.opacity = '0';
+    if (wallpaper) wallpaper.style.opacity = '0';
 
     // Boot animation → user picker → sign-in → profile load → desktop.
     LoginScreen.bootSequence({ onSignIn: (id) => Sessions.signIn(id) });

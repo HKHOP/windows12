@@ -73,12 +73,25 @@ body {
     image-rendering: crisp-edges;
 }
 
+/* Full-screen wallpaper: the desktop background lives here (not on #desktop)
+   so it can extend beneath the taskbar. #desktop is only the work area. */
+#wallpaper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #0a1628 0%, #1a1a3e 30%, #2d1b4e 60%, #0a1628 100%);
+    background-size: 400% 400%;
+    z-index: 0;
+}
+
 #desktop {
     width: 100%;
     height: calc(100% - var(--taskbar-height));
     position: relative;
-    background: linear-gradient(135deg, #0a1628 0%, #1a1a3e 30%, #2d1b4e 60%, #0a1628 100%);
-    background-size: 400% 400%;
+    /* Transparent: #wallpaper paints the desktop background behind us. */
+    background: transparent;
     overflow: hidden;
 }
 
@@ -700,12 +713,8 @@ body.uac-active #desktop {
     visibility: visible;
 }
 
-body.uac-active #desktop {
-    width: 100% !important;
-    height: 100% !important;
-    margin: 0 !important;
-}
-
+/* The wallpaper (#wallpaper) is already full-screen, so the secure desktop
+   needs no stretching — just keep every other desktop child hidden. */
 body.uac-active #desktop > *,
 body.uac-active #taskbar {
     visibility: hidden;
@@ -801,12 +810,8 @@ body.locked #desktop {
     visibility: visible;
 }
 
-body.locked #desktop {
-    width: 100% !important;
-    height: 100% !important;
-    margin: 0 !important;
-}
-
+/* The wallpaper is already full-screen (see #wallpaper), so nothing needs
+   stretching for the lock screen — just hide the desktop's own children. */
 body.locked #desktop > *,
 body.locked #taskbar {
     visibility: hidden;

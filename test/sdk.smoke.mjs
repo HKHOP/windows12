@@ -324,7 +324,7 @@ SysCfg.load();
 SysCfg.initGlobal();
 const DISPLAY_PATH = ['/', 'system', 'programs data', 'display', 'settings.json'];
 check('display keys are recognised as global',
-    ['scaling', 'displayResolution', 'displayOrientation'].every(k => SysCfg.isGlobalKey(k)) && SysCfg.isGlobalKey('brightness') === false);
+    ['scaling', 'displayResolution'].every(k => SysCfg.isGlobalKey(k)) && SysCfg.isGlobalKey('brightness') === false);
 check('global writes route through get()', (() => { SysCfg.set('scaling', '150'); return SysCfg.get('scaling') === '150'; })());
 check('global values surface in getAll()', SysCfg.getAll().scaling === '150');
 check('global display store persists to the device path', (() => {
@@ -338,7 +338,7 @@ check('per-user writes leave the global store alone', (() => {
 })());
 check('machine-wide keys stay out of the per-user config file', (() => {
     const cfg = JSON.parse(FSMod.default.readFile(UsersMod.default.userData(['config.json'])) || '{}');
-    return cfg.scaling === undefined && cfg.displayResolution === undefined && cfg.displayOrientation === undefined;
+    return cfg.scaling === undefined && cfg.displayResolution === undefined;
 })());
 
 console.log('[clipboard honesty]');

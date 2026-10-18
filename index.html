@@ -44,6 +44,10 @@
     <!-- Login screen (user picker + sign-in) is built dynamically by js/modules/loginScreen.js -->
 
     <div id="resolution-layer">
+        <!-- Full-screen wallpaper layer: sits behind #desktop so the
+             translucent taskbar (and its acrylic blur) reveals the desktop
+             background instead of the black body. -->
+        <div id="wallpaper"></div>
         <div id="desktop">
             <div id="windows-container"></div>
         </div>
@@ -66,18 +70,20 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="#888" stroke="#888" stroke-width="2"><circle cx="10.5" cy="10.5" r="7"/><line x1="15.5" y1="15.5" x2="21" y2="21"/></svg>
             <input type="text" id="start-search" placeholder="Type here to search">
         </div>
-        <div class="start-menu-section">
-            <div class="start-menu-section-header">
-                <span>Pinned</span>
-                <button class="start-menu-all-btn">All apps &gt;</button>
+        <div class="start-menu-body">
+            <div class="start-menu-section">
+                <div class="start-menu-section-header">
+                    <span>Pinned</span>
+                    <button class="start-menu-all-btn">All apps &gt;</button>
+                </div>
+                <div id="pinned-apps" class="start-menu-grid"></div>
             </div>
-            <div id="pinned-apps" class="start-menu-grid"></div>
-        </div>
-        <div class="start-menu-section">
-            <div class="start-menu-section-header">
-                <span>Recommended</span>
+            <div class="start-menu-section">
+                <div class="start-menu-section-header">
+                    <span>Recommended</span>
+                </div>
+                <div id="recommended-apps" class="start-menu-list"></div>
             </div>
-            <div id="recommended-apps" class="start-menu-list"></div>
         </div>
         <div id="start-menu-footer">
             <div class="user-info">

@@ -162,11 +162,21 @@ const AppLoader = (() => {
 
     // Open/focus through the taskbar shell (keeps toggle + virtual-desktop
     // semantics). Returns Promise<boolean>.
-    async function launch(id, options = {}) {
+    async function launch(id, options) {
         if (!isLaunchable(id)) return false;
         const app = await ensureLoaded(id);
         if (!app || typeof app.launch !== 'function') return false;
-        await app.launch(options);
+        // Apps declare launch() inconsistently: most take (options = {}) —
+        // the shell forwards options for Settings pages etc. — but the file
+        // handlers take a path/script/document as the FIRST argument
+        // (photos, notepad, markdownStudio, archiver, powershell, …). Never
+        // hand one of those a bare {}: it gets read as that path and throws
+        // (notepad died with "segments is not iterable"). Only forward a
+        // non-empty options object; otherwise call with no arguments so each
+        // app's own default applies.
+        const hasOptions = options && typeof options === 'object' && Object.keys(options).length > 0;
+        if (hasOptions) await app.launch(options);
+        else await app.launch();
         return true;
     }
 

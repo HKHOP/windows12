@@ -218,7 +218,6 @@ const SystemConfig = (() => {
         brightness: 80,
         nightLight: false,
         displayResolution: 'native',
-        displayOrientation: 'landscape',
         masterVolume: 75,
         outputDevice: 'Speakers (Realtek Audio)',
         inputDevice: 'Microphone (Realtek Audio)',
@@ -249,16 +248,15 @@ const SystemConfig = (() => {
     let nativeWidth = window.innerWidth;
     let nativeHeight = window.innerHeight;
 
-    // Device-level display settings (resolution, DPI scaling, orientation).
+    // Device-level display settings (resolution and DPI scaling).
     // Unlike the rest of the config these are machine-wide, not per-profile:
     // they are stored in one global file so every profile — and the
     // login/lock screens, which render before any profile is active — share
     // them. Changing them is privileged (Settings raises a UAC prompt).
-    const GLOBAL_KEYS = ['scaling', 'displayResolution', 'displayOrientation'];
+    const GLOBAL_KEYS = ['scaling', 'displayResolution'];
     let globalConfig = {
         scaling: defaults.scaling,
-        displayResolution: defaults.displayResolution,
-        displayOrientation: defaults.displayOrientation
+        displayResolution: defaults.displayResolution
     };
 
     // Gradient wallpapers, shared by apply() and the login/lock screens
@@ -546,19 +544,19 @@ const SystemConfig = (() => {
             }
         } catch (e) { /* cursor applies on next boot / settings change */ }
 
-        const desktop = document.getElementById('desktop');
-        if (desktop) {
+        const wallpaperEl = document.getElementById('wallpaper') || document.getElementById('desktop');
+        if (wallpaperEl) {
             const wallpapers = isDark ? WALLPAPERS_DARK : WALLPAPERS_LIGHT;
             // Gradient is always painted first: it is the plain-style
             // result and the letterbox backdrop behind a custom image.
-            desktop.style.background = wallpapers[config.backgroundStyle] || wallpapers.gradient;
+            wallpaperEl.style.background = wallpapers[config.backgroundStyle] || wallpapers.gradient;
             if (sanitizeWallpaperImage(config.wallpaperImage)) {
-                applyImageWallpaper(desktop);
+                applyImageWallpaper(wallpaperEl);
             } else {
                 config.wallpaperImage = null;
                 wallpaperSeq++; // cancel any in-flight image load
                 dropActiveWallpaperURL();
-                clearWallpaperImageProps(desktop);
+                clearWallpaperImageProps(wallpaperEl);
             }
         }
 
@@ -614,10 +612,10 @@ const SystemConfig = (() => {
 
     // ---------- machine-wide display settings ----------
     //
-    // Resolution, DPI scaling and orientation belong to the device, not to a
-    // profile: they live in one global file (outside the per-user config) so
-    // every profile and the login/lock screens share them. main.js primes
-    // them with initGlobal() before the first sign-in.
+    // Resolution and DPI scaling belong to the device, not to a profile:
+    // they live in one global file (outside the per-user config) so every
+    // profile and the login/lock screens share them. main.js primes them
+    // with initGlobal() before the first sign-in.
 
     function globalConfigPath() {
         return ['/', 'system', 'programs data', 'display', 'settings.json'];
