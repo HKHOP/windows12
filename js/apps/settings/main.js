@@ -188,6 +188,7 @@ const Settings = (() => {
                 ${systemCard(UIIcons.setting('multitasking', 22), 'Multitasking', 'Snap windows, desktops', 'multitasking')}
                 ${systemCard(UIIcons.setting('touchpad', 22), 'Touchpad', 'Virtual touchpad, gestures', 'touchpad')}
                 ${systemCard(TOUCH_KBD_ICON.replace('width="20" height="20"', 'width="22" height="22"'), 'Touch keyboard', 'On-screen keyboard, auto-show', 'touchKeyboard')}
+                ${systemCard(UIIcons.setting('recovery', 22), 'Recovery', 'Reset config, format, and recovery options', 'recovery')}
             </div>
         `;
 
