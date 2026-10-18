@@ -15,6 +15,8 @@ import Cursor from '../../modules/cursor.js';
 import VirtualDesktops from '../../modules/virtualDesktops.js';
 import Permissions from '../../modules/permissions.js';
 import Users from '../../modules/users.js';
+import Packages from '../../modules/packages.js';
+import UAC from '../../modules/uac.js';
 
 const Settings = (() => {
     const icon = AppIcons.get('settings');
@@ -62,6 +64,22 @@ const Settings = (() => {
         return accName || 'User';
     }
 
+    // 'Administrator' | 'Standard user' for an account record.
+    function accountTypeLabel(acc) {
+        return acc && acc.type === 'administrator' ? 'Administrator' : 'Standard user';
+    }
+
+    function currentUserTypeLabel() {
+        try { return accountTypeLabel(Users.getCurrent()); } catch { return 'Local account'; }
+    }
+
+    // Elevation for administrator-only settings (account management). Falls
+    // back to false when UAC is unavailable.
+    async function requireAdmin(message) {
+        try { return await UAC.request({ name: 'Windows Settings', message }); }
+        catch { return false; }
+    }
+
     function getContent() {
         return `
             <div style="display:flex;height:100%;">
@@ -70,7 +88,7 @@ const Settings = (() => {
                         <div class="settings-avatar" style="width:48px;height:48px;background:var(--accent-color,#0078D4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;">${esc(currentUserName()).charAt(0).toUpperCase()}</div>
                         <div>
                             <div class="settings-username" style="font-size:14px;font-weight:500;">${esc(currentUserName())}</div>
-                            <div style="font-size:12px;color:#888;">Local Account</div>
+                            <div class="settings-usertype" style="font-size:12px;color:#888;">${esc(currentUserTypeLabel())}</div>
                         </div>
                     </div>
                     ${buildNav()}
@@ -87,6 +105,8 @@ const Settings = (() => {
         if (usernameEl) usernameEl.textContent = name;
         const avatarEl = win.element.querySelector('.settings-avatar');
         if (avatarEl) avatarEl.textContent = name.charAt(0).toUpperCase();
+        const typeEl = win.element.querySelector('.settings-usertype');
+        if (typeEl) typeEl.textContent = currentUserTypeLabel();
     }
 
     function buildNav() {
@@ -1025,7 +1045,8 @@ const Settings = (() => {
                     const svc = AppLoader.isService(id);
                     if (man.distribution === 'builtin') return appRow(meta.name, svc ? 'Built-in service' : 'Built-in', false);
                     if (installed.includes(id)) {
-                        const row = appRow(meta.name, svc ? 'Service • Installed from Store' : 'Installed from Store', true, id);
+                        const scopeLabel = Packages.scopeOf(id) === 'system' ? 'All users' : 'This user';
+                        const row = appRow(meta.name, svc ? `Service • Installed from Store (${scopeLabel})` : `Installed from Store • ${scopeLabel}`, true, id);
                         const perms = Permissions.getDeclared(id);
                         if (perms.length === 0) return row;
                         const toggles = perms.map(p => {
@@ -1050,43 +1071,60 @@ const Settings = (() => {
         });
 
         el.querySelectorAll('.settings-uninstall-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 const appId = btn.dataset.app;
-                AppSystem.uninstallApp(appId);
+                try {
+                    await AppSystem.uninstallApp(appId);
+                } catch (err) {
+                    if (err && err.elevationDenied) {
+                        Popup.info('Administrator approval required', 'Removing an app that is installed for all users needs administrator approval.');
+                    } else {
+                        Popup.error('Uninstall failed', (err && err.message) || 'The app could not be uninstalled.');
+                    }
+                }
                 renderApps(el);
             });
         });
     }
 
     function renderAccounts(el) {
-        const me = Users.getCurrent() || { id: '', name: 'User', hash: null };
+        const me = Users.getCurrent() || { id: '', name: 'User', type: 'standard', hash: null };
         const others = Users.getAccounts().filter(a => a.id !== me.id);
 
-        const userRow = (acc, isMe) => `
-            <div data-user-row="${acc.id}" style="display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid var(--window-border);">
-                <div style="width:40px;height:40px;background:var(--accent-color,#0078D4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600;flex-shrink:0;">${esc(acc.name.charAt(0).toUpperCase())}</div>
-                <div style="flex:1;min-width:0;">
+        const btn = 'padding:6px 12px;background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;';
+        const dangerBtn = 'padding:6px 12px;background:rgba(220,50,50,0.15);border:1px solid rgba(220,50,50,0.4);border-radius:6px;color:#ff8a8a;font-size:12px;cursor:pointer;';
+
+        const userRow = (acc, isMe) => {
+            const admin = acc.type === 'administrator';
+            return `
+            <div data-user-row="${acc.id}" style="display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--window-border);flex-wrap:wrap;">
+                <div style="width:40px;height:40px;background:${admin ? 'var(--accent-color,#0078D4)' : '#5a5a66'};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600;flex-shrink:0;">${esc(acc.name.charAt(0).toUpperCase())}</div>
+                <div style="flex:1;min-width:140px;">
                     <div style="font-size:14px;font-weight:500;">${esc(acc.name)}${isMe ? ' <span style="font-size:11px;color:#888;font-weight:400;">(signed in)</span>' : ''}</div>
-                    <div style="font-size:12px;color:#888;">${acc.hash ? 'Password protected' : 'No password'}</div>
+                    <div style="font-size:12px;color:#888;">${esc(accountTypeLabel(acc))}${acc.hash ? ' • Password protected' : ' • No password'}</div>
                 </div>
-                <button class="acc-btn" data-action="rename" data-user="${acc.id}" style="padding:6px 12px;background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Rename</button>
-                ${isMe ? `
-                    <button class="acc-btn" data-action="password" data-user="${acc.id}" style="padding:6px 12px;background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">${acc.hash ? 'Change password' : 'Set password'}</button>
-                    ${acc.hash ? `<button class="acc-btn" data-action="removepassword" data-user="${acc.id}" style="padding:6px 12px;background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Remove password</button>` : ''}
-                    <button class="acc-btn" data-action="signout" style="padding:6px 12px;background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;color:var(--text-primary);font-size:12px;cursor:pointer;">Sign out</button>
-                ` : `
-                    <button class="acc-btn acc-btn-danger" data-action="remove" data-user="${acc.id}" style="padding:6px 12px;background:rgba(220,50,50,0.15);border:1px solid rgba(220,50,50,0.4);border-radius:6px;color:#ff8a8a;font-size:12px;cursor:pointer;">Remove</button>
-                `}
-            </div>
-        `;
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <button class="acc-btn" data-action="type" data-user="${acc.id}" style="${btn}">${admin ? 'Make standard' : 'Make administrator'}</button>
+                    <button class="acc-btn" data-action="rename" data-user="${acc.id}" style="${btn}">Rename</button>
+                    ${isMe ? `
+                        <button class="acc-btn" data-action="password" data-user="${acc.id}" style="${btn}">${acc.hash ? 'Change password' : 'Set password'}</button>
+                        ${acc.hash ? `<button class="acc-btn" data-action="removepassword" data-user="${acc.id}" style="${btn}">Remove password</button>` : ''}
+                        <button class="acc-btn" data-action="signout" style="${btn}">Sign out</button>
+                    ` : `
+                        <button class="acc-btn" data-action="password" data-user="${acc.id}" style="${btn}">Reset password</button>
+                        <button class="acc-btn acc-btn-danger" data-action="remove" data-user="${acc.id}" style="${dangerBtn}">Remove</button>
+                    `}
+                </div>
+            </div>`;
+        };
 
         el.innerHTML = `
             <h2 style="font-size:28px;font-weight:600;margin-bottom:24px;">Accounts</h2>
             <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:20px;display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-                <div style="width:64px;height:64px;background:var(--accent-color,#0078D4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;">${esc(me.name.charAt(0).toUpperCase())}</div>
+                <div style="width:64px;height:64px;background:${me.type === 'administrator' ? 'var(--accent-color,#0078D4)' : '#5a5a66'};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;">${esc(me.name.charAt(0).toUpperCase())}</div>
                 <div>
                     <div style="font-size:18px;font-weight:500;">${esc(me.name)}</div>
-                    <div style="font-size:13px;color:#888;">Local Account${me.hash ? ' • Password protected' : ''}</div>
+                    <div style="font-size:13px;color:#888;">${esc(accountTypeLabel(me))}${me.hash ? ' • Password protected' : ''}</div>
                 </div>
             </div>
             <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:20px;margin-bottom:16px;">
@@ -1099,6 +1137,7 @@ const Settings = (() => {
                 <div style="padding-top:12px;">
                     <button id="acc-add-btn" style="padding:8px 16px;background:var(--accent-color,#0078D4);border:none;border-radius:6px;color:white;font-size:13px;cursor:pointer;">+ Add account</button>
                 </div>
+                <div style="font-size:12px;color:#888;margin-top:12px;">Adding, removing and changing account types requires administrator approval (UAC).</div>
             </div>
         `;
 
@@ -1114,6 +1153,9 @@ const Settings = (() => {
             btn.addEventListener('click', async () => {
                 const action = btn.dataset.action;
                 const id = btn.dataset.user;
+                const me = Users.getCurrent();
+                const isSelf = !!(me && me.id === id);
+
                 if (action === 'rename') {
                     const acc = Users.getAccount(id);
                     const name = await Popup.textbox('Rename account', 'Enter the new display name:', { value: acc ? acc.name : '' });
@@ -1122,8 +1164,21 @@ const Settings = (() => {
                         try { window.dispatchEvent(new CustomEvent('user-info-changed')); } catch { /* noop */ }
                         rerender();
                     }
+                } else if (action === 'type') {
+                    const acc = Users.getAccount(id);
+                    if (!acc) return;
+                    const toAdmin = acc.type !== 'administrator';
+                    if (!(await requireAdmin(`Change the account type of "${acc.name}" to ${toAdmin ? 'Administrator' : 'Standard user'}?`))) return;
+                    if (!Users.setAccountType(id, toAdmin ? 'administrator' : 'standard')) {
+                        Popup.error('Cannot change account type', 'The last administrator cannot be changed to a standard user.');
+                    }
+                    try { window.dispatchEvent(new CustomEvent('user-info-changed')); } catch { /* noop */ }
+                    rerender();
                 } else if (action === 'password') {
-                    const res = await Popup.forum('Set password', [
+                    const acc = Users.getAccount(id);
+                    // Resetting someone else's password is an administrator action.
+                    if (!isSelf && !(await requireAdmin(`Reset the password for "${acc ? acc.name : id}"?`))) return;
+                    const res = await Popup.forum(isSelf ? 'Set password' : 'Reset password', [
                         { key: 'password', label: 'New password', type: 'password' },
                         { key: 'confirm', label: 'Confirm password', type: 'password' }
                     ]);
@@ -1146,10 +1201,11 @@ const Settings = (() => {
                     Users.beginSwitch('');
                 } else if (action === 'remove') {
                     const acc = Users.getAccount(id);
+                    if (!(await requireAdmin(`Remove the account "${acc ? acc.name : id}"? Their files stay on disk.`))) return;
                     const ok = await Popup.confirm('Remove account', `Remove "${acc ? acc.name : id}"? Their files in /users/${id} will remain on disk but the account will be gone.`);
                     if (ok) {
                         if (!Users.deleteAccount(id)) {
-                            Popup.error('Cannot remove account', 'The signed-in account cannot be removed, and at least one account must remain.');
+                            Popup.error('Cannot remove account', 'The signed-in account cannot be removed, the last administrator cannot be removed, and at least one account must remain.');
                         }
                         rerender();
                     }
@@ -1162,15 +1218,20 @@ const Settings = (() => {
             addBtn.addEventListener('click', async () => {
                 const res = await Popup.forum('Add account', [
                     { key: 'name', label: 'User name', placeholder: 'e.g. Alice' },
-                    { key: 'password', label: 'Password (optional)', type: 'password' }
+                    { key: 'password', label: 'Password (optional)', type: 'password' },
+                    { key: 'type', label: 'Account type', type: 'select', value: 'standard', options: [
+                        { value: 'standard', label: 'Standard user' },
+                        { value: 'administrator', label: 'Administrator' }
+                    ] }
                 ]);
-                if (res && res.name && res.name.trim()) {
-                    const created = await Users.createAccount(res.name, res.password || null);
-                    if (!created) {
-                        Popup.error('Could not create account', 'The user name cannot be empty.');
-                    }
-                    rerender();
+                if (!res || !res.name || !res.name.trim()) return;
+                const type = res.type === 'administrator' ? 'administrator' : 'standard';
+                if (!(await requireAdmin(`Add a new ${type === 'administrator' ? 'administrator' : 'standard user'} account named "${res.name.trim()}"?`))) return;
+                const created = await Users.createAccount(res.name, res.password || null, type);
+                if (!created) {
+                    Popup.error('Could not create account', 'The user name cannot be empty.');
                 }
+                rerender();
             });
         }
     }

@@ -4,6 +4,10 @@ import Sounds from './sounds.js';
 const Popup = (() => {
     const popups = new Map();
 
+    function escAttr(s) {
+        return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
     const typeIcons = {
         info: 'ℹ️',
         warn: '⚠️',
@@ -209,12 +213,27 @@ const Popup = (() => {
     }
 
     function forum(title, fields) {
-        const inputs = fields.map((f, i) => `
+        const inputs = fields.map((f, i) => {
+            const id = `popup-f-${i}`;
+            if (f.type === 'select') {
+                const opts = (f.options || []).map(o => {
+                    const value = typeof o === 'string' ? o : o.value;
+                    const label = typeof o === 'string' ? o : o.label;
+                    const sel = f.value !== undefined && String(f.value) === String(value) ? ' selected' : '';
+                    return `<option value="${escAttr(value)}"${sel}>${escAttr(label)}</option>`;
+                }).join('');
+                return `
+                    <div class="popup-field">
+                        <label class="popup-field-label" for="${id}">${f.label}</label>
+                        <select class="popup-input" id="${id}">${opts}</select>
+                    </div>`;
+            }
+            return `
             <div class="popup-field">
-                <label class="popup-field-label" for="popup-f-${i}">${f.label}</label>
-                <input type="${f.type || 'text'}" class="popup-input" id="popup-f-${i}" value="${f.value || ''}" placeholder="${f.placeholder || ''}">
-            </div>
-        `).join('');
+                <label class="popup-field-label" for="${id}">${f.label}</label>
+                <input type="${f.type || 'text'}" class="popup-input" id="${id}" value="${f.value || ''}" placeholder="${f.placeholder || ''}">
+            </div>`;
+        }).join('');
 
         const p = createPopup('forum', title, `
             <div class="popup-forum">${inputs}</div>

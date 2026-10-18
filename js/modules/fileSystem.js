@@ -11,6 +11,11 @@ const FileSystem = (() => {
     // FSGuard.check here. Denying a call makes it return the usual
     // null/false failure value without touching the tree.
     let accessChecker = null;
+    // Stricter hook for MUTATING operations only: main.js injects
+    // FSGuard.checkWrite, which reuses the read policy but additionally
+    // requires elevation for protected zones (e.g. /Program Files). Reads
+    // keep using accessChecker, so File Explorer can still browse.
+    let writeChecker = null;
     const RECYCLE_BIN_PATH = ['/', 'system', '$Recycle.Bin'];
     // Legacy backend ceiling: localStorage caps the whole serialized tree at
     // ~5MB, so one huge file can't silently take every save down with it.
@@ -453,6 +458,10 @@ const FileSystem = (() => {
         accessChecker = typeof fn === 'function' ? fn : null;
     }
 
+    function setWriteChecker(fn) {
+        writeChecker = typeof fn === 'function' ? fn : null;
+    }
+
     function allowed(path) {
         try {
             return !accessChecker || accessChecker(path) !== false;
@@ -461,11 +470,25 @@ const FileSystem = (() => {
         }
     }
 
+    function writeAllowed(path) {
+        try {
+            return !writeChecker || writeChecker(path) !== false;
+        } catch {
+            return true;
+        }
+    }
+
     function renameTarget(path, newName) {
         return [...path.slice(0, -1), newName];
     }
 
-    return { setAccessChecker, init, save, flush, flushAsync, backendId, serializedSize, wouldFit, storageInfo, STORAGE_BUDGET,
+    // A mutation must satisfy both policies (OS zones short-circuit on the
+    // read policy before any elevation prompt is raised).
+    function canWrite(path) {
+        return allowed(path) && writeAllowed(path);
+    }
+
+    return { setAccessChecker, setWriteChecker, init, save, flush, flushAsync, backendId, serializedSize, wouldFit, storageInfo, STORAGE_BUDGET,
         // Guarded public surface: every path-reaching operation consults the
         // access checker first. Internal implementations above stay unguarded
         // so shell internals (recycle bin bookkeeping, migrations) can't be
@@ -473,16 +496,16 @@ const FileSystem = (() => {
         getNode: (p) => allowed(p) ? getNode(p) : null,
         getChildren: (p) => allowed(p) ? getChildren(p) : [],
         readFile: (p) => allowed(p) ? readFile(p) : null,
-        writeFile: (p, c) => allowed(p) ? writeFile(p, c) : false,
-        createFile: (p, n, c, e) => allowed([...p, n]) ? createFile(p, n, c, e) : false,
-        createFolder: (p, n) => allowed([...p, n]) ? createFolder(p, n) : false,
-        writeFileBlob: async (p, n, b, e) => allowed([...p, n]) ? writeFileBlob(p, n, b, e) : false,
+        writeFile: (p, c) => canWrite(p) ? writeFile(p, c) : false,
+        createFile: (p, n, c, e) => canWrite([...p, n]) ? createFile(p, n, c, e) : false,
+        createFolder: (p, n) => canWrite([...p, n]) ? createFolder(p, n) : false,
+        writeFileBlob: async (p, n, b, e) => canWrite([...p, n]) ? writeFileBlob(p, n, b, e) : false,
         readFileBlob: async (p) => allowed(p) ? readFileBlob(p) : null,
         isBlobFile: (p) => allowed(p) ? isBlobFile(p) : false,
-        deleteItem: (p) => allowed(p) ? deleteItem(p) : false,
-        permanentDelete: (p) => allowed(p) ? permanentDelete(p) : false,
-        renameItem: (p, n) => (allowed(p) && allowed(renameTarget(p, n))) ? renameItem(p, n) : false,
-        moveItem: (s, d) => (allowed(s) && allowed([...d, s[s.length - 1]])) ? moveItem(s, d) : false,
+        deleteItem: (p) => canWrite(p) ? deleteItem(p) : false,
+        permanentDelete: (p) => canWrite(p) ? permanentDelete(p) : false,
+        renameItem: (p, n) => (canWrite(p) && canWrite(renameTarget(p, n))) ? renameItem(p, n) : false,
+        moveItem: (s, d) => (canWrite(s) && canWrite([...d, s[s.length - 1]])) ? moveItem(s, d) : false,
         itemExists: (p) => allowed(p) ? itemExists(p) : false,
         isFolder: (p) => allowed(p) ? isFolder(p) : false,
         restoreFromRecycleBin, emptyRecycleBin, getRecycleBinContent };

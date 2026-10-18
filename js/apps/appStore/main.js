@@ -496,7 +496,7 @@ const AppStore = (() => {
         function askScope() {
             return Popup.pick(
                 'Install location',
-                'Who should be able to use this app? Installing for all users copies it to Program Files.',
+                'Who should be able to use this app? Installing for all users copies it to Program Files and requires administrator approval.',
                 ['Just me', 'All users']
             ).then(choice => {
                 if (choice === 'All users') return 'system';
@@ -547,7 +547,12 @@ const AppStore = (() => {
                 });
             } catch (err) {
                 overlay.remove();
-                Popup.error('Install failed', (err && err.message) || 'The app could not be installed.');
+                if (err && err.elevationDenied) {
+                    Popup.info('Administrator approval required',
+                        `${(appDetails[appId] && appDetails[appId].name) || appId} was not installed. Installing for all users needs administrator approval.`);
+                } else {
+                    Popup.error('Install failed', (err && err.message) || 'The app could not be installed.');
+                }
                 after();
                 return;
             }
@@ -556,7 +561,16 @@ const AppStore = (() => {
         }
 
         async function doUninstall(appId, after) {
-            await AppSystem.uninstallApp(appId);
+            try {
+                await AppSystem.uninstallApp(appId);
+            } catch (err) {
+                if (err && err.elevationDenied) {
+                    Popup.info('Administrator approval required',
+                        `${(appDetails[appId] && appDetails[appId].name) || appId} was not uninstalled. Removing an app installed for all users needs administrator approval.`);
+                } else {
+                    Popup.error('Uninstall failed', (err && err.message) || 'The app could not be uninstalled.');
+                }
+            }
             after();
         }
 

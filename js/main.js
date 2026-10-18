@@ -23,6 +23,7 @@ import Keyboard from './modules/keyboard.js';
 import VirtualKeyboard from './modules/virtualKeyboard.js';
 import Users from './modules/users.js';
 import FSGuard from './modules/fsGuard.js';
+import UAC from './modules/uac.js';
 import LoginScreen from './modules/loginScreen.js';
 import IframeViewportFix from './modules/iframeViewportFix.js';
 
@@ -34,8 +35,12 @@ import IframeViewportFix from './modules/iframeViewportFix.js';
 // saves (config, pins, activity, ...) are denied while an app is focused.
 window._FSGuard = FSGuard;
 window._Users = Users;
+window._UAC = UAC;
 window._FileSystem = FileSystem;
 FileSystem.setAccessChecker(FSGuard.check);
+// Write policy: reads keep the access checker; mutations additionally need
+// elevation for protected zones such as /Program Files (see fsGuard.js).
+FileSystem.setWriteChecker(FSGuard.checkWrite);
 
 document.addEventListener('DOMContentLoaded', async () => {
     window.SystemConfig = SystemConfig;

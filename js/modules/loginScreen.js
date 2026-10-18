@@ -22,6 +22,7 @@ const LoginScreen = (() => {
                 content.innerHTML = `
                     <div class="login-avatar">${account.name.charAt(0).toUpperCase()}</div>
                     <div class="login-username">${esc(account.name)}</div>
+                    <div style="font-size:12px;color:#9a9aa2;">${account.type === 'administrator' ? 'Administrator' : 'Standard user'}</div>
                     <div class="login-welcome">
                         <span>Welcome</span>
                         <div class="login-spinner"></div>
@@ -38,6 +39,7 @@ const LoginScreen = (() => {
             content.innerHTML = `
                 <div class="login-avatar">${account.name.charAt(0).toUpperCase()}</div>
                 <div class="login-username">${esc(account.name)}</div>
+                <div style="font-size:12px;color:#9a9aa2;">${account.type === 'administrator' ? 'Administrator' : 'Standard user'}</div>
                 <div class="login-password-row">
                     <input type="password" class="login-password" placeholder="Password" autocomplete="off">
                     <button class="login-submit" title="Sign in">&#10142;</button>
@@ -85,6 +87,7 @@ const LoginScreen = (() => {
             <button class="login-tile${last && acc.id === last.id ? ' login-tile-last' : ''}" data-user="${acc.id}">
                 <div class="login-tile-avatar">${esc(acc.name.charAt(0).toUpperCase())}</div>
                 <div class="login-tile-name">${esc(acc.name)}</div>
+                ${acc.type === 'administrator' ? '<div style="font-size:11px;color:#9ecbff;">Administrator</div>' : ''}
             </button>
         `).join('');
 

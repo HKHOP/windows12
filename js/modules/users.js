@@ -6,6 +6,12 @@
 //   /users/<id>/AppData/<appId>/     per-user app data (the SDK sandbox)
 //   /system/users/<id>/programs data/  per-user OS data (pins, activity, ...)
 //
+// Accounts carry a `type`: 'administrator' (may elevate through a UAC
+// consent/credential prompt, see js/modules/uac.js) or 'standard'. At least
+// one administrator always exists: the guardrails here refuse to demote or
+// delete the last one, and fresh/migrated stores are normalized to an admin
+// so a device can never end up with nobody able to elevate.
+//
 // Session switching is reload-based: beginSwitch() stashes the target in
 // sessionStorage, flushes the filesystem and reloads; boot resolves the
 // target before any per-user module initializes.
@@ -177,6 +183,7 @@ const Users = (() => {
         users = [{
             id: 'default',
             name,
+            type: 'administrator',
             salt: null,
             hash: null,
             createdAt: Date.now(),
@@ -243,6 +250,24 @@ const Users = (() => {
         } catch { return null; }
     }
 
+    // Guarantee every record has a valid type and that a device always has
+    // at least one administrator (legacy stores predate the field).
+    function normalizeAccounts() {
+        let changed = false;
+        users.forEach(u => {
+            if (u.type !== 'standard' && u.type !== 'administrator') {
+                u.type = 'administrator';
+                changed = true;
+            }
+        });
+        if (users.length > 0 && !users.some(u => u.type === 'administrator')) {
+            const oldest = users.reduce((a, b) => ((a.createdAt || 0) <= (b.createdAt || 0) ? a : b));
+            oldest.type = 'administrator';
+            changed = true;
+        }
+        if (changed) writeAccounts();
+    }
+
     function init() {
         const f = fs();
         if (!f) return;
@@ -250,6 +275,7 @@ const Users = (() => {
         const stored = readAccounts();
         if (stored) {
             users = stored.users;
+            normalizeAccounts();
         } else {
             migrate();
         }
@@ -258,7 +284,7 @@ const Users = (() => {
         let id = (target && target !== '' && getAccount(target)) ? target : lastUserId();
         if (!id || !getAccount(id)) {
             // Defensive: no accounts at all (fresh/corrupted store).
-            users = [{ id: 'default', name: 'User', salt: null, hash: null, createdAt: Date.now(), lastLogin: Date.now() }];
+            users = [{ id: 'default', name: 'User', type: 'administrator', salt: null, hash: null, createdAt: Date.now(), lastLogin: Date.now() }];
             writeAccounts();
             ensureHome('default');
             id = 'default';
@@ -336,12 +362,44 @@ const Users = (() => {
         return users.find(u => u.id === id) || null;
     }
 
-    async function createAccount(name, password) {
+    // ---------- account types (administrator vs standard) ----------
+
+    function countAdmins() {
+        return users.filter(u => u.type === 'administrator').length;
+    }
+
+    function getAccountType(id) {
+        const acc = id ? getAccount(id) : current;
+        return acc ? acc.type : null;
+    }
+
+    function isAdmin(id) {
+        const acc = id ? getAccount(id) : current;
+        return !!acc && acc.type === 'administrator';
+    }
+
+    // Promote/demote. Refuses to demote the last administrator so a device
+    // can never be left with nobody able to elevate.
+    function setAccountType(id, type) {
+        const acc = getAccount(id);
+        if (!acc) return false;
+        const next = type === 'administrator' ? 'administrator' : 'standard';
+        if (acc.type === next) return true;
+        if (next === 'standard' && acc.type === 'administrator' && countAdmins() <= 1) return false;
+        acc.type = next;
+        writeAccounts();
+        if (current && current.id === id) current = acc;
+        try { window.dispatchEvent(new CustomEvent('user-info-changed')); } catch { /* noop */ }
+        return true;
+    }
+
+    async function createAccount(name, password, type) {
         const clean = String(name || '').trim();
         if (!clean) return null;
         const acc = {
             id: newId(),
             name: clean,
+            type: type === 'administrator' ? 'administrator' : 'standard',
             salt: null,
             hash: null,
             createdAt: Date.now(),
@@ -360,6 +418,9 @@ const Users = (() => {
     function deleteAccount(id) {
         if (users.length <= 1) return false;             // never the last one
         if (current && current.id === id) return false;  // never the signed-in one
+        const acc = getAccount(id);
+        // Never remove the last administrator (would lock elevation out).
+        if (acc && acc.type === 'administrator' && countAdmins() <= 1) return false;
         const before = users.length;
         users = users.filter(u => u.id !== id);
         if (users.length === before) return false;
@@ -435,6 +496,7 @@ const Users = (() => {
         init, home, appData, userData,
         getAccounts, getAccount, getCurrent: () => current ? { ...current } : null,
         setCurrent, signIn, beginSwitch,
+        countAdmins, getAccountType, isAdmin, setAccountType,
         createAccount, deleteAccount, renameAccount, setPassword, verifyPassword, hasPassword
     };
 })();

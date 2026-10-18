@@ -269,6 +269,26 @@ check('catalog exposes lazy entry + icon flags', (() => {
 })());
 check('system info shape', (() => { const i = SDK.System.info(); return i.name === 'Windows 12' && typeof i.version === 'string'; })());
 
+console.log('[accounts & uac]');
+const UsersMod = await import('../js/modules/users.js');
+const UACMod = await import('../js/modules/uac.js');
+globalThis._FileSystem = FSMod.default;
+UsersMod.default.init();
+const stdAcc = await UsersMod.default.createAccount('Smoke Std', null);
+const adminAcc = await UsersMod.default.createAccount('Smoke Admin', null, 'administrator');
+check('default account is an administrator', UsersMod.default.isAdmin() === true);
+check('UAC exposes request()/canElevate()', typeof UACMod.default.request === 'function' && typeof UACMod.default.canElevate === 'function');
+check('new accounts default to standard', !!stdAcc && stdAcc.type === 'standard' && UsersMod.default.isAdmin(stdAcc.id) === false);
+check('administrator accounts can be created', !!adminAcc && adminAcc.type === 'administrator' && UsersMod.default.isAdmin(adminAcc.id) === true);
+check('last administrator cannot be demoted', (() => {
+    const U = UsersMod.default;
+    if (!U.setAccountType('default', 'standard')) return false;  // two admins — allowed
+    if (U.setAccountType(adminAcc.id, 'standard')) return false; // now the last admin — refused
+    return U.isAdmin(adminAcc.id) === true;
+})());
+check('last administrator cannot be deleted', UsersMod.default.deleteAccount(adminAcc.id) === false);
+check('standard accounts can be removed', UsersMod.default.deleteAccount(stdAcc.id) === true);
+
 console.log('[clipboard honesty]');
 check('readText without browser API → UNSUPPORTED',
     await (async () => { try { await SDK.Clipboard.readText(); return false; } catch (e) { return e.code === 'UNSUPPORTED'; } })());

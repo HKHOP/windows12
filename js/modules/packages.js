@@ -16,6 +16,7 @@
 // this module's catalog instead.
 import FileSystem from './fileSystem.js';
 import Users from './users.js';
+import UAC from './uac.js';
 import OpfsClient from './opfsClient.js';
 import Zip from './zip.js';
 import { APP_MANIFESTS } from '../apps/registry.js';
@@ -141,9 +142,36 @@ const Packages = (() => {
 
     // ---- install / uninstall ----
 
+    function labelFor(id) {
+        const rec = installed.get(id);
+        if (rec && rec.manifest && rec.manifest.name) return rec.manifest.name;
+        const m = APP_MANIFESTS.find(x => x.id === id);
+        return (m && m.name) || id;
+    }
+
+    function elevationDenied() {
+        const err = new Error('Administrator approval is required to make system-wide changes.');
+        err.elevationDenied = true;
+        return err;
+    }
+
+    // System-wide changes (writing to /Program Files) require elevation; the
+    // UAC prompt decides (admin consent or an administrator's credentials).
+    async function requireElevation(id, message) {
+        let ok = false;
+        try {
+            ok = await UAC.request({ name: labelFor(id), message });
+        } catch (e) { ok = false; }
+        if (!ok) throw elevationDenied();
+    }
+
     async function install(id, opts = {}) {
         const scope = opts.scope === 'system' ? 'system' : 'user';
         const onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : null;
+
+        if (scope === 'system') {
+            await requireElevation(id, `"${labelFor(id)}" will be installed for all users on this device, into \\Program Files. Allow it to make changes to your device?`);
+        }
 
         onProgress && onProgress(0.02, 'Connecting');
         let res;
@@ -204,6 +232,11 @@ const Packages = (() => {
 
     async function uninstall(id) {
         const rec = installed.get(id);
+        const systemDir = [...SYSTEM_ROOT, id];
+        const isSystem = (rec && rec.scope === 'system') || !!sh(() => FileSystem.isFolder(systemDir));
+        if (isSystem) {
+            await requireElevation(id, `Remove "${labelFor(id)}" for all users (from \\Program Files)? It will no longer be available to anyone on this device.`);
+        }
         let removed = false;
         if (rec) {
             const dir = rec.scope === 'system' ? [...SYSTEM_ROOT, id] : [...userRoot(), id];

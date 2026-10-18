@@ -33,6 +33,14 @@ const FSGuard = (() => {
         'system/desktop-layout.json'
     ];
 
+    // Paths that live outside any app's own data and that only an
+    // administrator may modify. Reads stay allowed (File Explorer can browse
+    // them); writes raise a UAC prompt and, once granted, are allowed for the
+    // rest of the session for that app.
+    const PROTECTED_WRITE_PREFIXES = ['Program Files'];
+    const elevatedApps = new Set();
+    const pendingElevation = new Set();
+
     function setActiveApp(appId) {
         activeApp = appId || null;
     }
@@ -110,6 +118,8 @@ const FSGuard = (() => {
 
     function resetSession() {
         sessionAllowed.clear();
+        elevatedApps.clear();
+        pendingElevation.clear();
         prompting = false;
         activeApp = null;
     }
@@ -165,8 +175,55 @@ const FSGuard = (() => {
         return deny(appId, target);
     }
 
+    function appLabel(appId) {
+        try {
+            const m = Permissions.manifestOf(appId);
+            return (m && m.name) || appId;
+        } catch { return appId; }
+    }
+
+    function requestWriteElevation(appId, target) {
+        const uac = window._UAC;
+        if (!uac || pendingElevation.has(appId)) return;
+        pendingElevation.add(appId);
+        const zone = target.split('/')[0];
+        Promise.resolve(uac.request({
+            name: appLabel(appId),
+            message: `"${appLabel(appId)}" is trying to change files in the protected system folder "\\${zone}". Allow this app to make changes to your device?`
+        })).then(ok => {
+            pendingElevation.delete(appId);
+            if (ok) elevatedApps.add(appId);
+            try { window.dispatchEvent(new CustomEvent('fs-write-elevation', { detail: { appId, granted: !!ok } })); } catch { /* noop */ }
+        }).catch(() => pendingElevation.delete(appId));
+    }
+
+    // Write-side policy injected into FileSystem via setWriteChecker().
+    // Same rules as check(), plus a per-app session elevation for protected
+    // zones. A denied write returns false; if the user later approves the
+    // UAC prompt, a retry in the same session succeeds.
+    function checkWrite(path) {
+        if (suspendDepth > 0) return true;
+        const appId = currentApp();
+        if (!appId || !isApp(appId)) return true;
+
+        if (!check(path)) return false;
+
+        const target = pathStr(path);
+        if (!target) return true;
+        let isProtected = false;
+        for (const zone of PROTECTED_WRITE_PREFIXES) {
+            if (isUnder(target, zone)) { isProtected = true; break; }
+        }
+        if (!isProtected) return true;
+        if (elevatedApps.has(appId)) return true;
+
+        try { window.dispatchEvent(new CustomEvent('fs-write-protected', { detail: { appId, path: target } })); } catch { /* noop */ }
+        requestWriteElevation(appId, target);
+        return false;
+    }
+
     return {
-        setActiveApp, getActiveApp, asShell, check,
+        setActiveApp, getActiveApp, asShell, check, checkWrite,
         allowSession, resetSession
     };
 })();

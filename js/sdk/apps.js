@@ -67,9 +67,11 @@ function launch(id, options) {
  * Install a Store app after permission consent. Resolves false when the
  * user declines or the install cannot proceed.
  * @param {string} idOrUuid
+ * @param {{scope?: 'user'|'system'}} [options] 'system' installs for all
+ *        users (writes to /Program Files) and raises a UAC prompt
  * @returns {Promise<boolean>}
  */
-async function install(idOrUuid) {
+async function install(idOrUuid, options) {
     requireString(idOrUuid, 'idOrUuid');
     const man = AppLoader.getManifest(idOrUuid) || AppLoader.getByUuid(idOrUuid);
     if (!man) {
@@ -80,11 +82,18 @@ async function install(idOrUuid) {
     }
     const ok = await InternalPermissions.requestInstallConsent(man.id);
     if (!ok) return false;
-    return AppLoader.install(man.id);
+    const scope = options && options.scope === 'system' ? 'system' : 'user';
+    try {
+        return await AppLoader.install(man.id, { scope });
+    } catch (err) {
+        if (err && err.elevationDenied) return false;
+        throw err;
+    }
 }
 /**
  * Uninstall a Store app. Always confirms with the user first and wipes
- * the app's stored permission grants.
+ * the app's stored permission grants. System-wide installs need
+ * administrator approval (UAC); declining resolves false.
  * @param {string} idOrUuid
  * @returns {Promise<boolean>} true when uninstalled
  */
@@ -99,7 +108,12 @@ async function uninstall(idOrUuid) {
     }
     const ok = await InternalDialogs.confirm('Uninstall app', `Uninstall ${man.name || man.id}? Its stored data stays on disk.`);
     if (!ok) return false;
-    await AppLoader.uninstall(man.id);
+    try {
+        await AppLoader.uninstall(man.id);
+    } catch (err) {
+        if (err && err.elevationDenied) return false;
+        throw err;
+    }
     try {
         InternalPermissions.clearGrants(man.id);
     } catch { /* grants already gone */ }
