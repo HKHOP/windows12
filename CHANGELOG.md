@@ -4,6 +4,28 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4983] - 2026-10-18
+
+### Added
+- **Concurrent user sessions (fast user switching).** Several accounts can be signed in at once: each keeps its own windows, virtual desktops and OS state, and only the foreground one is visible — the rest keep running hidden. New `js/modules/sessions.js` (the session registry, with `onBoot`/`onActivate`/`onClose` hooks injected by `js/main.js`), plus `window._Sessions` and `window._Shell` (sign in / activate / sign out / lock / sleep / restart / shut down) for apps
+- **Lock screen and the full power set** (`js/modules/lockScreen.js`). Start > Power now offers **Lock** (secure-desktop overlay, unlock with the account password; also `WIN+L`), **Switch user** (the picker opens over the still-running session, with a Cancel button), **Sign out** (ends the session in-page and reopens the picker), **Sleep** (fades to black; any input wakes into the lock screen), **Restart** (restart screen, then reload) and **Shut down** (shut-down screen, then a powered-off screen with a power button that boots again). The old `window.close()`/forced-reload behaviour is gone
+- Per-user path roots for background code: `Users.homeFor` / `appDataFor` / `userDataFor(id, …)` resolve an explicit profile, and `Users.loadAccounts()` / `Users.activate(id)` split reading the account store from activating a profile
+- `Users.primaryAdminId()` — the most recently signed-in administrator (source of the login/lock personalization)
+- The lock overlay shows a live clock, the account avatar and an unlock prompt; new `sleep` action icon in `js/modules/uiIcons.js`
+
+### Changed
+- **The login screen no longer preloads a profile.** Boot now initializes only the filesystem and the account store (`js/main.js`), so the picker appears immediately; the chosen profile's shell is built afterwards behind the Welcome spinner. `js/modules/loginScreen.js` is callback-driven (`bootSequence({ onSignIn })`, `show({ canCancel })`) and doubles as the Switch-user / Sign-out picker, marking already signed-in profiles
+- The login and lock screens mirror the **primary administrator's** personalization (wallpaper image or gradient, accent colour, light/dark) read straight from that profile's config — no session is activated to paint them (`SystemConfig.readThemeFor` / `wallpaperGradient`)
+- Every window is tagged with the session that created it and window visibility is centralised in `WindowManager.applyVisibility` (foreground session ∧ active desktop ∧ not minimized); `minimizeAll` and `getFocused` follow the foreground session, and the taskbar only lists the foreground session's windows
+- `BackgroundApps` tracks autostart per profile and revives a profile's headless apps on switch without stopping the others; signing out runs their shutdown hooks
+- The per-user modules (`SystemConfig`, `UserActivity`, `Notifications`, `StartMenu`, `DesktopIcons`, `Taskbar`, `WindowState`, `VirtualDesktops`) gained an `activate(userId)` hook so a switch re-points them at the new profile's data
+- Settings > Accounts > Sign out now ends the session in-page via `window._Shell`; `Users.beginSwitch` remains only as a recovery fallback
+
+### Fixed
+- **Virtual desktops are now per-user.** They were persisted globally at `/system/programs data/virtualDesktops/`; each account keeps its own desktops, names, order, active desktop and per-desktop wallpapers under its own profile
+- Window geometry/history is per-user too (`WindowState`), so concurrent sessions no longer overwrite each other's window layout
+- The taskbar and Task View no longer treat another session's windows as belonging to the foreground user
+
 ## [12.0.4982] - 2026-10-18
 
 ### Changed
