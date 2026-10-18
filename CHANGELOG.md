@@ -4,6 +4,19 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4981] - 2026-10-18
+
+### Added
+- **Administrator accounts.** Accounts now carry a `type` — `administrator` or `standard` (`Users.isAdmin` / `getAccountType` / `setAccountType` / `countAdmins` in `js/modules/users.js`). The seeded and migrated account is an administrator, legacy stores are normalized so a device always has one, and **the last administrator can't be demoted or deleted**. Settings > Accounts shows each account's type, can promote/demote, and offers an account-type selector when adding one; the login tiles and Settings sidebar label administrators
+- **User Account Control** (`js/modules/uac.js`, also `window._UAC`). `UAC.request({ name, message })` shows a modal, everything-blocking elevation dialog: a Yes/No *consent* prompt for administrators, or an administrator *credential* prompt for standard users (pick an administrator and type its password; an administrator without a password approves by being selected). Prompts are serialized and elevation is per-action — never persistent
+- Write-side filesystem policy: `FileSystem.setWriteChecker` + `FSGuard.checkWrite` — app mutations inside `/Program Files` raise a UAC prompt (granted per app for the session); reads stay allowed so File Explorer can still browse it
+
+### Changed
+- Settings account management (add/remove accounts, change type, reset another user's password) now requires administrator approval via UAC; changing your own password stays ungated
+- Store installs: "All users" (system scope) and uninstalling a system-wide app now require administrator approval. `js/modules/packages.js` enforces this in the module layer and throws an error flagged `elevationDenied` when declined — the Store and Settings surface a friendly message, while `SDK.Apps` resolves `false`
+- `SDK.Apps.install(id, { scope })` gained an optional `scope` (`'user'` | `'system'`); a system install raises a UAC prompt. `SDK.Apps.uninstall` also resolves `false` when administrator approval is declined
+- `Popup.forum` fields support `type: 'select'` with an `options` list (used by the Add-account dialog)
+
 ## [12.0.4980] - 2026-10-18
 
 ### Added
