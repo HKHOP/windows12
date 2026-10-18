@@ -9,19 +9,19 @@
   "associations": [],
   "permissions": ["network"],
   "store": {
-    "developer": "Lichess",
+    "developer": "Chess.com",
     "category": "Games",
-    "rating": 4.9,
-    "reviews": 22140,
-    "description": "Watch top-rated live games on Lichess TV and solve the daily puzzle — powered by Lichess's official embeds. Hit Play on Lichess for full rated play.",
+    "rating": 4.8,
+    "reviews": 150000,
+    "description": "Play chess on Chess.com — the world's #1 chess site. Watch live games, solve daily puzzles, and play against millions of players worldwide.",
     "features": [
-      "Live TV: the best game playing right now, auto-updating",
+      "Live chess: watch top games and play live",
       "Daily puzzle with a fresh challenge every day",
-      "Official Lichess embeds — free, no account, no ads",
-      "One-click jump to full Lichess play in your browser"
+      "Play online against millions of players",
+      "One-click access to full Chess.com experience"
     ],
     "screenshots": [
-      { "bg": "linear-gradient(135deg, #161512, #8a6d3b)", "text": "Live grandmaster TV" },
+      { "bg": "linear-gradient(135deg, #161512, #8a6d3b)", "text": "Live chess & play" },
       { "bg": "linear-gradient(135deg, #8a6d3b, #161512)", "text": "Daily puzzles" }
     ],
     "size": "0.1 MB",

@@ -957,13 +957,15 @@ const Minecraft = (() => {
             const jump = root.querySelector('.mc-jump');
 
             joy.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
                 joy.setPointerCapture(e.pointerId);
                 state.joystick = { x: 0, y: 0, id: e.pointerId };
                 moveJoy(e);
             });
-            joy.addEventListener('pointermove', (e) => { if (state.joystick && e.pointerId === state.joystick.id) moveJoy(e); });
+            joy.addEventListener('pointermove', (e) => { if (state.joystick && e.pointerId === state.joystick.id) { e.stopPropagation(); moveJoy(e); } });
             const joyEnd = (e) => {
                 if (state.joystick && e.pointerId === state.joystick.id) {
+                    e.stopPropagation();
                     state.joystick = null;
                     knob.style.transform = 'translate(-50%,-50%)';
                 }
@@ -988,6 +990,8 @@ const Minecraft = (() => {
             let look = null;
             canvas.addEventListener('pointerdown', (e) => {
                 if (state.paused) return;
+                // Ignore touches that start on the joystick, jump button, or hotbar
+                if (e.target !== canvas) return;
                 root.focus();
                 look = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), moved: 0 };
                 canvas.setPointerCapture(e.pointerId);

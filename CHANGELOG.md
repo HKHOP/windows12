@@ -4,6 +4,22 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4989] - 2026-10-18
+
+### Changed
+- **Chess app** now uses Chess.com (https://www.chess.com/) instead of Lichess — updated URLs for Live Chess, Daily Puzzle, and Play Online modes; store metadata updated accordingly (`js/apps/chess/main.js`, `js/apps/chess/manifest.json`)
+
+### Fixed
+- **Minecraft Classic touch controls** — joystick and jump button now work reliably; fixed pointer capture conflict where canvas would steal pointer from joystick, causing touch to stop working after ~1ms (`js/apps/minecraft/main.js`)
+
+### Added
+- **Minecraft Java launcher** — new version entries: **1.14.4** (`https://eymenwsmc.site/114/`), **1.7.10** (`https://eymenwsmc.site/r1710/`) in the Releases group (`js/apps/minecraftJava/main.js`)
+
+### Changed
+- **Minecraft Java 26.2** updated to new CDN URL: `https://eaglercraft-26-2-u1-cdn.u2471966200.workers.dev/eaglercraft-26.2-u2.html?v=u2-20261017`
+- **Minecraft Java 1.20.6** added at `https://eymenwsmc.site/120/?v=20260824-5430efd6`
+- **Native touch controls support** — versions with built-in touch controls (26.2, 1.20.6) now show "✓ Touch controls built-in" instead of a toggle; the Eaglermobile userscript is not injected for these versions (`js/apps/minecraftJava/main.js`)
+
 ## [12.0.4988] - 2026-10-18
 
 ### Added

@@ -13,13 +13,17 @@ const TOUCH_USERSCRIPT = 'flameddogo99-eaglermobile.js';
 // Newest first. `touch` is the client's known touch-controls support:
 // 'supported' (defaults the toggle on), 'unknown' (off, but togglable),
 // 'unsupported' (toggle disabled).
+// 'native' = built-in touch controls, toggle hidden entirely.
 const VERSIONS = [
-    { id: '26.2', label: '26.2', group: 'Snapshots', url: 'https://eaglercraft-26-2-client.u2471966200.workers.dev/', touch: 'unknown' },
+    { id: '26.2', label: '26.2', group: 'Snapshots', url: 'https://eaglercraft-26-2-u1-cdn.u2471966200.workers.dev/eaglercraft-26.2-u2.html?v=u2-20261017', touch: 'native' },
     { id: '26.1', label: '26.1', group: 'Snapshots', url: 'https://github.com/thebananamanjcgaming/EaglercraftZ-26.1.1/blob/main/index.html', touch: 'unknown' },
     { id: '1.21.11', label: '1.21.11 (WASM)', group: 'Releases', url: 'https://www.mediafire.com/file/2oqt9ihytokhvh3/Eaglercraft_1.21.11_WASM_Offline_Download_(7)_(1).html/file', touch: 'unknown' },
+    { id: '1.20.6', label: '1.20.6', group: 'Releases', url: 'https://eymenwsmc.site/120/?v=20260824-5430efd6', touch: 'native' },
     { id: '1.20.4', label: '1.20.4', group: 'Releases', url: 'https://github.com/XxFluffyAsherxX/Eaglercraft-1.20.4-Updated-/blob/main/index%20(2).html', touch: 'unknown' },
+    { id: '1.14.4', label: '1.14.4', group: 'Releases', url: 'https://eymenwsmc.site/114/', touch: 'unknown' },
     { id: '1.12.2', label: '1.12.2 (WASM)', group: 'Releases', url: 'https://eaglercraft.com/play?version=1.12.2-wasm', touch: 'supported' },
     { id: '1.8.8', label: '1.8.8 (WASM)', group: 'Releases', url: 'https://eaglercraft.com/play?version=1.8.8-wasm', touch: 'unsupported' },
+    { id: '1.7.10', label: '1.7.10', group: 'Releases', url: 'https://eymenwsmc.site/r1710/', touch: 'unknown' },
     { id: '1.5.2', label: '1.5.2', group: 'Releases', url: 'https://eaglercraft.com/play?version=1.5.2', touch: 'supported' },
     { id: 'b1.7.3', label: 'Beta 1.7.3', group: 'Legacy', url: 'https://eaglercraft.com/play?version=b1.7.3', touch: 'supported' },
     { id: 'b1.3', label: 'Beta 1.3', group: 'Legacy', url: 'https://eaglercraft.com/play?version=b1.3', touch: 'supported' },
@@ -31,6 +35,7 @@ const TOUCH_HINT = {
     'supported': 'Touch controls supported',
     'unknown': 'Touch support unknown',
     'unsupported': 'Touch controls not supported',
+    'native': 'Built-in touch controls',
 };
 
 const GROUP_ORDER = ['Snapshots', 'Releases', 'Legacy'];
@@ -93,6 +98,7 @@ function launcherHtml(lastPlayed) {
 // -- In-game view -------------------------------------------------------------
 
 function gameHtml(version) {
+    const showTouchToggle = version.touch !== 'native';
     return `
         <div class="mcj-game">
             <div class="mcj-game-bar">
@@ -101,10 +107,11 @@ function gameHtml(version) {
                     Versions
                 </button>
                 <div class="mcj-game-title">Minecraft Java — ${version.label}</div>
+                ${showTouchToggle ? `
                 <label class="mcj-touch-toggle" title="${TOUCH_HINT[version.touch]}">
                     <input type="checkbox" class="mcj-touch-check" ${version.touch === 'supported' ? 'checked' : ''} ${version.touch === 'unsupported' ? 'disabled' : ''}>
                     Touch controls
-                </label>
+                </label>` : `<span class="mcj-touch-native" title="${TOUCH_HINT[version.touch]}">✓ Touch controls built-in</span>`}
                 <button class="mcj-fullscreen" title="Fullscreen (F11)">
                     <svg viewBox="0 0 16 16" width="14" height="14" fill="none"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     <span>Fullscreen</span>
@@ -160,6 +167,8 @@ const STYLES = `
     .mcj-touch-toggle { margin-left:auto; display:flex; align-items:center; gap:6px; font-size:12px;
         color:#9a958c; cursor:pointer; white-space:nowrap; user-select:none; }
     .mcj-touch-toggle input { accent-color:#7ec850; cursor:pointer; }
+    .mcj-touch-native { margin-left:auto; display:flex; align-items:center; gap:6px; font-size:12px;
+        color:#7ec850; font-weight:600; white-space:nowrap; }
     .mcj-fullscreen span { min-width:64px; text-align:left; }
     .mcj-frame-holder { flex:1; min-height:0; background:#000; position:relative; }
     .mcj-frame { width:100%; height:100%; border:none; display:block; background:#000; }
@@ -217,7 +226,8 @@ function launch() {
         const keyHint = el.querySelector('.mcj-key-hint');
         const touchCheck = el.querySelector('.mcj-touch-check');
         const fsBtn = el.querySelector('.mcj-fullscreen');
-        let touchOn = touchCheck.checked;
+        const hasTouchToggle = !!touchCheck;
+        let touchOn = hasTouchToggle ? touchCheck.checked : false;
 
         // Keyboard (WASD) only reaches the cross-origin client when the
         // iframe itself holds focus — keys pressed while the parent document
@@ -238,13 +248,15 @@ function launch() {
         frame.addEventListener('load', onFrameLoad);
         window.addEventListener('blur', onWindowBlur);
 
-        const loadFrame = () => { frame.src = buildUrl(version, touchOn); };
+        const loadFrame = () => { frame.src = hasTouchToggle ? buildUrl(version, touchOn) : version.url; };
         loadFrame();
 
-        touchCheck.addEventListener('change', () => {
-            touchOn = touchCheck.checked;
-            loadFrame();
-        });
+        if (hasTouchToggle) {
+            touchCheck.addEventListener('change', () => {
+                touchOn = touchCheck.checked;
+                loadFrame();
+            });
+        }
 
         const syncFsBtn = () => {
             const active = app.window.isFullscreen(win.id);

@@ -1,15 +1,15 @@
-// Chess — Lichess embeds for Windows 12.
-// Uses only Lichess's official frame-friendly endpoints (lichess.org/developers):
-// live TV + the daily puzzle. Anything else opens on the real site.
+// Chess — Chess.com embeds for Windows 12.
+// Uses Chess.com pages in iframes. Note: chess.com may have frame restrictions.
 import WindowManager from '../../modules/windowManager.js';
 
 const Chess = (() => {
     const APP_ID = 'chess';
     const MODES = {
-        tv: { label: 'Live TV', url: 'https://lichess.org/tv/frame?theme=brown&bg=dark', hint: 'Top-rated live game, auto-updates' },
-        puzzle: { label: 'Daily Puzzle', url: 'https://lichess.org/training/frame?theme=brown&bg=dark', hint: 'Black to play — a fresh puzzle every day' }
+        live: { label: 'Live Chess', url: 'https://www.chess.com/live', hint: 'Watch live games and play' },
+        puzzle: { label: 'Daily Puzzle', url: 'https://www.chess.com/puzzle', hint: 'A fresh puzzle every day' },
+        play: { label: 'Play Online', url: 'https://www.chess.com/play', hint: 'Play against opponents worldwide' }
     };
-    const HOME_URL = 'https://lichess.org/';
+    const HOME_URL = 'https://www.chess.com/';
     const icon = `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="4" fill="#161512"/><circle cx="12" cy="7" r="2.4" fill="#e8e5df"/><path d="M9.5 10.5h5l.8 4.5H8.7l.8-4.5z" fill="#e8e5df"/><path d="M7.5 16.5h9l1 2.5h-11l1-2.5z" fill="#e8e5df"/></svg>`;
 
     function getContent() {
@@ -20,11 +20,11 @@ const Chess = (() => {
         <div class="chess-root" style="position:absolute;inset:0;display:flex;flex-direction:column;min-height:0;background:#161512;color:#e8e5df;">
             <div style="flex:none;display:flex;align-items:center;gap:6px;padding:6px 10px;background:#211d16;border-bottom:1px solid rgba(255,255,255,.08);">
                 ${tabs}
-                <span class="chess-hint" style="font-size:11px;color:#9a958c;margin-left:4px;">${MODES.tv.hint}</span>
+                <span class="chess-hint" style="font-size:11px;color:#9a958c;margin-left:4px;">${MODES.live.hint}</span>
                 <span style="flex:1"></span>
-                <button class="chess-open" style="background:rgba(255,255,255,.08);border:none;color:#fff;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:11px;">Play on Lichess</button>
+                <button class="chess-open" style="background:rgba(255,255,255,.08);border:none;color:#fff;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:11px;">Open on Chess.com</button>
             </div>
-            <iframe class="chess-frame" title="Chess — Live TV" tabindex="0" src="${MODES.tv.url}"
+            <iframe class="chess-frame" title="Chess — Live Chess" tabindex="0" src="${MODES.live.url}"
                 allow="autoplay; fullscreen; clipboard-write"
                 sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-scripts allow-same-origin allow-downloads"
                 style="flex:1 1 0%;width:100%;height:100%;min-height:0;min-width:0;border:none;display:block;background:#161512;"></iframe>
