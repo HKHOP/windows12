@@ -4,6 +4,21 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4986] - 2026-10-18
+
+### Added
+- **The OS now works offline once installed as an app.** The service worker serves every same-origin request network-first with an offline cache fallback (a 3-second cap so a reachable-but-dead server can't hang boot, plus app-shell fallback for navigations), so the shell and every builtin app boot with no network at all — even if the host (GitHub Pages) is down. Store apps already run from the virtual filesystem (`sw.js`, `js/main.js`)
+- **Network status module** (`js/modules/networkStatus.js`, also `window._NetworkStatus`): tracks `navigator.onLine`, paints the taskbar Wi-Fi indicator (solid Wi-Fi when connected, Wi-Fi with a red slash when not), opens a small network flyout anchored to the tray on any taskbar edge, and exposes `isOnline()` / `onChange(cb)` / `ensureOnline(feature)` / `showError(feature)` for features to fail cleanly. Wired into boot in `js/main.js`
+
+### Changed
+- The service worker precaches each asset independently (instead of the all-or-nothing `addAll`), so a single renamed/missing file can no longer abort the entire offline shell; shell files are stored under a canonical key with just the `?v=` cache-buster stripped so versioned requests hit the offline copy (`sw.js`)
+- Being online is no longer assumed by internet features: the Store download step, Windows Update, the Browser and Weather now report a readable connection error instead of hanging or crashing
+- The Browser shows a clean, retryable "You're not connected" card (with the target URL and a **Try again** button) instead of a blank frame when offline, and auto-reloads the page once the connection returns (`js/apps/browser/main.js`, `css/browser.css`)
+
+### Fixed
+- **The Wi-Fi tray icon now reflects connectivity** — it previously always showed as connected (`index.html`, `css/taskbar.css`)
+- Store installs and Windows Update checks now surface "you're offline" style messages rather than a generic failure (`js/modules/packages.js`, `js/modules/windowsUpdate.js`)
+
 ## [12.0.4985] - 2026-10-18
 
 ### Removed
