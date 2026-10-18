@@ -12,9 +12,11 @@
 // delete the last one, and fresh/migrated stores are normalized to an admin
 // so a device can never end up with nobody able to elevate.
 //
-// Session switching is reload-based: beginSwitch() stashes the target in
-// sessionStorage, flushes the filesystem and reloads; boot resolves the
-// target before any per-user module initializes.
+// Sessions are concurrent (see js/modules/sessions.js): several users can be
+// signed in at once, and `current` is the *foreground* one. Per-user roots
+// therefore come in two flavours — home()/appData()/userData() follow the
+// foreground user, while homeFor()/appDataFor()/userDataFor() take an explicit
+// id (used by background execution that must keep writing to its own profile).
 //
 // Callers that can't import this module safely (import cycles) use the
 // window._Users global, same pattern as window._FileSystem.
@@ -35,7 +37,7 @@ const Users = (() => {
         'windowState', 'desktopIcons'
     ]);
     // OS modules whose storage becomes per-user on migration.
-    const PER_USER_OS_DIRS = ['startmenu', 'userActivity', 'notifications'];
+    const PER_USER_OS_DIRS = ['startmenu', 'userActivity', 'notifications', 'virtualDesktops'];
 
     // Home skeleton for a fresh account (mirrors the legacy default home).
     const HOME_DIRS = [
@@ -206,6 +208,9 @@ const Users = (() => {
             try { moveNode([...LEGACY_PROGRAMS, name], dest); } catch { /* keep */ }
         });
         try { moveNode([...LEGACY_PROGRAMS, 'backgroundApps.json'], dest); } catch { /* keep */ }
+        // Window geometry/history also becomes per-user (each profile keeps
+        // its own window layout, which concurrent sessions require).
+        try { moveNode([...LEGACY_PROGRAMS, 'windowState.json'], dest); } catch { /* keep */ }
 
         // App-owned data folders become the first user's AppData; every
         // other top-level entry in /system/programs data stays global.
@@ -240,14 +245,15 @@ const Users = (() => {
         return best ? best.id : null;
     }
 
-    // Explicit switch target from a previous session ('' means "show the
-    // picker, default to last user"), otherwise the last user.
-    function consumeSwitchTarget() {
-        try {
-            const v = sessionStorage.getItem(TARGET_KEY);
-            sessionStorage.removeItem(TARGET_KEY);
-            return v;
-        } catch { return null; }
+    // Most recently signed-in administrator — the profile whose
+    // personalization dresses the login/lock screens. Falls back to the
+    // first administrator (normalizeAccounts guarantees one exists).
+    function primaryAdminId() {
+        const admins = users.filter(u => u.type === 'administrator');
+        if (admins.length === 0) return lastUserId();
+        let best = admins[0];
+        admins.forEach(u => { if ((u.lastLogin || 0) > (best.lastLogin || 0)) best = u; });
+        return best ? best.id : null;
     }
 
     // Guarantee every record has a valid type and that a device always has
@@ -268,7 +274,10 @@ const Users = (() => {
         if (changed) writeAccounts();
     }
 
-    function init() {
+    // Phase 1 of boot: read/normalize the account store. No user is selected
+    // and no per-user module is initialized — the login screen shows the
+    // picker immediately and the chosen profile loads afterwards.
+    function loadAccounts() {
         const f = fs();
         if (!f) return;
         ensureDirAllShell(ROOT);
@@ -279,19 +288,31 @@ const Users = (() => {
         } else {
             migrate();
         }
-
-        const target = consumeSwitchTarget();
-        let id = (target && target !== '' && getAccount(target)) ? target : lastUserId();
-        if (!id || !getAccount(id)) {
+        if (!users.length) {
             // Defensive: no accounts at all (fresh/corrupted store).
             users = [{ id: 'default', name: 'User', type: 'administrator', salt: null, hash: null, createdAt: Date.now(), lastLogin: Date.now() }];
             writeAccounts();
-            ensureHome('default');
-            id = 'default';
         }
-        current = getAccount(id);
-        ensureHome(current.id);
-        ensureDirAllShell(['/', 'system', 'users', current.id, 'programs data']);
+        // A legacy reload-based switch target (pre concurrent sessions) is
+        // meaningless now; clear it so an old tab can't replay it.
+        try { sessionStorage.removeItem(TARGET_KEY); } catch { /* session-only */ }
+    }
+
+    // Phase 2: make a user the foreground profile and make sure their home
+    // exists. Called when a session is started or brought to the front.
+    function activate(id) {
+        const acc = getAccount(id);
+        if (!acc) return null;
+        current = acc;
+        ensureHome(acc.id);
+        ensureDirAllShell(['/', 'system', 'users', acc.id, 'programs data']);
+        return { ...acc };
+    }
+
+    function init() {
+        loadAccounts();
+        const id = lastUserId() || 'default';
+        activate(id);
     }
 
     function setCurrent(id) {
@@ -311,6 +332,8 @@ const Users = (() => {
     }
 
     // Stash the next session's user (or '' for the picker) and reload.
+    // Only used as an explicit fallback (e.g. a deep recovery path); normal
+    // session changes are concurrent and in-page (see sessions.js).
     function beginSwitch(userId) {
         try { sessionStorage.setItem(TARGET_KEY, userId || ''); } catch { /* session-only */ }
         // Persist before the reload tears the page (and the OPFS worker)
@@ -318,7 +341,7 @@ const Users = (() => {
         // older/custom FS shims without it fall back to the sync flush.
         try {
             const f = fs();
-            const flushed = f && f.flushAsync ? f.flushAsync() : (f && f.flush());
+            const flushed = f && f.flushAsync ? f.flushAsync() : (f && f.flush);
             if (flushed && typeof flushed.then === 'function') {
                 flushed.then(() => window.location.reload(), () => window.location.reload());
                 return;
@@ -329,28 +352,30 @@ const Users = (() => {
 
     // ---------- per-user path roots ----------
 
-    function home(sub) {
-        const id = current ? current.id : 'default';
-        const base = ['/', 'users', id];
+    function withSub(base, sub) {
         if (Array.isArray(sub) && sub.length > 0) return [...base, ...sub];
         if (typeof sub === 'string' && sub) return [...base, ...sub.split('/').filter(Boolean)];
         return base;
     }
 
-    function appData(appId, sub) {
-        const base = [...home(), 'AppData', appId];
-        if (Array.isArray(sub) && sub.length > 0) return [...base, ...sub];
-        if (typeof sub === 'string' && sub) return [...base, ...sub.split('/').filter(Boolean)];
-        return base;
+    function homeFor(id, sub) {
+        const uid = id || (current ? current.id : 'default');
+        return withSub(['/', 'users', uid], sub);
     }
 
-    // Per-user OS data (pins, activity, notifications, autostart, ...).
-    function userData(sub) {
-        const base = ['/', 'system', 'users', current ? current.id : 'default', 'programs data'];
-        if (Array.isArray(sub) && sub.length > 0) return [...base, ...sub];
-        if (typeof sub === 'string' && sub) return [...base, ...sub.split('/').filter(Boolean)];
-        return base;
+    function appDataFor(id, appId, sub) {
+        const base = [...homeFor(id), 'AppData', appId];
+        return withSub(base, sub);
     }
+
+    function userDataFor(id, sub) {
+        const uid = id || (current ? current.id : 'default');
+        return withSub(['/', 'system', 'users', uid, 'programs data'], sub);
+    }
+
+    function home(sub) { return homeFor(null, sub); }
+    function appData(appId, sub) { return appDataFor(null, appId, sub); }
+    function userData(sub) { return userDataFor(null, sub); }
 
     // ---------- account management ----------
 
@@ -418,6 +443,9 @@ const Users = (() => {
     function deleteAccount(id) {
         if (users.length <= 1) return false;             // never the last one
         if (current && current.id === id) return false;  // never the signed-in one
+        // Never delete a user with a live session (their windows/state are
+        // still in memory); sign them out first.
+        try { if (window._Sessions && window._Sessions.isSignedIn(id)) return false; } catch { /* no session layer */ }
         const acc = getAccount(id);
         // Never remove the last administrator (would lock elevation out).
         if (acc && acc.type === 'administrator' && countAdmins() <= 1) return false;
@@ -493,9 +521,10 @@ const Users = (() => {
     }
 
     return {
-        init, home, appData, userData,
+        init, loadAccounts, activate, home, appData, userData,
+        homeFor, appDataFor, userDataFor,
         getAccounts, getAccount, getCurrent: () => current ? { ...current } : null,
-        setCurrent, signIn, beginSwitch,
+        setCurrent, signIn, beginSwitch, lastUserId, primaryAdminId,
         countAdmins, getAccountType, isAdmin, setAccountType,
         createAccount, deleteAccount, renameAccount, setPassword, verifyPassword, hasPassword
     };

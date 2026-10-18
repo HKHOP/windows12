@@ -286,7 +286,13 @@ const Taskbar = (() => {
 
     // Virtual desktops: the taskbar only reflects the active desktop's
     // windows. Without the module (or before it boots), everything counts.
+    // Concurrent sessions: another profile's windows never count either.
     function isOnActiveDesktop(windowId) {
+        const S = window._Sessions;
+        if (S) {
+            const w = WindowManager._getWindow(windowId);
+            if (w && w.userId && w.userId !== S.getActive()) return false;
+        }
         const VD = getVD();
         if (!VD) return true;
         try {
@@ -447,7 +453,12 @@ const Taskbar = (() => {
         return [...pinnedApps];
     }
 
-    return { init, openApp, addRunningApp, removeRunningApp, updateRunningState, setActiveApp, clearActiveApp, getPinnedApps, pinApp, unpinApp, isPinned, renderTaskbarButtons };
+    // Foreground session changed: the running-app buttons follow the profile.
+    function activate() {
+        renderTaskbarButtons();
+    }
+
+    return { init, activate, openApp, addRunningApp, removeRunningApp, updateRunningState, setActiveApp, clearActiveApp, getPinnedApps, pinApp, unpinApp, isPinned, renderTaskbarButtons };
 })();
 
 export { Taskbar, AppRegistry, AppMetadata };

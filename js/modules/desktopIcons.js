@@ -69,6 +69,16 @@ const DesktopIcons = (() => {
         });
     }
 
+    // Foreground session changed: swap in this profile's Desktop folder,
+    // icon layout and selection.
+    function activate() {
+        selected.clear();
+        lastClicked = null;
+        positions = {};
+        loadPositions();
+        render();
+    }
+
     // ---------- Multi-select helpers ----------
     function orderedNames() {
         let entries = [];
@@ -964,7 +974,7 @@ const DesktopIcons = (() => {
         render();
     }
 
-    return { init, render, createNewFolder, createNewFile, clearSelection, selectAll, getSelected, isSelected, deleteSelected, openSelected };
+    return { init, activate, render, createNewFolder, createNewFile, clearSelection, selectAll, getSelected, isSelected, deleteSelected, openSelected };
 })();
 
 export default DesktopIcons;

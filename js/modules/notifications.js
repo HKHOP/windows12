@@ -569,8 +569,25 @@ const Notifications = (() => {
         renderPanelList();
     }
 
+    // Foreground session changed: swap to this profile's history (the
+    // previous profile's is already persisted). In-flight toasts belong to
+    // the session that raised them, so they are cleared.
+    function activate() {
+        if (toastRoot) toastRoot.innerHTML = '';
+        items.clear();
+        unread = 0;
+        dnd = false;
+        restore();
+        updateBadge();
+        if (panelEl && panelEl.isConnected) {
+            renderPanelList();
+            renderQuick();
+            renderDndBtn();
+        }
+    }
+
     return {
-        init, info, action, forum, dismiss, clearAll, getAll,
+        init, activate, info, action, forum, dismiss, clearAll, getAll,
         open, close, toggle, isOpen,
         setDoNotDisturb, isDoNotDisturb
     };

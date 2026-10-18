@@ -26,6 +26,9 @@ import FSGuard from './modules/fsGuard.js';
 import UAC from './modules/uac.js';
 import LoginScreen from './modules/loginScreen.js';
 import IframeViewportFix from './modules/iframeViewportFix.js';
+import Sessions from './modules/sessions.js';
+import LockScreen from './modules/lockScreen.js';
+import WindowState from './modules/windowState.js';
 
 // Filesystem access policy: app code may always touch its own AppData,
 // anything else requires the 'filesystem' permission (see fsGuard.js).
@@ -37,6 +40,22 @@ window._FSGuard = FSGuard;
 window._Users = Users;
 window._UAC = UAC;
 window._FileSystem = FileSystem;
+window._Sessions = Sessions;
+// Small shell API for apps that must trigger a session transition (e.g.
+// Settings > Accounts > Sign out) without importing the shell modules.
+window._Shell = {
+    signIn: (id) => Sessions.signIn(id),
+    activate: (id) => Sessions.activate(id),
+    signOut: (id) => Sessions.signOut(id || Sessions.getActive()),
+    activeUser: () => Sessions.getActive(),
+    signedIn: () => Sessions.list(),
+    lock: () => LockScreen.lock(),
+    sleep: () => LockScreen.sleep(),
+    restart: () => LockScreen.restart(),
+    shutdown: () => LockScreen.shutdown(),
+    switchUser: () => LockScreen.switchUser(),
+    logout: () => LockScreen.logout()
+};
 FileSystem.setAccessChecker(FSGuard.check);
 // Write policy: reads keep the access checker; mutations additionally need
 // elevation for protected zones such as /Program Files (see fsGuard.js).
@@ -50,25 +69,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     registerServiceWorker();
 
     Scaling.init();
-    const s = Scaling.getScale();
-    WindowManager.setScale(s);
+    WindowManager.setScale(Scaling.getScale());
 
-    // Boot order matters: FS first, then users (resolves the boot target,
-    // runs one-time migration), then the package store (scans installed
-    // packages / migrates legacy installs), then the app catalog + lazy
-    // loader, then per-user config/activity. FS init is async because the
-    // OPFS backend reads its tree snapshot (possibly through a worker)
-    // before the synchronous FS API can answer anything.
+    // Phase 1 — the MACHINE, not a user: filesystem + account store only.
+    // The login screen can therefore show the picker immediately; nothing
+    // per-user is preloaded. The CHOSEN profile boots in phase 2, after
+    // sign-in (see bootShell / activateSession below), the way Windows loads
+    // a profile only once you pick it.
     await FileSystem.init();
-    Users.init();
-    await Packages.init();
-    await AppSystem.init();
-    UserActivity.init();
-    SystemConfig.init();
+    Users.loadAccounts();
+
+    // Concurrent sessions: main owns the shell, so it injects the hooks that
+    // Sessions calls to build the shell once and re-point it per profile.
+    Sessions.setHooks({ onBoot: bootShell, onActivate: activateSession, onClose: closeSession });
+
+    const desktop = document.getElementById('desktop');
+    const taskbar = document.getElementById('taskbar');
+    desktop.style.opacity = '0';
+    taskbar.style.opacity = '0';
+
+    // Boot animation → user picker → sign-in → profile load → desktop.
+    LoginScreen.bootSequence({ onSignIn: (id) => Sessions.signIn(id) });
+});
+
+// One-time shell construction for the FIRST profile to sign in: everything
+// that builds DOM or global wiring (windows, taskbar, start menu, ...) plus
+// the package/app catalog. Later profiles reuse this shell and only run the
+// per-user activate() hooks.
+let shellReady = false;
+async function bootShell() {
+    if (shellReady) return;
+    shellReady = true;
 
     Scaling.apply();
     WindowManager.setScale(Scaling.getScale());
-
     Scaling.setOnScaleChange((newScale) => {
         WindowManager.setScale(newScale);
     });
@@ -76,6 +110,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // iPhone/iPad Safari iframe letterboxing fix — must be live before the
     // first window with an iframe is created; no-op on other engines.
     IframeViewportFix.init();
+
+    // Concurrent sessions: every window is tagged with the session that
+    // created it, and only the foreground session's windows are visible.
+    WindowManager.setUserProvider({ getActiveId: () => Sessions.getActive() });
+
+    // Package store + app catalog: machine-wide, run once.
+    await Packages.init();
+    await AppSystem.init();
 
     WindowManager.init();
     Taskbar.init();
@@ -86,18 +128,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     WindowsUpdate.init();
     Search.init();
     Notifications.init();
-    BackgroundApps.init();
     ClipboardManager.init();
     VirtualDesktops.init();
     CrashMonitor.init();
     VirtualKeyboard.init();
+    LockScreen.init();
 
     // ShellIcons: the system icon library (our shell32.dll) — every app can
     // use these via `import UIIcons from '../modules/uiIcons.js'` or the
     // global `window.ShellIcons` (same object).
     window.ShellIcons = UIIcons;
     window.UIIcons = UIIcons;
-    window._modules = { ContextMenu, Cursor, UIIcons, ShellIcons: UIIcons, VirtualDesktops, CrashMonitor, VirtualKeyboard };
+    window._modules = { ContextMenu, Cursor, UIIcons, ShellIcons: UIIcons, VirtualDesktops, CrashMonitor, VirtualKeyboard, Sessions, LockScreen };
 
     WindowManager.setOnFocusChanged((appId) => {
         if (appId) {
@@ -132,14 +174,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Empty-desktop click clearing is handled by DesktopIcons (it owns the
     // multi-selection set and the marquee suppress flag).
 
-    const desktop = document.getElementById('desktop');
-    const taskbar = document.getElementById('taskbar');
-    desktop.style.opacity = '0';
-    taskbar.style.opacity = '0';
+    // Background apps/services: wiring here, per-profile revive in
+    // activateSession (concurrent sessions each keep their own headless apps).
+    try { await BackgroundApps.init(); } catch (e) { /* never block sign-in */ }
+}
 
-    // Boot animation → user picker → sign-in → desktop (loginScreen.js).
-    LoginScreen.bootSequence();
-});
+// A profile became the foreground session: swap every per-user module onto
+// its data and re-apply visibility / wallpaper / taskbar. Runs for the first
+// sign-in too (after bootShell built the shell).
+async function activateSession(userId) {
+    if (!shellReady) await bootShell();
+    WindowState.activate(userId);
+    SystemConfig.activate();
+    UserActivity.activate();
+    Notifications.activate();
+    StartMenu.activate();
+    DesktopIcons.activate();
+    Taskbar.activate();
+    VirtualDesktops.activate(userId);
+    try { await BackgroundApps.activate(userId); } catch (e) { /* keep the session usable */ }
+    WindowManager.applyVisibility();
+}
+
+// A session is ending (sign out): close its windows and stop its headless
+// apps, leaving the other sessions untouched.
+async function closeSession(userId) {
+    try { WindowManager.closeWindowsForUser(userId); } catch (e) { /* noop */ }
+    try { await BackgroundApps.stopUser(userId); } catch (e) { /* noop */ }
+}
 
 // Offline shell + virtual package host. Best-effort: without it the OS still
 // runs (builtins load from the network, store apps fall back to the shipped

@@ -289,6 +289,35 @@ check('last administrator cannot be demoted', (() => {
 check('last administrator cannot be deleted', UsersMod.default.deleteAccount(adminAcc.id) === false);
 check('standard accounts can be removed', UsersMod.default.deleteAccount(stdAcc.id) === true);
 
+console.log('[multi-user path roots & sessions]');
+check('homeFor targets an explicit profile', JSON.stringify(UsersMod.default.homeFor('u2', ['Documents'])) === JSON.stringify(['/', 'users', 'u2', 'Documents']));
+check('appDataFor targets an explicit profile', JSON.stringify(UsersMod.default.appDataFor('u2', 'notepad', ['x.json'])) === JSON.stringify(['/', 'users', 'u2', 'AppData', 'notepad', 'x.json']));
+check('userDataFor targets an explicit profile', JSON.stringify(UsersMod.default.userDataFor('u2', ['config.json'])) === JSON.stringify(['/', 'system', 'users', 'u2', 'programs data', 'config.json']));
+check('home() follows the foreground profile', (() => {
+    UsersMod.default.setCurrent(adminAcc.id);
+    return UsersMod.default.home(['Desktop'])[2] === adminAcc.id;
+})());
+check('primaryAdminId resolves the surviving administrator', UsersMod.default.primaryAdminId() === adminAcc.id);
+
+const SessionsMod = (await import('../js/modules/sessions.js')).default;
+const sessionLog = [];
+SessionsMod.setHooks({
+    onBoot: (id) => { sessionLog.push(`boot:${id}`); },
+    onActivate: (id) => { sessionLog.push(`activate:${id}`); },
+    onClose: (id) => { sessionLog.push(`close:${id}`); }
+});
+await SessionsMod.signIn(adminAcc.id);
+check('signIn boots then activates the profile once', sessionLog.join(',') === `boot:${adminAcc.id},activate:${adminAcc.id}`);
+check('the signed-in profile becomes the foreground session', SessionsMod.getActive() === adminAcc.id && SessionsMod.isSignedIn(adminAcc.id) === true);
+await SessionsMod.signIn(adminAcc.id);
+check('re-selecting a live session only re-activates it', sessionLog.join(',') === `boot:${adminAcc.id},activate:${adminAcc.id},activate:${adminAcc.id}`);
+await SessionsMod.activate('default');
+check('activate() switches the foreground profile', SessionsMod.getActive() === 'default' && UsersMod.default.getCurrent().id === 'default');
+await SessionsMod.signOut(adminAcc.id);
+check('signOut ends one session and leaves the other', SessionsMod.isSignedIn(adminAcc.id) === false && SessionsMod.getActive() === 'default');
+check('signOut ran the close hook', sessionLog[sessionLog.length - 1] === `close:${adminAcc.id}`);
+SessionsMod.reset();
+
 console.log('[clipboard honesty]');
 check('readText without browser API → UNSUPPORTED',
     await (async () => { try { await SDK.Clipboard.readText(); return false; } catch (e) { return e.code === 'UNSUPPORTED'; } })());
@@ -306,6 +335,33 @@ check('WindowManager.create builds a window against stubs', (() => {
         console.log('     create failed:', e && e.message);
         return false;
     }
+})());
+
+console.log('[session window ownership]');
+check('windows are tagged with the foreground session', (() => {
+    UsersMod.default.setCurrent(adminAcc.id);
+    WMMod.default.setUserProvider({ getActiveId: () => adminAcc.id });
+    const w = SDK.WindowManager.create({ appId: 'sdkSmoke', title: 'Owned', content: '' });
+    const tagged = w.userId === adminAcc.id;
+    const visibleHere = WMMod.default.isWindowVisible(w) === true;
+    WMMod.default.setUserProvider({ getActiveId: () => 'default' });
+    const hiddenThere = WMMod.default.isWindowVisible(w) === false;
+    WMMod.default.setUserProvider({ getActiveId: () => adminAcc.id });
+    SDK.WindowManager.close(w.id);
+    return tagged && visibleHere && hiddenThere;
+})());
+check('closeWindowsForUser only closes that session', (() => {
+    WMMod.default.setUserProvider({ getActiveId: () => adminAcc.id });
+    const a = SDK.WindowManager.create({ appId: 'sdkSmokeA', title: 'A', content: '' });
+    WMMod.default.setUserProvider({ getActiveId: () => 'default' });
+    const b = SDK.WindowManager.create({ appId: 'sdkSmokeB', title: 'B', content: '' });
+    WMMod.default.setUserProvider({ getActiveId: () => adminAcc.id });
+    WMMod.default.closeWindowsForUser(adminAcc.id);
+    const aGone = !WMMod.default._getWindow(a.id);
+    const bAlive = !!WMMod.default._getWindow(b.id);
+    SDK.WindowManager.close(b.id);
+    WMMod.default.setUserProvider(null);
+    return aGone && bAlive;
 })());
 
 console.log('[window geometry + state]');

@@ -249,6 +249,57 @@ const SystemConfig = (() => {
     let nativeWidth = window.innerWidth;
     let nativeHeight = window.innerHeight;
 
+    // Gradient wallpapers, shared by apply() and the login/lock screens
+    // (which mirror the administrator's personalization before any profile
+    // is activated).
+    const WALLPAPERS_DARK = {
+        gradient: 'linear-gradient(135deg, #0a1628 0%, #1a1a3e 30%, #2d1b4e 60%, #0a1628 100%)',
+        blue: 'linear-gradient(135deg, #001a33 0%, #003366 50%, #001a33 100%)',
+        purple: 'linear-gradient(135deg, #1a0033 0%, #4a0080 50%, #1a0033 100%)',
+        green: 'linear-gradient(135deg, #001a00 0%, #004d00 50%, #001a00 100%)',
+        sunset: 'linear-gradient(135deg, #1a0a00 0%, #663300 30%, #cc6600 60%, #1a0a00 100%)',
+        solid: '#1a1a2e'
+    };
+    const WALLPAPERS_LIGHT = {
+        gradient: 'linear-gradient(135deg, #e8f0fe 0%, #d0e0f5 30%, #c5d5f0 60%, #e8f0fe 100%)',
+        blue: 'linear-gradient(135deg, #e0f0ff 0%, #b0d4f1 50%, #e0f0ff 100%)',
+        purple: 'linear-gradient(135deg, #f0e8ff 0%, #d5c0f0 50%, #f0e8ff 100%)',
+        green: 'linear-gradient(135deg, #e8f5e8 0%, #c0e0c0 50%, #e8f5e8 100%)',
+        sunset: 'linear-gradient(135deg, #fff5e8 0%, #f0d5b0 50%, #fff5e8 100%)',
+        solid: '#e8e8f0'
+    };
+
+    function wallpaperGradient(style, isDark) {
+        const table = isDark ? WALLPAPERS_DARK : WALLPAPERS_LIGHT;
+        return table[style] || table.gradient;
+    }
+
+    // Read another profile's theme WITHOUT activating it. Used by the
+    // login/lock screens, which dress themselves with the primary
+    // administrator's personalization (shell read: /system/users is OS-only).
+    const readThemeFor = asShell(function readThemeFor(userId) {
+        const fallback = {
+            accentColor: defaults.accentColor, backgroundStyle: 'gradient', darkMode: true,
+            wallpaperImage: null, wallpaperFit: 'fill'
+        };
+        try {
+            const FileSystem = window._FileSystem;
+            const path = Users.userDataFor(userId, ['config.json']);
+            if (FileSystem && FileSystem.itemExists(path)) {
+                const cfg = JSON.parse(FileSystem.readFile(path) || '{}') || {};
+                return {
+                    accentColor: cfg.accentColor || defaults.accentColor,
+                    backgroundStyle: cfg.backgroundStyle || 'gradient',
+                    darkMode: cfg.darkMode !== false,
+                    wallpaperImage: sanitizeWallpaperImage(cfg.wallpaperImage),
+                    wallpaperFit: WALLPAPER_FITS.includes(cfg.wallpaperFit) ? cfg.wallpaperFit : 'fill'
+                };
+            }
+        } catch (e) { /* defaults */ }
+        return fallback;
+    });
+
+
     // userName is a live alias of the signed-in account (Users is the
     // source of truth since multi-user). The cached config value is only
     // a fallback for contexts where Users isn't resolved yet.
@@ -267,6 +318,18 @@ const SystemConfig = (() => {
     function init() {
         nativeWidth = window.innerWidth;
         nativeHeight = window.innerHeight;
+        load();
+    }
+
+    // Foreground session changed: drop the previous profile's cached config
+    // (and any live wallpaper URL) and reload this user's. main.js calls this
+    // after Users.setCurrent().
+    function activate() {
+        nativeWidth = window.innerWidth;
+        nativeHeight = window.innerHeight;
+        wallpaperSeq++;                 // cancel any in-flight image load
+        dropActiveWallpaperURL();
+        config = { ...defaults };
         load();
     }
 
@@ -454,26 +517,7 @@ const SystemConfig = (() => {
 
         const desktop = document.getElementById('desktop');
         if (desktop) {
-            let wallpapers;
-            if (isDark) {
-                wallpapers = {
-                    gradient: 'linear-gradient(135deg, #0a1628 0%, #1a1a3e 30%, #2d1b4e 60%, #0a1628 100%)',
-                    blue: 'linear-gradient(135deg, #001a33 0%, #003366 50%, #001a33 100%)',
-                    purple: 'linear-gradient(135deg, #1a0033 0%, #4a0080 50%, #1a0033 100%)',
-                    green: 'linear-gradient(135deg, #001a00 0%, #004d00 50%, #001a00 100%)',
-                    sunset: 'linear-gradient(135deg, #1a0a00 0%, #663300 30%, #cc6600 60%, #1a0a00 100%)',
-                    solid: '#1a1a2e'
-                };
-            } else {
-                wallpapers = {
-                    gradient: 'linear-gradient(135deg, #e8f0fe 0%, #d0e0f5 30%, #c5d5f0 60%, #e8f0fe 100%)',
-                    blue: 'linear-gradient(135deg, #e0f0ff 0%, #b0d4f1 50%, #e0f0ff 100%)',
-                    purple: 'linear-gradient(135deg, #f0e8ff 0%, #d5c0f0 50%, #f0e8ff 100%)',
-                    green: 'linear-gradient(135deg, #e8f5e8 0%, #c0e0c0 50%, #e8f5e8 100%)',
-                    sunset: 'linear-gradient(135deg, #fff5e8 0%, #f0d5b0 50%, #fff5e8 100%)',
-                    solid: '#e8e8f0'
-                };
-            }
+            const wallpapers = isDark ? WALLPAPERS_DARK : WALLPAPERS_LIGHT;
             // Gradient is always painted first: it is the plain-style
             // result and the letterbox backdrop behind a custom image.
             desktop.style.background = wallpapers[config.backgroundStyle] || wallpapers.gradient;
@@ -561,10 +605,11 @@ const SystemConfig = (() => {
     }
 
     return {
-        init, get, getAll, set, setMultiple, reset, apply, load, onChange,
+        init, activate, get, getAll, set, setMultiple, reset, apply, load, onChange,
         get CONFIG_PATH() { return configPath(); },
         syncToFilesystem,
         setWallpaperImage, setWallpaperFit, applyImageWallpaper, wallpaperImageURL,
+        wallpaperGradient, readThemeFor, resolveWallpaperURL, setWallpaperImageProps,
         getNativeWidth, getNativeHeight, getResolutionOptions, getCurrentResolution
     };
 })();

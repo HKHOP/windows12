@@ -1198,7 +1198,7 @@ const Settings = (() => {
                         rerender();
                     }
                 } else if (action === 'signout') {
-                    Users.beginSwitch('');
+                    if (window._Shell) window._Shell.logout();
                 } else if (action === 'remove') {
                     const acc = Users.getAccount(id);
                     if (!(await requireAdmin(`Remove the account "${acc ? acc.name : id}"? Their files stay on disk.`))) return;

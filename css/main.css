@@ -710,3 +710,286 @@ body.uac-active #desktop > *,
 body.uac-active #taskbar {
     visibility: hidden;
 }
+
+/* ---- Concurrent sessions: picker extras ---- */
+
+.login-userrole,
+.login-tile-role {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.login-tile-role {
+    margin-top: -4px;
+}
+
+/* A profile with a live session (fast user switching shows it in the picker). */
+.login-tile-live {
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--accent-color, #0078D4);
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    padding: 2px 8px;
+}
+
+.login-cancel {
+    margin-top: 24px;
+    padding: 8px 24px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.login-cancel:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* The login screen mirrors the administrator's personalization; when that is
+   the light theme, flip the text/fields so they stay readable. */
+#login-screen.login-light .login-title,
+#login-screen.login-light .login-username,
+#login-screen.login-light .lock-name {
+    color: #10203a;
+}
+
+#login-screen.login-light .login-userrole,
+#login-screen.login-light .login-tile-role,
+#login-screen.login-light .login-welcome {
+    color: rgba(0, 0, 0, 0.6);
+}
+
+#login-screen.login-light .login-tile {
+    border-color: rgba(0, 0, 0, 0.12);
+    background: rgba(255, 255, 255, 0.5);
+}
+
+#login-screen.login-light .login-tile:hover {
+    background: rgba(255, 255, 255, 0.78);
+    border-color: rgba(0, 0, 0, 0.25);
+}
+
+#login-screen.login-light .login-password {
+    border-color: rgba(0, 0, 0, 0.3);
+    background: rgba(255, 255, 255, 0.72);
+    color: #10203a;
+}
+
+#login-screen.login-light .login-password::placeholder {
+    color: rgba(0, 0, 0, 0.5);
+}
+
+#login-screen.login-light .login-cancel {
+    color: #10203a;
+    border-color: rgba(0, 0, 0, 0.2);
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* ---- Lock screen: another "secure desktop" (body.locked keeps only the
+   wallpaper + the overlay, hiding windows, icon and the taskbar). ---- */
+body.locked > *:not(.lock-root) {
+    visibility: hidden;
+}
+
+body.locked #resolution-layer,
+body.locked #desktop {
+    visibility: visible;
+}
+
+body.locked #desktop {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+}
+
+body.locked #desktop > *,
+body.locked #taskbar {
+    visibility: hidden;
+}
+
+#lock-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 9vh 24px 12vh;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(20px) saturate(1.1);
+    -webkit-backdrop-filter: blur(20px) saturate(1.1);
+    color: white;
+    animation: lockFadeIn 0.35s ease-out;
+}
+
+@keyframes lockFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.lock-clock {
+    text-align: center;
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.7);
+}
+
+.lock-time {
+    font-size: 84px;
+    font-weight: 300;
+    line-height: 1;
+    letter-spacing: -1px;
+}
+
+.lock-date {
+    font-size: 22px;
+    margin-top: 8px;
+    opacity: 0.92;
+}
+
+.lock-signin {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.lock-signin.shake {
+    animation: loginShake 0.4s ease-out;
+}
+
+.lock-avatar {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: var(--accent-color, #0078D4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    font-weight: 600;
+    color: white;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+.lock-name {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+
+.lock-unlock-btn {
+    margin-top: 6px;
+    padding: 9px 32px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.14);
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.lock-unlock-btn:hover {
+    background: rgba(255, 255, 255, 0.26);
+}
+
+.lock-switch {
+    margin-top: 4px;
+    border: none;
+    background: none;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 6px 10px;
+}
+
+.lock-switch:hover {
+    color: white;
+    text-decoration: underline;
+}
+
+/* ---- Sleep: fade to black; any input wakes into the lock screen ---- */
+.sleep-root {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 99999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 1.1s ease-in-out;
+}
+
+.sleep-root.on {
+    opacity: 1;
+}
+
+/* ---- Restart / shut-down screens ---- */
+.power-screen {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.5s ease-out;
+}
+
+.power-screen.on {
+    opacity: 1;
+}
+
+.power-screen-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+}
+
+.power-screen .boot-spinner {
+    animation: none;
+}
+
+.power-screen-label {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 16px;
+    letter-spacing: 0.02em;
+}
+
+.poweroff-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+
+.poweroff-btn {
+    width: 78px;
+    height: 78px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.poweroff-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.7);
+    color: white;
+}
+
+.poweroff-hint {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 12px;
+}

@@ -6,12 +6,15 @@
 // can be added/renamed/removed, windows can be moved between them, and
 // each desktop may override the global wallpaper.
 //
+// Desktops are PER-USER: every profile keeps its own list, names, order,
+// active desktop and per-desktop wallpapers, under
+// /system/users/<id>/programs data/virtualDesktops/. Concurrent sessions
+// therefore never see each other's desktops. Window→desktop assignment is
+// session-only (windows reopen on their session's active desktop).
+//
 // Entry points: Task View (taskbar button or WIN+TAB), WIN+CTRL+LEFT/RIGHT
 // to move between desktops, WIN+CTRL+D for a new desktop,
 // WIN+SHIFT+LEFT/RIGHT to throw the focused window across desktops.
-// Persistence: names/order/active/wallpapers under
-// /system/programs data/virtualDesktops/. Window→desktop assignment is
-// session-only (all windows reopen on the active desktop after reload).
 import WindowManager from './windowManager.js';
 import FileSystem from './fileSystem.js';
 import UIIcons from './uiIcons.js';
@@ -20,10 +23,11 @@ import Popup from './popup.js';
 import Keyboard from './keyboard.js';
 import SystemConfig from './systemConfig.js';
 import { Taskbar } from './taskbar.js';
+import Users from './users.js';
 
 const VirtualDesktops = (() => {
-    const DATA_DIR = ['/', 'system', 'programs data', 'virtualDesktops'];
-    const STATE_PATH = [...DATA_DIR, 'desktops.json'];
+    const DIR = ['virtualDesktops'];
+    const FILE = 'desktops.json';
     const MAX_DESKTOPS = 10;
     const DEFAULT_ID = 'desktop-1';
 
@@ -50,15 +54,31 @@ const VirtualDesktops = (() => {
     };
     const WALLPAPER_NAMES = { gradient: 'Default blue', blue: 'Blue', purple: 'Purple', green: 'Green', sunset: 'Sunset', solid: 'Solid' };
 
-    let desktops = [{ id: DEFAULT_ID, name: 'Desktop 1', wallpaper: null }];
-    let activeId = DEFAULT_ID;
+    // Per-user state, loaded lazily: userId -> { desktops, activeId }.
+    const states = new Map();
+    let activeUserId = null;
     let panel = null;
 
-    function ensureDir() {
-        for (let i = 1; i <= DATA_DIR.length; i++) {
-            const partial = DATA_DIR.slice(0, i);
+    function defaultState() {
+        return { desktops: [{ id: DEFAULT_ID, name: 'Desktop 1', wallpaper: null }], activeId: DEFAULT_ID };
+    }
+
+    function currentId() {
+        if (activeUserId) return activeUserId;
+        const u = Users.getCurrent();
+        return u ? u.id : 'default';
+    }
+
+    function statePath(userId) {
+        return Users.userDataFor(userId, [...DIR, FILE]);
+    }
+
+    function ensureDir(userId) {
+        const dir = Users.userDataFor(userId, DIR);
+        for (let i = 1; i <= dir.length; i++) {
+            const partial = dir.slice(0, i);
             if (!FileSystem.itemExists(partial)) {
-                FileSystem.createFolder(DATA_DIR.slice(0, i - 1), DATA_DIR[i - 1]);
+                FileSystem.createFolder(dir.slice(0, i - 1), dir[i - 1]);
             }
         }
     }
@@ -72,44 +92,59 @@ const VirtualDesktops = (() => {
         };
     }
 
-    const load = asShell(function load() {
+    const readState = asShell(function readState(userId) {
+        const st = defaultState();
         try {
-            const raw = FileSystem.readFile(STATE_PATH);
+            const raw = FileSystem.readFile(statePath(userId));
             if (raw) {
                 const parsed = JSON.parse(raw);
                 if (Array.isArray(parsed.desktops) && parsed.desktops.length > 0) {
-                    desktops = parsed.desktops
+                    const list = parsed.desktops
                         .filter(d => d && typeof d.id === 'string' && typeof d.name === 'string')
                         .map(d => ({ id: d.id, name: d.name, wallpaper: typeof d.wallpaper === 'string' ? d.wallpaper : null }));
+                    if (list.length > 0) st.desktops = list;
                 }
-                if (parsed.activeId && desktops.some(d => d.id === parsed.activeId)) {
-                    activeId = parsed.activeId;
-                } else {
-                    activeId = desktops[0].id;
-                }
+                if (parsed.activeId && st.desktops.some(d => d.id === parsed.activeId)) st.activeId = parsed.activeId;
+                else st.activeId = st.desktops[0].id;
             }
         } catch { /* fresh defaults */ }
+        return st;
     });
 
-    const save = asShell(function save() {
+    const writeState = asShell(function writeState(userId, st) {
         try {
-            ensureDir();
-            const json = JSON.stringify({ desktops, activeId });
-            if (FileSystem.itemExists(STATE_PATH)) FileSystem.writeFile(STATE_PATH, json);
-            else FileSystem.createFile(DATA_DIR, 'desktops.json', json, 'json');
+            ensureDir(userId);
+            const json = JSON.stringify({ desktops: st.desktops, activeId: st.activeId });
+            const path = statePath(userId);
+            if (FileSystem.itemExists(path)) FileSystem.writeFile(path, json);
+            else FileSystem.createFile(Users.userDataFor(userId, DIR), FILE, json, 'json');
         } catch { /* keep in-memory only */ }
     });
+
+    function state(userId) {
+        const id = userId || currentId();
+        let st = states.get(id);
+        if (!st) {
+            st = readState(id);
+            states.set(id, st);
+        }
+        return st;
+    }
+
+    function save() {
+        writeState(currentId(), state());
+    }
 
     function esc(s) {
         return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     function getDesktops() {
-        return desktops.map(d => ({ ...d }));
+        return state().desktops.map(d => ({ ...d }));
     }
 
     function getActiveId() {
-        return activeId;
+        return state().activeId;
     }
 
     function getDesktopOf(windowId) {
@@ -117,13 +152,16 @@ const VirtualDesktops = (() => {
         return (w && w.desktopId) || DEFAULT_ID;
     }
 
+    // Windows of the foreground session on one desktop.
     function getWindows(desktopId) {
-        return WindowManager.getAllWindows().filter(w => ((w.desktopId || DEFAULT_ID) === desktopId));
+        const uid = currentId();
+        return WindowManager.getAllWindows().filter(w =>
+            (!w.userId || w.userId === uid) && ((w.desktopId || DEFAULT_ID) === desktopId));
     }
 
     function notifyChanged() {
         try {
-            window.dispatchEvent(new CustomEvent('virtual-desktop-changed', { detail: { activeId } }));
+            window.dispatchEvent(new CustomEvent('virtual-desktop-changed', { detail: { activeId: getActiveId() } }));
         } catch { /* noop */ }
     }
 
@@ -131,7 +169,8 @@ const VirtualDesktops = (() => {
         try {
             const desktopEl = document.getElementById('desktop');
             if (!desktopEl) return;
-            const current = desktops.find(d => d.id === activeId);
+            const st = state();
+            const current = st.desktops.find(d => d.id === st.activeId);
             const override = current && current.wallpaper;
             const theme = SystemConfig.get('darkMode') === false ? 'light' : 'dark';
             if (!override && typeof SystemConfig.applyImageWallpaper === 'function' && SystemConfig.applyImageWallpaper(desktopEl)) {
@@ -154,7 +193,8 @@ const VirtualDesktops = (() => {
     function focusTopWindow() {
         let top = null;
         let topZ = -Infinity;
-        for (const w of getWindows(activeId)) {
+        const st = state();
+        for (const w of getWindows(st.activeId)) {
             if (w.minimized) continue;
             const z = parseInt(w.element.style.zIndex || '0', 10) || 0;
             if (z >= topZ) {
@@ -170,14 +210,11 @@ const VirtualDesktops = (() => {
     }
 
     function switchTo(id) {
-        if (!desktops.some(d => d.id === id)) return false;
-        activeId = id;
+        const st = state();
+        if (!st.desktops.some(d => d.id === id)) return false;
+        st.activeId = id;
         save();
-        for (const w of WindowManager.getAllWindows()) {
-            const onThis = ((w.desktopId || DEFAULT_ID) === id);
-            w.element.classList.remove('focused');
-            w.element.style.display = (!onThis || w.minimized) ? 'none' : 'flex';
-        }
+        WindowManager.applyVisibility();
         applyWallpaper();
         Taskbar.renderTaskbarButtons();
         focusTopWindow();
@@ -187,20 +224,21 @@ const VirtualDesktops = (() => {
     }
 
     function step(delta) {
-        const i = desktops.findIndex(d => d.id === activeId);
-        const n = (i + delta + desktops.length) % desktops.length;
-        switchTo(desktops[n].id);
+        const st = state();
+        const i = st.desktops.findIndex(d => d.id === st.activeId);
+        const n = (i + delta + st.desktops.length) % st.desktops.length;
+        switchTo(st.desktops[n].id);
     }
 
     function add(name) {
-        if (desktops.length >= MAX_DESKTOPS) {
+        const st = state();
+        if (st.desktops.length >= MAX_DESKTOPS) {
             Popup.warn('Desktop limit', `You can have at most ${MAX_DESKTOPS} desktops.`);
             return null;
         }
-        const n = desktops.length + 1;
+        const n = st.desktops.length + 1;
         const id = `desktop-${Date.now().toString(36)}`;
-        const desktop = { id, name: name || `Desktop ${n}`, wallpaper: null };
-        desktops.push(desktop);
+        st.desktops.push({ id, name: name || `Desktop ${n}`, wallpaper: null });
         save();
         switchTo(id);
         if (panel && Flyout.isOpen(panel)) renderPanel();
@@ -208,21 +246,23 @@ const VirtualDesktops = (() => {
     }
 
     function remove(id) {
-        if (desktops.length <= 1) {
+        const st = state();
+        if (st.desktops.length <= 1) {
             Popup.warn('Cannot remove', 'You need at least one desktop.');
             return false;
         }
-        const i = desktops.findIndex(d => d.id === id);
+        const i = st.desktops.findIndex(d => d.id === id);
         if (i === -1) return false;
-        const fallback = desktops[i - 1] || desktops[i + 1];
+        const fallback = st.desktops[i - 1] || st.desktops[i + 1];
         for (const w of getWindows(id)) {
             w.desktopId = fallback.id;
         }
-        desktops.splice(i, 1);
+        st.desktops.splice(i, 1);
         save();
-        if (activeId === id) {
+        if (st.activeId === id) {
             switchTo(fallback.id);
         } else {
+            WindowManager.applyVisibility();
             Taskbar.renderTaskbarButtons();
             notifyChanged();
         }
@@ -231,7 +271,8 @@ const VirtualDesktops = (() => {
     }
 
     function rename(id, name) {
-        const d = desktops.find(x => x.id === id);
+        const st = state();
+        const d = st.desktops.find(x => x.id === id);
         if (!d) return false;
         name = String(name || '').trim().slice(0, 32);
         if (!name) return false;
@@ -242,7 +283,8 @@ const VirtualDesktops = (() => {
     }
 
     function promptRename(id) {
-        const d = desktops.find(x => x.id === id);
+        const st = state();
+        const d = st.desktops.find(x => x.id === id);
         if (!d) return;
         Popup.textbox('Rename desktop', 'Desktop name:', { value: d.name }).then(name => {
             if (name) rename(id, name);
@@ -250,24 +292,21 @@ const VirtualDesktops = (() => {
     }
 
     function setWallpaper(id, style) {
-        const d = desktops.find(x => x.id === id);
+        const st = state();
+        const d = st.desktops.find(x => x.id === id);
         if (!d) return false;
         d.wallpaper = (style && WALLPAPERS.dark[style]) ? style : null;
         save();
         applyWallpaper();
+        if (panel && Flyout.isOpen(panel)) renderPanel();
         return true;
     }
 
     function moveWindowTo(windowId, desktopId) {
         const w = WindowManager._getWindow(windowId);
-        if (!w || !desktops.some(d => d.id === desktopId)) return false;
+        if (!w || !state().desktops.some(d => d.id === desktopId)) return false;
         w.desktopId = desktopId;
-        if (desktopId === activeId) {
-            if (!w.minimized) w.element.style.display = 'flex';
-        } else {
-            w.element.classList.remove('focused');
-            w.element.style.display = 'none';
-        }
+        WindowManager.applyVisibility();
         Taskbar.renderTaskbarButtons();
         focusTopWindow();
         notifyChanged();
@@ -280,10 +319,11 @@ const VirtualDesktops = (() => {
         if (!focused) return;
         const w = WindowManager._getWindow(focused.id);
         if (!w) return;
-        const i = desktops.findIndex(d => d.id === (w.desktopId || DEFAULT_ID));
-        const n = (i + delta + desktops.length) % desktops.length;
-        moveWindowTo(w.id, desktops[n].id);
-        switchTo(desktops[n].id);
+        const st = state();
+        const i = st.desktops.findIndex(d => d.id === (w.desktopId || DEFAULT_ID));
+        const n = (i + delta + st.desktops.length) % st.desktops.length;
+        moveWindowTo(w.id, st.desktops[n].id);
+        switchTo(st.desktops[n].id);
         WindowManager.focusWindow(w.id);
     }
 
@@ -299,15 +339,16 @@ const VirtualDesktops = (() => {
 
     function renderPanel() {
         if (!panel) return;
+        const st = state();
         let html = '<div class="tv-title">Task View</div><div class="tv-desktops">';
-        desktops.forEach((d, di) => {
+        st.desktops.forEach((d, di) => {
             const wins = getWindows(d.id);
-            html += `<div class="tv-desktop${d.id === activeId ? ' active' : ''}" data-desktop="${esc(d.id)}">
+            html += `<div class="tv-desktop${d.id === st.activeId ? ' active' : ''}" data-desktop="${esc(d.id)}">
                 <div class="tv-desktop-header">
                     <span class="tv-desktop-name" title="Double-click to rename">${esc(d.name)}</span>
                     <span class="tv-count">${wins.length}</span>
                     <button class="tv-rename" data-rename="${esc(d.id)}" title="Rename">Rename</button>
-                    ${desktops.length > 1 ? `<button class="tv-close" data-close="${esc(d.id)}" title="Close desktop">&times;</button>` : ''}
+                    ${st.desktops.length > 1 ? `<button class="tv-close" data-close="${esc(d.id)}" title="Close desktop">&times;</button>` : ''}
                 </div>
                 <div class="tv-windows">`;
             if (wins.length === 0) {
@@ -315,10 +356,10 @@ const VirtualDesktops = (() => {
             } else {
                 for (const w of wins) {
                     html += `<div class="tv-win" data-win="${esc(w.id)}" title="${esc(w.title)}">
-                        ${di > 0 ? `<button class="tv-move" data-move-left="${esc(w.id)}" title="Move to ${esc(desktops[di - 1].name)}">&#8249;</button>` : '<span class="tv-move-sp"></span>'}
+                        ${di > 0 ? `<button class="tv-move" data-move-left="${esc(w.id)}" title="Move to ${esc(st.desktops[di - 1].name)}">&#8249;</button>` : '<span class="tv-move-sp"></span>'}
                         <span class="tv-win-icon">${w.icon || ''}</span>
                         <span class="tv-win-title">${esc(w.title)}</span>
-                        ${di < desktops.length - 1 ? `<button class="tv-move" data-move-right="${esc(w.id)}" title="Move to ${esc(desktops[di + 1].name)}">&#8250;</button>` : '<span class="tv-move-sp"></span>'}
+                        ${di < st.desktops.length - 1 ? `<button class="tv-move" data-move-right="${esc(w.id)}" title="Move to ${esc(st.desktops[di + 1].name)}">&#8250;</button>` : '<span class="tv-move-sp"></span>'}
                     </div>`;
                 }
             }
@@ -341,7 +382,6 @@ const VirtualDesktops = (() => {
                 const w = WindowManager._getWindow(id);
                 if (w) {
                     WindowManager.setMinimized(id, false);
-                    w.element.style.display = 'flex';
                     WindowManager.focusWindow(id);
                 }
             });
@@ -350,16 +390,17 @@ const VirtualDesktops = (() => {
             btn.addEventListener('click', () => {
                 const id = btn.dataset.moveLeft;
                 const desk = getDesktopOf(id);
-                const i = desktops.findIndex(d => d.id === desk);
-                if (i > 0) moveWindowTo(id, desktops[i - 1].id);
+                const i = state().desktops.findIndex(d => d.id === desk);
+                if (i > 0) moveWindowTo(id, state().desktops[i - 1].id);
             });
         });
         panel.querySelectorAll('[data-move-right]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = btn.dataset.moveRight;
                 const desk = getDesktopOf(id);
-                const i = desktops.findIndex(d => d.id === desk);
-                if (i >= 0 && i < desktops.length - 1) moveWindowTo(id, desktops[i + 1].id);
+                const st2 = state();
+                const i = st2.desktops.findIndex(d => d.id === desk);
+                if (i >= 0 && i < st2.desktops.length - 1) moveWindowTo(id, st2.desktops[i + 1].id);
             });
         });
         panel.querySelectorAll('[data-rename]').forEach(btn => {
@@ -420,20 +461,31 @@ const VirtualDesktops = (() => {
         }, { ...sys('Close Task View'), preventDefault: false });
     }
 
-    function init() {
-        load();
-        // Windows restored from a previous session land on the active one.
+    // Foreground session changed: load that profile's desktops and re-apply
+    // visibility + wallpaper + taskbar. Windows restored from a previous
+    // session land on the active desktop.
+    function activate(userId) {
+        activeUserId = userId || (Users.getCurrent() ? Users.getCurrent().id : 'default');
+        const st = state();
         for (const w of WindowManager.getAllWindows()) {
-            if (!w.desktopId) w.desktopId = activeId;
+            if ((!w.userId || w.userId === activeUserId) && !w.desktopId) w.desktopId = st.activeId;
         }
-        WindowManager.setDesktopProvider({ getActiveId: () => activeId });
+        WindowManager.applyVisibility();
+        applyWallpaper();
+        Taskbar.renderTaskbarButtons();
+        focusTopWindow();
+        if (panel && Flyout.isOpen(panel)) renderPanel();
+    }
+
+    function init() {
+        WindowManager.setDesktopProvider({ getActiveId: () => getActiveId() });
         buildPanel();
         registerShortcuts();
-        applyWallpaper();
+        activate();
     }
 
     return {
-        init, show, hide, toggle, isOpen,
+        init, activate, show, hide, toggle, isOpen,
         getDesktops, getActiveId, getDesktopOf, getWindows,
         switchTo, add, remove, rename, setWallpaper, moveWindowTo,
         WALLPAPER_NAMES

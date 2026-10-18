@@ -21,6 +21,10 @@ const WindowManager = (() => {
     // boot; kept behind a provider (not an import) so neither module
     // depends on the other at load time.
     let desktopProvider = null;
+    // Concurrent-sessions hook: { getActiveId() }. Set by main.js at boot.
+    // Every window is tagged with the session that created it; only the
+    // foreground session's windows are visible.
+    let userProvider = null;
 
     // Additive lifecycle broadcast as real DOM events so the SDK (and any
     // number of listeners) can observe without competing for the
@@ -34,6 +38,41 @@ const WindowManager = (() => {
     function getScale() { return scale; }
 
     function setDesktopProvider(p) { desktopProvider = p; }
+    function setUserProvider(p) { userProvider = p; }
+
+    function activeUserId() {
+        return (userProvider && typeof userProvider.getActiveId === 'function') ? userProvider.getActiveId() : null;
+    }
+
+    function activeDesktopId() {
+        return (desktopProvider && typeof desktopProvider.getActiveId === 'function') ? desktopProvider.getActiveId() : null;
+    }
+
+    // A window is on screen only when its own session is in the foreground
+    // AND its virtual desktop is the active one AND it isn't minimized.
+    // Kept in one place so sessions and virtual desktops never fight over
+    // element.style.display.
+    function isWindowVisible(data) {
+        if (!data || data.minimized) return false;
+        if (userProvider) {
+            // A window with an owner is shown only for its own session; when
+            // nothing is in the foreground (all signed out) nothing shows.
+            const u = activeUserId();
+            if (data.userId && data.userId !== u) return false;
+        }
+        const d = activeDesktopId();
+        if (d && data.desktopId && data.desktopId !== d) return false;
+        return true;
+    }
+
+    function applyVisibility() {
+        windows.forEach((data) => {
+            const visible = isWindowVisible(data);
+            data.element.style.display = visible ? 'flex' : 'none';
+            if (!visible) data.element.classList.remove('focused');
+        });
+    }
+
 
     function init() {
         container = document.getElementById('windows-container');
@@ -159,7 +198,7 @@ const WindowManager = (() => {
                 height: b.height,
                 maximized: true,
                 v: 2
-            });
+            }, data.userId);
         } else {
             // Container-relative geometry (offset*/client space), matching how
             // bounds are restored via style left/top — never viewport rects,
@@ -171,7 +210,7 @@ const WindowManager = (() => {
                 height: data.element.offsetHeight,
                 maximized: false,
                 v: 2
-            });
+            }, data.userId);
         }
     }
 
@@ -402,6 +441,9 @@ const WindowManager = (() => {
             desktopId: (opts.desktopId
                 || (desktopProvider && typeof desktopProvider.getActiveId === 'function' && desktopProvider.getActiveId())
                 || 'desktop-1'),
+            // Owning session. New windows belong to the foreground user; only
+            // that user's windows are shown until they switch back.
+            userId: opts.userId || activeUserId() || null,
             minimized: false,
             // Geometry contracts for the SDK: resizable windows show the 8
             // edge/corner handles (CSS hides them under .locked); dragging
@@ -426,6 +468,7 @@ const WindowManager = (() => {
         }
 
         windows.set(id, windowData);
+        if (!isWindowVisible(windowData)) win.style.display = 'none';
         setupDrag(win, windowData);
         setupResize(win, windowData);
         setupControls(win, windowData);
@@ -692,9 +735,29 @@ const WindowManager = (() => {
         return result;
     }
 
-    function minimizeAll() {
+    // All windows owned by one session (concurrent sessions / sign-out).
+    function getWindowsForUser(userId) {
+        const result = [];
         windows.forEach((data) => {
-            setMinimized(data.id, true);
+            if (!userId || !data.userId || data.userId === userId) result.push(data);
+        });
+        return result;
+    }
+
+    // Close every window owned by a session (sign-out). Bypasses close
+    // handlers deliberately: ending a session is not a per-window prompt.
+    function closeWindowsForUser(userId) {
+        const ids = [];
+        windows.forEach((data, id) => {
+            if (data.userId === userId) ids.push(id);
+        });
+        ids.forEach(id => closeWindow(id));
+    }
+
+    function minimizeAll() {
+        const u = activeUserId();
+        windows.forEach((data) => {
+            if (!u || !data.userId || data.userId === u) setMinimized(data.id, true);
         });
     }
 
@@ -705,7 +768,7 @@ const WindowManager = (() => {
         if (!data) return false;
         const was = !!data.minimized;
         data.minimized = !!minimized;
-        data.element.style.display = data.minimized ? 'none' : 'flex';
+        applyVisibility();
         if (was !== data.minimized) {
             fireWindowEvent(data.minimized ? 'window-minimized' : 'window-restored', { appId: data.appId, id });
         }
@@ -818,6 +881,9 @@ const WindowManager = (() => {
         let top = null;
         let topZ = -Infinity;
         windows.forEach((data) => {
+            // Only on-screen windows can hold focus: a hidden window from
+            // another session / desktop must never be reported as focused.
+            if (data.element.style.display === 'none') return;
             if (data.element.classList && data.element.classList.contains('focused')) {
                 const z = parseInt(data.element.style.zIndex, 10);
                 if (Number.isFinite(z) ? z >= topZ : true) { top = data; topZ = z; }
@@ -847,7 +913,7 @@ const WindowManager = (() => {
         return Array.from(windows.values());
     }
 
-    return { init, setScale, getScale, getDesktopArea, setDesktopProvider, setMinimized, isMinimized, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, setOnWindowMinimized, setOnDragStateChanged, setOnResizeStateChanged, setOnBoundsChanged, setCloseHandler, removeCloseHandler, addWindowCloseHook, removeWindowCloseHook, requestClose, closeAllWindows, requestCloseAllWindows, createWindow, focusWindow, closeWindow, getWindowsByApp, getAllWindows, getFocused, minimizeAll, toggleMaximize, setMaximized, isMaximized, isFocused, getBounds, setBounds, center, setResizable, isResizable, isDragging, isResizing, setTitle, setMinSize, _getWindow };
+    return { init, setScale, getScale, getDesktopArea, setDesktopProvider, setUserProvider, isWindowVisible, applyVisibility, setMinimized, isMinimized, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, setOnWindowMinimized, setOnDragStateChanged, setOnResizeStateChanged, setOnBoundsChanged, setCloseHandler, removeCloseHandler, addWindowCloseHook, removeWindowCloseHook, requestClose, closeAllWindows, requestCloseAllWindows, closeWindowsForUser, createWindow, focusWindow, closeWindow, getWindowsByApp, getWindowsForUser, getAllWindows, getFocused, minimizeAll, toggleMaximize, setMaximized, isMaximized, isFocused, getBounds, setBounds, center, setResizable, isResizable, isDragging, isResizing, setTitle, setMinSize, _getWindow };
 })();
 
 export default WindowManager;

@@ -60,6 +60,11 @@ const UserActivity = (() => {
         load();
     }
 
+    // Foreground session changed: reload that profile's recents.
+    function activate() {
+        load();
+    }
+
     function trackFileOpen(filePath, fileName) {
         recentFiles = recentFiles.filter(f => f.path !== filePath.join('/'));
         recentFiles.unshift({
@@ -146,7 +151,7 @@ const UserActivity = (() => {
         } catch (e) {}
     }
 
-    return { init, trackFileOpen, trackAppOpen, getRecommended, getAppIcon, getFileIcon };
+    return { init, activate, trackFileOpen, trackAppOpen, getRecommended, getAppIcon, getFileIcon };
 })();
 
 export default UserActivity;

@@ -9,6 +9,7 @@ import SystemConfig from '../modules/systemConfig.js';
 import AppSystem from './appSystem.js';
 import AppLoader from './appLoader.js';
 import Users from './users.js';
+import LockScreen from './lockScreen.js';
 
 const StartMenu = (() => {
     let pinnedApps = [];
@@ -170,11 +171,12 @@ const StartMenu = (() => {
         `;
 
         const options = [
-            { label: 'Lock', icon: UIIcons.action('lock'), action: () => lock() },
-            { label: 'Switch user', icon: UIIcons.action('switchUser'), action: () => switchUser() },
-            { label: 'Logout', icon: UIIcons.action('logout'), action: () => logout() },
-            { label: 'Restart', icon: UIIcons.action('restart'), action: () => restart() },
-            { label: 'Shutdown', icon: UIIcons.action('shutdown'), action: () => shutdown() }
+            { label: 'Lock', icon: UIIcons.action('lock'), action: () => LockScreen.lock() },
+            { label: 'Switch user', icon: UIIcons.action('switchUser'), action: () => LockScreen.switchUser() },
+            { label: 'Sign out', icon: UIIcons.action('logout'), action: () => LockScreen.logout() },
+            { label: 'Sleep', icon: UIIcons.action('sleep'), action: () => LockScreen.sleep() },
+            { label: 'Restart', icon: UIIcons.action('restart'), action: () => LockScreen.restart() },
+            { label: 'Shut down', icon: UIIcons.action('shutdown'), action: () => LockScreen.shutdown() }
         ];
 
         options.forEach(opt => {
@@ -191,6 +193,7 @@ const StartMenu = (() => {
                 e.stopPropagation();
                 menu.remove();
                 powerMenuOpen = false;
+                hide();
                 opt.action();
             });
             menu.appendChild(btn);
@@ -202,44 +205,9 @@ const StartMenu = (() => {
         powerMenuOpen = true;
     }
 
-    function shutdown() {
-        hide();
-        const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:99999;opacity:0;transition:opacity 0.5s;display:flex;align-items:center;justify-content:center;';
-        overlay.innerHTML = '<div style="color:white;font-size:14px;">Shutting down...</div>';
-        document.body.appendChild(overlay);
-        setTimeout(() => { overlay.style.opacity = '1'; }, 10);
-        setTimeout(() => { window.close(); }, 1500);
-    }
-
-    function restart() {
-        hide();
-        const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:99999;opacity:0;transition:opacity 0.5s;display:flex;align-items:center;justify-content:center;';
-        overlay.innerHTML = '<div style="color:white;font-size:14px;">Restarting...</div>';
-        document.body.appendChild(overlay);
-        setTimeout(() => { overlay.style.opacity = '1'; }, 10);
-        setTimeout(() => { location.reload(); }, 1500);
-    }
-
-    // All session transitions are reload-based (see Users.beginSwitch):
-    // the OS boots fresh into the next session's user.
-    function logout() {
-        hide();
-        Users.beginSwitch('');
-    }
-
-    function switchUser() {
-        hide();
-        Users.beginSwitch('');
-    }
-
-    function lock() {
-        hide();
-        const u = Users.getCurrent();
-        Users.beginSwitch(u ? u.id : '');
-    }
-
+    // Session transitions live in lockScreen.js: Lock keeps the session and
+    // freezes it behind the secure desktop, Sign out ends it and reopens the
+    // picker, Switch user brings the picker up over the live session.
     function setupAllAppsButton() {
         const btn = document.querySelector('.start-menu-all-btn');
         if (btn) {
@@ -555,6 +523,16 @@ const StartMenu = (() => {
         renderRecommended();
     }
 
+    // Foreground session changed: reload this profile's pins/recents and
+    // identity, and reset the menu to its main view.
+    function activate() {
+        loadPinnedApps();
+        if (sections && sections.length) showMainView();
+        renderPinnedApps();
+        renderRecommended();
+        updateUserInfo();
+    }
+
     function getMenu() {
         return document.getElementById('start-menu');
     }
@@ -579,7 +557,7 @@ const StartMenu = (() => {
         return Flyout.isOpen(getMenu());
     }
 
-    return { init, refresh, pinApp, unpinApp, isPinned, show, hide, toggle, isOpen };
+    return { init, activate, refresh, pinApp, unpinApp, isPinned, show, hide, toggle, isOpen };
 })();
 
 export default StartMenu;
