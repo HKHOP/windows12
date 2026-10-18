@@ -915,6 +915,7 @@ const WindowManager = (() => {
 
     // Aero peek: temporarily show one window and dim all others of the same app
     function peekWindow(windowId, enable) {
+        console.log('[WindowManager] peekWindow:', windowId, enable);
         if (enable && windowId) {
             const targetData = windows.get(windowId);
             if (!targetData) return;

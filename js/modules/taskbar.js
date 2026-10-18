@@ -359,25 +359,33 @@ const Taskbar = (() => {
     }
 
     function setupAppButtonEvents(shouldGroup) {
-        document.querySelectorAll('.taskbar-btn.app-btn').forEach(btn => {
+        console.log('[Taskbar] setupAppButtonEvents, shouldGroup:', shouldGroup);
+        const buttons = document.querySelectorAll('.taskbar-btn.app-btn');
+        console.log('[Taskbar] Found buttons:', buttons.length);
+        buttons.forEach(btn => {
             const appId = btn.dataset.app;
             const windowId = btn.dataset.windowId;
             const isGrouped = btn.classList.contains('grouped');
+            console.log('[Taskbar] Button:', appId, 'windowId:', windowId, 'grouped:', isGrouped, 'shouldGroup:', shouldGroup);
 
             if (shouldGroup && !windowId && !isGrouped) {
                 // Single window app - simple click behavior
                 btn.addEventListener('click', () => {
+                    console.log('[Taskbar] Single-window click:', appId);
                     if (appId && appId !== 'search') openApp(appId);
                 });
             } else if (shouldGroup && isGrouped) {
                 // Grouped app with multiple windows - show switcher on click/hover
+                console.log('[Taskbar] Adding grouped handlers for:', appId);
                 btn.addEventListener('click', (e) => {
+                    console.log('[Taskbar] Grouped click:', appId);
                     e.stopPropagation();
                     toggleSwitcher(appId, btn);
                 });
 
                 // Hover to show switcher after delay
                 btn.addEventListener('mouseenter', () => {
+                    console.log('[Taskbar] Grouped mouseenter:', appId);
                     if (switcherHoverTimer) clearTimeout(switcherHoverTimer);
                     switcherHoverTimer = setTimeout(() => {
                         if (!switcherPopup || !switcherPopup.classList.contains('show')) {
@@ -466,9 +474,11 @@ const Taskbar = (() => {
 
     // Switcher popup functions
     function showSwitcher(appId, anchorBtn) {
+        console.log('[Taskbar] showSwitcher called for:', appId);
         if (switcherPopup) hideSwitcher();
 
         const windows = getWindowsForApp(appId);
+        console.log('[Taskbar] Windows for app:', windows.length);
         if (windows.length <= 1) {
             // Single window - just focus it
             if (windows.length === 1) {
@@ -606,6 +616,7 @@ const Taskbar = (() => {
     }
 
     function toggleSwitcher(appId, anchorBtn) {
+        console.log('[Taskbar] toggleSwitcher:', appId, 'current:', currentSwitcherAppId, 'popup open:', !!(switcherPopup && switcherPopup.classList.contains('show')));
         if (switcherPopup && switcherPopup.classList.contains('show') && currentSwitcherAppId === appId) {
             hideSwitcher();
         } else {
