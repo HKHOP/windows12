@@ -4,6 +4,19 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4991] - 2026-10-18
+
+### Added
+- **App updates in Microsoft Store** — the Store now checks installed app versions against the catalog and shows "Update" buttons when newer versions are available (`js/apps/appStore/main.js`, `js/modules/packages.js`, `js/modules/appLoader.js`, `js/modules/appSystem.js`)
+- **Per-app update button** — appears in Library, app detail view, hero banner, and app cards when an update is available; shows version change (e.g., "1.0.0 → 1.1.0")
+- **"Update all" button** in Library tab when multiple apps have updates available
+- **Version display** in app detail view showing both installed and store versions
+
+### Changed
+- **Packages module** — added `update(id, opts)` function that re-downloads and reinstalls a package while preserving its install scope (user/system) (`js/modules/packages.js`)
+- **AppLoader** — added `update(idOrUuid, opts)` method delegating to Packages (`js/modules/appLoader.js`)
+- **AppSystem** — added `updateApp(idOrUuid, opts)` facade for Store UI (`js/modules/appSystem.js`)
+
 ## [12.0.4990] - 2026-10-18
 
 ### Changed

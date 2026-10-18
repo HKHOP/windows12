@@ -215,6 +215,14 @@ const AppLoader = (() => {
         return true;
     }
 
+    async function update(idOrUuid, opts = {}) {
+        const man = resolveManifest(idOrUuid);
+        if (!man || man.distribution !== 'store') return false;
+        await Packages.update(man.id, opts);
+        refreshInstalled();
+        return true;
+    }
+
     async function uninstall(idOrUuid) {
         const man = resolveManifest(idOrUuid);
         if (!man || man.distribution !== 'store') return false;
@@ -242,7 +250,7 @@ const AppLoader = (() => {
     }
 
     return {
-        init, install, uninstall,
+        init, install, uninstall, update,
         getManifest, getByUuid, getAll, getBuiltins, getStoreApps,
         getModule, isLoaded, ensureLoaded, launch,
         isInstalled, getInstalledIds, isLaunchable,

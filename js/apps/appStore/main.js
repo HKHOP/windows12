@@ -58,6 +58,41 @@ const AppStore = (() => {
         return storeApps.filter(id => !isGame(id));
     }
 
+    // Version comparison helper (semver-like: major.minor.patch)
+    function parseVersion(v) {
+        if (!v) return [0, 0, 0];
+        return String(v).split('.').map(n => parseInt(n, 10) || 0);
+    }
+    function versionGreater(a, b) {
+        const pa = parseVersion(a), pb = parseVersion(b);
+        for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+            const ca = pa[i] || 0, cb = pb[i] || 0;
+            if (ca > cb) return true;
+            if (ca < cb) return false;
+        }
+        return false;
+    }
+
+    // Get installed version from package manifest
+    function getInstalledVersion(id) {
+        const rec = Packages.getRecord(id);
+        if (rec && rec.manifest && rec.manifest.version) return rec.manifest.version;
+        return null;
+    }
+
+    // Get store version from app manifest
+    function getStoreVersion(id) {
+        const m = AppLoader.getManifest(id);
+        return m && m.version ? m.version : null;
+    }
+
+    // Check if an update is available
+    function hasUpdate(id) {
+        const installed = getInstalledVersion(id);
+        const store = getStoreVersion(id);
+        return installed && store && versionGreater(store, installed);
+    }
+
     function libraryIds() {
         const installed = new Set(getInstalled());
         return storeApps.filter(id => installed.has(id));
@@ -109,6 +144,12 @@ const AppStore = (() => {
         const installed = getInstalled().includes(id);
         if (installed) {
             if (isService(id)) return uninstallBtnHtml(id, false);
+            const updateAvailable = hasUpdate(id);
+            if (updateAvailable) {
+                const storeVer = getStoreVersion(id) || '';
+                const installedVer = getInstalledVersion(id) || '';
+                return `<button class="store-update-btn" data-app="${id}" title="Update from ${installedVer} to ${storeVer}" style="background:#107C10;border:none;color:white;padding:6px;border-radius:4px;font-weight:600;cursor:pointer;font-size:12px;width:100%;transition:background 0.2s;">Update</button>`;
+            }
             return `<button class="store-open-btn" data-app="${id}" style="background:rgba(255,255,255,0.1);border:none;color:white;padding:6px;border-radius:4px;font-weight:600;cursor:pointer;font-size:12px;width:100%;transition:background 0.2s;">Open</button>`;
         }
         return `<button class="store-install-btn" data-app="${id}" style="background:#0078D4;border:none;color:white;padding:6px;border-radius:4px;font-weight:600;cursor:pointer;font-size:12px;width:100%;transition:background 0.2s;">Install</button>`;
@@ -144,21 +185,30 @@ const AppStore = (() => {
         if (!d) return '';
         const bg = d.screenshots?.[0]?.bg || 'linear-gradient(135deg, #0f2027, #203a43, #2c5364)';
         const installed = getInstalled().includes(id);
+        const updateAvailable = hasUpdate(id);
+        const storeVer = getStoreVersion(id);
+        const installedVer = getInstalledVersion(id);
+        const versionBadge = updateAvailable && storeVer && installedVer
+            ? `<span style="background:#107C10;color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">Update: ${installedVer} → ${storeVer}</span>`
+            : '';
         return `<div style="background:${bg};border-radius:12px;padding:36px;display:flex;align-items:center;gap:28px;position:relative;overflow:hidden;border:1px solid #333;min-height:260px;">
             <div style="position:absolute;right:-30px;top:50%;transform:translateY(-50%);opacity:0.18;pointer-events:none;">${appIconHtml(id, 220)}</div>
             <div style="z-index:2;">${appIconHtml(id, 120)}</div>
             <div style="z-index:2;flex:1;min-width:0;">
                 ${eyebrow ? `<div style="font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#9ecfff;margin-bottom:8px;">${eyebrow}</div>` : ''}
                 <h1 style="font-size:40px;font-weight:700;margin:0 0 8px 0;">${d.name}</h1>
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:12px;color:#ddd;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:12px;color:#ddd;flex-wrap:wrap;">
                     <span style="color:#9ecfff;">${d.category || ''}</span><span>•</span>${ratingHtml(id)}<span>•</span><span>Free</span>
+                    ${versionBadge}
                 </div>
                 <p style="color:#eee;font-size:14px;max-width:480px;margin:0 0 20px 0;">${(d.description || '').slice(0, 140)}...</p>
                 <div style="display:flex;gap:12px;">
                     ${installed
                         ? (isService(id)
                             ? uninstallBtnHtml(id, true)
-                            : `<button class="store-open-btn" data-app="${id}" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:white;padding:10px 36px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;">Open</button>`)
+                            : updateAvailable
+                                ? `<button class="store-update-btn" data-app="${id}" style="background:#107C10;border:none;color:white;padding:10px 36px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;">Update</button>`
+                                : `<button class="store-open-btn" data-app="${id}" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:white;padding:10px 36px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;">Open</button>`)
                         : `<button class="store-install-btn" data-app="${id}" style="background:#0078D4;border:none;color:white;padding:10px 36px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;">Get</button>`}
                     <button class="store-details-btn" data-app="${id}" style="background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.2);color:white;padding:10px 24px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;">Details</button>
                 </div>
@@ -280,6 +330,8 @@ const AppStore = (() => {
 
     function getLibraryContent() {
         const ids = libraryIds().sort((a, b) => (appDetails[a]?.name || '').localeCompare(appDetails[b]?.name || ''));
+        const updates = ids.filter(hasUpdate);
+        const hasUpdates = updates.length > 0;
         if (!ids.length) {
             return `
                 <div>
@@ -294,19 +346,33 @@ const AppStore = (() => {
         }
         return `
             <div>
-                <h2 style="font-size:24px;font-weight:700;margin:0 0 4px 0;">Library</h2>
-                <div style="font-size:13px;color:#888;margin-bottom:16px;">${ids.length} installed app${ids.length !== 1 ? 's' : ''}</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                    <div>
+                        <h2 style="font-size:24px;font-weight:700;margin:0 0 4px 0;">Library</h2>
+                        <div style="font-size:13px;color:#888;">${ids.length} installed app${ids.length !== 1 ? 's' : ''}${hasUpdates ? ` • ${updates.length} update${updates.length !== 1 ? 's' : ''} available` : ''}</div>
+                    </div>
+                    ${hasUpdates ? `<button class="store-update-all-btn" style="background:#107C10;border:none;color:white;padding:8px 20px;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px;">Update all (${updates.length})</button>` : ''}
+                </div>
                 <div style="display:flex;flex-direction:column;gap:8px;">
                     ${ids.map(id => {
                         const d = appDetails[id];
                         const scope = (Packages.getRecord(id) || {}).scope === 'system' ? 'All users' : 'This user';
+                        const installedVer = getInstalledVersion(id);
+                        const storeVer = getStoreVersion(id);
+                        const updateAvailable = hasUpdate(id);
+                        const versionHtml = installedVer
+                            ? `<div style="font-size:11px;color:#888;">v${installedVer}${updateAvailable && storeVer ? ` <span style="color:#107C10;font-weight:600;">→ ${storeVer} available</span>` : ''}</div>`
+                            : '';
                         return `<div style="display:flex;align-items:center;gap:14px;background:#222;border:1px solid #333;border-radius:10px;padding:12px 16px;">
                             ${appIconHtml(id, 44)}
                             <div style="flex:1;min-width:0;">
                                 <div style="font-size:14px;font-weight:600;">${d.name}</div>
                                 <div style="font-size:12px;color:#888;">${d.category || ''}${d.size ? ` • ${d.size}` : ''} • ${scope}</div>
+                                ${versionHtml}
                             </div>
-                            ${isService(id) ? '' : `<button class="store-open-btn" data-app="${id}" style="background:rgba(255,255,255,0.1);border:none;color:white;padding:8px 24px;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px;">Open</button>`}
+                            ${isService(id) ? '' : (updateAvailable
+                                ? `<button class="store-update-btn" data-app="${id}" style="background:#107C10;border:none;color:white;padding:8px 20px;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px;">Update</button>`
+                                : `<button class="store-open-btn" data-app="${id}" style="background:rgba(255,255,255,0.1);border:none;color:white;padding:8px 24px;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px;">Open</button>`)}
                             <button class="store-uninstall-btn" data-app="${id}" style="background:transparent;border:1px solid #4d4d4d;color:#ccc;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:12px;">Uninstall</button>
                         </div>`;
                     }).join('')}
@@ -380,7 +446,9 @@ const AppStore = (() => {
                                     ${isInstalled
                                         ? (isService(appId)
                                             ? uninstallBtnHtml(appId, true)
-                                            : `<button class="store-open-btn" data-app="${appId}" style="background:rgba(255,255,255,0.1);border:none;color:white;padding:10px 32px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;transition:background 0.2s;">Open</button>`)
+                                            : hasUpdate(appId)
+                                                ? `<button class="store-update-btn" data-app="${appId}" style="background:#107C10;border:none;color:white;padding:10px 32px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;transition:background 0.2s;">Update</button>`
+                                                : `<button class="store-open-btn" data-app="${appId}" style="background:rgba(255,255,255,0.1);border:none;color:white;padding:10px 32px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;transition:background 0.2s;">Open</button>`)
                                         : `<button class="store-install-btn" data-app="${appId}" style="background:#0078D4;border:none;color:white;padding:10px 32px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;transition:background 0.2s;">Get</button>`}
                                 </div>
                             </div>
@@ -417,6 +485,10 @@ const AppStore = (() => {
                                     <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:#888;">Size</span><span style="color:#ccc;">${app.size || '—'}</span></div>
                                     <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:#888;">Age Rating</span><span style="color:#ccc;">${app.ageRating || '—'}</span></div>
                                     <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:#888;">Category</span><span style="color:#ccc;">${app.category || ''}</span></div>
+                                    ${getInstalled().includes(appId) ? `
+                                    <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:#888;">Installed Version</span><span style="color:#ccc;">${getInstalledVersion(appId) || '—'}</span></div>
+                                    <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:#888;">Store Version</span><span style="color:${hasUpdate(appId) ? '#107C10;font-weight:600' : '#ccc'}">${getStoreVersion(appId) || '—'}${hasUpdate(appId) ? ' (update available)' : ''}</span></div>
+                                    ` : ''}
                                 </div>
                             </div>
                             ${permissionsHtml(appId)}
@@ -574,6 +646,65 @@ const AppStore = (() => {
             after();
         }
 
+        async function doUpdate(appId, after) {
+            const rec = Packages.getRecord(appId);
+            const scope = rec?.scope || 'user';
+
+            const overlay = showProgress(appId);
+            overlay.querySelector('.store-progress-label').textContent = 'Checking for update…';
+            try {
+                await AppSystem.updateApp(appId, {
+                    onProgress: (ratio, label) => updateProgress(overlay, ratio, label)
+                });
+            } catch (err) {
+                overlay.remove();
+                if (err && err.elevationDenied) {
+                    Popup.info('Administrator approval required',
+                        `${(appDetails[appId] && appDetails[appId].name) || appId} was not updated. Updating a system-wide app needs administrator approval.`);
+                } else {
+                    Popup.error('Update failed', (err && err.message) || 'The app could not be updated.');
+                }
+                after();
+                return;
+            }
+            overlay.remove();
+            after();
+        }
+
+        async function doUpdateAll(after) {
+            const updates = libraryIds().filter(hasUpdate);
+            if (!updates.length) { after(); return; }
+
+            const overlay = document.createElement('div');
+            overlay.className = 'store-progress-overlay';
+            overlay.style.cssText = 'position:absolute;inset:0;background:rgba(12,12,12,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:50;';
+            overlay.innerHTML = `
+                <div>
+                    <div style="font-size:15px;font-weight:600;color:white;">Updating ${updates.length} app${updates.length !== 1 ? 's' : ''}</div>
+                    <div class="store-progress-label" style="font-size:12px;color:#aaa;margin-top:2px;">Starting…</div>
+                </div>
+                <div style="width:400px;height:6px;border-radius:3px;background:#333;overflow:hidden;">
+                    <div class="store-progress-bar" style="width:0%;height:100%;background:#107C10;transition:width 0.2s;"></div>
+                </div>`;
+            el.appendChild(overlay);
+
+            let completed = 0;
+            for (const appId of updates) {
+                try {
+                    const name = (appDetails[appId] && appDetails[appId].name) || appId;
+                    updateProgress(overlay, completed / updates.length, `Updating ${name}`);
+                    await AppSystem.updateApp(appId, { onProgress: null }); // individual progress not shown for batch
+                } catch (err) {
+                    console.error('Update failed for', appId, err);
+                }
+                completed++;
+                updateProgress(overlay, completed / updates.length, `${completed}/${updates.length} updated`);
+            }
+            updateProgress(overlay, 1, 'All updates complete');
+            overlay.remove();
+            after();
+        }
+
         function wire(container) {
             container.querySelectorAll('.store-nav-item').forEach(item => {
                 item.addEventListener('click', () => showView(item.dataset.tab));
@@ -635,6 +766,22 @@ const AppStore = (() => {
                 });
             });
 
+            container.querySelectorAll('.store-update-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const appId = btn.getAttribute('data-app');
+                    if (!appId) return;
+                    doUpdate(appId, refresh);
+                });
+            });
+
+            container.querySelectorAll('.store-update-all-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    doUpdateAll(refresh);
+                });
+            });
+
             container.querySelectorAll('.store-search').forEach(input => {
                 input.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter' && input.value.trim()) {
@@ -676,6 +823,14 @@ const AppStore = (() => {
                     const appId = btn.getAttribute('data-app');
                     if (!appId) return;
                     doUninstall(appId, () => showAppDetail(appId));
+                });
+            });
+            container.querySelectorAll('.store-update-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const appId = btn.getAttribute('data-app');
+                    if (!appId) return;
+                    doUpdate(appId, () => showAppDetail(appId));
                 });
             });
             container.querySelectorAll('.store-discover-card').forEach(card => {

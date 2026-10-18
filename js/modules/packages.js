@@ -236,7 +236,7 @@ const Packages = (() => {
     async function uninstall(id) {
         const rec = installed.get(id);
         const systemDir = [...SYSTEM_ROOT, id];
-        const isSystem = (rec && rec.scope === 'system') || !!sh(() => FileSystem.isFolder(systemDir));
+        const isSystem = (rec && rec.scope === 'system') || !!sh(() => FileSystem.itemExists(systemDir));
         if (isSystem) {
             await requireElevation(id, `Remove "${labelFor(id)}" for all users (from \\Program Files)? It will no longer be available to anyone on this device.`);
         }
@@ -256,6 +256,78 @@ const Packages = (() => {
         writeSession();
         window.dispatchEvent(new CustomEvent('apps-changed'));
         return removed;
+    }
+
+    // ---- update ----
+
+    async function update(id, opts = {}) {
+        // An update is essentially a reinstall of the same app with the same scope.
+        // We fetch the new package and replace the folder.
+        const rec = installed.get(id);
+        if (!rec) throw new Error('App is not installed: ' + id);
+        const scope = rec.scope; // preserve original scope
+        const onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : null;
+
+        if (scope === 'system') {
+            await requireElevation(id, `"${labelFor(id)}" will be updated for all users on this device. Allow it to make changes to your device?`);
+        }
+
+        onProgress && onProgress(0.02, 'Connecting');
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            throw new Error("You're offline — connect to the internet to download updates from the Store.");
+        }
+        let res;
+        try {
+            res = await fetch(pkgUrl(id), { cache: 'no-store' });
+        } catch (e) {
+            throw new Error("Couldn't reach the Store — check your internet connection and try again.");
+        }
+        if (!res.ok) throw new Error('Package download failed (' + res.status + ')');
+        const buf = new Uint8Array(await res.arrayBuffer());
+        onProgress && onProgress(0.35, 'Unpacking');
+
+        let entries;
+        try {
+            entries = Zip.readZip(buf).filter(e => !e.isDir && !/(^|\/)\.gitkeep$/.test(e.name));
+        } catch (e) {
+            throw new Error('Package archive is corrupt');
+        }
+        if (entries.length === 0) throw new Error('Package archive is empty');
+
+        const target = scope === 'system' ? [...SYSTEM_ROOT, id] : [...userRoot(), id];
+
+        // Remove old version first.
+        if (sh(() => FileSystem.itemExists(target))) {
+            sh(() => FileSystem.permanentDelete(target));
+        }
+        ensureDir(target);
+
+        let done = 0;
+        for (const entry of entries) {
+            const segments = entry.name.split('/').filter(Boolean);
+            const fileName = segments.pop();
+            const dir = [...target, ...segments];
+            ensureDir(dir);
+
+            const bytes = await Zip.extractFile(buf, entry);
+            if (!bytes) continue;
+
+            if (fileName === 'manifest.json') {
+                sh(() => FileSystem.createFile(dir, fileName, new TextDecoder().decode(bytes), 'json'));
+            } else {
+                const blob = new Blob([bytes], { type: mimeOf(fileName) });
+                await sh(() => FileSystem.writeFileBlob(dir, fileName, blob, extOf(fileName)));
+            }
+            done++;
+            onProgress && onProgress(0.35 + 0.6 * (done / entries.length), 'Installing');
+        }
+
+        await FileSystem.flushAsync();
+        scan();
+        writeSession();
+        onProgress && onProgress(1, 'Done');
+        window.dispatchEvent(new CustomEvent('apps-changed'));
+        return { id, scope };
     }
 
     // ---- legacy install migration (localStorage era) ----
@@ -324,7 +396,7 @@ const Packages = (() => {
     }
 
     return {
-        init, install, uninstall,
+        init, install, uninstall, update,
         getInstalled, isInstalled, getRecord, scopeOf,
         manifests, legacyInstalled, getLegacy,
         vfsActive, writeSession, pkgUrl,

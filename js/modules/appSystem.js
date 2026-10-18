@@ -2,7 +2,7 @@ import AppLoader from './appLoader.js';
 import Permissions from './permissions.js';
 
 // Compatibility facade over AppLoader. New code should use AppLoader directly.
-// install/uninstall accept an app id or uuid (and are async: they download and
+// install/uninstall/update accept an app id or uuid (and are async: they download and
 // unpack a package); getInstalledApps() returns ids.
 const AppSystem = (() => {
     function init() {
@@ -25,11 +25,16 @@ const AppSystem = (() => {
         return ok;
     }
 
+    // Returns Promise<boolean>. Updates a store app to the latest version.
+    async function updateApp(idOrUuid, opts) {
+        return AppLoader.update(idOrUuid, opts);
+    }
+
     function getInstalledApps() {
         return AppLoader.getInstalledIds();
     }
 
-    return { init, installApp, uninstallApp, getInstalledApps };
+    return { init, installApp, uninstallApp, updateApp, getInstalledApps };
 })();
 
 export default AppSystem;
