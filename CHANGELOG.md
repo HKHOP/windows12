@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4997] - 2026-10-19
+
+### Added
+- **DevScope** — new Store app by Impact Studio: a local-first developer diagnostics workbench with read-only toolchain discovery (through the SDK script runner when available), offline log-signature analysis and persisted per-user environment snapshots. The Store listing includes screenshots and declares clipboard/notifications permissions; the package ships at `packages/devScope.w12pkg`.
+
+### Changed
+- **Store catalog** — DevScope is registered as a Developer Tools store app. The incoming package was normalized for the catalog (string package size, store screenshots, packaged window icon) and rebuilt with the repository packager.
+
 ## [12.0.4996] - 2026-10-19
 
 ### Added
