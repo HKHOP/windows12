@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4998] - 2026-10-19
+
+### Fixed
+- **DevScope environment scan** — the toolchain probe no longer fails with `')' is not recognized`. The PowerShell script now uses line-oriented probes compatible with the OS script engine and returns pipe-delimited records, which DevScope parses for tool name, command, path and version. Package version 1.0.1.
+
 ## [12.0.4997] - 2026-10-19
 
 ### Added
