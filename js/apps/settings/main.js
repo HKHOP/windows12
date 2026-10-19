@@ -51,6 +51,16 @@ const Settings = (() => {
         recovery: { name: 'Recovery', icon: UIIcons.setting('recovery', 20) }
     };
 
+    const personalizationSubPages = {
+        theme: { name: 'Theme', icon: UIIcons.setting('moon', 20) },
+        accent: { name: 'Accent color', icon: UIIcons.setting('palette', 20) },
+        background: { name: 'Background', icon: UIIcons.setting('background', 20) },
+        cursor: { name: 'Mouse cursor', icon: UIIcons.setting('cursor', 20) },
+        taskbar: { name: 'Taskbar', icon: UIIcons.setting('taskbarSettings', 20) }
+    };
+
+    const subPageSets = { system: systemSubPages, personalization: personalizationSubPages };
+
     function currentUserName() {
         let accName = null;
         try {
@@ -160,8 +170,8 @@ const Settings = (() => {
             }
         });
 
-        if (currentPage === 'system' && currentSubPage) {
-            renderSystemSubPage(contentEl, currentSubPage);
+        if (currentSubPage && subPageSets[currentPage] && Object.hasOwn(subPageSets[currentPage], currentSubPage)) {
+            renderSubPage(contentEl, currentPage, currentSubPage);
         } else {
             switch (currentPage) {
                 case 'system': renderSystem(contentEl); break;
@@ -192,6 +202,11 @@ const Settings = (() => {
             </div>
         `;
 
+        wireSubPageCards(el);
+    }
+
+    // Card grids (System, Personalization) share the same navigation wiring.
+    function wireSubPageCards(el) {
         el.querySelectorAll('.system-sub-card').forEach(card => {
             card.addEventListener('click', () => {
                 currentSubPage = card.dataset.subpage;
@@ -202,14 +217,26 @@ const Settings = (() => {
         });
     }
 
-    function renderSystemSubPage(el, subPage) {
-        const sub = systemSubPages[subPage];
-        el.innerHTML = `
+    function renderSubPage(el, page, subPage) {
+        if (page === 'system') {
+            renderSystemSubPage(el, subPage);
+        } else {
+            renderPersonalizationSubPage(el, subPage);
+        }
+    }
+
+    function subPageHeader(name) {
+        return `
             <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
                 <button class="settings-back-btn" style="background:none;border:none;color:var(--text-primary);cursor:pointer;font-size:18px;padding:4px 8px;border-radius:4px;display:flex;align-items:center;">&#9664;</button>
-                <h2 style="font-size:28px;font-weight:600;">${sub.name}</h2>
+                <h2 style="font-size:28px;font-weight:600;">${name}</h2>
             </div>
         `;
+    }
+
+    function renderSystemSubPage(el, subPage) {
+        const sub = systemSubPages[subPage];
+        el.innerHTML = subPageHeader(sub.name);
 
         switch (subPage) {
             case 'display': renderDisplaySettings(el); break;
@@ -999,44 +1026,88 @@ const Settings = (() => {
     }
 
     function renderPersonalization(el) {
-        const config = SystemConfig.getAll();
         el.innerHTML = `
             <h2 style="font-size:28px;font-weight:600;margin-bottom:24px;">Personalization</h2>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                ${systemCard(UIIcons.setting('moon', 22), 'Theme', 'Dark and light mode', 'theme')}
+                ${systemCard(UIIcons.setting('palette', 22), 'Accent color', 'Highlight color for the shell', 'accent')}
+                ${systemCard(UIIcons.setting('background', 22), 'Background', 'Wallpaper styles and custom images', 'background')}
+                ${systemCard(UIIcons.setting('cursor', 22), 'Mouse cursor', 'Pointer theme, size, and style', 'cursor')}
+                ${systemCard(UIIcons.setting('taskbarSettings', 22), 'Taskbar', 'Opacity, position, and grouping', 'taskbar')}
+            </div>
+        `;
 
-            <div class="settings-section" style="margin-bottom:24px;">
-                <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Theme</h3>
-                <div style="display:flex;gap:12px;">
-                    <div class="theme-option" data-theme="dark" style="flex:1;padding:16px;border-radius:8px;cursor:pointer;text-align:center;background:${config.darkMode ? 'var(--accent-color)' : 'rgba(255,255,255,0.04)'};border:1px solid ${config.darkMode ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'};">
-                        <div style="display:flex;justify-content:center;margin-bottom:4px;">${UIIcons.setting('moon', 28)}</div>
-                        <div style="font-size:13px;">Dark</div>
-                    </div>
-                    <div class="theme-option" data-theme="light" style="flex:1;padding:16px;border-radius:8px;cursor:pointer;text-align:center;background:${!config.darkMode ? 'var(--accent-color)' : 'rgba(255,255,255,0.04)'};border:1px solid ${!config.darkMode ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'};">
-                        <div style="display:flex;justify-content:center;margin-bottom:4px;">${UIIcons.setting('sun', 28)}</div>
-                        <div style="font-size:13px;">Light</div>
-                    </div>
+        wireSubPageCards(el);
+    }
+
+    function renderPersonalizationSubPage(el, subPage) {
+        const sub = personalizationSubPages[subPage];
+        el.innerHTML = subPageHeader(sub.name);
+
+        switch (subPage) {
+            case 'theme': renderThemeSettings(el); break;
+            case 'accent': renderAccentSettings(el); break;
+            case 'background': renderBackgroundSettings(el); break;
+            case 'cursor': renderCursorSettings(el); break;
+            case 'taskbar': renderTaskbarSettings(el); break;
+        }
+    }
+
+    function renderThemeSettings(el) {
+        const config = SystemConfig.getAll();
+        el.innerHTML += `
+            <div style="display:flex;gap:12px;">
+                <div class="theme-option" data-theme="dark" style="flex:1;padding:16px;border-radius:8px;cursor:pointer;text-align:center;background:${config.darkMode ? 'var(--accent-color)' : 'rgba(255,255,255,0.04)'};border:1px solid ${config.darkMode ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'};">
+                    <div style="display:flex;justify-content:center;margin-bottom:4px;">${UIIcons.setting('moon', 28)}</div>
+                    <div style="font-size:13px;">Dark</div>
+                </div>
+                <div class="theme-option" data-theme="light" style="flex:1;padding:16px;border-radius:8px;cursor:pointer;text-align:center;background:${!config.darkMode ? 'var(--accent-color)' : 'rgba(255,255,255,0.04)'};border:1px solid ${!config.darkMode ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'};">
+                    <div style="display:flex;justify-content:center;margin-bottom:4px;">${UIIcons.setting('sun', 28)}</div>
+                    <div style="font-size:13px;">Light</div>
                 </div>
             </div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:12px;">Applies to windows, the taskbar, the Start menu, and apps that follow the system theme.</div>
+        `;
 
-            <div class="settings-section" style="margin-bottom:24px;">
-                <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Accent Color</h3>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    ${accentOption('#0078D4', 'Blue')}
-                    ${accentOption('#0099BC', 'Teal')}
-                    ${accentOption('#7A7574', 'Gray')}
-                    ${accentOption('#767676', 'Dark Gray')}
-                    ${accentOption('#FF8C00', 'Orange')}
-                    ${accentOption('#E81123', 'Red')}
-                    ${accentOption('#0063B1', 'Light Blue')}
-                    ${accentOption('#8764B8', 'Purple')}
-                    ${accentOption('#881798', 'Magenta')}
-                    ${accentOption('#038387', 'Dark Teal')}
-                    ${accentOption('#00B294', 'Green')}
-                    ${accentOption('#C239B3', 'Pink')}
-                </div>
+        el.querySelectorAll('.theme-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                const isDark = opt.dataset.theme === 'dark';
+                SystemConfig.set('darkMode', isDark);
+                refreshPersonalization();
+            });
+        });
+    }
+
+    function renderAccentSettings(el) {
+        el.innerHTML += `
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                ${accentOption('#0078D4', 'Blue')}
+                ${accentOption('#0099BC', 'Teal')}
+                ${accentOption('#7A7574', 'Gray')}
+                ${accentOption('#767676', 'Dark Gray')}
+                ${accentOption('#FF8C00', 'Orange')}
+                ${accentOption('#E81123', 'Red')}
+                ${accentOption('#0063B1', 'Light Blue')}
+                ${accentOption('#8764B8', 'Purple')}
+                ${accentOption('#881798', 'Magenta')}
+                ${accentOption('#038387', 'Dark Teal')}
+                ${accentOption('#00B294', 'Green')}
+                ${accentOption('#C239B3', 'Pink')}
             </div>
+        `;
 
+        el.querySelectorAll('.accent-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                SystemConfig.set('accentColor', opt.dataset.color);
+                refreshPersonalization();
+            });
+        });
+    }
+
+    function renderBackgroundSettings(el) {
+        el.innerHTML += `
             <div class="settings-section" style="margin-bottom:24px;">
-                <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Background</h3>
+                <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Background style</h3>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                     ${bgOption('gradient', 'Default', 'linear-gradient(135deg, #0a1628, #2d1b4e)')}
                     ${bgOption('blue', 'Ocean', 'linear-gradient(135deg, #001a33, #003366)')}
@@ -1046,52 +1117,60 @@ const Settings = (() => {
                     ${bgOption('solid', 'Solid', '#1a1a2e')}
                 </div>
             </div>
-
-            <div class="settings-section" style="margin-bottom:24px;">
+            <div class="settings-section">
                 <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Custom image</h3>
                 ${customBgSection()}
             </div>
+        `;
 
-            <div class="settings-section" style="margin-bottom:24px;">
-                <h3 style="font-size:16px;font-weight:500;margin-bottom:4px;">Mouse Cursor</h3>
-                <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Applies to the real mouse and the virtual touchpad cursor.</p>
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
-                    ${(typeof Cursor !== 'undefined' ? Cursor.getThemes() : []).map(t => cursorThemeOption(t, config.cursorTheme)).join('')}
-                </div>
-                <div style="font-size:13px;font-weight:500;margin:12px 0 8px;">Cursor Size</div>
-                <div style="display:flex;align-items:center;gap:12px;">
-                    <input type="range" class="cursor-size-slider" min="16" max="64" step="1" value="${(typeof Cursor !== 'undefined' && typeof Cursor.getSizeObj === 'function') ? Cursor.getSizeObj(config.cursorSize).px : 22}" style="flex:1;accent-color:var(--accent-color);">
-                    <span class="cursor-size-value" style="min-width:45px;text-align:right;font-size:14px;">${(typeof Cursor !== 'undefined' && typeof Cursor.getSizeObj === 'function') ? Cursor.getSizeObj(config.cursorSize).px : 22}px</span>
-                </div>
-                <div style="font-size:13px;font-weight:500;margin:12px 0 8px;">Pointer style</div>
-                <div style="display:flex;gap:8px;">
-                    ${(typeof Cursor !== 'undefined' ? Cursor.getStyles() : []).map(s => cursorStyleOption(s, config.cursorStyle)).join('')}
-                </div>
-                <div class="cursor-test-area" style="margin-top:12px;background:rgba(255,255,255,0.04);border:1px dashed var(--window-border);border-radius:8px;padding:14px;display:flex;align-items:center;gap:16px;">
-                    <span style="font-size:12px;color:var(--text-secondary);">Try it:</span>
-                    <button style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;padding:6px 14px;color:var(--text-primary);font-size:12px;cursor:pointer;">Hover me</button>
-                    <input type="text" placeholder="Text cursor" style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;padding:6px 10px;color:var(--text-primary);font-size:12px;outline:none;width:130px;">
-                    <a href="#" onclick="return false;" style="font-size:12px;">Link</a>
-                </div>
+        setupBackgroundEvents(el);
+    }
+
+    function renderCursorSettings(el) {
+        const config = SystemConfig.getAll();
+        el.innerHTML += `
+            <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Applies to the real mouse and the virtual touchpad cursor.</p>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+                ${(typeof Cursor !== 'undefined' ? Cursor.getThemes() : []).map(t => cursorThemeOption(t, config.cursorTheme)).join('')}
             </div>
+            <div style="font-size:13px;font-weight:500;margin:12px 0 8px;">Cursor Size</div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <input type="range" class="cursor-size-slider" min="16" max="64" step="1" value="${(typeof Cursor !== 'undefined' && typeof Cursor.getSizeObj === 'function') ? Cursor.getSizeObj(config.cursorSize).px : 22}" style="flex:1;accent-color:var(--accent-color);">
+                <span class="cursor-size-value" style="min-width:45px;text-align:right;font-size:14px;">${(typeof Cursor !== 'undefined' && typeof Cursor.getSizeObj === 'function') ? Cursor.getSizeObj(config.cursorSize).px : 22}px</span>
+            </div>
+            <div style="font-size:13px;font-weight:500;margin:12px 0 8px;">Pointer style</div>
+            <div style="display:flex;gap:8px;">
+                ${(typeof Cursor !== 'undefined' ? Cursor.getStyles() : []).map(s => cursorStyleOption(s, config.cursorStyle)).join('')}
+            </div>
+            <div class="cursor-test-area" style="margin-top:12px;background:rgba(255,255,255,0.04);border:1px dashed var(--window-border);border-radius:8px;padding:14px;display:flex;align-items:center;gap:16px;">
+                <span style="font-size:12px;color:var(--text-secondary);">Try it:</span>
+                <button style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;padding:6px 14px;color:var(--text-primary);font-size:12px;cursor:pointer;">Hover me</button>
+                <input type="text" placeholder="Text cursor" style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:6px;padding:6px 10px;color:var(--text-primary);font-size:12px;outline:none;width:130px;">
+                <a href="#" onclick="return false;" style="font-size:12px;">Link</a>
+            </div>
+        `;
 
+        setupCursorEvents(el);
+    }
+
+    function renderTaskbarSettings(el) {
+        const config = SystemConfig.getAll();
+        el.innerHTML += `
             <div class="settings-section" style="margin-bottom:24px;">
-                <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Taskbar Opacity</h3>
+                <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Opacity</h3>
                 <div style="display:flex;align-items:center;gap:12px;">
                     <input type="range" class="taskbar-opacity-slider" min="30" max="100" value="${config.taskbarOpacity}" style="flex:1;accent-color:var(--accent-color);">
                     <span class="opacity-value" style="min-width:40px;text-align:right;font-size:14px;">${config.taskbarOpacity}%</span>
                 </div>
             </div>
-
             <div class="settings-section" style="margin-bottom:24px;">
-                <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Taskbar Position</h3>
+                <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Position</h3>
                 <div style="display:flex;gap:8px;">
                     ${TASKBAR_POSITIONS.map(p => taskbarPositionOption(p, config.taskbarPosition)).join('')}
                 </div>
             </div>
-
-            <div class="settings-section" style="margin-bottom:24px;">
-                <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Taskbar Grouping</h3>
+            <div class="settings-section">
+                <h3 style="font-size:16px;font-weight:500;margin-bottom:12px;">Grouping</h3>
                 <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Choose how taskbar buttons are grouped when multiple windows of the same app are open.</p>
                 <div style="display:flex;flex-direction:column;gap:8px;">
                     ${GROUPING_MODES.map(g => groupingOption(g, config.taskbarGrouping)).join('')}
@@ -1099,7 +1178,7 @@ const Settings = (() => {
             </div>
         `;
 
-        setupPersonalizationEvents();
+        setupTaskbarEvents(el);
     }
 
     function renderApps(el) {
@@ -1509,7 +1588,12 @@ const Settings = (() => {
     function refreshPersonalization() {
         try {
             const content = win.element.querySelector('.settings-content');
-            if (content) renderPersonalization(content);
+            if (!content) return;
+            if (currentPage === 'personalization' && currentSubPage && Object.hasOwn(personalizationSubPages, currentSubPage)) {
+                renderPersonalizationSubPage(content, currentSubPage);
+            } else {
+                renderPersonalization(content);
+            }
         } catch { /* noop */ }
     }
 
@@ -1585,31 +1669,16 @@ const Settings = (() => {
         </div>`;
     }
 
-    function setupPersonalizationEvents() {
-        win.element.querySelectorAll('.theme-option').forEach(opt => {
-            opt.addEventListener('click', () => {
-                const isDark = opt.dataset.theme === 'dark';
-                SystemConfig.set('darkMode', isDark);
-                renderPersonalization(win.element.querySelector('.settings-content'));
-            });
-        });
-
-        win.element.querySelectorAll('.accent-option').forEach(opt => {
-            opt.addEventListener('click', () => {
-                SystemConfig.set('accentColor', opt.dataset.color);
-                renderPersonalization(win.element.querySelector('.settings-content'));
-            });
-        });
-
-        win.element.querySelectorAll('.bg-option').forEach(opt => {
+    function setupBackgroundEvents(el) {
+        el.querySelectorAll('.bg-option').forEach(opt => {
             opt.addEventListener('click', () => {
                 SystemConfig.setMultiple({ backgroundStyle: opt.dataset.style, wallpaperImage: null });
-                renderPersonalization(win.element.querySelector('.settings-content'));
+                refreshPersonalization();
             });
         });
 
         // Custom-image preview (async: rebuild the URL from the stored file).
-        const preview = win.element.querySelector('.custom-bg-preview');
+        const preview = el.querySelector('.custom-bg-preview');
         if (preview) {
             SystemConfig.wallpaperImageURL().then(url => {
                 if (!preview.isConnected || !url) return;
@@ -1617,7 +1686,7 @@ const Settings = (() => {
             }).catch(() => { /* preview stays empty */ });
         }
 
-        const chooseBtn = win.element.querySelector('.custom-bg-choose');
+        const chooseBtn = el.querySelector('.custom-bg-choose');
         if (chooseBtn) {
             chooseBtn.addEventListener('click', () => {
                 const images = collectWallpaperImages();
@@ -1633,12 +1702,12 @@ const Settings = (() => {
                         Popup.warn('Cannot use image', 'That file is not a supported image.');
                         return;
                     }
-                    renderPersonalization(win.element.querySelector('.settings-content'));
+                    refreshPersonalization();
                 });
             });
         }
 
-        const uploadBtn = win.element.querySelector('.custom-bg-upload');
+        const uploadBtn = el.querySelector('.custom-bg-upload');
         if (uploadBtn) {
             uploadBtn.addEventListener('click', () => {
                 const input = document.createElement('input');
@@ -1664,7 +1733,7 @@ const Settings = (() => {
                         const ok = await FileSystem.writeFileBlob(pics, safe, blob, ext);
                         if (!ok) throw new Error('save failed');
                         if (!SystemConfig.setWallpaperImage(target)) throw new Error('unsupported type');
-                        renderPersonalization(win.element.querySelector('.settings-content'));
+                        refreshPersonalization();
                     } catch (e) {
                         Popup.warn('Upload failed', 'Could not save that image to your Pictures folder.');
                     }
@@ -1673,31 +1742,33 @@ const Settings = (() => {
             });
         }
 
-        const removeBtn = win.element.querySelector('.custom-bg-remove');
+        const removeBtn = el.querySelector('.custom-bg-remove');
         if (removeBtn) {
             removeBtn.addEventListener('click', () => {
                 SystemConfig.setWallpaperImage(null);
-                renderPersonalization(win.element.querySelector('.settings-content'));
+                refreshPersonalization();
             });
         }
 
-        const fitSel = win.element.querySelector('.custom-bg-fit');
+        const fitSel = el.querySelector('.custom-bg-fit');
         if (fitSel) {
             fitSel.addEventListener('change', () => {
                 SystemConfig.setWallpaperFit(fitSel.value);
             });
         }
+    }
 
-        win.element.querySelectorAll('.cursor-theme-option').forEach(opt => {
+    function setupCursorEvents(el) {
+        el.querySelectorAll('.cursor-theme-option').forEach(opt => {
             opt.addEventListener('click', () => {
                 try { Cursor.setTheme(opt.dataset.theme); } catch (e) {}
                 SystemConfig.set('cursorTheme', opt.dataset.theme);
-                renderPersonalization(win.element.querySelector('.settings-content'));
+                refreshPersonalization();
             });
         });
 
-        const cursorSlider = win.element.querySelector('.cursor-size-slider');
-        const cursorSliderVal = win.element.querySelector('.cursor-size-value');
+        const cursorSlider = el.querySelector('.cursor-size-slider');
+        const cursorSliderVal = el.querySelector('.cursor-size-value');
         if (cursorSlider) {
             cursorSlider.addEventListener('input', () => {
                 const px = parseInt(cursorSlider.value);
@@ -1710,45 +1781,48 @@ const Settings = (() => {
             });
         }
 
-        win.element.querySelectorAll('.cursor-style-option').forEach(opt => {
+        el.querySelectorAll('.cursor-style-option').forEach(opt => {
             opt.addEventListener('click', () => {
                 try { Cursor.setStyle(opt.dataset.style); } catch (e) {}
                 SystemConfig.set('cursorStyle', opt.dataset.style);
-                renderPersonalization(win.element.querySelector('.settings-content'));
+                refreshPersonalization();
             });
         });
+    }
 
-        const slider = win.element.querySelector('.taskbar-opacity-slider');
-        const sliderVal = win.element.querySelector('.opacity-value');
+    function setupTaskbarEvents(el) {
+        const slider = el.querySelector('.taskbar-opacity-slider');
+        const sliderVal = el.querySelector('.opacity-value');
         if (slider) {
             slider.addEventListener('input', () => {
-                sliderVal.textContent = `${slider.value}%`;
+                if (sliderVal) sliderVal.textContent = `${slider.value}%`;
             });
             slider.addEventListener('change', () => {
                 SystemConfig.set('taskbarOpacity', parseInt(slider.value));
             });
         }
 
-        win.element.querySelectorAll('.taskbar-pos-option').forEach(opt => {
+        el.querySelectorAll('.taskbar-pos-option').forEach(opt => {
             opt.addEventListener('click', () => {
                 SystemConfig.set('taskbarPosition', opt.dataset.pos);
-                renderPersonalization(win.element.querySelector('.settings-content'));
+                refreshPersonalization();
             });
         });
 
-        win.element.querySelectorAll('.grouping-option').forEach(opt => {
+        el.querySelectorAll('.grouping-option').forEach(opt => {
             opt.addEventListener('click', () => {
                 SystemConfig.set('taskbarGrouping', opt.dataset.grouping);
                 // Also refresh the taskbar immediately
                 try { Taskbar.refreshGrouping(); } catch (e) {}
-                renderPersonalization(win.element.querySelector('.settings-content'));
+                refreshPersonalization();
             });
         });
     }
 
     function showPage(page, subPage = null) {
         const validPage = Object.hasOwn(pages, page) ? page : 'system';
-        const validSubPage = validPage === 'system' && Object.hasOwn(systemSubPages, subPage) ? subPage : null;
+        const set = subPageSets[validPage];
+        const validSubPage = set && Object.hasOwn(set, subPage) ? subPage : null;
 
         currentPage = validPage;
         currentSubPage = validSubPage;
