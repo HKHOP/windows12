@@ -4,6 +4,21 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4996] - 2026-10-19
+
+### Added
+- **Package Installer (.msi / .w12pkg)** — a new built-in app that installs sideloaded app packages from File Explorer with a classic Windows Installer-style wizard (welcome → license → options → ready → progress → finish). `.msi` files are app packages: the same ZIP layout as Store packages. Per-user is the default scope; a system-wide install is available when the installer allows it and raises UAC. The wizard detects updates, refuses to overwrite built-in apps or a different app with the same id, and can replace a conflicting local install only after an explicit confirmation.
+- **`installer.json`** — optional per-package setup configuration: `mode` (`gui`, `headless`, `silent`), `scope`/`defaultScope`, `publisher`, a custom `ui` module, `eula`, welcome text/image, `theme` accent/banner/logo, feature checkboxes, setup fields (`text`, `password`, `checkbox`, `select`), finish text and `data`. Headless installs show a compact progress window; silent installs report only through notifications. The selected scope/features/fields are written to `install.json` inside the installed app.
+- **Custom installer UI** — packages can ship `installer/ui.js` exporting `mount(root, ctx)`. The context exposes the full SDK, parsed package metadata, asset/text/bytes readers, a blob-module importer, the install bridge with progress and cancellation, window control and cleanup hooks.
+- **`build-msi.js`** — zero-dependency builder for sideloadable packages (`node build-msi.js <app-id|folder> [--out file.msi]`) that validates identity/entry/installer.json and writes a stored ZIP to `dist/`.
+- **Install docs** — `APP_DEVELOPMENT_GUIDE.md` §2.6 covers the `installer.json` schema, the custom UI contract and the programmatic `Packages.inspectArchive` / `Packages.installArchive` pipeline.
+
+### Changed
+- **Package service** — added `inspectArchive` (archive validation: identity, entry, permissions, associations, installer config, EULA, unsafe/duplicate paths, flat or single-folder roots) and `installArchive` (staged extraction outside the package roots, backup-and-swap commit, cancellation that never touches an existing install, `install.json` record, `apps-changed` event, one install per id at a time, UAC for system scope).
+- **Settings → Apps** — sideloaded packages are labelled "Installed package" instead of "Installed from Store".
+- **App catalog refresh** — `AppLoader` rebuilds the catalog from the registry on every `apps-changed`, so a sideloaded app update refreshes its name/version/association and an uninstalled package disappears instead of leaving a stale entry; a reinstalled app drops its cached module.
+- **App icons** — `AppIcons` now resolves package icons for sideloaded apps (and their custom manifest `icon` path) instead of falling back to the generic glyph.
+
 ## [12.0.4995] - 2026-10-19
 
 ### Changed
