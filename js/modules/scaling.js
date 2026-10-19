@@ -55,6 +55,26 @@ const Scaling = (() => {
         return currentScale;
     }
 
+    // Effective CSS zoom applied to <body> (adaptive scale * display
+    // resolution scale). JS-positioned overlays that are children of <body>
+    // must divide viewport coordinates (clientX/innerWidth) by this before
+    // writing left/top, because `position: fixed` lengths are zoomed too.
+    // Overlays on documentElement (touch cursor/keyboard) are unaffected.
+    function getUiZoom() {
+        try {
+            const z = parseFloat(getComputedStyle(document.body).zoom);
+            if (Number.isFinite(z) && z > 0) return z;
+        } catch (e) { /* no DOM */ }
+        try {
+            const rootStyle = getComputedStyle(document.documentElement);
+            const s = parseFloat(rootStyle.getPropertyValue('--scale')) || 1;
+            const r = parseFloat(rootStyle.getPropertyValue('--res-scale')) || 1;
+            return s * r;
+        } catch (e) {
+            return 1;
+        }
+    }
+
     function setMode(mode) {
         try {
             if (window.SystemConfig) {
@@ -73,7 +93,7 @@ const Scaling = (() => {
         window.addEventListener('resize', apply);
     }
 
-    return { init, apply, getScale, setMode, getMode, setOnScaleChange };
+    return { init, apply, getScale, getUiZoom, setMode, getMode, setOnScaleChange };
 })();
 
 export default Scaling;

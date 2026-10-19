@@ -7,6 +7,7 @@ import Search from './search.js';
 import AppLoader from './appLoader.js';
 import FileAssociations from './fileAssociations.js';
 import SystemConfig from './systemConfig.js';
+import Scaling from './scaling.js';
 
 const AppRegistry = (() => {
     const apps = {};
@@ -529,7 +530,9 @@ const Taskbar = (() => {
         html += '</div>';
         popup.innerHTML = html;
 
-        // Position above the anchor button
+        // Position above the anchor button. Rects/innerHeight are visual
+        // viewport pixels; style offsets live inside the zoomed <body>.
+        const z = Scaling.getUiZoom() || 1;
         const anchorRect = anchorBtn.getBoundingClientRect();
         const taskbar = document.getElementById('taskbar');
         const taskbarRect = taskbar.getBoundingClientRect();
@@ -537,14 +540,14 @@ const Taskbar = (() => {
 
         if (isTop) {
             // Taskbar at top - popup goes below
-            popup.style.top = `${anchorRect.bottom + 4}px`;
+            popup.style.top = `${(anchorRect.bottom + 4) / z}px`;
             popup.style.bottom = 'auto';
         } else {
             // Taskbar at bottom - popup goes above
-            popup.style.bottom = `${window.innerHeight - anchorRect.top + 4}px`;
+            popup.style.bottom = `${(window.innerHeight - anchorRect.top + 4) / z}px`;
             popup.style.top = 'auto';
         }
-        popup.style.left = `${anchorRect.left + anchorRect.width / 2}px`;
+        popup.style.left = `${(anchorRect.left + anchorRect.width / 2) / z}px`;
         popup.style.transform = 'translateX(-50%)';
 
         // Event listeners for switcher items
@@ -965,20 +968,21 @@ const Taskbar = (() => {
         html += '</div>';
         flyout.innerHTML = html;
 
-        // Position the flyout
+        // Position the flyout (visual rects -> zoomed body coordinates).
+        const z = Scaling.getUiZoom() || 1;
         const anchorRect = anchorBtn.getBoundingClientRect();
         const taskbar = document.getElementById('taskbar');
         const taskbarRect = taskbar.getBoundingClientRect();
         const isTop = taskbarRect.top < window.innerHeight / 2;
 
         if (isTop) {
-            flyout.style.top = `${anchorRect.bottom + 4}px`;
+            flyout.style.top = `${(anchorRect.bottom + 4) / z}px`;
             flyout.style.bottom = 'auto';
         } else {
-            flyout.style.bottom = `${window.innerHeight - anchorRect.top + 4}px`;
+            flyout.style.bottom = `${(window.innerHeight - anchorRect.top + 4) / z}px`;
             flyout.style.top = 'auto';
         }
-        flyout.style.right = `${window.innerWidth - anchorRect.right}px`;
+        flyout.style.right = `${(window.innerWidth - anchorRect.right) / z}px`;
         flyout.style.left = 'auto';
 
         // Click handlers for overflow items

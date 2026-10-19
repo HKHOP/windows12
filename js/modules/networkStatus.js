@@ -16,6 +16,7 @@
 // Also paints the tray Wi-Fi icon and opens a small network flyout.
 import Popup from './popup.js';
 import Flyout from './flyout.js';
+import Scaling from './scaling.js';
 
 const NetworkStatus = (() => {
     const listeners = new Set();
@@ -103,10 +104,15 @@ const NetworkStatus = (() => {
     // Anchor the flyout to the Wi-Fi button for any taskbar edge.
     function position() {
         if (!flyout || !trayBtn) return;
+        // Rects and innerWidth are visual viewport pixels; style left/top are
+        // in the zoomed <body> coordinate system. Compute in visual space,
+        // then divide so the flyout lands next to the tray icon on phones.
+        const z = Scaling.getUiZoom() || 1;
         const r = trayBtn.getBoundingClientRect();
         const tb = (document.getElementById('taskbar') || trayBtn).getBoundingClientRect();
         const vw = window.innerWidth, vh = window.innerHeight, m = 8;
-        const w = flyout.offsetWidth, h = flyout.offsetHeight;
+        const fr = flyout.getBoundingClientRect();
+        const w = fr.width, h = fr.height;
         let left, top;
         if (tb.height >= tb.width) {
             // vertical taskbar (left / right)
@@ -117,8 +123,8 @@ const NetworkStatus = (() => {
             left = r.left + r.width / 2 - w / 2;
             top = tb.top > vh / 2 ? tb.top - h - m : tb.bottom + m;
         }
-        flyout.style.left = Math.max(m, Math.min(left, vw - w - m)) + 'px';
-        flyout.style.top = Math.max(m, Math.min(top, vh - h - m)) + 'px';
+        flyout.style.left = Math.max(m, Math.min(left, vw - w - m)) / z + 'px';
+        flyout.style.top = Math.max(m, Math.min(top, vh - h - m)) / z + 'px';
     }
 
     function openFlyout() {

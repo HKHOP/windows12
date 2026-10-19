@@ -1,4 +1,5 @@
 import Keyboard from './keyboard.js';
+import Scaling from './scaling.js';
 
 const ContextMenu = (() => {
     let menuEl;
@@ -58,11 +59,15 @@ const ContextMenu = (() => {
         });
 
         menuEl.classList.remove('hidden');
-        const rect = menuEl.getBoundingClientRect();
-        const maxX = window.innerWidth - rect.width - 4;
-        const maxY = window.innerHeight - rect.height - 4;
-        menuEl.style.left = `${Math.min(x, maxX)}px`;
-        menuEl.style.top = `${Math.min(y, maxY)}px`;
+        // The menu is a child of the zoomed <body>: `left/top` lengths are
+        // multiplied by that zoom, while clientX/Y and innerWidth are real
+        // viewport pixels. Without this conversion menus opened far away
+        // from the pointer whenever body zoom != 1 (phones, small screens).
+        const z = Scaling.getUiZoom() || 1;
+        const maxX = Math.max(0, (window.innerWidth - menuEl.offsetWidth * z - 4) / z);
+        const maxY = Math.max(0, (window.innerHeight - menuEl.offsetHeight * z - 4) / z);
+        menuEl.style.left = `${Math.max(0, Math.min(x / z, maxX))}px`;
+        menuEl.style.top = `${Math.max(0, Math.min(y / z, maxY))}px`;
         isVisible = true;
 
         requestAnimationFrame(() => {
