@@ -4,6 +4,38 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4993] - 2026-10-19
+
+### Fixed
+- **Window manager** — window IDs no longer collide when two windows are created in the same millisecond; closing the focused window hands focus to the next visible window; Aero peek restores the previous stacking order and moves between switcher items; per-window drag/resize listeners are detached on close; switching session or virtual desktop re-focuses the top visible window.
+- **Taskbar** — pinned apps regroup correctly when they gain or lose windows; pinned apps stay visible in ungrouped mode; the "Restore" context action un-minimizes instead of maximizing; switcher/overflow removal timers can no longer delete a newly opened flyout; the outside-click listener is registered once.
+- **Start menu** — apps are only reused within the current session and virtual desktop, and minimized windows are restored through the window manager.
+- **Notepad** — Open remembers the real file path (Ctrl+S no longer overwrites the previously saved document), the dirty marker keeps the document name, and the status bar refreshes after Open/New.
+- **Calculator** — the finished expression (`1 + 1 =`) is no longer cleared immediately after pressing equals.
+- **Password Vault** — the password generator no longer produces shortened/invalid passwords.
+- **To-Do Tasks** — editing a due date keeps local time instead of shifting it by the timezone.
+- **Minesweeper** — changing difficulty from the menu updates the high-score category.
+- **Browser** — typed URLs are added to history once instead of twice.
+- **Settings** — display resolution can be changed back after the first change; factory reset also clears leftover OPFS blob data.
+- **Cell ESheet** — `MIN`/`MAX` on empty ranges return 0; Delete is ignored while typing in a cell editor; the theme timer stops when the window closes.
+- **Paint** — Ctrl+Z only triggers while the Paint window is focused.
+- **Words** — inserted images mark the document dirty.
+- **Archiver** — binary entries are extracted as real bytes instead of corrupted text.
+- **Task Manager** — the refresh interval stops on every close route.
+- **VS Code** — a second launch focuses the existing window instead of resetting its tabs.
+- **Popup / Save As** — closing a dialog from its title bar or the taskbar now resolves the pending promise instead of hanging the caller.
+- **Window state** — pending geometry saves are tracked per profile.
+- **Notifications** — auto-dismiss timers are cleared when the session changes.
+- **Search** — file results open the actual file through the association layer.
+- **Background Apps** — disabling autostart no longer shuts down another signed-in profile's instance.
+- **Packages / App Loader** — package state is rescanned on session change, updates and uninstalls target the owning profile, legacy installs are removed, and updated code is re-imported.
+- **Filesystem** — restoring from the recycle bin no longer loses the item when the original folder is missing or the name is taken; moving a folder into itself is rejected; ZIP extraction validates stored entries.
+- **Clipboard** — clicking a history item pastes into the field that was focused before the flyout opened.
+- **SDK** — Audio no longer applies master volume twice and preserves an explicit 0 volume; local Net channels send their goodbye before closing.
+
+### Changed
+- Removed leftover debug logging and unused imports across the taskbar, window manager, apps and SDK modules.
+
 ## [12.0.4992] - 2026-10-18
 
 ### Changed
