@@ -3,7 +3,7 @@
     "id": "remoteDesktop",
     "uuid": "cd7207c4-245f-44a2-8457-171c465e3c4a",
     "name": "Remote Desktop",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "distribution": "builtin",
     "entry": "main.js",
     "associations": [],

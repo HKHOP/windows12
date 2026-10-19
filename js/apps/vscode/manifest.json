@@ -3,7 +3,7 @@
     "id": "vscode",
     "uuid": "0c03acaf-f006-4c90-8590-763a7cca643a",
     "name": "Visual Studio Code",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "distribution": "store",
     "entry": "main.js",
     "associations": [],

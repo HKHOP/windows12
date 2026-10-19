@@ -3,7 +3,7 @@
   "id": "subwaySurfers",
   "uuid": "c8a6b7d2-3e1f-4a2b-9c6d-5f1a2b3c4d5e",
   "name": "Subway Surfers",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],

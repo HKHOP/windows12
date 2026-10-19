@@ -3,7 +3,7 @@
   "id": "riftboundRunner",
   "uuid": "8b7d3f5a-1e8c-4d3a-9b6f-2c7a1e5d4f90",
   "name": "Riftbound Runner",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],

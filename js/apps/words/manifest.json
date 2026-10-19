@@ -3,7 +3,7 @@
     "id": "words",
     "uuid": "4b2c391f-9c8b-4560-b461-cd7369c24763",
     "name": "Words",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "distribution": "store",
     "entry": "main.js",
     "associations": [],

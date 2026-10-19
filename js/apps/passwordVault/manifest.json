@@ -3,7 +3,7 @@
     "id": "passwordVault",
     "uuid": "fedbd8d0-c55e-4483-8674-3d324d98037c",
     "name": "Password Vault",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "distribution": "store",
     "entry": "main.js",
     "associations": [],

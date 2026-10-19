@@ -3,7 +3,7 @@
     "id": "cellESheet",
     "uuid": "018c838d-7ccf-410f-979d-806142a0c2bb",
     "name": "Cell ESheet",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "distribution": "store",
     "entry": "main.js",
     "associations": [

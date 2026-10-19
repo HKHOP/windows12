@@ -3,7 +3,7 @@
     "id": "todoTasks",
     "uuid": "9dbc7212-43e5-45ab-b17a-d37e57a6a9e0",
     "name": "To-Do Tasks",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "distribution": "store",
     "entry": "main.js",
     "associations": ["todo"],

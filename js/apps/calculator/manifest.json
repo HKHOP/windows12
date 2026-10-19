@@ -3,7 +3,7 @@
     "id": "calculator",
     "uuid": "e0c7c96c-8fe4-44c4-9792-b7ef107bcd2d",
     "name": "Calculator",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "distribution": "builtin",
     "entry": "main.js",
     "associations": []

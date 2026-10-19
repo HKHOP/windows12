@@ -3,7 +3,7 @@
     "id": "apexDrive",
     "uuid": "aa8c488d-a5d4-4939-b3e9-3a812428ca50",
     "name": "Apex Drive 3D",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "distribution": "store",
     "entry": "main.js",
     "associations": [],

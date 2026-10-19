@@ -3,7 +3,7 @@
     "id": "archiver",
     "uuid": "f3912131-1048-4ce2-876e-48ee99072d26",
     "name": "Archiver",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "distribution": "store",
     "entry": "main.js",
     "associations": ["zip"],

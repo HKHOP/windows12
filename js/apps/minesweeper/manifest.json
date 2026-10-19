@@ -3,7 +3,7 @@
     "id": "minesweeper",
     "uuid": "8f3b2c1a-4d5e-4f7a-8b9c-0d1e2f3a4b5c",
     "name": "Minesweeper",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "distribution": "store",
     "entry": "main.js",
     "associations": [],
