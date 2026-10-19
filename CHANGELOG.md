@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4994] - 2026-10-19
+
+### Fixed
+- **Context menus and popups on scaled displays** — context menus, the Wi-Fi/network flyout, the taskbar window switcher and the tray overflow flyout were positioned with visual viewport coordinates inside the zoomed `<body>`, so on phones and other small screens (body zoom below 1) they rendered far away from the pointer or tray icon. Their coordinates are now converted with the effective UI zoom (`Scaling.getUiZoom()`), keeping them anchored correctly at every scale.
+
 ## [12.0.4993] - 2026-10-19
 
 ### Fixed
