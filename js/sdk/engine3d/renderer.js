@@ -12,7 +12,7 @@
 // Import-safe under Node (all GL work happens after construction with a canvas).
 
 import { Vec3, Mat4, scratch } from './math.js';
-import { Mesh, InstancedMesh, DirectionalLight, PointLight, SpotLight } from './scene.js';
+import { Mesh, InstancedMesh } from './scene.js';
 
 const MAX_DIR = 2;
 const MAX_POINT = 8;

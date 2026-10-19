@@ -9,7 +9,7 @@
 // Import-safe under Node; everything touching the DOM happens inside the
 // Engine constructor / methods, never at module scope.
 
-import { Vec3, Mat4, clamp } from './math.js';
+import { clamp } from './math.js';
 import { BufferGeometry, GeometryFactory } from './geometry.js';
 import { Material, Materials, Texture2D, Skybox } from './materials.js';
 import { Node, Group, Mesh, InstancedMesh, Scene, Light, AmbientLight, DirectionalLight, PointLight, SpotLight, Raycaster } from './scene.js';

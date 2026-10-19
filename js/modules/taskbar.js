@@ -71,6 +71,7 @@ const Taskbar = (() => {
     let switcherHoverTimer = null;
     let currentSwitcherAppId = null;
     let peekEnabled = false;
+    let outsideClickWired = false;
 
     // Tray overflow state
     let trayOverflowFlyout = null;
@@ -273,6 +274,19 @@ const Taskbar = (() => {
             // Ungrouped: one entry per window
             const ungrouped = [];
             entries.forEach(entry => {
+                if (entry.windows.length === 0) {
+                    // Pinned but not running: keep its launcher button.
+                    ungrouped.push({
+                        appId: entry.appId,
+                        windowId: null,
+                        meta: entry.meta,
+                        icon: entry.meta.icon,
+                        windows: [],
+                        isPinned: entry.isPinned,
+                        isUngrouped: true
+                    });
+                    return;
+                }
                 entry.windows.forEach(win => {
                     ungrouped.push({
                         appId: entry.appId,
@@ -359,33 +373,26 @@ const Taskbar = (() => {
     }
 
     function setupAppButtonEvents(shouldGroup) {
-        console.log('[Taskbar] setupAppButtonEvents, shouldGroup:', shouldGroup);
         const buttons = document.querySelectorAll('.taskbar-btn.app-btn');
-        console.log('[Taskbar] Found buttons:', buttons.length);
         buttons.forEach(btn => {
             const appId = btn.dataset.app;
             const windowId = btn.dataset.windowId;
             const isGrouped = btn.classList.contains('grouped');
-            console.log('[Taskbar] Button:', appId, 'windowId:', windowId, 'grouped:', isGrouped, 'shouldGroup:', shouldGroup);
 
             if (shouldGroup && !windowId && !isGrouped) {
                 // Single window app - simple click behavior
                 btn.addEventListener('click', () => {
-                    console.log('[Taskbar] Single-window click:', appId);
                     if (appId && appId !== 'search') openApp(appId);
                 });
             } else if (shouldGroup && isGrouped) {
                 // Grouped app with multiple windows - show switcher on click/hover
-                console.log('[Taskbar] Adding grouped handlers for:', appId);
                 btn.addEventListener('click', (e) => {
-                    console.log('[Taskbar] Grouped click:', appId);
                     e.stopPropagation();
                     toggleSwitcher(appId, btn);
                 });
 
                 // Hover to show switcher after delay
                 btn.addEventListener('mouseenter', () => {
-                    console.log('[Taskbar] Grouped mouseenter:', appId);
                     if (switcherHoverTimer) clearTimeout(switcherHoverTimer);
                     switcherHoverTimer = setTimeout(() => {
                         if (!switcherPopup || !switcherPopup.classList.contains('show')) {
@@ -398,6 +405,11 @@ const Taskbar = (() => {
                         clearTimeout(switcherHoverTimer);
                         switcherHoverTimer = null;
                     }
+                });
+            } else if (!shouldGroup && !windowId) {
+                // Ungrouped launcher for a pinned app that has no window.
+                btn.addEventListener('click', () => {
+                    if (appId && appId !== 'search') openApp(appId);
                 });
             } else if (!shouldGroup && windowId) {
                 // Ungrouped mode - each window has its own button
@@ -464,21 +476,24 @@ const Taskbar = (() => {
             }
         });
 
-        // Click outside to close switcher
-        document.addEventListener('click', (e) => {
-            if (switcherPopup && !switcherPopup.contains(e.target) && !e.target.closest('.taskbar-btn.grouped')) {
-                hideSwitcher();
-            }
-        }, true);
+        // Click outside to close switcher. Register once: setupAppButtonEvents
+        // runs on every taskbar re-render, so binding here per render leaked a
+        // document listener each time.
+        if (!outsideClickWired) {
+            outsideClickWired = true;
+            document.addEventListener('click', (e) => {
+                if (switcherPopup && !switcherPopup.contains(e.target) && !e.target.closest('.taskbar-btn.grouped')) {
+                    hideSwitcher();
+                }
+            }, true);
+        }
     }
 
     // Switcher popup functions
     function showSwitcher(appId, anchorBtn) {
-        console.log('[Taskbar] showSwitcher called for:', appId);
         if (switcherPopup) hideSwitcher();
 
         const windows = getWindowsForApp(appId);
-        console.log('[Taskbar] Windows for app:', windows.length);
         if (windows.length <= 1) {
             // Single window - just focus it
             if (windows.length === 1) {
@@ -565,7 +580,7 @@ const Taskbar = (() => {
                     { label: 'Close', icon: UIIcons.action('close'), action: () => WindowManager.closeWindow(winId) },
                     'separator',
                     { label: 'Minimize', icon: UIIcons.action('minimize'), action: () => WindowManager.setMinimized(winId, true) },
-                    { label: isMinimized ? 'Restore' : 'Maximize', icon: UIIcons.action(isMinimized ? 'restore' : 'maximize'), action: () => WindowManager.toggleMaximize(win) },
+                    { label: isMinimized ? 'Restore' : 'Maximize', icon: UIIcons.action(isMinimized ? 'restore' : 'maximize'), action: () => isMinimized ? focusWindowById(winId) : WindowManager.toggleMaximize(win) },
                 ];
                 const { ContextMenu } = window._modules || {};
                 if (ContextMenu) ContextMenu.show(e.clientX, e.clientY, items);
@@ -593,15 +608,16 @@ const Taskbar = (() => {
     }
 
     function hideSwitcher() {
-        if (switcherPopup) {
-            switcherPopup.classList.remove('show');
-            switcherPopup.classList.add('closing');
+        // Capture the popup: the removal timer must never touch a switcher
+        // that was created in the meantime (show() calls hide() first).
+        const closing = switcherPopup;
+        if (closing) {
+            closing.classList.remove('show');
+            closing.classList.add('closing');
+            switcherPopup = null;
+            currentSwitcherAppId = null;
             setTimeout(() => {
-                if (switcherPopup && switcherPopup.parentNode) {
-                    switcherPopup.parentNode.removeChild(switcherPopup);
-                }
-                switcherPopup = null;
-                currentSwitcherAppId = null;
+                if (closing.parentNode) closing.parentNode.removeChild(closing);
             }, 150);
         }
         if (switcherHoverTimer) {
@@ -616,7 +632,6 @@ const Taskbar = (() => {
     }
 
     function toggleSwitcher(appId, anchorBtn) {
-        console.log('[Taskbar] toggleSwitcher:', appId, 'current:', currentSwitcherAppId, 'popup open:', !!(switcherPopup && switcherPopup.classList.contains('show')));
         if (switcherPopup && switcherPopup.classList.contains('show') && currentSwitcherAppId === appId) {
             hideSwitcher();
         } else {
@@ -634,28 +649,12 @@ const Taskbar = (() => {
     }
 
     function peekWindow(windowId, enable) {
+        // Delegate to WindowManager: it knows how to dim the app's other
+        // windows, move the peek to a new target and restore z-order.
         if (enable && windowId) {
-            if (!peekEnabled) {
-                // First time enabling peek for this app - dim all other windows
-                const appId = currentSwitcherAppId;
-                if (appId) {
-                    const wins = WindowManager.getWindowsByApp(appId).filter(w => isOnActiveDesktop(w.id));
-                    wins.forEach(w => {
-                        if (w.id !== windowId && !WindowManager.isMinimized(w.id)) {
-                            w.element.classList.add('peek-dimmed');
-                        }
-                    });
-                    // Bring the target window to front visually
-                    const targetWin = WindowManager._getWindow(windowId);
-                    if (targetWin && !WindowManager.isMinimized(windowId)) {
-                        targetWin.element.classList.add('peek-target');
-                        targetWin.element.style.zIndex = 999999;
-                    }
-                }
-                peekEnabled = true;
-            }
-        } else {
-            // Disable peek - restore all windows (not just current app)
+            WindowManager.peekWindow(windowId, true);
+            peekEnabled = true;
+        } else if (peekEnabled) {
             WindowManager.peekWindow(null, false);
             peekEnabled = false;
         }
@@ -778,27 +777,18 @@ const Taskbar = (() => {
         }
         runningApps.get(appId).add(windowData.id);
 
-        const needsRender = !pinnedApps.includes(appId) && appId !== 'search';
-        if (needsRender) {
-            renderTaskbarButtons();
-        } else {
-            updateRunningState();
-        }
+        // Always re-render: a pinned app's button must switch to the grouped
+        // switcher as soon as it gains a second window. (Pinned apps used to
+        // only call updateRunningState, so their grouping never updated.)
+        renderTaskbarButtons();
     }
 
     function removeRunningApp(appId, windowId) {
         if (runningApps.has(appId)) {
             runningApps.get(appId).delete(windowId);
-            if (runningApps.get(appId).size === 0) {
-                runningApps.delete(appId);
-                const wasPinned = pinnedApps.includes(appId);
-                if (!wasPinned && appId !== 'search') {
-                    renderTaskbarButtons();
-                    return;
-                }
-            }
+            if (runningApps.get(appId).size === 0) runningApps.delete(appId);
         }
-        updateRunningState();
+        renderTaskbarButtons();
     }
 
     function updateRunningState() {
@@ -1021,14 +1011,13 @@ const Taskbar = (() => {
     }
 
     function hideTrayOverflowFlyout() {
-        if (trayOverflowFlyout) {
-            trayOverflowFlyout.classList.remove('show');
-            trayOverflowFlyout.classList.add('closing');
+        const closing = trayOverflowFlyout;
+        if (closing) {
+            closing.classList.remove('show');
+            closing.classList.add('closing');
+            trayOverflowFlyout = null;
             setTimeout(() => {
-                if (trayOverflowFlyout && trayOverflowFlyout.parentNode) {
-                    trayOverflowFlyout.parentNode.removeChild(trayOverflowFlyout);
-                }
-                trayOverflowFlyout = null;
+                if (closing.parentNode) closing.parentNode.removeChild(closing);
             }, 150);
         }
     }

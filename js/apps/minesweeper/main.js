@@ -371,9 +371,9 @@ const Minesweeper = (() => {
         el.querySelector('.ms-menu-btn').addEventListener('click', () => {
             Popup.pick('Minesweeper Options', 'Select an action:', [
                 { label: 'New Game', action: () => resetBoard() },
-                { label: 'Difficulty: Beginner (9x9)', action: () => { saveSettings({ difficulty: 'beginner', soundEnabled: loadSettings().soundEnabled }); resetBoard(DIFFICULTIES.beginner); } },
-                { label: 'Difficulty: Intermediate (16x16)', action: () => { saveSettings({ difficulty: 'intermediate', soundEnabled: loadSettings().soundEnabled }); resetBoard(DIFFICULTIES.intermediate); } },
-                { label: 'Difficulty: Expert (30x16)', action: () => { saveSettings({ difficulty: 'expert', soundEnabled: loadSettings().soundEnabled }); resetBoard(DIFFICULTIES.expert); } },
+                { label: 'Difficulty: Beginner (9x9)', action: () => { saveSettings({ difficulty: 'beginner', soundEnabled: loadSettings().soundEnabled }); currentDiff = 'beginner'; resetBoard(DIFFICULTIES.beginner); } },
+                { label: 'Difficulty: Intermediate (16x16)', action: () => { saveSettings({ difficulty: 'intermediate', soundEnabled: loadSettings().soundEnabled }); currentDiff = 'intermediate'; resetBoard(DIFFICULTIES.intermediate); } },
+                { label: 'Difficulty: Expert (30x16)', action: () => { saveSettings({ difficulty: 'expert', soundEnabled: loadSettings().soundEnabled }); currentDiff = 'expert'; resetBoard(DIFFICULTIES.expert); } },
                 { label: loadSettings().soundEnabled ? 'Disable Sound' : 'Enable Sound', action: () => { const s = loadSettings(); s.soundEnabled = !s.soundEnabled; saveSettings(s); Popup.info('Sound', s.soundEnabled ? 'Sound enabled' : 'Sound disabled'); } }
             ]).then(res => {
                 if (res && res.action) res.action();

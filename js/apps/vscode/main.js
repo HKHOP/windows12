@@ -176,6 +176,14 @@ const VSCode = (() => {
     }
 
     function launch() {
+        // Single-instance app: the editor state (tabs, terminal, menus) is
+        // module-scoped, so a second window used to reset the first window's
+        // tabs. Focus the existing one instead.
+        const existing = WindowManager.getWindowsByApp('vscode');
+        if (existing.length > 0) {
+            WindowManager.focusWindow(existing[0].id);
+            return;
+        }
         if (cleanupFn) cleanupFn();
         openTabs = [];
         activeTab = null;

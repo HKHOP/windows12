@@ -477,7 +477,7 @@ const Paint = (() => {
                 observer.disconnect();
                 return;
             }
-            if (e.ctrlKey && e.key === 'z') {
+            if (e.ctrlKey && e.key.toLowerCase() === 'z' && WindowManager.isFocused(win.id)) {
                 e.preventDefault();
                 if (undoStack.length > 0) restoreState(undoStack.pop());
             }

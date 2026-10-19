@@ -208,7 +208,14 @@ const Zip = (() => {
         const extraLen = dv.getUint16(lh + 28, true);
         const start = lh + 30 + nameLen + extraLen;
         const raw = data.slice(start, start + entry.compressedSize);
-        if (entry.method === METHOD_STORED) return raw;
+        if (entry.method === METHOD_STORED) {
+            // Stored entries were returned unchecked; a truncated/corrupt
+            // archive silently produced a broken file.
+            if (raw.length !== entry.size || crc32(raw) !== entry.crc) {
+                throw new Error(`Corrupt ZIP (CRC/size mismatch in ${entry.name})`);
+            }
+            return raw;
+        }
         if (entry.method === METHOD_DEFLATED) {
             const out = await inflateRaw(raw);
             if (!out) return null; // undecodable on this browser

@@ -40,6 +40,19 @@ const TaskManager = (() => {
             else if (activeTab === 'performance') showPerformance(win);
         }, 2000);
 
+        // Clean up when the window is closed by any route (title bar, taskbar,
+        // Alt+F4), not just its own close button.
+        const onClosed = (e) => {
+            if (!e.detail || e.detail.id !== win.id) return;
+            window.removeEventListener('window-closed', onClosed);
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+            window.removeEventListener('background-apps-changed', onBgChanged);
+        };
+        window.addEventListener('window-closed', onClosed);
+
         const origClose = win.element.querySelector('.close-btn');
         if (origClose) {
             origClose.addEventListener('click', () => {

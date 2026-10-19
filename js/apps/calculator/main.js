@@ -141,15 +141,19 @@ const Calculator = (() => {
                     resetNext = true;
                     updateDisplay();
                 } else if (val === '=') {
+                    let summary = '';
                     if (operator && previous) {
                         const result = calculate(previous, operator, current);
-                        expressionEl.textContent = `${previous} ${operator === '*' ? '×' : operator === '/' ? '÷' : operator} ${current} =`;
+                        summary = `${previous} ${operator === '*' ? '×' : operator === '/' ? '÷' : operator} ${current} =`;
                         current = formatNumber(result);
                         previous = '';
                         operator = null;
                         resetNext = true;
                     }
                     updateDisplay();
+                    // updateDisplay clears the expression when there is no
+                    // pending operator — write the finished sum afterwards.
+                    if (summary) expressionEl.textContent = summary;
                 } else if (val === '%') {
                     if (previous && operator) {
                         current = formatNumber((parseFloat(previous) * parseFloat(current)) / 100);

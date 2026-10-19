@@ -3,6 +3,10 @@ import WindowState from './windowState.js';
 const WindowManager = (() => {
     let windows = new Map();
     let zCounter = 100;
+    // Monotonic suffix for window ids: Date.now() alone collides when two
+    // windows are created in the same millisecond (same id => Map overwrite
+    // and duplicate DOM ids).
+    let windowSeq = 0;
     let container;
     let onFocusChanged = null;
     let onWindowCreated = null;
@@ -14,6 +18,9 @@ const WindowManager = (() => {
     let snapIndicator = null;
     let scale = 1;
     const closeHandlers = new Map();
+    // Aero peek saves the original inline z-index of the peeked window so
+    // disabling peek restores the stacking order instead of wiping it.
+    const peekZ = new Map();
     // Per-window close interceptors (unlike closeHandlers these veto one
     // window only, e.g. a single dirty document).
     const windowCloseHooks = new Map();
@@ -66,11 +73,24 @@ const WindowManager = (() => {
     }
 
     function applyVisibility() {
+        let top = null;
+        let focusedVisible = false;
         windows.forEach((data) => {
             const visible = isWindowVisible(data);
             data.element.style.display = visible ? 'flex' : 'none';
-            if (!visible) data.element.classList.remove('focused');
+            if (!visible) {
+                data.element.classList.remove('focused');
+                return;
+            }
+            if (data.element.classList.contains('focused')) focusedVisible = true;
+            if (!data.minimized) {
+                const z = Number(data.element.style.zIndex) || 0;
+                if (!top || z > top.z) top = { id: data.id, z };
+            }
         });
+        // A session/desktop switch hides the previously focused window, so
+        // the newly visible desktop ended up with no active window at all.
+        if (!focusedVisible && top) focusWindow(top.id);
     }
 
 
@@ -347,7 +367,7 @@ const WindowManager = (() => {
     }
 
     function createWindow(appId, title, icon, content, options = {}) {
-        const id = `window-${appId}-${Date.now()}`;
+        const id = `window-${appId}-${Date.now()}-${++windowSeq}`;
         const s = scale;
         const defaults = {
             width: 700,
@@ -475,7 +495,9 @@ const WindowManager = (() => {
 
         win.addEventListener('mousedown', () => focusWindow(id));
 
-        focusWindow(id);
+        // Don't steal focus for a window that isn't visible (background
+        // session or another virtual desktop).
+        if (isWindowVisible(windowData)) focusWindow(id);
         if (onWindowCreated) onWindowCreated(appId, windowData);
 
         return windowData;
@@ -484,6 +506,9 @@ const WindowManager = (() => {
     function focusWindow(id) {
         const data = windows.get(id);
         if (!data) return;
+        // A real focus supersedes a temporary peek z-index; drop the saved
+        // value so ending peek can't push the window back down.
+        peekZ.delete(id);
         data.element.style.zIndex = ++zCounter;
         windows.forEach((v) => {
             v.element.classList.remove('focused');
@@ -536,7 +561,7 @@ const WindowManager = (() => {
             e.preventDefault();
         });
 
-        document.addEventListener('mousemove', (e) => {
+        const onMove = (e) => {
             if (!isDragging) return;
             // Client deltas are viewport px — scale into container layout px.
             const z = effectiveZoom() || 1;
@@ -553,9 +578,9 @@ const WindowManager = (() => {
                 currentSnap = null;
                 hideSnapIndicator();
             }
-        });
+        };
 
-        document.addEventListener('mouseup', () => {
+        const onUp = () => {
             if (isDragging) {
                 isDragging = false;
                 data.dragging = false;
@@ -586,6 +611,14 @@ const WindowManager = (() => {
                 persistState(data);
                 fireBoundsChanged(data.id);
             }
+        };
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        data._cleanup = data._cleanup || [];
+        data._cleanup.push(() => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
         });
 
         header.addEventListener('dblclick', (e) => {
@@ -618,7 +651,7 @@ const WindowManager = (() => {
             });
         });
 
-        document.addEventListener('mousemove', (e) => {
+        const onMove = (e) => {
             if (!isResizing) return;
             // Client deltas are viewport px — scale into container layout px.
             const z = effectiveZoom() || 1;
@@ -649,9 +682,9 @@ const WindowManager = (() => {
             win.style.height = `${newH}px`;
             win.style.left = `${newL}px`;
             win.style.top = `${Math.max(0, newT)}px`;
-        });
+        };
 
-        document.addEventListener('mouseup', () => {
+        const onUp = () => {
             if (isResizing) {
                 isResizing = false;
                 data.resizing = false;
@@ -660,6 +693,14 @@ const WindowManager = (() => {
                 fireBoundsChanged(data.id);
             }
             currentHandle = null;
+        };
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        data._cleanup = data._cleanup || [];
+        data._cleanup.push(() => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
         });
     }
 
@@ -714,15 +755,35 @@ const WindowManager = (() => {
 
         persistState(data);
 
+        const wasFocused = data.element.classList.contains('focused');
+
+        // Detach the document-level drag/resize listeners (they were bound
+        // per window and leaked on every close).
+        if (data._cleanup) {
+            for (const fn of data._cleanup) {
+                try { fn(); } catch (e) { /* ignore */ }
+            }
+            data._cleanup = null;
+        }
+
         data.element.remove();
         const appId = data.appId;
         windows.delete(id);
         windowCloseHooks.delete(id);
         if (onWindowClosed) onWindowClosed(appId, id);
         fireWindowEvent('window-closed', { appId, id });
-        if (onFocusChanged) {
-            const remaining = getWindowsByApp(appId);
-            if (remaining.length === 0) onFocusChanged(null);
+
+        // Hand focus to the topmost window that is still visible. Without
+        // this the taskbar kept highlighting the closed app (and a remaining
+        // window never got the focused class).
+        if (wasFocused) {
+            let next = null;
+            windows.forEach((w) => {
+                if (!isWindowVisible(w) || w.minimized) return;
+                if (!next || Number(w.element.style.zIndex) > Number(next.element.style.zIndex)) next = w;
+            });
+            if (next) focusWindow(next.id);
+            else if (onFocusChanged) onFocusChanged(null);
         }
         fireWindowEvent('window-focus-changed', { appId: getFocused() ? getFocused().appId : null, id });
     }
@@ -915,34 +976,35 @@ const WindowManager = (() => {
 
     // Aero peek: temporarily show one window and dim all others of the same app
     function peekWindow(windowId, enable) {
-        console.log('[WindowManager] peekWindow:', windowId, enable);
-        if (enable && windowId) {
-            const targetData = windows.get(windowId);
-            if (!targetData) return;
-            const appId = targetData.appId;
-
-            // Find all windows of the same app on the active desktop (visible)
-            windows.forEach((data, id) => {
-                if (id === windowId) return;
-                if (data.appId !== appId) return;
-                if (!isWindowVisible(data)) return;
-                if (data.minimized) return;
-                data.element.classList.add('peek-dimmed');
-            });
-
-            // Bring target to front
-            if (isWindowVisible(targetData) && !targetData.minimized) {
-                targetData.element.classList.add('peek-target');
-                targetData.element.style.zIndex = '999999';
+        // Clear any previous peek first: hovering another switcher item must
+        // move the peek (and restore the old target's z-index).
+        windows.forEach((data, id) => {
+            const hadPeek = data.element.classList.contains('peek-dimmed')
+                || data.element.classList.contains('peek-target');
+            if (!hadPeek) return;
+            data.element.classList.remove('peek-dimmed', 'peek-target');
+            if (peekZ.has(id)) {
+                data.element.style.zIndex = peekZ.get(id);
+                peekZ.delete(id);
             }
-        } else {
-            // Disable peek - restore all
-            windows.forEach((data) => {
-                data.element.classList.remove('peek-dimmed');
-                data.element.classList.remove('peek-target');
-                data.element.style.zIndex = '';
-            });
-        }
+        });
+
+        if (!enable || !windowId) return;
+        const targetData = windows.get(windowId);
+        if (!targetData) return;
+        if (!isWindowVisible(targetData) || targetData.minimized) return;
+
+        // Dim the other windows of the same app on the active desktop.
+        windows.forEach((data, id) => {
+            if (id === windowId) return;
+            if (data.appId !== targetData.appId) return;
+            if (!isWindowVisible(data) || data.minimized) return;
+            data.element.classList.add('peek-dimmed');
+        });
+
+        targetData.element.classList.add('peek-target');
+        peekZ.set(windowId, targetData.element.style.zIndex);
+        targetData.element.style.zIndex = '999999';
     }
 
     return { init, setScale, getScale, getDesktopArea, setDesktopProvider, setUserProvider, isWindowVisible, applyVisibility, setMinimized, isMinimized, setOnFocusChanged, setOnWindowCreated, setOnWindowClosed, setOnWindowMinimized, setOnDragStateChanged, setOnResizeStateChanged, setOnBoundsChanged, setCloseHandler, removeCloseHandler, addWindowCloseHook, removeWindowCloseHook, requestClose, closeAllWindows, requestCloseAllWindows, closeWindowsForUser, createWindow, focusWindow, closeWindow, getWindowsByApp, getWindowsForUser, getAllWindows, getFocused, minimizeAll, toggleMaximize, setMaximized, isMaximized, isFocused, getBounds, setBounds, center, setResizable, isResizable, isDragging, isResizing, setTitle, setMinSize, _getWindow, peekWindow };

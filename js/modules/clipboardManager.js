@@ -30,6 +30,9 @@ const ClipboardManager = (() => {
     let pollTimer = null;
     let canPoll = false;
     let lastSeenText = null;
+    // The editable field that had focus before the flyout opened (opening
+    // the flyout focuses its search box and clicking a row blurs the app).
+    let lastEditable = null;
 
     function ensureDir() {
         for (let i = 1; i <= DATA_DIR.length; i++) {
@@ -282,10 +285,20 @@ const ClipboardManager = (() => {
         } catch { return false; }
     }
 
+    function isEditable(el) {
+        if (!el) return false;
+        return el.tagName === 'TEXTAREA'
+            || (el.tagName === 'INPUT' && /^(text|search|password|email|url|number)$/i.test(el.type || 'text'))
+            || el.isContentEditable === true;
+    }
+
     function pasteIntoFocused(item) {
         if (item.type !== 'text') return false;
-        const ae = document.activeElement;
-        if (!ae) return false;
+        // Prefer the field that was focused before the flyout opened: the
+        // flyout's own search box / clicking a row moves the focus.
+        let ae = (lastEditable && lastEditable.isConnected) ? lastEditable : document.activeElement;
+        if (panel && ae && panel.contains(ae)) ae = lastEditable;
+        if (!ae || (panel && panel.contains(ae))) return false;
         try {
             if (ae.tagName === 'TEXTAREA' || (ae.tagName === 'INPUT' && /^(text|search|password|email|url|number)$/i.test(ae.type || 'text'))) {
                 const start = ae.selectionStart ?? ae.value.length;
@@ -521,6 +534,10 @@ const ClipboardManager = (() => {
         document.addEventListener('cut', onCopyEvent);
         registerShortcuts();
         document.addEventListener('mousedown', onPointerDown);
+        document.addEventListener('focusin', (e) => {
+            if (panel && panel.contains(e.target)) return;
+            if (isEditable(e.target)) lastEditable = e.target;
+        });
         refreshPermission().then(() => { if (canPoll) startPolling(); });
         // Re-check permission grants periodically; polling only runs granted.
         setInterval(() => {

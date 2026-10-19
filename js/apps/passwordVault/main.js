@@ -128,7 +128,7 @@ function launch() {
         body.querySelector('.pv-q').addEventListener('input', (e) => draw(e.target.value));
         body.querySelector('.pv-lock').addEventListener('click', () => { key = null; clearTimeout(lockTimer); paintLock(''); });
         body.querySelector('.pv-add').addEventListener('click', async () => {
-            const gen = () => [...crypto.getRandomValues(new Uint8Array(16))].map(b => 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*'[b % 71]).join('');
+            const gen = () => [...crypto.getRandomValues(new Uint8Array(16))].map(b => 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*'[b % 64]).join('');
             const res = await app.dialogs.form('New login', [
                 { key: 'site', label: 'Site / app' },
                 { key: 'user', label: 'Username' },

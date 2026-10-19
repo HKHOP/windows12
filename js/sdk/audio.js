@@ -121,7 +121,9 @@ function beep(opts) {
     const c = context();
     const t0 = c.currentTime + Math.max(0, Number(o.delay) || 0);
     const dur = Math.max(0.01, Number(o.duration) || 0.15);
-    const vol = Math.max(0, Math.min(1, Number(o.volume) || 0.2));
+    // Explicit 0 must stay 0 (Number(0) || 0.2 silently raised it to 0.2).
+    const rawVol = Number(o.volume);
+    const vol = Math.max(0, Math.min(1, Number.isFinite(rawVol) ? rawVol : 0.2));
 
     const osc = c.createOscillator();
     const gain = c.createGain();
@@ -130,7 +132,8 @@ function beep(opts) {
     if (o.endFreq !== undefined) {
         osc.frequency.exponentialRampToValueAtTime(Math.max(1, Number(o.endFreq)), t0 + dur);
     }
-    gain.gain.setValueAtTime(vol * masterVolume(), t0);
+    // masterGain() already applies the OS volume; scaling here too squared it.
+    gain.gain.setValueAtTime(vol, t0);
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     osc.connect(gain).connect(masterGain());
     osc.start(t0);

@@ -820,7 +820,10 @@ const DesktopIcons = (() => {
         win.element.querySelectorAll('.rb-restore-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const key = e.target.closest('.rb-item').dataset.key;
-                FileSystem.restoreFromRecycleBin(key);
+                if (!FileSystem.restoreFromRecycleBin(key)) {
+                    Popup.warn('Restore failed', 'The original folder no longer exists, or a file with that name is already there.');
+                    return;
+                }
                 const itemEl = e.target.closest('.rb-item');
                 itemEl.remove();
                 const remaining = win.element.querySelectorAll('.rb-item').length;

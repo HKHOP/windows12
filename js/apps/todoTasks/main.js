@@ -17,6 +17,14 @@ function load(app) {
 }
 function save(app, d) { app.files.write('tasks.json', JSON.stringify(d)); }
 
+// Format a local timestamp for the edit form. toISOString() converts to UTC,
+// so editing a task shifted its due time (and re-saving shifted it again).
+function dueInputValue(ms) {
+    const d = new Date(ms);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 function checkDue(app, notifyUser) {
     const d = load(app);
     const now = Date.now();
@@ -115,7 +123,7 @@ function launch() {
                 if (!t) return;
                 const res = await app.dialogs.form('Edit task', [
                     { key: 'title', label: 'Title', value: t.title },
-                    { key: 'due', label: 'Due (YYYY-MM-DD HH:MM, empty = none)', value: t.due ? new Date(t.due).toISOString().slice(0, 16).replace('T', ' ') : '' },
+                    { key: 'due', label: 'Due (YYYY-MM-DD HH:MM, empty = none)', value: t.due ? dueInputValue(t.due) : '' },
                     { key: 'prio', label: 'Priority (Low/Normal/High)', value: t.prio }
                 ]);
                 if (res) {

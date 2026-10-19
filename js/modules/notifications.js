@@ -574,6 +574,12 @@ const Notifications = (() => {
     // the session that raised them, so they are cleared.
     function activate() {
         if (toastRoot) toastRoot.innerHTML = '';
+        // Drop pending auto-dismiss timers for the previous profile's toasts;
+        // otherwise they fired later against the new profile's list.
+        items.forEach((rec) => {
+            if (rec.timer) clearTimeout(rec.timer);
+            rec.timer = 0;
+        });
         items.clear();
         unread = 0;
         dnd = false;

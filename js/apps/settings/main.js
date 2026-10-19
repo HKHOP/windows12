@@ -302,7 +302,10 @@ const Settings = (() => {
         });
 
         el.querySelector('.resolution-select').addEventListener('change', async (e) => {
-            const prevRes = currentRes;
+            // Track the last applied value on the element: currentRes is
+            // captured once at render, so after one change the "unchanged?"
+            // check compared against the original resolution forever.
+            const prevRes = e.target.dataset.applied || currentRes;
             const newRes = e.target.value;
             if (newRes === prevRes) return;
 
@@ -319,13 +322,17 @@ const Settings = (() => {
             };
 
             SystemConfig.set('displayResolution', newRes);
+            e.target.dataset.applied = newRes;
             updateResLabel();
 
             const keep = await confirmDisplayChange('Display settings', 'Keep the new display resolution?');
             if (!keep) {
                 SystemConfig.set('displayResolution', prevRes);
                 const selectEl = el.querySelector('.resolution-select');
-                if (selectEl) selectEl.value = prevRes;
+                if (selectEl) {
+                    selectEl.value = prevRes;
+                    selectEl.dataset.applied = prevRes;
+                }
                 updateResLabel();
             }
         });
@@ -957,13 +964,6 @@ const Settings = (() => {
     }
 
     async function performFactoryReset() {
-        // 1. Reset FileSystem to default
-        const FsStorage = (await import('../../modules/fsStorage.js')).default;
-        const FileSystem = (await import('../../modules/fileSystem.js')).default;
-        const Users = (await import('../../modules/users.js')).default;
-        const SystemConfig = (await import('../../modules/systemConfig.js')).default;
-        const Packages = (await import('../../modules/packages.js')).default;
-
         // Reset FileSystem to default tree
         FileSystem.resetToDefault();
 
@@ -986,6 +986,13 @@ const Settings = (() => {
                 }
             }
         } catch (e) { /* noop */ }
+
+        // 6. Drop OPFS blob files too (the fresh tree has no references, but
+        // the old bytes would otherwise survive the "factory reset").
+        try {
+            const OpfsClient = (await import('../../modules/opfsClient.js')).default;
+            await OpfsClient.removeEntry('w12/blobs', true);
+        } catch (e) { /* legacy backend or no blobs */ }
 
         // Force persist the reset state
         await FileSystem.flushAsync();

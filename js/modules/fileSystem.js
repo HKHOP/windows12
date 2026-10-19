@@ -369,17 +369,19 @@ const FileSystem = (() => {
         const originalPath = item.originalPath ? item.originalPath.split('/').filter(p => p) : null;
         const originalName = item.originalName || recycleBinName;
 
-        if (originalPath) {
-            const targetParent = getNode(originalPath);
-            if (targetParent && targetParent.type === 'folder') {
-                const restored = JSON.parse(JSON.stringify(item));
-                restored.name = originalName;
-                delete restored.originalName;
-                delete restored.originalPath;
-                delete restored.deletedAt;
-                targetParent.children[originalName] = restored;
-            }
-        }
+        if (!originalPath) return false;
+        const targetParent = getNode(originalPath);
+        if (!targetParent || targetParent.type !== 'folder') return false;
+        // Never overwrite a file that now occupies the original name, and
+        // don't drop the recycle entry when the restore can't happen.
+        if (targetParent.children[originalName]) return false;
+
+        const restored = JSON.parse(JSON.stringify(item));
+        restored.name = originalName;
+        delete restored.originalName;
+        delete restored.originalPath;
+        delete restored.deletedAt;
+        targetParent.children[originalName] = restored;
 
         delete recycleBin.children[recycleBinName];
         save();
@@ -427,6 +429,11 @@ const FileSystem = (() => {
 
     function moveItem(srcPath, destPath) {
         if (srcPath.length === 0 || destPath.length === 0) return false;
+        // Moving a folder into itself/one of its descendants would detach
+        // the subtree from the tree (and loop recursive serialization).
+        const intoSelf = srcPath.length <= destPath.length
+            && srcPath.every((seg, i) => destPath[i] === seg);
+        if (intoSelf) return false;
         const name = srcPath[srcPath.length - 1];
         const srcParentPath = srcPath.slice(0, -1);
         const srcParent = getNode(srcParentPath);

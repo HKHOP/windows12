@@ -203,6 +203,7 @@ async function activateSession(userId) {
     if (!shellReady) await bootShell();
     WindowState.activate(userId);
     SystemConfig.activate();
+    Packages.activate();
     UserActivity.activate();
     Notifications.activate();
     StartMenu.activate();

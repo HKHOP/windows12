@@ -5,7 +5,6 @@ import Search from './search.js';
 import { Taskbar, AppMetadata } from './taskbar.js';
 import UserActivity from './userActivity.js';
 import FileSystem from './fileSystem.js';
-import SystemConfig from '../modules/systemConfig.js';
 import AppSystem from './appSystem.js';
 import AppLoader from './appLoader.js';
 import Users from './users.js';
@@ -402,19 +401,35 @@ const StartMenu = (() => {
         });
     }
 
+    // Only reuse a window that belongs to the foreground session and the
+    // active virtual desktop; otherwise launch a fresh one there.
+    function isCurrentWindow(win) {
+        const data = WindowManager._getWindow(win.id) || win;
+        const S = window._Sessions;
+        if (S && data.userId && data.userId !== S.getActive()) return false;
+        const VD = window._modules && window._modules.VirtualDesktops;
+        if (VD) {
+            try {
+                if (VD.getDesktopOf(win.id) !== VD.getActiveId()) return false;
+            } catch (e) { /* desktop module not ready */ }
+        }
+        return true;
+    }
+
     function launchApp(appId) {
         try {
             if (AppLoader.isService(appId)) return;
-        } catch (e) { /* manifest unreadable — fall through */ }
-        const existing = WindowManager.getWindowsByApp(appId);
+        } catch (e) { /* manifest unreadable - fall through */ }
+        const existing = WindowManager.getWindowsByApp(appId).filter(isCurrentWindow);
         if (existing.length > 0) {
             const win = existing[0];
-            if (win.element.style.display === 'none') {
-                win.element.style.display = 'flex';
-                WindowManager.focusWindow(win.id);
-            } else {
-                WindowManager.focusWindow(win.id);
+            // Restore through the window manager: touching element.style
+            // bypassed minimize/visibility bookkeeping and could reveal a
+            // window from another profile.
+            if (WindowManager.isMinimized(win.id)) {
+                WindowManager.setMinimized(win.id, false);
             }
+            WindowManager.focusWindow(win.id);
         } else {
             AppLoader.launch(appId).catch(() => { /* crash monitor reports */ });
         }

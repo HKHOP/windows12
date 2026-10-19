@@ -59,7 +59,9 @@ const Notepad = (() => {
         textarea.addEventListener('input', () => {
             updateStatus(textarea, status);
             if (!titleEl.textContent.startsWith('*')) {
-                titleEl.textContent = `*${title}`;
+                // Keep the current document name (opened/Save As), not the
+                // launch-time title.
+                titleEl.textContent = `*${titleEl.textContent}`;
             }
         });
         textarea.addEventListener('click', () => updateStatus(textarea, status));
@@ -92,9 +94,11 @@ const Notepad = (() => {
                     items = [
                         { label: 'New', icon: '📄', action: () => {
                             textarea.value = '';
+                            setFilePath(null);
                             titleEl.textContent = 'Untitled - Notepad';
+                            updateStatus(textarea, win.element.querySelector('.notepad-status'));
                         }},
-                        { label: 'Open...', icon: '📂', action: () => openFile(win, textarea, titleEl) },
+                        { label: 'Open...', icon: '📂', action: () => openFile(win, textarea, titleEl, setFilePath) },
                         'separator',
                         { label: 'Save (Ctrl+S)', icon: '💾', action: () => saveFile(getFilePath(), textarea, titleEl, defaultTitle, setFilePath) },
                         { label: 'Save As...', icon: '💾', action: () => saveAsNewFile(textarea, titleEl, defaultTitle, setFilePath) },
@@ -277,7 +281,7 @@ const Notepad = (() => {
         });
     }
 
-    function openFile(win, textarea, titleEl) {
+    function openFile(win, textarea, titleEl, setFilePath) {
         const fileList = FileSystem.getChildren(Users.home(['Documents']));
         const files = fileList.filter(item => {
             const ext = item.name.split('.').pop().toLowerCase();
@@ -301,7 +305,10 @@ const Notepad = (() => {
                 const content = FileSystem.readFile(path) || '';
                 textarea.value = content;
                 titleEl.textContent = `${name} - Notepad`;
-                textarea.dispatchEvent(new Event('input'));
+                // Remember the real path, otherwise Ctrl+S wrote the opened
+                // file's content back over the previously saved document.
+                if (setFilePath) setFilePath(path);
+                updateStatus(textarea, win.element.querySelector('.notepad-status'));
             }
         }));
 

@@ -18,7 +18,7 @@
 // fsGuard zones stay off limits — file commands resolve strictly inside
 // the signed-in user's home.
 import WindowManager from '../../../modules/windowManager.js';
-import { Taskbar, AppMetadata } from '../../../modules/taskbar.js';
+import { Taskbar } from '../../../modules/taskbar.js';
 import AppLoader from '../../../modules/appLoader.js';
 import FileSystem from '../../../modules/fileSystem.js';
 import ClipboardManager from '../../../modules/clipboardManager.js';

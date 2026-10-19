@@ -208,10 +208,18 @@ const BackgroundApps = (() => {
             return true;
         }
         s.disabled.add(id);
+        // Another profile may own the running instance (concurrent sessions):
+        // disabling autostart here must not shut their app down.
+        const o = owner.get(id);
+        if (o && o !== activeUserId) {
+            persist(activeUserId);
+            emit();
+            return true;
+        }
         if (isBackground(id)) {
             await callLifecycle(id, 'onShutdown');
-            const o = owner.get(id);
-            if (o) { stateOf(o).running.delete(id); persist(o); owner.delete(id); }
+            const owned = owner.get(id);
+            if (owned) { stateOf(owned).running.delete(id); persist(owned); owner.delete(id); }
         }
         persist(activeUserId);
         emit();

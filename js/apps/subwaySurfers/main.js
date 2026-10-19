@@ -1,5 +1,4 @@
 import WindowManager from '../../modules/windowManager.js';
-import AppIcons from '../../modules/appIcons.js';
 
 const SubwaySurfers = (() => {
     // Simple game controller icon: two circles with a bar

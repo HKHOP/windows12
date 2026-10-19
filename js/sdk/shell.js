@@ -8,7 +8,7 @@ import UIIcons from '../modules/uiIcons.js';
 import InternalMenu from '../modules/contextMenu.js';
 import InternalAssociations from '../modules/fileAssociations.js';
 import InternalActivity from '../modules/userActivity.js';
-import { ErrorCodes, SDKError, requireString, requireOptions } from './errors.js';
+import { ErrorCodes, SDKError, requireString } from './errors.js';
 
 function needPath(path, name) {
     if (!Array.isArray(path) || path.length === 0) {

@@ -203,8 +203,10 @@ function createLocalChannel(name, opts = {}) {
 
     function close() {
         if (closed) return;
-        closed = true;
+        // Send the goodbye while the channel is still open (post() refuses
+        // once closed, so setting the flag first made the bye a no-op).
         bye();
+        closed = true;
         clearInterval(pinger);
         clearInterval(pruner);
         window.removeEventListener('beforeunload', bye);

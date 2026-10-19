@@ -4,6 +4,7 @@ import FileSystem from './fileSystem.js';
 import AppIcons from './appIcons.js';
 import Flyout from './flyout.js';
 import AppLoader from './appLoader.js';
+import FileAssociations from './fileAssociations.js';
 import Users from './users.js';
 
 const Search = (() => {
@@ -212,13 +213,14 @@ const Search = (() => {
         panel.querySelectorAll('[data-file]').forEach(el => {
             el.addEventListener('click', () => {
                 const filePath = el.dataset.file.split('/');
-                const fileName = filePath.pop();
-                // Shell-owned read on behalf of the user's search click.
+                // Open through the association layer with the FULL path.
+                // This used to pop the filename (so it read the folder) and
+                // launch an empty Notepad.
                 const g = window._FSGuard;
-                const read = g ? g.asShell(() => FileSystem.readFile(filePath)) : () => FileSystem.readFile(filePath);
-                const content = read();
-                if (content === null) return;
-                AppLoader.launch('notepad').catch(() => { /* crash monitor reports */ });
+                try {
+                    if (g) g.asShell(() => FileAssociations.openDefault(filePath))();
+                    else FileAssociations.openDefault(filePath);
+                } catch (e) { /* unreadable/corrupt */ }
                 close();
             });
         });

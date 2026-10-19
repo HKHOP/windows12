@@ -110,10 +110,18 @@ function launch(zipPath, zipContent) {
                 const data = await Zip.extractFile(bytes, e);
                 if (!data) { skipped++; continue; }
                 const base = e.name.split('/').pop() || `file${i}`;
-                const full = [...DOCS(), base];
-                const text = td.decode(data);
-                if (FileSystem.exists(full)) FileSystem.write(full, text);
-                else FileSystem.createFile(DOCS(), base, text, base.includes('.') ? base.split('.').pop() : '');
+                const ext = base.includes('.') ? base.split('.').pop().toLowerCase() : '';
+                const textExts = ['txt', 'md', 'json', 'js', 'mjs', 'css', 'html', 'htm', 'csv', 'xml', 'svg', 'log', 'ini', 'yml', 'yaml', 'ts', 'jsx', 'tsx', 'c', 'h', 'cpp', 'py', 'sh', 'bat', 'ps1'];
+                if (textExts.includes(ext)) {
+                    const text = td.decode(data);
+                    const full = [...DOCS(), base];
+                    if (FileSystem.exists(full)) FileSystem.write(full, text);
+                    else FileSystem.createFile(DOCS(), base, text, ext);
+                } else {
+                    // Binary entries (images, docs, ...) must keep their
+                    // bytes; decoding them as text corrupted the file.
+                    if (!await FileSystem.writeBlob(DOCS(), base, new Blob([data]), ext)) { skipped++; continue; }
+                }
                 ok++;
             }
             body.querySelector('.ar-msg').textContent = `Extracted ${ok} file(s) to Documents${skipped ? `, ${skipped} skipped (undecodable)` : ''}.`;

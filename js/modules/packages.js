@@ -242,16 +242,24 @@ const Packages = (() => {
         }
         let removed = false;
         if (rec) {
-            const dir = rec.scope === 'system' ? [...SYSTEM_ROOT, id] : [...userRoot(), id];
+            const dir = rec.scope === 'system'
+                ? [...SYSTEM_ROOT, id]
+                : [...Users.homeFor(rec.user), ...PROGRAM_SUBDIR, id];
             if (sh(() => FileSystem.itemExists(dir))) removed = sh(() => FileSystem.permanentDelete(dir));
         }
         if (!removed) {
             // Fall back to whichever scope actually holds it.
-            for (const dir of [[...SYSTEM_ROOT, id], [...userRoot(), id]]) {
+            const recHome = rec && rec.user ? Users.homeFor(rec.user) : userRoot();
+            const dirs = [[...SYSTEM_ROOT, id], [...recHome, ...PROGRAM_SUBDIR, id]];
+            if (recHome !== userRoot()) dirs.push([...userRoot(), id]);
+            for (const dir of dirs) {
                 if (sh(() => FileSystem.itemExists(dir))) { sh(() => FileSystem.permanentDelete(dir)); removed = true; break; }
             }
         }
         installed.delete(id);
+        // A legacy (localStorage-era) install has no folder record; without
+        // this it reappeared on the next catalog refresh.
+        if (legacy.delete(id)) persistLegacy();
         await FileSystem.flushAsync();
         writeSession();
         window.dispatchEvent(new CustomEvent('apps-changed'));
@@ -314,9 +322,11 @@ const Packages = (() => {
         }
         if (entries.length === 0) throw new Error('Package archive is empty');
 
-        const target = scope === 'system' ? [...SYSTEM_ROOT, id] : [...userRoot(), id];
-
-        // Remove old version first.
+        // Remove old version first. Target the profile that owns the record
+        // (an update can run while a different user is in the foreground).
+        const target = scope === 'system'
+            ? [...SYSTEM_ROOT, id]
+            : [...Users.homeFor(rec.user), ...PROGRAM_SUBDIR, id];
         if (sh(() => FileSystem.itemExists(target))) {
             sh(() => FileSystem.permanentDelete(target));
         }
@@ -415,8 +425,18 @@ const Packages = (() => {
         try { migrateLegacy(); } catch (e) { /* best effort */ }
     }
 
+    // Foreground session changed: rescan this profile's package root (the
+    // installed set is per-user) and re-point the service worker's session
+    // file. Then let AppLoader rebuild its installed catalog.
+    function activate() {
+        scan();
+        writeSession();
+        try { migrateLegacy(); } catch (e) { /* best effort */ }
+        try { window.dispatchEvent(new CustomEvent('apps-changed')); } catch (e) { /* noop */ }
+    }
+
     return {
-        init, install, uninstall, update, clearAll,
+        init, activate, install, uninstall, update, clearAll,
         getInstalled, isInstalled, getRecord, scopeOf,
         manifests, legacyInstalled, getLegacy,
         vfsActive, writeSession, pkgUrl,

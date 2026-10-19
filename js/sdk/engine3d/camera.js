@@ -3,7 +3,7 @@
 // so windows that close tear everything down for free.
 // Import-safe under Node (controls construct only when handed a live canvas).
 
-import { Vec3, Mat4, Quat, clamp, scratch } from './math.js';
+import { Vec3, Mat4, clamp, scratch } from './math.js';
 import { Node } from './scene.js';
 
 export class Camera extends Node {

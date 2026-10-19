@@ -2,7 +2,7 @@
 import { Batch } from './geo.js';
 import {
     baseHeight, nearestTrack, hexRgb, shade, clamp, lerp, smoothstep, vnoise, hash2,
-    WORLD, HALF, WATER_Y, TRACK_W
+    WORLD, WATER_Y, TRACK_W
 } from './util.js';
 
 const GRID_N = 110;

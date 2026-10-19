@@ -17,7 +17,6 @@
 // WIN+SHIFT+LEFT/RIGHT to throw the focused window across desktops.
 import WindowManager from './windowManager.js';
 import FileSystem from './fileSystem.js';
-import UIIcons from './uiIcons.js';
 import Flyout from './flyout.js';
 import Popup from './popup.js';
 import Keyboard from './keyboard.js';

@@ -211,6 +211,21 @@ const SavePrompt = (() => {
         });
 
         return new Promise(resolve => {
+            let settled = false;
+            // Settle once, also when the dialog is closed from its title bar
+            // or the taskbar (otherwise the caller waits forever).
+            function finish(result) {
+                if (settled) return;
+                settled = true;
+                window.removeEventListener('window-closed', onClosed);
+                resolve(result);
+            }
+            function onClosed(e) {
+                if (!e.detail || e.detail.id !== saveWin.id) return;
+                finish(null);
+            }
+            window.addEventListener('window-closed', onClosed);
+
             function doSave() {
                 const name = filenameInput.value.trim() || defaultName;
                 const ext = extensions ? el.querySelector('.save-ext').value : name.split('.').pop() || '';
@@ -221,16 +236,16 @@ const SavePrompt = (() => {
                 if (existing !== null) {
                     Popup.confirm('Replace File', `"${fullName}" already exists. Replace it?`).then(ok => {
                         if (!ok) return;
-                        WindowManager.closeWindow(saveWin.id);
                         showToast(`Saved "${fullName}" to ${pathDisplay}`);
                         grantAndResolve({ path: currentPath.slice(), name: fullName, fullName, ext });
+                        WindowManager.closeWindow(saveWin.id);
                     });
                     return;
                 }
 
-                WindowManager.closeWindow(saveWin.id);
                 showToast(`Saved "${fullName}" to ${pathDisplay}`);
                 grantAndResolve({ path: currentPath.slice(), name: fullName, fullName, ext });
+                WindowManager.closeWindow(saveWin.id);
             }
 
             // The user explicitly chose this folder in the dialog — the app
@@ -240,7 +255,7 @@ const SavePrompt = (() => {
                     const g = window._FSGuard;
                     if (g && parentApp) g.allowSession(parentApp, [...result.path, result.fullName]);
                 } catch { /* best effort */ }
-                resolve(result);
+                finish(result);
             }
 
             el.querySelector('.save-confirm-btn').addEventListener('click', doSave);
@@ -249,11 +264,10 @@ const SavePrompt = (() => {
                 if (e.key === 'Enter') doSave();
                 if (e.key === 'Escape') {
                     WindowManager.closeWindow(saveWin.id);
-                    resolve(null);
                 }
             });
 
-            el.querySelector('.save-cancel-btn').addEventListener('click', () => resolve(null));
+            el.querySelector('.save-cancel-btn').addEventListener('click', () => finish(null));
         });
 
         function showToast(msg) {

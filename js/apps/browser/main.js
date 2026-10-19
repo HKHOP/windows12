@@ -975,14 +975,8 @@ const Browser = (() => {
             if (e.key === 'Enter') {
                 const val = urlInput.value.trim();
                 if (val) {
-                    const tab = tabState.tabs.get(tabState.activeTabId);
-                    if (tab) {
-                        if (tab.historyIndex < tab.history.length - 1) {
-                            tab.history = tab.history.slice(0, tab.historyIndex + 1);
-                        }
-                        tab.history.push(normalizeUrl(val));
-                        tab.historyIndex = tab.history.length - 1;
-                    }
+                    // navigateTo() owns history bookkeeping; pushing here too
+                    // added every typed URL twice (Back needed two presses).
                     navigateTo(val);
                 }
             }

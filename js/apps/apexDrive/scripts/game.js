@@ -1,13 +1,13 @@
 // Apex Drive 3D — game orchestration: GL setup, loop, laps, camera, input.
-import { Batch, buildCarBatches, compile, VS, FS, WVS, WFS } from './geo.js';
+import { Batch, compile, VS, FS, WVS, WFS } from './geo.js';
 import { buildWorld } from './world.js';
-import { makeCar, buildCarEntity, stepCar, updateAI, resetAIProgress } from './car.js';
+import { makeCar, buildCarEntity, stepCar, updateAI } from './car.js';
 import { makeAudio } from './audio.js';
 import { getHud, updateHud, drawMinimap, showFinal, hideFinal } from './hud.js';
 import {
     mat4Identity, mat4Mul, mat4Perspective, mat4LookAt, mat4TRS,
-    clamp, lerp, smoothstep, buildTrackSamples, nearestTrack,
-    fmtTime, WORLD, HALF, WATER_Y, TRACK_W, RACE_LAPS
+    buildTrackSamples, nearestTrack,
+    fmtTime, RACE_LAPS
 } from './util.js';
 
 let cachedSamples = null;

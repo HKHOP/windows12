@@ -1,6 +1,5 @@
 import WindowManager from '../../modules/windowManager.js';
 import FileSystem from '../../modules/fileSystem.js';
-import Popup from '../../modules/popup.js';
 import Sounds from '../../modules/sounds.js';
 import SystemConfig from '../../modules/systemConfig.js';
 import Users from '../../modules/users.js';

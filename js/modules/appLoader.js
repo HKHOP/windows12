@@ -219,6 +219,11 @@ const AppLoader = (() => {
         const man = resolveManifest(idOrUuid);
         if (!man || man.distribution !== 'store') return false;
         await Packages.update(man.id, opts);
+        // Drop the cached module so the next launch imports the new code
+        // (the package URL only busts the cache when the version query
+        // changes, which isn't guaranteed for every update).
+        loaded.delete(man.id);
+        try { AppRegistry.unregister(man.id); } catch (e) { /* not registered */ }
         refreshInstalled();
         return true;
     }

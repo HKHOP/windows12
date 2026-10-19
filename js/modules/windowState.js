@@ -10,7 +10,9 @@ import Users from './users.js';
 const WindowState = (() => {
     const FILE = 'windowState.json';
     const SAVE_DELAY = 300;
-    let saveTimeout = null;
+    // userId -> pending debounce timer. One timer per profile: a shared timer
+    // used to cancel another session's pending write.
+    const saveTimeouts = new Map();
     // userId -> state object (loaded lazily from that profile's OS data).
     const cache = new Map();
     let activeUserId = null;
@@ -81,13 +83,17 @@ const WindowState = (() => {
         } catch (e) { /* keep in-memory only */ }
     });
 
-    function scheduleSave() {
-        if (saveTimeout) clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(() => {
-            saveTimeout = null;
-            const id = resolveId(null);
+    function scheduleSave(userId) {
+        // Resolve the owner NOW (not when the timer fires): if the foreground
+        // session changes in the meantime, the write still targets the
+        // profile whose state changed.
+        const id = resolveId(userId);
+        const pending = saveTimeouts.get(id);
+        if (pending) clearTimeout(pending);
+        saveTimeouts.set(id, setTimeout(() => {
+            saveTimeouts.delete(id);
             try { writeFileSafe(id, JSON.stringify(stateFor(id), null, 2)); } catch (e) { /* noop */ }
-        }, SAVE_DELAY);
+        }, SAVE_DELAY));
     }
 
     function init() {
@@ -115,7 +121,7 @@ const WindowState = (() => {
             ...(bounds.v ? { v: bounds.v } : {}),
             timestamp: Date.now()
         };
-        scheduleSave();
+        scheduleSave(userId);
     }
 
     function getWindowState(appId, userId) {
@@ -126,7 +132,7 @@ const WindowState = (() => {
         const state = stateFor(userId);
         if (state[appId]) {
             delete state[appId];
-            scheduleSave();
+            scheduleSave(userId);
         }
     }
 

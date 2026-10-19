@@ -51,10 +51,23 @@ const Popup = (() => {
         let promiseResolve = null;
         const promise = new Promise(resolve => { promiseResolve = resolve; });
 
+        let settled = false;
         const cleanup = (value) => {
+            if (settled) return;
+            settled = true;
             popups.delete(win.id);
+            window.removeEventListener('window-closed', onClosed);
             promiseResolve(value);
         };
+
+        // Closing the popup through its title bar / taskbar / Alt+F4 must
+        // also settle the promise — otherwise `await Popup.confirm(...)`
+        // hangs forever and the caller's action never completes.
+        const onClosed = (e) => {
+            if (!e.detail || e.detail.id !== win.id) return;
+            cleanup(opts.closeValue !== undefined ? opts.closeValue : null);
+        };
+        window.addEventListener('window-closed', onClosed);
 
         popups.set(win.id, { cleanup, win });
 
