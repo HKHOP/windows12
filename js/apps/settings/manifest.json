@@ -3,7 +3,7 @@
     "id": "settings",
     "uuid": "260fcb62-19fe-45ad-9ba3-cfe3dbf91ebd",
     "name": "Settings",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "distribution": "builtin",
     "entry": "main.js",
     "associations": [],

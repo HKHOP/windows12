@@ -1184,6 +1184,7 @@ const Settings = (() => {
     function renderApps(el) {
         const installed = AppSystem.getInstalledApps();
         const allMeta = AppMetadata.getAll();
+        const catalogIds = new Set(AppLoader.getStoreApps().map(m => m.id));
 
         el.innerHTML = `
             <h2 style="font-size:28px;font-weight:600;margin-bottom:24px;">Apps</h2>
@@ -1195,7 +1196,8 @@ const Settings = (() => {
                     if (man.distribution === 'builtin') return appRow(meta.name, svc ? 'Built-in service' : 'Built-in', false);
                     if (installed.includes(id)) {
                         const scopeLabel = Packages.scopeOf(id) === 'system' ? 'All users' : 'This user';
-                        const row = appRow(meta.name, svc ? `Service • Installed from Store (${scopeLabel})` : `Installed from Store • ${scopeLabel}`, true, id);
+                        const sourceLabel = catalogIds.has(id) ? 'Installed from Store' : 'Installed package';
+                        const row = appRow(meta.name, svc ? `Service • ${sourceLabel} (${scopeLabel})` : `${sourceLabel} • ${scopeLabel}`, true, id);
                         const perms = Permissions.getDeclared(id);
                         if (perms.length === 0) return row;
                         const toggles = perms.map(p => {

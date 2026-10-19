@@ -1,5 +1,6 @@
 import { AppRegistry, AppMetadata } from './taskbar.js';
 import FileAssociations from './fileAssociations.js';
+import AppIcons from './appIcons.js';
 import { APP_MANIFESTS } from '../apps/registry.js';
 import Packages from './packages.js';
 
@@ -43,9 +44,18 @@ const AppLoader = (() => {
     }
 
     // Re-read installed packages (folder presence is the install record) and
-    // merge any package manifests that aren't part of the shipped catalog.
+    // merge package manifests that aren't part of the shipped catalog. The
+    // map is rebuilt from the registry every time so a sideloaded app update
+    // refreshes its name/version, and an uninstalled package disappears
+    // instead of leaving a stale catalog entry behind.
     function refreshInstalled() {
         ensureMaps();
+        byId = {};
+        byUuid = {};
+        APP_MANIFESTS.forEach(m => {
+            byId[m.id] = m;
+            byUuid[String(m.uuid || '').toLowerCase()] = m;
+        });
         const next = new Set();
         try {
             Packages.getInstalled().forEach(r => {
@@ -58,11 +68,23 @@ const AppLoader = (() => {
             Packages.getLegacy().forEach(id => next.add(id));
         } catch (e) { /* packages not ready yet — keep previous set */ }
         installedIds = next;
+        refreshIcons();
     }
 
     function getManifest(id) {
         ensureMaps();
         return byId[id] || null;
+    }
+
+    // Icons come from the package folder. Registry apps know their icon from
+    // the build; installed packages report it through the manifest scan.
+    function refreshIcons() {
+        const map = {};
+        for (const man of Object.values(byId)) {
+            const icon = man.icon || 'assets/icon.svg';
+            if (man.hasIcon || man._hasIcon) map[man.id] = icon;
+        }
+        AppIcons.setPackagedIcons(map);
     }
 
     function getByUuid(uuid) {
@@ -247,7 +269,15 @@ const AppLoader = (() => {
         AppMetadata.setNames(Object.fromEntries(Object.values(byId).map(m => [m.id, m.name])));
         wireAllAssociations();
 
-        window.addEventListener('apps-changed', () => {
+        window.addEventListener('apps-changed', (e) => {
+            const detail = e && e.detail;
+            if (detail && detail.installed) {
+                // A package update replaces the code on disk; drop the cached
+                // module so the next launch imports the new entry file.
+                loaded.delete(detail.installed);
+                loading.delete(detail.installed);
+                try { AppRegistry.unregister(detail.installed); } catch (err) { /* not registered */ }
+            }
             refreshInstalled();
             AppMetadata.setNames(Object.fromEntries(Object.values(byId).map(m => [m.id, m.name])));
             wireAllAssociations();

@@ -156,6 +156,129 @@ Everything else is automatic: display name (manifest `name`), taskbar/start menu
 
 **Store installs ask for a scope** (Just me / All users) and stream progress; uninstall deletes the package folder and wipes that app's permission grants. Legacy installs recorded in the old `installed_apps_*` localStorage keys are honored immediately and migrated to per-user packages in the background.
 
+### 2.6 Package Installer (.msi) and `installer.json`
+
+`.msi` files are app packages: the same ZIP layout as `.w12pkg` (flat root with `manifest.json` + the app). The built-in **Package Installer** opens `.msi` and `.w12pkg` from File Explorer and runs a classic setup wizard. Double-clicking a package is enough — no Store listing or registry entry is needed.
+
+**Build a package.** Put the app folder anywhere and run:
+
+```bash
+node build-msi.js myApp                 # js/apps/myApp -> dist/myApp.msi
+node build-msi.js ./staging/myApp --out ./myApp.msi
+```
+
+The builder validates the identity fields and the entry file, includes everything except dotfiles, and writes a stored (method 0) ZIP. A ZIP with a single wrapping folder is also accepted at install time, so zipping an app folder from Explorer works too.
+
+**Identity rules.** `id` / `uuid` / `entry` are the package identity: `id` must be letters+digits starting with a letter, `uuid` must be a UUID, and `entry` must exist. Built-in ids, and shipped catalog ids with a different uuid, are rejected. Reusing a shipped store app's id **and** uuid installs it locally as an update of that app. An existing local install with the same id and a *different* uuid can only be replaced after an explicit confirmation (the wizard shows it; programmatic callers pass `allowReplace`). Package installs never silently replace a different app.
+
+**`installer.json`** is optional and sits at the package root (next to `manifest.json`):
+
+```json
+{
+  "schema": 1,
+  "mode": "gui",
+  "scope": "either",
+  "defaultScope": "user",
+  "publisher": "Contoso",
+  "ui": "installer/ui.js",
+  "eula": "installer/license.txt",
+  "welcome": {
+    "title": "Welcome to Contoso Studio Setup",
+    "message": "This wizard will install Contoso Studio.",
+    "image": "installer/welcome.svg"
+  },
+  "theme": {
+    "accent": "#0078d4",
+    "banner": "installer/banner.svg",
+    "logo": "installer/logo.svg"
+  },
+  "features": [
+    { "id": "samples", "name": "Sample projects", "description": "Copy starter projects into your workspace.", "default": true },
+    { "id": "cli", "name": "Command-line tools", "required": true }
+  ],
+  "fields": [
+    { "id": "server", "label": "Server URL", "type": "text", "default": "https://", "required": true },
+    { "id": "telemetry", "label": "Send anonymous usage data", "type": "checkbox", "default": false },
+    { "id": "edition", "label": "Edition", "type": "select", "options": ["Community", "Pro"], "default": "Community" }
+  ],
+  "finish": { "message": "Contoso Studio is ready.", "launch": true },
+  "data": { "anything": "passed through to install.json" }
+}
+```
+
+| Field | Meaning |
+|-------|---------|
+| `mode` | `gui` (default), `headless` (compact progress window, defaults only) or `silent` (no window, notifications only). |
+| `scope` | `either` (default), `user` or `system`. A locked scope hides the choice and is enforced at install time. |
+| `defaultScope` | `user` (default) or `system`; ignored when `scope` is locked. |
+| `ui` | Module path for a custom UI (relative to the package root, must end in `.js`/`.mjs`). |
+| `eula` | License file path, `false` to disable, or `{ "path": "...", "required": false }`. When omitted, `license.txt` / `eula.txt` is picked up automatically. |
+| `welcome.image`, `theme.*` | Package-relative assets. Accent must be a hex color. |
+| `features` | Checkboxes; required features are always installed. |
+| `fields` | Setup inputs. Types: `text`, `password`, `checkbox`, `select`. Required fields must have a default for headless/silent installs. Password values are not written to `install.json` unless the field sets `"persist": true`. |
+| `finish` | Completion text and whether the wizard offers to launch the app (default `true`). |
+| `data` | Arbitrary object copied into the install record. |
+
+`installer.json` and the top-level `installer/` folder are **not** copied into the installed app. Everything else in the archive is. After a successful install the installer writes `install.json` at the app root so the app can read the selected options:
+
+```js
+const info = await (await fetch(new URL('./install.json', import.meta.url))).json();
+// { format: 'msi', id, name, version, scope: 'user'|'system', installedAt,
+//   features: ['samples'], fields: { server: '...', telemetry: false }, data, source }
+```
+
+**Custom UI.** Ship `installer/ui.js` and reference it from `ui`. It is imported as a blob module and must export `mount(root, ctx)` (a default export also works). It owns the content area of the installer window:
+
+```js
+export async function mount(root, ctx) {
+    root.innerHTML = `
+        <div style="padding:24px;font-family:'Segoe UI',sans-serif;color:#fff;">
+            <h2 style="margin:0 0 8px;">Install ${ctx.manifest.name}</h2>
+            <p style="color:#aaa;">Custom setup for ${ctx.installer.publisher || 'this app'}.</p>
+            <button id="go" style="padding:8px 16px;">Install</button>
+            <p id="status" style="color:#9e9e9e;"></p>
+        </div>`;
+
+    root.querySelector('#go').addEventListener('click', async () => {
+        const status = root.querySelector('#status');
+        try {
+            const result = await ctx.install({
+                scope: 'user',
+                onProgress: (value, label) => { status.textContent = `${label} ${Math.round(value * 100)}%`; }
+            });
+            status.textContent = result.updated ? 'Updated.' : 'Installed.';
+            ctx.close();
+        } catch (error) {
+            status.textContent = error.message;
+        }
+    });
+
+    return () => { /* optional cleanup on window close */ };
+}
+```
+
+`ctx` surface:
+
+| Member | Description |
+|--------|-------------|
+| `sdk` | The full Windows 12 SDK namespace (`createApp`, dialogs, notifications, files, …). |
+| `app` | The installer's bound SDK app context (`ctx.app.window`, `ctx.app.notify`, …). |
+| `manifest`, `installer`, `inspection`, `existing` | Parsed package metadata, normalized installer config, archive inspection, and the current install record (or `null`). |
+| `defaults` | `{ scope, features, fields }` used by headless/silent installs. |
+| `asset(path)` / `text(path)` / `bytes(path)` | Read package files. `asset` returns a blob URL (images, CSS, JSON). |
+| `importModule(path)` | Import another JS file from the package as a blob module (single-file modules only; relative imports inside it do not resolve). |
+| `install(options)` | Run the install: `{ scope, features, fields, allowReplace, onProgress }`. Missing values fall back to `defaults`. Returns `{ id, scope, manifest, updated, path, … }`. |
+| `cancelInstall()`, `isCancelled()` | Cancel the running install. Staging is discarded; an existing install is never modified. |
+| `close()`, `setTitle(title)`, `onClose(fn)` | Window control and cleanup hook. |
+| `paths` | Display paths for `user` / `system` scope. |
+| `permissions` | Declared manifest permissions (the wizard displays them as consent). |
+
+The custom UI is trusted code: it runs in the page realm with SDK access, just like an installed app. It cannot bypass UAC (system installs still prompt), scope locks, identity checks or required fields — those are enforced in `Packages.installArchive`.
+
+**Headless and silent.** `mode: "headless"` shows a compact progress window and applies `defaultScope`, default features and field defaults. `mode: "silent"` does the same with no window at all and reports only through notifications. Both still show UAC for system scope. If a required field has no default, the install fails with a readable error instead of prompting.
+
+**Programmatic install.** The same pipeline is available outside the app: `await Packages.inspectArchive(bytes)` validates and returns `{ manifest, installer, eula, files, size }`, and `await Packages.installArchive(bytes, { inspection, scope, features, fields, allowReplace, onProgress, isCancelled, sourceName })` stages every file outside the package roots, swaps the finished tree into place, writes `install.json`, and dispatches `apps-changed`. A cancelled or failed install leaves the previous version untouched.
+
 ---
 
 ## 3. Window Manager API

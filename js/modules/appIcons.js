@@ -85,17 +85,28 @@ const AppIcons = (() => {
 
     const fallback = `<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="2" fill="#666"/></svg>`;
 
-    // Apps whose package ships assets/icon.svg (build-registry stamps hasIcon).
+    // Apps whose package ships an icon. The registry seeds this set for
+    // shipped apps; AppLoader adds installed package manifests (sideloaded
+    // apps) through setPackagedIcons().
     const ICON_APPS = new Set(
         APP_MANIFESTS.filter(m => m.hasIcon).map(m => m.id)
     );
+    const dynamicIcons = new Map();
+
+    function setPackagedIcons(map) {
+        dynamicIcons.clear();
+        for (const [id, icon] of Object.entries(map || {})) {
+            const path = String(icon || 'assets/icon.svg');
+            if (path) dynamicIcons.set(id, path);
+        }
+    }
 
     // Packages live at the canonical app URL; the service worker serves the
     // installed copy from the virtual filesystem and falls back to the
     // shipped bundle for static assets, so this works before and after install.
-    function packagedIcon(id) {
+    function packagedIcon(id, iconPath) {
         try {
-            const url = new URL(`../apps/${id}/assets/icon.svg`, import.meta.url).href;
+            const url = new URL(`../apps/${id}/${iconPath || 'assets/icon.svg'}`, import.meta.url).href;
             return `<img class="app-icon-img" src="${url}" alt="" draggable="false">`;
         } catch (e) {
             return null;
@@ -103,6 +114,10 @@ const AppIcons = (() => {
     }
 
     function get(id) {
+        if (dynamicIcons.has(id)) {
+            const img = packagedIcon(id, dynamicIcons.get(id));
+            return img || icons[id] || fallback;
+        }
         if (ICON_APPS.has(id)) {
             const img = packagedIcon(id);
             if (img) return img;
@@ -114,7 +129,7 @@ const AppIcons = (() => {
         return { ...icons };
     }
 
-    return { get, getAll };
+    return { get, getAll, setPackagedIcons };
 })();
 
 export default AppIcons;
