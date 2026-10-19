@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4995] - 2026-10-19
+
+### Changed
+- **AGENTS.md — app versioning and release rules** — documented the mandatory semver bump for every app-folder change, catalog/package regeneration, ownership of generated files, the pre-commit checklist, and the body-zoom/overlay coordinate rules for mobile-safe positioning.
+- **Settings — Personalization page** — reorganized into the same card grid as System: Theme, Accent color, Background, Mouse cursor and Taskbar now each open a dedicated subpage with a back button, instead of one long scrolling page. Deep links (`Settings.openPage('personalization', 'theme' | 'accent' | 'background' | 'cursor' | 'taskbar')`) resolve to the matching subpage.
+- **Patched store apps republished** — Apex Drive 3D, Archiver, Cell ESheet, Minesweeper, Password Vault, Riftbound Runner, Subway Surfers, To-Do Tasks, Visual Studio Code and Words bumped to `1.0.1`, with rebuilt `.w12pkg` archives so the fixes from 12.0.4993 are offered as Store updates.
+- **Patched builtin apps versioned** — Browser, Calculator, Notepad, Paint, Remote Desktop and Task Manager bumped to `1.0.1` to match the fixes already shipped.
+
 ## [12.0.4994] - 2026-10-19
 
 ### Fixed
