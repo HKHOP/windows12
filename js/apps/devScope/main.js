@@ -95,32 +95,35 @@ const PAGE_META = {
   snapshots: ['Snapshots', 'Record known-good environment states and compare what changed.']
 };
 
+// The simulator's PowerShell engine executes line-oriented blocks, so each
+// probe is a self-contained pair of lines. Records are pipe-delimited:
+// name|command|found(1/0)|path|version
 const TOOL_SCAN_SCRIPT = String.raw`
 $ErrorActionPreference = 'Continue'
-$tools = @(
-  @{ name='Git'; command='git' },
-  @{ name='Node.js'; command='node' },
-  @{ name='npm'; command='npm' },
-  @{ name='Python'; command='python' },
-  @{ name='Python Launcher'; command='py' },
-  @{ name='Java'; command='java' },
-  @{ name='.NET SDK'; command='dotnet' },
-  @{ name='Rust Compiler'; command='rustc' },
-  @{ name='Cargo'; command='cargo' },
-  @{ name='Docker'; command='docker' },
-  @{ name='VS Code'; command='code' },
-  @{ name='PowerShell 7'; command='pwsh' }
-)
-$results = foreach ($tool in $tools) {
-  $found = Get-Command $tool.command -ErrorAction SilentlyContinue | Select-Object -First 1
-  if ($found) {
-    $version = (& $tool.command --version 2>&1 | Select-Object -First 1)
-    [pscustomobject]@{ name=$tool.name; command=$tool.command; found=$true; path=[string]$found.Source; version=([string]$version).Trim() }
-  } else {
-    [pscustomobject]@{ name=$tool.name; command=$tool.command; found=$false; path=''; version='' }
-  }
-}
-ConvertTo-Json -InputObject @($results) -Compress -Depth 4
+$found = Get-Command git -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($found) { $v = (& git --version 2>&1 | Select-Object -First 1); Write-Output ('Git|git|1|' + [string]$found.Source + '|' + ([string]$v).Trim()) } else { Write-Output 'Git|git|0||' }
+$found = Get-Command node -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($found) { $v = (& node --version 2>&1 | Select-Object -First 1); Write-Output ('Node.js|node|1|' + [string]$found.Source + '|' + ([string]$v).Trim()) } else { Write-Output 'Node.js|node|0||' }
+$found = Get-Command npm -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($found) { $v = (& npm --version 2>&1 | Select-Object -First 1); Write-Output ('npm|npm|1|' + [string]$found.Source + '|' + ([string]$v).Trim()) } else { Write-Output 'npm|npm|0||' }
+$found = Get-Command python -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($found) { $v = (& python --version 2>&1 | Select-Object -First 1); Write-Output ('Python|python|1|' + [string]$found.Source + '|' + ([string]$v).Trim()) } else { Write-Output 'Python|python|0||' }
+$found = Get-Command py -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($found) { $v = (& py --version 2>&1 | Select-Object -First 1); Write-Output ('Python Launcher|py|1|' + [string]$found.Source + '|' + ([string]$v).Trim()) } else { Write-Output 'Python Launcher|py|0||' }
+$found = Get-Command java -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($found) { $v = (& java --version 2>&1 | Select-Object -First 1); Write-Output ('Java|java|1|' + [string]$found.Source + '|' + ([string]$v).Trim()) } else { Write-Output 'Java|java|0||' }
+$found = Get-Command dotnet -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($found) { $v = (& dotnet --version 2>&1 | Select-Object -First 1); Write-Output ('.NET SDK|dotnet|1|' + [string]$found.Source + '|' + ([string]$v).Trim()) } else { Write-Output '.NET SDK|dotnet|0||' }
+$found = Get-Command rustc -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($found) { $v = (& rustc --version 2>&1 | Select-Object -First 1); Write-Output ('Rust Compiler|rustc|1|' + [string]$found.Source + '|' + ([string]$v).Trim()) } else { Write-Output 'Rust Compiler|rustc|0||' }
+$found = Get-Command cargo -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($found) { $v = (& cargo --version 2>&1 | Select-Object -First 1); Write-Output ('Cargo|cargo|1|' + [string]$found.Source + '|' + ([string]$v).Trim()) } else { Write-Output 'Cargo|cargo|0||' }
+$found = Get-Command docker -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($found) { $v = (& docker --version 2>&1 | Select-Object -First 1); Write-Output ('Docker|docker|1|' + [string]$found.Source + '|' + ([string]$v).Trim()) } else { Write-Output 'Docker|docker|0||' }
+$found = Get-Command code -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($found) { $v = (& code --version 2>&1 | Select-Object -First 1); Write-Output ('VS Code|code|1|' + [string]$found.Source + '|' + ([string]$v).Trim()) } else { Write-Output 'VS Code|code|0||' }
+$found = Get-Command pwsh -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($found) { $v = (& pwsh --version 2>&1 | Select-Object -First 1); Write-Output ('PowerShell 7|pwsh|1|' + [string]$found.Source + '|' + ([string]$v).Trim()) } else { Write-Output 'PowerShell 7|pwsh|0||' }
 `;
 
 const ERROR_RULES = [
@@ -184,8 +187,17 @@ function parseScanOutput(result) {
         name: String(item.name || item.command || 'Tool'), command: String(item.command || ''),
         found: item.found === true || item.found === 'True', path: String(item.path || ''), version: String(item.version || '').trim()
       }));
-    } catch { /* show the raw diagnostic below */ }
+    } catch { /* fall through to pipe records */ }
   }
+  const records = output.split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(line => {
+    const parts = line.split('|');
+    if (parts.length < 5) return null;
+    return {
+      name: parts[0], command: parts[1], found: parts[2] === '1' || /^true$/i.test(parts[2]),
+      path: parts[3], version: parts.slice(4).join('|').trim()
+    };
+  }).filter(Boolean);
+  if (records.length) return records;
   const errors = Array.isArray(result?.errors) ? result.errors.join('\n') : String(result?.errors || '');
   const detail = [output, errors].filter(Boolean).join('\n').trim();
   throw new Error(detail || `The script runner returned no structured results (exit code: ${result?.exitCode ?? 'unknown'}).`);

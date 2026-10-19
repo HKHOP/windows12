@@ -3,7 +3,7 @@
   "id": "devScope",
   "uuid": "a8f18a52-caa4-46ea-8f50-a215ea3d9a17",
   "name": "DevScope",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "icon": "assets/icon.svg",
