@@ -37,6 +37,7 @@ const APP_DIST = {
     "chess": "store",
     "clock": "builtin",
     "copilotButBetter": "store",
+    "devScope": "store",
     "discord": "store",
     "engine3d": "store",
     "export": "store",

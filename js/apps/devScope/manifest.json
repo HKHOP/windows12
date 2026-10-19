@@ -1,0 +1,45 @@
+{
+  "manifestVersion": 1,
+  "id": "devScope",
+  "uuid": "a8f18a52-caa4-46ea-8f50-a215ea3d9a17",
+  "name": "DevScope",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "icon": "assets/icon.svg",
+  "associations": [],
+  "permissions": [
+    "clipboard",
+    "notifications"
+  ],
+  "store": {
+    "developer": "Impact Studio",
+    "category": "Developer Tools",
+    "rating": 0,
+    "reviews": 0,
+    "description": "A local-first diagnostic workbench for developer environments, error logs, and configuration changes. Scan available toolchains, analyze logs offline, and compare environment snapshots.",
+    "features": [
+      "Offline-first error log analysis",
+      "Development toolchain discovery",
+      "Environment snapshots and comparison",
+      "No account or mandatory AI API",
+      "Safe, user-approved troubleshooting"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #0b1119, #173241)",
+        "text": "Diagnostics Overview"
+      },
+      {
+        "bg": "linear-gradient(135deg, #142832, #0b1119)",
+        "text": "Toolchain Scan"
+      },
+      {
+        "bg": "linear-gradient(135deg, #0b1119, #1d3b4a)",
+        "text": "Error Autopsy"
+      }
+    ],
+    "size": "58 KB",
+    "ageRating": "Everyone"
+  }
+}
