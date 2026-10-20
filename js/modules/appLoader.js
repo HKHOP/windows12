@@ -3,6 +3,7 @@ import FileAssociations from './fileAssociations.js';
 import AppIcons from './appIcons.js';
 import { APP_MANIFESTS } from '../apps/registry.js';
 import Packages from './packages.js';
+import FileSystem from './fileSystem.js';
 
 // AppLoader — the app catalog + lazy module loader.
 //
@@ -31,6 +32,39 @@ const AppLoader = (() => {
     const loaded = new Map();  // id -> app module namespace (default export)
     const loading = new Map(); // id -> Promise<app>
     let installedIds = new Set();
+
+    // Portable app bundles (any folder with a valid manifest) run from a
+    // synthetic id so the service worker can serve them at /js/apps/<id>/…
+    // and relative imports (../../modules/…) keep resolving.
+    const PORTABLE_PREFIX = '__w12p_';
+    const portableManifests = new Map(); // synthetic id -> manifest
+    const portableLoaded = new Map();    // synthetic id -> { app, stamp }
+    const portableLoading = new Map();   // synthetic id -> Promise<app>
+
+    function shell(fn) {
+        const g = window._FSGuard;
+        return g ? g.asShell(fn)() : fn();
+    }
+
+    function portableId(folderPath) {
+        const raw = (Array.isArray(folderPath) ? folderPath : []).filter(p => p !== '/').join('/');
+        const encoded = btoa(encodeURIComponent(raw))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+        return PORTABLE_PREFIX + encoded;
+    }
+
+    function portableStamp(folderPath, manifest) {
+        let stamp = String(manifest.version || '0');
+        try {
+            const children = shell(() => FileSystem.getChildren(folderPath)) || [];
+            const entry = String(manifest.entry || 'main.js').split('/')[0];
+            const manifestFile = children.find(c => c.name === 'manifest.json');
+            const entryFile = children.find(c => c.name === entry);
+            stamp += '-' + (manifestFile && manifestFile.modified ? manifestFile.modified : 0)
+                + '-' + (entryFile && entryFile.modified ? entryFile.modified : 0);
+        } catch { /* keep version-only stamp */ }
+        return stamp;
+    }
 
     function ensureMaps() {
         if (catalogReady) return;
@@ -73,7 +107,7 @@ const AppLoader = (() => {
 
     function getManifest(id) {
         ensureMaps();
-        return byId[id] || null;
+        return byId[id] || portableManifests.get(id) || null;
     }
 
     // Icons come from the package folder. Registry apps know their icon from
@@ -202,6 +236,48 @@ const AppLoader = (() => {
         return true;
     }
 
+    // ---- portable app bundles ----
+
+    function ensurePortableLoaded(folderPath, manifest) {
+        const id = portableId(folderPath);
+        const stamp = portableStamp(folderPath, manifest);
+        const existing = portableLoaded.get(id);
+        if (existing && existing.stamp === stamp) return Promise.resolve(existing.app);
+        if (portableLoading.has(id)) return portableLoading.get(id);
+
+        const p = (async () => {
+            const man = {
+                ...manifest,
+                id,
+                entry: manifest.entry || 'main.js',
+                distribution: 'portable'
+            };
+            portableManifests.set(id, man);
+            const url = entryUrl(man);
+            url.searchParams.set('w12pkg', encodeURIComponent(stamp));
+            const mod = await import(url.href);
+            const app = mod && (mod.default || mod);
+            portableLoaded.set(id, { app, stamp });
+            return app;
+        })();
+
+        portableLoading.set(id, p);
+        return p.finally(() => portableLoading.delete(id));
+    }
+
+    async function launchFromFolder(folderPath, manifest, options) {
+        if (!manifest || !Array.isArray(folderPath) || folderPath.length === 0) return false;
+        if (typeof navigator !== 'undefined' && navigator.serviceWorker && !navigator.serviceWorker.controller) {
+            throw new Error('Portable apps need the virtual filesystem service worker. Reload the desktop and try again.');
+        }
+        const app = await ensurePortableLoaded(folderPath, manifest);
+        if (!app || typeof app.launch !== 'function') return false;
+        const hasOptions = options && typeof options === 'object' && Object.keys(options).length > 0;
+        if (hasOptions) await app.launch(options);
+        else await app.launch();
+        return true;
+    }
+
     // ---- file associations (lazy: handler loads the app on first open) ----
 
     function wireAssociations(id, app, man) {
@@ -288,6 +364,7 @@ const AppLoader = (() => {
         init, install, uninstall, update,
         getManifest, getByUuid, getAll, getBuiltins, getStoreApps,
         getModule, isLoaded, ensureLoaded, launch,
+        portableId, launchFromFolder,
         isInstalled, getInstalledIds, isLaunchable,
         isService, canRunBackground
     };

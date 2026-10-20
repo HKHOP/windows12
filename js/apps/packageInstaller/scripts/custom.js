@@ -43,7 +43,8 @@ export async function mountCustom(host, session, sdk) {
         defaults: {
             scope: defaults.scope,
             features: [...defaults.features],
-            fields: { ...defaults.fields }
+            fields: { ...defaults.fields },
+            shortcuts: { ...defaults.shortcuts }
         },
         /** Resolve a package asset to a blob URL (images, CSS, JSON...). */
         asset: (path) => session.assetUrl(path),
@@ -59,6 +60,7 @@ export async function mountCustom(host, session, sdk) {
                 scope: options.scope || defaults.scope,
                 features: Array.isArray(options.features) ? options.features : [...defaults.features],
                 fields: { ...defaults.fields, ...(options.fields || {}) },
+                shortcuts: { ...defaults.shortcuts, ...(options.shortcuts || {}) },
                 allowReplace: !!options.allowReplace,
                 onProgress: options.onProgress
             };

@@ -8,6 +8,7 @@ import AppLoader from './appLoader.js';
 import FileAssociations from './fileAssociations.js';
 import SystemConfig from './systemConfig.js';
 import Scaling from './scaling.js';
+import Users from './users.js';
 
 const AppRegistry = (() => {
     const apps = {};
@@ -63,9 +64,9 @@ const AppMetadata = (() => {
 const Taskbar = (() => {
     let runningApps = new Map();
     let clockInterval;
-    let pinnedApps = [];
-    // Taskbar pins stay machine-global (shared shell surface).
-    const PINS_PATH = ['/', 'system', 'programs data', 'taskbar', 'pins.json'];
+    let pinEntries = [];
+    const LEGACY_PINS_PATH = ['/', 'system', 'programs data', 'taskbar', 'pins.json'];
+    const DEFAULT_PINS = ['fileExplorer', 'notepad', 'calendar', 'settings'];
 
     // Switcher popup state
     let switcherPopup = null;
@@ -87,7 +88,7 @@ const Taskbar = (() => {
         };
     }
 
-    function ensureDir(path) {
+    const ensureDir = asShell(function ensureDir(path) {
         for (let i = 1; i <= path.length - 1; i++) {
             const partial = path.slice(0, i);
             if (!FileSystem.itemExists(partial)) {
@@ -95,7 +96,7 @@ const Taskbar = (() => {
                 FileSystem.createFolder(parent, path[i - 1]);
             }
         }
-    }
+    });
 
     const readJson = asShell(function readJson(path, fallback) {
         try {
@@ -117,8 +118,26 @@ const Taskbar = (() => {
         }
     });
 
+    function taskbarDir() {
+        const s = window._Shortcuts;
+        return s ? s.taskbarDir() : Users.home(['AppData', 'Roaming', 'Microsoft', 'Internet Explorer', 'Quick Launch', 'User Pinned', 'TaskBar']);
+    }
+
+    function pinMarkerPath() {
+        return Users.userData(['taskbar', 'folder.json']);
+    }
+
+    function shortcutApi() { return window._Shortcuts || null; }
+    function bundleApi() { return window._AppBundles || null; }
+
+    function visibleChildren(dir) {
+        try {
+            return (asShell(FileSystem.getChildren)(dir) || []).filter(c => !String(c.name).startsWith('.'));
+        } catch { return []; }
+    }
+
     function init() {
-        loadPinnedApps();
+        loadPinnedEntries();
         updateClock();
         clockInterval = setInterval(updateClock, 1000);
         // Open With dialog names/icons resolve through app metadata.
@@ -133,18 +152,108 @@ const Taskbar = (() => {
         window.addEventListener('open-search', (e) => {
             Search.open(e.detail.query);
         });
+        window.addEventListener('shortcuts-changed', () => {
+            loadPinnedEntries();
+            renderTaskbarButtons();
+        });
     }
 
-    function loadPinnedApps() {
-        pinnedApps = readJson(PINS_PATH, ['fileExplorer', 'notepad', 'calendar', 'settings']);
+    // Per-user pins live as files in the TaskBar shell folder. The previous
+    // machine-wide pins.json is migrated once per profile.
+    function migrateLegacyPins() {
+        const marker = readJson(pinMarkerPath(), null);
+        if (marker && marker.initialized) return;
+        const dir = taskbarDir();
+        ensureDir(dir);
+        if (visibleChildren(dir).length > 0) {
+            writeJson(pinMarkerPath(), { initialized: true });
+            return;
+        }
+        const s = shortcutApi();
+        if (!s) return;
+        writeJson(pinMarkerPath(), { initialized: true, migrated: true });
+        const legacy = readJson(LEGACY_PINS_PATH, null);
+        const ids = Array.isArray(legacy) && legacy.length ? legacy : DEFAULT_PINS;
+        for (const id of ids) {
+            try {
+                if (!AppLoader.isLaunchable(id)) continue;
+                s.createAppShortcut(id, 'taskbar', { create: true, source: { kind: 'user' } });
+            } catch { /* skip an app that can no longer launch */ }
+        }
     }
 
-    function savePinnedApps() {
-        writeJson(PINS_PATH, pinnedApps);
+    function loadPinnedEntries() {
+        const dir = taskbarDir();
+        ensureDir(dir);
+        migrateLegacyPins();
+        const out = [];
+        const seen = new Set();
+        for (const child of visibleChildren(dir)) {
+            const entry = buildPinEntry([...dir, child.name], child);
+            if (!entry) continue;
+            const key = entry.appId ? 'app:' + entry.appId : 'path:' + entry.path.join('/');
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push(entry);
+        }
+        out.sort((a, b) => a.name.localeCompare(b.name));
+        pinEntries = out;
+    }
+
+    function buildPinEntry(path, child) {
+        const s = shortcutApi();
+        const b = bundleApi();
+        if (child.type === 'folder') {
+            const man = b ? b.manifestForFolder(path) : null;
+            if (man) {
+                const icon = b.iconHtml(path, man, 20);
+                return {
+                    path, name: man.name || child.name, appId: man.id,
+                    meta: { name: man.name || child.name, icon }, icon,
+                    launch: () => b.launchFolder(path, man)
+                };
+            }
+            const icon = UIIcons.folder(child.name, 20);
+            return {
+                path, name: child.name, appId: null,
+                meta: { name: child.name, icon }, icon,
+                launch: () => b ? b.openFolder(path) : AppLoader.launch('fileExplorer', { path })
+            };
+        }
+        if (child.ext === 'lnk') {
+            const data = s ? s.readSync(path) : null;
+            if (data) {
+                const appId = s.appIdForShortcut(data);
+                const name = String(child.name).replace(/\.lnk$/i, '');
+                const icon = s.iconHtml(data, 20, { arrow: false });
+                return {
+                    path, name, appId, data, icon,
+                    meta: { name, icon },
+                    targetLocation: s.shortcutLocation(data),
+                    launch: () => s.open(path)
+                };
+            }
+        }
+        const icon = UIIcons.file(child.ext, child.name, 20);
+        return {
+            path, name: child.name, appId: null,
+            meta: { name: child.name, icon }, icon,
+            launch: () => openFilePin(path)
+        };
+    }
+
+    function openFilePin(path) {
+        let opened = false;
+        try { opened = FileAssociations.openDefault(path); } catch { opened = false; }
+        if (opened) return true;
+        AppLoader.ensureLoaded('notepad').then(app => {
+            if (app && typeof app.launch === 'function') app.launch(path, path[path.length - 1]);
+        }).catch(() => {});
+        return true;
     }
 
     function isPinned(appId) {
-        return pinnedApps.includes(appId);
+        return pinEntries.some(entry => entry.appId === appId);
     }
 
     function pinApp(appId) {
@@ -152,17 +261,42 @@ const Taskbar = (() => {
         try {
             if (AppLoader.isService(appId)) return;
         } catch (e) { /* manifest unreadable — fall through */ }
-        if (!pinnedApps.includes(appId)) {
-            pinnedApps.push(appId);
-            savePinnedApps();
-            renderTaskbarButtons();
-        }
+        if (isPinned(appId)) return;
+        const s = shortcutApi();
+        if (!s) return;
+        s.createAppShortcut(appId, 'taskbar', { create: true, source: { kind: 'user' } });
+        loadPinnedEntries();
+        renderTaskbarButtons();
     }
 
     function unpinApp(appId) {
-        pinnedApps = pinnedApps.filter(id => id !== appId);
-        savePinnedApps();
+        const s = shortcutApi();
+        if (!s) return;
+        pinEntries.filter(entry => entry.appId === appId).forEach(entry => s.deleteShortcut(entry.path));
+        loadPinnedEntries();
         renderTaskbarButtons();
+    }
+
+    function unpinPath(path) {
+        const s = shortcutApi();
+        if (!s) return;
+        s.deleteShortcut(path);
+        loadPinnedEntries();
+        renderTaskbarButtons();
+    }
+
+    function pinEntry(sourcePath, options = {}) {
+        const s = shortcutApi();
+        if (!s) return null;
+        const created = s.pinToTaskbar(sourcePath, options);
+        loadPinnedEntries();
+        renderTaskbarButtons();
+        return created;
+    }
+
+    function isEntryPinned(path) {
+        const key = (path || []).join('/');
+        return pinEntries.some(entry => entry.path.join('/') === key);
     }
 
     function renderTaskbarButtons() {
@@ -213,9 +347,8 @@ const Taskbar = (() => {
         // Collect all apps that should appear on the taskbar
         const appEntries = collectAppEntries(shouldGroup);
 
-        // Render pinned apps first
-        const pinnedSet = new Set(pinnedApps);
-        appEntries.filter(e => pinnedSet.has(e.appId)).forEach(entry => {
+        // Render pinned entries first
+        appEntries.filter(e => e.isPinned).forEach(entry => {
             const btn = createAppButton(entry);
             center.appendChild(btn);
         });
@@ -226,7 +359,7 @@ const Taskbar = (() => {
         center.appendChild(runningSeparator);
 
         // Render non-pinned running apps
-        const nonPinned = appEntries.filter(e => !pinnedSet.has(e.appId));
+        const nonPinned = appEntries.filter(e => !e.isPinned);
         if (nonPinned.length > 0) {
             runningSeparator.style.display = 'block';
             nonPinned.forEach(entry => {
@@ -245,16 +378,25 @@ const Taskbar = (() => {
         const entries = [];
         const seen = new Set();
 
-        // First, pinned apps (always shown)
-        pinnedApps.forEach(appId => {
-            try {
-                if (AppLoader.isService(appId)) return;
-            } catch (e) { /* fall through */ }
-            if (seen.has(appId)) return;
-            seen.add(appId);
-            const meta = AppMetadata.get(appId);
-            const windows = getWindowsForApp(appId);
-            entries.push({ appId, meta, windows, isPinned: true });
+        // First, pinned entries (app shortcuts and arbitrary files/folders)
+        pinEntries.forEach(pin => {
+            if (pin.appId) {
+                try {
+                    if (AppLoader.isService(pin.appId)) return;
+                } catch (e) { /* fall through */ }
+                if (seen.has(pin.appId)) return;
+                seen.add(pin.appId);
+                entries.push({
+                    appId: pin.appId, meta: pin.meta, icon: pin.icon,
+                    windows: getWindowsForApp(pin.appId),
+                    isPinned: true, pin, launch: pin.launch
+                });
+                return;
+            }
+            entries.push({
+                appId: null, pinId: pin.path.join('/'), meta: pin.meta, icon: pin.icon,
+                windows: [], isPinned: true, pin, launch: pin.launch
+            });
         });
 
         // Then running apps on active desktop
@@ -279,11 +421,14 @@ const Taskbar = (() => {
                     // Pinned but not running: keep its launcher button.
                     ungrouped.push({
                         appId: entry.appId,
+                        pinId: entry.pinId,
                         windowId: null,
                         meta: entry.meta,
-                        icon: entry.meta.icon,
+                        icon: entry.icon || entry.meta.icon,
                         windows: [],
                         isPinned: entry.isPinned,
+                        pin: entry.pin,
+                        launch: entry.launch,
                         isUngrouped: true
                     });
                     return;
@@ -291,11 +436,14 @@ const Taskbar = (() => {
                 entry.windows.forEach(win => {
                     ungrouped.push({
                         appId: entry.appId,
+                        pinId: entry.pinId,
                         windowId: win.id,
                         meta: { ...entry.meta, name: win.title || entry.meta.name },
                         icon: win.icon || entry.meta.icon,
                         windows: [win],
                         isPinned: entry.isPinned,
+                        pin: entry.pin,
+                        launch: entry.launch,
                         isUngrouped: true
                     });
                 });
@@ -328,12 +476,16 @@ const Taskbar = (() => {
 
         // Count total buttons that would be shown ungrouped
         let buttonCount = 0;
-        pinnedApps.forEach(appId => {
-            try { if (!AppLoader.isService(appId)) buttonCount++; } catch {}
+        pinEntries.forEach(pin => {
+            if (pin.appId) {
+                try { if (!AppLoader.isService(pin.appId)) buttonCount++; } catch { /* skip */ }
+            } else {
+                buttonCount++;
+            }
         });
 
         runningApps.forEach((windowIds, appId) => {
-            if (appId === 'search' || pinnedApps.includes(appId)) return;
+            if (appId === 'search' || isPinned(appId)) return;
             const windows = getWindowsForApp(appId);
             buttonCount += windows.length;
         });
@@ -359,8 +511,10 @@ const Taskbar = (() => {
     function createAppButton(entry) {
         const btn = document.createElement('button');
         btn.className = 'taskbar-btn app-btn';
-        btn.dataset.app = entry.appId;
+        if (entry.appId) btn.dataset.app = entry.appId;
+        if (entry.pinId) btn.dataset.pin = entry.pinId;
         if (entry.windowId) btn.dataset.windowId = entry.windowId;
+        btn._taskbarEntry = entry;
         btn.title = entry.meta.name;
         btn.innerHTML = entry.icon || entry.meta.icon;
 
@@ -373,26 +527,123 @@ const Taskbar = (() => {
         return btn;
     }
 
+    function activateTaskbarEntry(entry) {
+        if (!entry) return;
+        if (entry.windowId) {
+            focusWindowById(entry.windowId);
+            return;
+        }
+        const appId = entry.appId;
+        if (appId && appId !== 'search' && hasWindowOnActiveDesktop(appId)) {
+            openApp(appId);
+            return;
+        }
+        if (entry.pin && typeof entry.pin.launch === 'function') {
+            try {
+                const result = entry.pin.launch();
+                if (result && typeof result.catch === 'function') result.catch(() => {});
+            } catch { /* crash monitor reports launch failures */ }
+            return;
+        }
+        if (appId && appId !== 'search') openApp(appId);
+    }
+
+    function showTaskbarEntryMenu(e, entry) {
+        const { ContextMenu } = window._modules || {};
+        if (!ContextMenu) return;
+        const meta = entry.meta || AppMetadata.get(entry.appId);
+        const appId = entry.appId;
+        const items = [
+            { label: meta.name, icon: '', disabled: true },
+            'separator'
+        ];
+
+        if (appId) {
+            const running = hasWindowOnActiveDesktop(appId);
+            if (running) {
+                items.push({
+                    label: 'Close all windows', icon: UIIcons.action('close'), action: () => {
+                        WindowManager.getWindowsByApp(appId).filter(w => isOnActiveDesktop(w.id))
+                            .forEach(w => WindowManager.closeWindow(w.id));
+                    }
+                });
+            } else {
+                items.push({
+                    label: 'Open', icon: UIIcons.action('open'), action: () => {
+                        if (entry.pin) activateTaskbarEntry(entry);
+                        else openApp(appId);
+                    }
+                });
+            }
+            items.push('separator');
+            items.push(isPinned(appId)
+                ? { label: 'Unpin from taskbar', icon: UIIcons.action('unpin'), action: () => unpinApp(appId) }
+                : { label: 'Pin to taskbar', icon: UIIcons.action('pin'), action: () => pinApp(appId) });
+        } else if (entry.pin) {
+            items.push({
+                label: 'Open', icon: UIIcons.action('open'), action: () => activateTaskbarEntry(entry)
+            });
+            items.push('separator');
+            items.push({
+                label: 'Unpin from taskbar', icon: UIIcons.action('unpin'),
+                action: () => unpinPath(entry.pin.path)
+            });
+        }
+
+        if (entry.pin && entry.pin.data) {
+            if (entry.pin.targetLocation) {
+                items.push({
+                    label: 'Open file location', icon: UIIcons.folder('', 16), action: () => {
+                        const b = bundleApi();
+                        if (b) b.openFolder(entry.pin.targetLocation).catch(() => {});
+                        else AppLoader.launch('fileExplorer', { path: entry.pin.targetLocation }).catch(() => {});
+                    }
+                });
+            }
+            items.push('separator');
+            items.push({
+                label: 'Properties', icon: UIIcons.action('properties'),
+                action: () => shortcutApi() && shortcutApi().properties(entry.pin.path)
+            });
+        }
+
+        ContextMenu.show(e.clientX, e.clientY, items);
+    }
+
+    function bindWindowMenu(btn, appId, windowId) {
+        btn.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const win = WindowManager._getWindow(windowId);
+            if (!win) return;
+            const meta = AppMetadata.get(appId);
+            const items = [
+                { label: win.title || meta.name, icon: '', disabled: true },
+                'separator',
+                { label: 'Close', icon: UIIcons.action('close'), action: () => WindowManager.closeWindow(windowId) },
+                'separator',
+                { label: 'Minimize', icon: UIIcons.action('minimize'), action: () => WindowManager.setMinimized(windowId, true) },
+            ];
+            const { ContextMenu } = window._modules || {};
+            if (ContextMenu) ContextMenu.show(e.clientX, e.clientY, items);
+        });
+    }
+
     function setupAppButtonEvents(shouldGroup) {
         const buttons = document.querySelectorAll('.taskbar-btn.app-btn');
         buttons.forEach(btn => {
-            const appId = btn.dataset.app;
-            const windowId = btn.dataset.windowId;
+            const entry = btn._taskbarEntry || {};
+            const appId = entry.appId;
+            const windowId = entry.windowId;
             const isGrouped = btn.classList.contains('grouped');
 
-            if (shouldGroup && !windowId && !isGrouped) {
-                // Single window app - simple click behavior
-                btn.addEventListener('click', () => {
-                    if (appId && appId !== 'search') openApp(appId);
-                });
-            } else if (shouldGroup && isGrouped) {
+            if (shouldGroup && isGrouped) {
                 // Grouped app with multiple windows - show switcher on click/hover
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     toggleSwitcher(appId, btn);
                 });
 
-                // Hover to show switcher after delay
                 btn.addEventListener('mouseenter', () => {
                     if (switcherHoverTimer) clearTimeout(switcherHoverTimer);
                     switcherHoverTimer = setTimeout(() => {
@@ -407,72 +658,25 @@ const Taskbar = (() => {
                         switcherHoverTimer = null;
                     }
                 });
-            } else if (!shouldGroup && !windowId) {
-                // Ungrouped launcher for a pinned app that has no window.
-                btn.addEventListener('click', () => {
-                    if (appId && appId !== 'search') openApp(appId);
-                });
-            } else if (!shouldGroup && windowId) {
+            } else if (windowId) {
                 // Ungrouped mode - each window has its own button
-                btn.addEventListener('click', () => {
-                    focusWindowById(windowId);
-                });
-
-                // Context menu for ungrouped window buttons
-                btn.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
+                btn.addEventListener('click', () => focusWindowById(windowId));
+            } else {
+                // Launcher button: pinned entry or a running grouped app.
+                btn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const win = WindowManager._getWindow(windowId);
-                    if (!win) return;
-                    const meta = AppMetadata.get(appId);
-                    const items = [
-                        { label: win.title || meta.name, icon: '', disabled: true },
-                        'separator',
-                        { label: 'Close', icon: UIIcons.action('close'), action: () => WindowManager.closeWindow(windowId) },
-                        'separator',
-                        { label: 'Minimize', icon: UIIcons.action('minimize'), action: () => WindowManager.setMinimized(windowId, true) },
-                    ];
-                    const { ContextMenu } = window._modules || {};
-                    if (ContextMenu) ContextMenu.show(e.clientX, e.clientY, items);
+                    activateTaskbarEntry(entry);
                 });
             }
 
-            // Context menu for grouped/pinned apps (right-click on the button itself)
-            if (shouldGroup && !windowId) {
+            if (windowId) {
+                bindWindowMenu(btn, appId, windowId);
+            } else if (entry.pin || (shouldGroup && appId)) {
                 btn.addEventListener('contextmenu', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    hideSwitcher(); // Close switcher on right-click
-                    const meta = AppMetadata.get(appId);
-                    const isRunning = hasWindowOnActiveDesktop(appId);
-                    const pinned = isPinned(appId);
-
-                    const items = [
-                        { label: meta.name, icon: '', disabled: true },
-                        'separator'
-                    ];
-
-                    if (isRunning) {
-                        items.push({ label: 'Close all windows', icon: UIIcons.action('close'), action: () => {
-                            const wins = WindowManager.getWindowsByApp(appId).filter(w => isOnActiveDesktop(w.id));
-                            wins.forEach(w => WindowManager.closeWindow(w.id));
-                        }});
-                    } else {
-                        items.push({ label: 'Open', icon: UIIcons.action('open'), action: () => { openApp(appId); }});
-                    }
-
-                    items.push('separator');
-
-                    if (pinned) {
-                        items.push({ label: 'Unpin from taskbar', icon: UIIcons.action('unpin'), action: () => unpinApp(appId) });
-                    } else {
-                        items.push({ label: 'Pin to taskbar', icon: UIIcons.action('pin'), action: () => pinApp(appId) });
-                    }
-
-                    const { ContextMenu } = window._modules || {};
-                    if (ContextMenu) {
-                        ContextMenu.show(e.clientX, e.clientY, items);
-                    }
+                    hideSwitcher();
+                    showTaskbarEntryMenu(e, entry);
                 });
             }
         });
@@ -797,8 +1001,14 @@ const Taskbar = (() => {
     function updateRunningState() {
         const btns = document.querySelectorAll('.taskbar-btn.app-btn');
         btns.forEach(btn => {
-            const app = btn.dataset.app;
-            const windowId = btn.dataset.windowId;
+            const entry = btn._taskbarEntry || {};
+            const app = entry.appId;
+            const windowId = entry.windowId;
+            if (!app) {
+                btn.classList.remove('running');
+                btn.classList.remove('active');
+                return;
+            }
             if (windowId) {
                 // Ungrouped mode - check specific window
                 const win = WindowManager._getWindow(windowId);
@@ -824,10 +1034,11 @@ const Taskbar = (() => {
     function setActiveApp(appId) {
         const btns = document.querySelectorAll('.taskbar-btn.app-btn');
         btns.forEach(btn => {
+            const entry = btn._taskbarEntry || {};
             // In grouped mode, match by appId; in ungrouped, don't set active on window buttons
-            if (!btn.dataset.windowId && btn.dataset.app === appId) {
+            if (!entry.windowId && entry.appId === appId) {
                 btn.classList.add('active');
-            } else if (!btn.dataset.windowId) {
+            } else if (!entry.windowId) {
                 btn.classList.remove('active');
             }
         });
@@ -836,7 +1047,8 @@ const Taskbar = (() => {
     function clearActiveApp() {
         const btns = document.querySelectorAll('.taskbar-btn.app-btn');
         btns.forEach(btn => {
-            if (!btn.dataset.windowId) btn.classList.remove('active');
+            const entry = btn._taskbarEntry || {};
+            if (!entry.windowId) btn.classList.remove('active');
         });
     }
 
@@ -1027,11 +1239,12 @@ const Taskbar = (() => {
     }
 
     function getPinnedApps() {
-        return [...pinnedApps];
+        return pinEntries.filter(entry => entry.appId).map(entry => entry.appId);
     }
 
-    // Foreground session changed: the running-app buttons follow the profile.
+    // Foreground session changed: reload this profile's pins and running apps.
     function activate() {
+        loadPinnedEntries();
         renderTaskbarButtons();
     }
 
@@ -1040,7 +1253,7 @@ const Taskbar = (() => {
         renderTaskbarButtons();
     }
 
-    return { init, activate, openApp, addRunningApp, removeRunningApp, updateRunningState, setActiveApp, clearActiveApp, getPinnedApps, pinApp, unpinApp, isPinned, renderTaskbarButtons, refreshGrouping };
+    return { init, activate, openApp, addRunningApp, removeRunningApp, updateRunningState, setActiveApp, clearActiveApp, getPinnedApps, pinApp, unpinApp, pinEntry, unpinPath, isPinned, isEntryPinned, renderTaskbarButtons, refreshGrouping };
 })();
 
 export { Taskbar, AppRegistry, AppMetadata };

@@ -202,6 +202,7 @@ The builder validates the identity fields and the entry file, includes everythin
     { "id": "edition", "label": "Edition", "type": "select", "options": ["Community", "Pro"], "default": "Community" }
   ],
   "finish": { "message": "Contoso Studio is ready.", "launch": true },
+  "shortcuts": { "desktop": true },
   "data": { "anything": "passed through to install.json" }
 }
 ```
@@ -217,7 +218,22 @@ The builder validates the identity fields and the entry file, includes everythin
 | `features` | Checkboxes; required features are always installed. |
 | `fields` | Setup inputs. Types: `text`, `password`, `checkbox`, `select`. Required fields must have a default for headless/silent installs. Password values are not written to `install.json` unless the field sets `"persist": true`. |
 | `finish` | Completion text and whether the wizard offers to launch the app (default `true`). |
+| `shortcuts` | Shortcut defaults/overrides for `startMenu`, `desktop` and `taskbar` (see below). |
 | `data` | Arbitrary object copied into the install record. |
+
+**Installer shortcuts.** Every app gets a Start Menu shortcut by default. Desktop and taskbar shortcuts are opt-in. A manifest or `installer.json` may set `shortcuts` to `false`/`true` (all destinations) or to an object:
+
+```json
+{
+  "shortcuts": {
+    "startMenu": false,
+    "desktop": { "create": true, "name": "Contoso Studio", "arguments": "--profile work" },
+    "taskbar": { "create": true, "run": "minimized" }
+  }
+}
+```
+
+Each destination accepts `enabled`/`create`, `optional`, `default`, `name`, `icon`, `arguments`, `startIn`, `comment`, `run` (`normal`/`minimized`/`maximized`) and `hotkey`. Destinations marked `optional: true` appear as checkboxes in the wizard; `enabled: false` makes a destination impossible. Installer-created shortcuts are tagged with the app id, so updates refresh them and uninstalling the app removes them without touching the user's own shortcuts. Shortcuts live in the real per-user shell folders (`AppData/Roaming/Microsoft/Windows/Start Menu/Programs` and `.../Quick Launch/User Pinned/TaskBar`). Any folder that contains a valid `manifest.json` can also be launched as a portable app by double-clicking it.
 
 `installer.json` and the top-level `installer/` folder are **not** copied into the installed app. Everything else in the archive is. After a successful install the installer writes `install.json` at the app root so the app can read the selected options:
 

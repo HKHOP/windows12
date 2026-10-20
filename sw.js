@@ -165,6 +165,7 @@ const CORE_PRECACHE = [
     "./css/windows.css",
     "./js/apps/registry.js",
     "./js/main.js",
+    "./js/modules/appBundles.js",
     "./js/modules/appIcons.js",
     "./js/modules/appLoader.js",
     "./js/modules/appSystem.js",
@@ -197,6 +198,7 @@ const CORE_PRECACHE = [
     "./js/modules/scaling.js",
     "./js/modules/search.js",
     "./js/modules/sessions.js",
+    "./js/modules/shortcutConfig.js",
     "./js/modules/shortcuts.js",
     "./js/modules/sounds.js",
     "./js/modules/startMenu.js",
@@ -387,6 +389,17 @@ async function handleAppRequest(req, url) {
     // Bare files directly under js/apps/ (e.g. registry.js) are shell assets.
     if (!id || rest.length === 0) return defaultFetch(req);
 
+    // Portable app bundles run from an arbitrary vFS folder under a synthetic
+    // id. The worker validates the bundle manifest before serving anything.
+    const portableParts = decodePortableId(id);
+    if (portableParts) {
+        let tree = null;
+        try { tree = await readTree(); } catch (e) { tree = null; }
+        if (!tree) return notFound();
+        const portable = await servePortable(tree, portableParts, rest);
+        return portable || notFound();
+    }
+
     if (APP_DIST[id] === 'builtin') return defaultFetch(req);
 
     // No OPFS tree at all means the legacy storage backend is in use (no
@@ -499,6 +512,10 @@ async function serveFromTree(tree, id, rest) {
         const uid = await activeUser();
         node = resolveNode(tree, ['users', uid, 'AppData', 'Programs', id, ...rest]);
     }
+    return serveNode(node);
+}
+
+async function serveNode(node) {
     if (!node || node.type !== 'file') return null;
 
     const type = node.blobType || mimeOf(node.name);
@@ -519,4 +536,58 @@ async function serveFromTree(tree, id, rest) {
     }
 
     return new Response(node.content ?? '', { headers });
+}
+
+// ---------------------------------------------------------------------------
+// Portable app bundles (any vFS folder with a valid manifest.json)
+// ---------------------------------------------------------------------------
+
+const PORTABLE_PREFIX = '__w12p_';
+
+function decodePortableId(id) {
+    if (typeof id !== 'string' || !id.startsWith(PORTABLE_PREFIX)) return null;
+    try {
+        let b64 = id.slice(PORTABLE_PREFIX.length).replace(/-/g, '+').replace(/_/g, '/');
+        while (b64.length % 4) b64 += '=';
+        const raw = decodeURIComponent(atob(b64));
+        const parts = raw.split('/').filter(p => p && p !== '.' && p !== '..');
+        return parts.length ? parts : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function nodeText(node) {
+    if (!node || node.type !== 'file') return null;
+    if (node.blobRef) {
+        const file = await opfsGetFile(splitPath('w12/blobs/' + node.blobRef));
+        return file ? file.text() : null;
+    }
+    return typeof node.content === 'string' ? node.content : '';
+}
+
+async function servePortable(tree, folder, rest) {
+    // Never expose OS-only trees through a portable app URL.
+    if (!folder.length || folder[0] === 'system') return null;
+    if (!['users', 'Program Files'].includes(folder[0])) return null;
+    if (folder[0] === 'users') {
+        const uid = await activeUser();
+        if (!uid || folder[1] !== uid) return null;
+    }
+
+    const manifestNode = resolveNode(tree, [...folder, 'manifest.json']);
+    const raw = await nodeText(manifestNode);
+    if (!raw) return null;
+    let manifest;
+    try { manifest = JSON.parse(raw); } catch (e) { return null; }
+    if (!manifest || typeof manifest !== 'object') return null;
+    if (manifest.service === true) return null;
+    if (typeof manifest.id !== 'string' || typeof manifest.name !== 'string') return null;
+
+    const entry = String(manifest.entry || 'main.js').replace(/\\/g, '/').split('/').filter(Boolean);
+    if (!entry.length || entry.some(p => p === '.' || p === '..')) return null;
+    const entryNode = resolveNode(tree, [...folder, ...entry]);
+    if (!entryNode || entryNode.type !== 'file') return null;
+
+    return serveNode(resolveNode(tree, [...folder, ...rest]));
 }

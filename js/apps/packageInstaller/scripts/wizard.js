@@ -2,6 +2,8 @@
 //
 // Everything here is per-window: state lives in this closure, so two .msi
 // files opened at once never share a selection or an install.
+import { DESTINATIONS, DESTINATION_LABELS, MANIFEST_DEFAULTS, mergeConfig, normalizeConfig, resolveCreate } from '../../../modules/shortcutConfig.js';
+
 const PERMISSION_LABELS = {
     filesystem: 'Access your files',
     notifications: 'Send notifications',
@@ -53,7 +55,7 @@ export async function mountWizard(host, session) {
     const man = inspection.manifest;
     const conf = inspection.installer || {
         mode: 'gui', scope: 'either', defaultScope: 'user', publisher: '',
-        features: [], fields: [], welcome: {}, theme: {}, finish: {}, eula: null, ui: ''
+        features: [], fields: [], welcome: {}, theme: {}, finish: {}, eula: null, ui: '', shortcuts: null
     };
     const existing = session.existing || null;
     const replacing = !!(existing && existing.manifest && !sameUuid(existing.manifest.uuid, man.uuid));
@@ -64,6 +66,9 @@ export async function mountWizard(host, session) {
     const welcomeImage = conf.welcome.image ? await session.assetUrl(conf.welcome.image) : null;
 
     const publisher = conf.publisher || (man.store && man.store.developer) || 'Unknown publisher';
+    const shortcutConfig = mergeConfig(normalizeConfig(man.shortcuts, MANIFEST_DEFAULTS), conf.shortcuts || null);
+    const shortcutOptions = DESTINATIONS.filter(dest =>
+        shortcutConfig[dest] && shortcutConfig[dest].enabled !== false && shortcutConfig[dest].optional === true);
     const scopeOptions = existing
         ? [existing.scope]
         : (conf.scope === 'either' ? ['user', 'system'] : [conf.scope]);
@@ -75,6 +80,7 @@ export async function mountWizard(host, session) {
         accepted: !inspection.eula || !inspection.eula.required,
         features: new Map(conf.features.map(f => [f.id, f.required || f.default])),
         fields: {},
+        shortcuts: resolveCreate(shortcutConfig),
         replaceAccepted: false,
         installing: false,
         cancelled: false,
@@ -89,7 +95,7 @@ export async function mountWizard(host, session) {
 
     const steps = ['welcome'];
     if (inspection.eula && inspection.eula.text) steps.push('license');
-    const hasOptions = scopeOptions.length > 1 || conf.features.length > 0 || conf.fields.length > 0;
+    const hasOptions = scopeOptions.length > 1 || conf.features.length > 0 || conf.fields.length > 0 || shortcutOptions.length > 0;
     if (hasOptions) steps.push('options');
     steps.push('ready');
     let stepIndex = 0;
@@ -182,6 +188,7 @@ export async function mountWizard(host, session) {
                 scope: state.scope,
                 features: conf.features.filter(f => state.features.get(f.id)).map(f => f.id),
                 fields: { ...state.fields },
+                shortcuts: { ...state.shortcuts },
                 allowReplace: replacing ? state.replaceAccepted : false,
                 onProgress: (value, status) => {
                     if (!host.isConnected) return;
@@ -338,7 +345,20 @@ export async function mountWizard(host, session) {
                 </div>`
                 : '';
 
-            bodyEl.innerHTML = `${scopeHtml}${featuresHtml}${fieldsHtml}`;
+            const shortcutsHtml = shortcutOptions.length
+                ? `<div class="pi-group">
+                    <div class="pi-group-title">Shortcuts</div>
+                    ${shortcutOptions.map(dest => `
+                        <label class="pi-checkline">
+                            <input type="checkbox" class="pi-shortcut" data-destination="${dest}"${state.shortcuts[dest] ? ' checked' : ''}>
+                            ${dest === 'startMenu' ? 'Create a Start Menu shortcut'
+                                : dest === 'desktop' ? 'Create a desktop shortcut'
+                                : 'Pin to the taskbar'}
+                        </label>`).join('')}
+                </div>`
+                : '';
+
+            bodyEl.innerHTML = `${scopeHtml}${featuresHtml}${fieldsHtml}${shortcutsHtml}`;
             bodyEl.querySelectorAll('input[name="pi-scope"]').forEach(input => {
                 input.addEventListener('change', () => {
                     if (input.checked) state.scope = input.value;
@@ -357,6 +377,11 @@ export async function mountWizard(host, session) {
                 input.addEventListener('input', update);
                 input.addEventListener('change', update);
             });
+            bodyEl.querySelectorAll('.pi-shortcut').forEach(input => {
+                input.addEventListener('change', () => {
+                    state.shortcuts[input.dataset.destination] = input.checked;
+                });
+            });
 
             backBtn.hidden = false;
             nextBtn.hidden = false;
@@ -371,11 +396,14 @@ export async function mountWizard(host, session) {
             subEl.textContent = updating
                 ? `${man.name} is ready to be updated.`
                 : `${man.name} is ready to be installed.`;
+            const shortcutSummary = DESTINATIONS.filter(dest => state.shortcuts[dest])
+                .map(dest => DESTINATION_LABELS[dest]).join(', ') || 'None';
             bodyEl.innerHTML = `
                 <div class="pi-info">
                     <div class="pi-row"><span style="width:104px;flex-shrink:0;">Install for</span><b>${state.scope === 'system' ? 'All users' : 'This user'}</b></div>
                     <div class="pi-row"><span style="width:104px;flex-shrink:0;">Destination</span><b style="word-break:break-all;">${esc(installPath(state.scope))}</b></div>
                     ${conf.features.length ? `<div class="pi-row"><span style="width:104px;flex-shrink:0;">Components</span><span>${esc(conf.features.filter(f => state.features.get(f.id)).map(f => f.name).join(', ') || 'None')}</span></div>` : ''}
+                    <div class="pi-row"><span style="width:104px;flex-shrink:0;">Shortcuts</span><span>${esc(shortcutSummary)}</span></div>
                     <div class="pi-row"><span style="width:104px;flex-shrink:0;">Package</span><span>${esc(session.sourceName || 'Package file')} (${esc(formatBytes(inspection.size))})</span></div>
                 </div>
                 ${replacing ? `<label class="pi-accept" style="margin-top:14px;">

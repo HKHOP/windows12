@@ -20,6 +20,7 @@ import UAC from './uac.js';
 import OpfsClient from './opfsClient.js';
 import Zip from './zip.js';
 import { APP_MANIFESTS } from '../apps/registry.js';
+import { normalizeConfig, DESTINATIONS } from './shortcutConfig.js';
 
 const SYSTEM_ROOT = ['/', 'Program Files'];
 const PROGRAM_SUBDIR = ['AppData', 'Programs'];
@@ -391,6 +392,12 @@ const Packages = (() => {
             launch: rawFinish.launch !== false
         };
 
+        let shortcuts = null;
+        if (raw.shortcuts !== undefined) {
+            try { shortcuts = normalizeConfig(raw.shortcuts, null); }
+            catch (e) { throw pkgError('installer.shortcuts must be a boolean or an object.', 'invalid-installer'); }
+        }
+
         const rawEula = raw.eula;
         let eulaPath = '';
         let eulaRequired = true;
@@ -432,6 +439,7 @@ const Packages = (() => {
             finish,
             eula,
             ui: ui ? findFile(ui).path : '',
+            shortcuts,
             data: raw.data && typeof raw.data === 'object' ? raw.data : null
         };
     }
@@ -567,7 +575,17 @@ const Packages = (() => {
                 fields[f.id] = value;
             }
         }
-        return { scope, features, fields };
+        const shortcuts = {};
+        const suppliedShortcuts = options.shortcuts && typeof options.shortcuts === 'object' ? options.shortcuts : {};
+        for (const dest of DESTINATIONS) {
+            if (typeof suppliedShortcuts[dest] === 'boolean') {
+                shortcuts[dest] = suppliedShortcuts[dest];
+            } else if (installer && installer.shortcuts && installer.shortcuts[dest]
+                && installer.shortcuts[dest].default !== undefined) {
+                shortcuts[dest] = !!installer.shortcuts[dest].default;
+            }
+        }
+        return { scope, features, fields, shortcuts };
     }
 
     function existingRecord(man, allowReplace) {
@@ -689,6 +707,7 @@ const Packages = (() => {
                 installedAt: new Date().toISOString(),
                 features: selection.features,
                 fields: persistedFields,
+                shortcuts: selection.shortcuts,
                 data: installer ? installer.data : null,
                 source: opts.sourceName || null
             };
@@ -730,6 +749,16 @@ const Packages = (() => {
             window.dispatchEvent(new CustomEvent('apps-changed', {
                 detail: { installed: man.id, updated: !!rec }
             }));
+            try {
+                const shortcuts = window._Shortcuts;
+                if (shortcuts) {
+                    shortcuts.onAppInstalled(man.id, man, {
+                        selection: selection.shortcuts,
+                        installer,
+                        userId: uid
+                    });
+                }
+            } catch { /* shortcuts are best-effort */ }
             return {
                 id: man.id,
                 scope: selection.scope,
@@ -819,6 +848,13 @@ const Packages = (() => {
         writeSession();
         onProgress && onProgress(1, 'Done');
         window.dispatchEvent(new CustomEvent('apps-changed'));
+        try {
+            const rec = installed.get(id);
+            const shortcuts = window._Shortcuts;
+            if (shortcuts && rec && rec.manifest) {
+                shortcuts.onAppInstalled(id, rec.manifest, { selection: opts.shortcuts || rec.shortcuts, userId: rec.user || userId() });
+            }
+        } catch { /* shortcuts are best-effort */ }
         return { id, scope };
     }
 
@@ -852,6 +888,10 @@ const Packages = (() => {
         await FileSystem.flushAsync();
         writeSession();
         window.dispatchEvent(new CustomEvent('apps-changed'));
+        try {
+            const shortcuts = window._Shortcuts;
+            if (shortcuts) shortcuts.removeAppShortcuts(id, (rec && rec.user) || userId());
+        } catch { /* shortcuts are best-effort */ }
         return removed;
     }
 
@@ -946,6 +986,13 @@ const Packages = (() => {
         writeSession();
         onProgress && onProgress(1, 'Done');
         window.dispatchEvent(new CustomEvent('apps-changed'));
+        try {
+            const rec = installed.get(id);
+            const shortcuts = window._Shortcuts;
+            if (shortcuts && rec && rec.manifest) {
+                shortcuts.onAppInstalled(id, rec.manifest, { selection: opts.shortcuts || rec.shortcuts, userId: rec.user || userId() });
+            }
+        } catch { /* shortcuts are best-effort */ }
         return { id, scope };
     }
 

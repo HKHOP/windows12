@@ -66,6 +66,18 @@ function loadManifests() {
                 if (typeof p !== 'string' || !PERMISSIONS.includes(p)) fail(`js/apps/${id}/manifest.json: unknown permission "${p}" (expected one of: ${PERMISSIONS.join(', ')})`);
             }
         }
+        if (m.shortcuts !== undefined) {
+            if (typeof m.shortcuts !== 'boolean' && (typeof m.shortcuts !== 'object' || Array.isArray(m.shortcuts))) {
+                fail(`js/apps/${id}/manifest.json: "shortcuts" must be a boolean or an object`);
+            }
+            if (typeof m.shortcuts === 'object') {
+                for (const [dest, value] of Object.entries(m.shortcuts)) {
+                    if (typeof value !== 'boolean' && (typeof value !== 'object' || Array.isArray(value))) {
+                        fail(`js/apps/${id}/manifest.json: shortcuts.${dest} must be a boolean or an object`);
+                    }
+                }
+            }
+        }
         if (m.distribution === 'store') {
             const s = m.store || {};
             for (const k of ['developer', 'category', 'description', 'size']) {
@@ -116,6 +128,7 @@ function emitRegistry(manifests) {
             pub.background = true;
         }
         if (m.store) pub.store = m.store;
+        if (m.shortcuts !== undefined) pub.shortcuts = m.shortcuts;
         lines.push(`    ${JSON.stringify(pub)},`);
     }
     lines.push('];');

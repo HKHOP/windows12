@@ -14,6 +14,7 @@ import Popup from '../../modules/popup.js';
 import Notifications from '../../modules/notifications.js';
 import Users from '../../modules/users.js';
 import Zip from '../../modules/zip.js';
+import { MANIFEST_DEFAULTS, mergeConfig, normalizeConfig, resolveCreate } from '../../modules/shortcutConfig.js';
 import { mountWizard } from './scripts/wizard.js';
 import { mountHeadless } from './scripts/headless.js';
 import { mountCustom } from './scripts/custom.js';
@@ -98,7 +99,11 @@ function defaultOptions(inspection, existing) {
                 : (field.type === 'checkbox' ? false : '');
         }
     }
-    return { scope, features, fields };
+    const shortcutConfig = mergeConfig(
+        normalizeConfig(inspection.manifest.shortcuts, MANIFEST_DEFAULTS),
+        conf && conf.shortcuts ? conf.shortcuts : null
+    );
+    return { scope, features, fields, shortcuts: resolveCreate(shortcutConfig) };
 }
 
 function createSession({ app, win, bytes, inspection, existing, sourceName }) {
@@ -195,6 +200,7 @@ function createSession({ app, win, bytes, inspection, existing, sourceName }) {
                 scope: options.scope,
                 features: options.features,
                 fields: options.fields,
+                shortcuts: options.shortcuts,
                 allowReplace: options.allowReplace,
                 isCancelled: () => cancelled,
                 onProgress: options.onProgress

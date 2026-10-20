@@ -9,6 +9,7 @@ import AppSystem from './appSystem.js';
 import AppLoader from './appLoader.js';
 import Users from './users.js';
 import LockScreen from './lockScreen.js';
+import FileAssociations from './fileAssociations.js';
 
 const StartMenu = (() => {
     let pinnedApps = [];
@@ -38,9 +39,36 @@ const StartMenu = (() => {
 
     // Built from app manifests (see js/apps/*/manifest.json). Store apps are
     // hidden until installed; builtin apps always show.
-    const allApps = AppLoader.getAll()
-        .map(m => ({ id: m.id, name: m.name }))
-        .sort((a, b) => a.name.localeCompare(b.name));
+    function shortcutsApi() { return window._Shortcuts || null; }
+    function bundlesApi() { return window._AppBundles || null; }
+
+    function startMenuDir() {
+        const s = shortcutsApi();
+        return s ? s.startMenuDir() : Users.home(['AppData', 'Roaming', 'Microsoft', 'Windows', 'Start Menu', 'Programs']);
+    }
+
+    // Seed the per-user Start Menu folder once. Later user deletions stick:
+    // the marker records that this profile has already been populated.
+    function seedStartMenuOnce() {
+        const s = shortcutsApi();
+        if (!s) return;
+        const marker = Users.userData(['startmenu', 'folders.json']);
+        const state = s.readJson(marker, null) || {};
+        if (state.startSeeded) return;
+        s.ensureFolder(startMenuDir());
+        let all = [];
+        try { all = AppLoader.getAll(); } catch { return; }
+        for (const man of all) {
+            try {
+                if (AppLoader.isService(man.id) || !AppLoader.isLaunchable(man.id)) continue;
+                s.createAppShortcut(man.id, 'startMenu', {
+                    manifest: man,
+                    source: { kind: 'system', appId: man.id }
+                });
+            } catch { /* skip an unreadable manifest */ }
+        }
+        s.writeJson(marker, { ...state, startSeeded: true });
+    }
 
     function isStoreApp(appId) {
         const man = AppLoader.getManifest(appId);
@@ -53,6 +81,7 @@ const StartMenu = (() => {
 
     function init() {
         loadPinnedApps();
+        seedStartMenuOnce();
         const menu = document.getElementById('start-menu');
         sections = menu.querySelectorAll('.start-menu-section');
         renderPinnedApps();
@@ -68,6 +97,9 @@ const StartMenu = (() => {
             if (currentView === 'allApps') {
                 showAllApps();
             }
+        });
+        window.addEventListener('shortcuts-changed', () => {
+            if (currentView === 'allApps') showAllApps();
         });
     }
 
@@ -253,76 +285,209 @@ const StartMenu = (() => {
         header.appendChild(title);
         drawer.appendChild(header);
 
-        const installed = AppSystem.getInstalledApps();
-        const filteredApps = allApps.filter(app => {
-            // Services are uninstall-only: never listed in any launcher.
-            try {
-                if (AppLoader.isService(app.id)) return false;
-            } catch (e) { /* manifest unreadable — fall through */ }
-            if (isStoreApp(app.id)) return installed.includes(app.id);
-            return true;
-        });
+        renderAllApps(drawer);
+    }
 
+    function openFolder(path) {
+        const b = bundlesApi();
+        if (b) {
+            b.openFolder(path).catch(() => {});
+            return;
+        }
+        AppLoader.launch('fileExplorer', { path }).catch(() => {});
+    }
+
+    function openFilePath(path) {
+        let opened = false;
+        try { opened = FileAssociations.openDefault(path); } catch { opened = false; }
+        if (opened) return;
+        AppLoader.ensureLoaded('notepad').then(app => {
+            if (app && typeof app.launch === 'function') app.launch(path, path[path.length - 1]);
+        }).catch(() => {});
+    }
+
+    function readStartEntries(dir, depth) {
+        const s = shortcutsApi();
+        const b = bundlesApi();
+        let children = [];
+        try { children = asShell(FileSystem.getChildren)(dir) || []; } catch { return []; }
+        const out = [];
+        for (const child of children) {
+            if (String(child.name).startsWith('.')) continue;
+            const full = [...dir, child.name];
+            if (child.type === 'folder') {
+                const man = b ? b.manifestForFolder(full) : null;
+                if (man) {
+                    out.push({
+                        kind: 'item', type: 'appFolder', name: man.name || child.name,
+                        path: full, appId: man.id, manifest: man,
+                        icon: b.iconHtml(full, man, 22),
+                        open: () => b.launchFolder(full, man)
+                    });
+                } else if (depth > 0) {
+                    const kids = readStartEntries(full, depth - 1);
+                    if (kids.length) {
+                        out.push({
+                            kind: 'group', type: 'folder', name: child.name, path: full,
+                            icon: UIIcons.folder(child.name, 22),
+                            open: () => openFolder(full),
+                            children: kids
+                        });
+                    }
+                }
+                continue;
+            }
+            if (child.ext === 'lnk' && s) {
+                const data = s.readSync(full);
+                if (!data) continue;
+                const appId = s.appIdForShortcut(data);
+                const man = appId ? AppLoader.getManifest(appId) : null;
+                out.push({
+                    kind: 'item', type: 'shortcut', name: String(child.name).replace(/\.lnk$/i, ''),
+                    path: full, appId, manifest: man, data,
+                    icon: s.iconHtml(data, 22),
+                    open: () => s.open(full),
+                    location: s.shortcutLocation(data)
+                });
+                continue;
+            }
+            out.push({
+                kind: 'item', type: 'file', name: child.name, path: full,
+                icon: UIIcons.file(child.ext, child.name, 22),
+                open: () => openFilePath(full)
+            });
+        }
+        out.sort((a, b) => {
+            if (a.kind !== b.kind) return a.kind === 'group' ? -1 : 1;
+            return a.name.localeCompare(b.name);
+        });
+        return out;
+    }
+
+    function renderAllApps(drawer) {
+        const entries = readStartEntries(startMenuDir(), 5);
+        if (entries.length === 0) {
+            const empty = document.createElement('div');
+            empty.style.cssText = 'padding:28px;text-align:center;color:var(--text-secondary);font-size:13px;';
+            empty.textContent = 'No apps in the Start Menu folder';
+            drawer.appendChild(empty);
+            return;
+        }
         const letters = {};
-        filteredApps.forEach(app => {
-            const letter = app.name[0].toUpperCase();
+        entries.forEach(entry => {
+            const letter = String(entry.name || '#').charAt(0).toUpperCase() || '#';
             if (!letters[letter]) letters[letter] = [];
-            letters[letter].push(app);
+            letters[letter].push(entry);
         });
-
         Object.keys(letters).sort().forEach(letter => {
             const letterEl = document.createElement('div');
             letterEl.style.cssText = 'font-size:13px;font-weight:600;color:var(--accent-color);padding:8px 4px 4px;';
             letterEl.textContent = letter;
             drawer.appendChild(letterEl);
-
-            letters[letter].forEach(app => {
-                const meta = AppMetadata.get(app.id);
-                const el = document.createElement('div');
-                el.className = 'app-item';
-                el.style.cssText = 'display:flex;align-items:center;gap:12px;padding:8px;border-radius:6px;cursor:pointer;transition:background 0.12s;';
-                el.innerHTML = `
-                    <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;">${meta.icon.replace('<svg', '<svg style="width:20px;height:20px"')}</div>
-                    <span style="font-size:13px;">${app.name}</span>
-                `;
-                el.addEventListener('mouseenter', () => el.style.background = 'var(--hover-bg)');
-                el.addEventListener('mouseleave', () => el.style.background = 'transparent');
-                el.addEventListener('click', () => {
-                    hide();
-                    UserActivity.trackAppOpen(app.id);
-                    launchApp(app.id);
-                    renderRecommended();
-                    showMainView();
-                });
-
-                el.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const pinned = isPinned(app.id);
-                    const taskbarPinned = Taskbar.isPinned(app.id);
-                    const isUserApp = isStoreApp(app.id);
-                    const items = [
-                        { label: app.name, icon: '', disabled: true },
-                        'separator',
-                        pinned
-                            ? { label: 'Unpin from Start', icon: UIIcons.action('unpin'), action: () => { unpinApp(app.id); showAllApps(); } }
-                            : { label: 'Pin to Start', icon: UIIcons.action('pin'), action: () => { pinApp(app.id); showAllApps(); } },
-                        taskbarPinned
-                            ? { label: 'Unpin from taskbar', icon: UIIcons.action('unpin'), action: () => Taskbar.unpinApp(app.id) }
-                            : { label: 'Pin to taskbar', icon: UIIcons.action('pin'), action: () => Taskbar.pinApp(app.id) },
-                        ...(isUserApp ? [
-                            'separator',
-                            { label: 'Uninstall', icon: UIIcons.action('uninstall'), action: () => { AppSystem.uninstallApp(app.id); showAllApps(); } }
-                        ] : [])
-                    ];
-                    if (window._modules && window._modules.ContextMenu) {
-                        window._modules.ContextMenu.show(e.clientX, e.clientY, items);
-                    }
-                });
-
-                drawer.appendChild(el);
-            });
+            letters[letter].forEach(entry => renderStartEntry(drawer, entry));
         });
+    }
+
+    function renderStartEntry(container, entry) {
+        const el = document.createElement('div');
+        el.className = 'app-item';
+        el.style.cssText = 'display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:6px;cursor:pointer;transition:background 0.12s;';
+        const icon = `<div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${entry.icon || ''}</div>`;
+        if (entry.kind === 'group') {
+            el.innerHTML = `${icon}<span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(entry.name)}</span><span class="start-group-chevron" style="font-size:10px;color:var(--text-secondary);transition:transform 0.15s;">&#9654;</span>`;
+            const kids = document.createElement('div');
+            kids.style.cssText = 'display:none;margin-left:14px;padding-left:8px;border-left:1px solid var(--window-border);';
+            entry.children.forEach(child => renderStartEntry(kids, child));
+            el.addEventListener('mouseenter', () => el.style.background = 'var(--hover-bg)');
+            el.addEventListener('mouseleave', () => el.style.background = 'transparent');
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const open = kids.style.display === 'none';
+                kids.style.display = open ? 'block' : 'none';
+                const chev = el.querySelector('.start-group-chevron');
+                if (chev) chev.style.transform = open ? 'rotate(90deg)' : '';
+            });
+            el.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                showEntryMenu(e, entry);
+            });
+            container.appendChild(el);
+            container.appendChild(kids);
+            return;
+        }
+
+        el.innerHTML = `${icon}<span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(entry.name)}</span>`;
+        el.addEventListener('mouseenter', () => el.style.background = 'var(--hover-bg)');
+        el.addEventListener('mouseleave', () => el.style.background = 'transparent');
+        el.addEventListener('click', () => launchEntry(entry));
+        el.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showEntryMenu(e, entry);
+        });
+        container.appendChild(el);
+    }
+
+    function launchEntry(entry) {
+        hide();
+        if (entry.appId) {
+            try { UserActivity.trackAppOpen(entry.appId); } catch { /* noop */ }
+        } else if (entry.type === 'file') {
+            try { UserActivity.trackFileOpen(entry.path, entry.name); } catch { /* noop */ }
+        }
+        try {
+            const result = entry.open();
+            if (result && typeof result.catch === 'function') result.catch(() => {});
+        } catch { /* the crash monitor reports launch failures */ }
+        renderRecommended();
+        showMainView();
+    }
+
+    function showEntryMenu(e, entry) {
+        const ContextMenu = window._modules && window._modules.ContextMenu;
+        if (!ContextMenu) return;
+        const items = [
+            { label: entry.name, icon: '', disabled: true },
+            'separator',
+            { label: entry.kind === 'group' ? 'Open' : 'Open', icon: UIIcons.action('open'), action: () => {
+                if (entry.kind === 'group') openFolder(entry.path);
+                else launchEntry(entry);
+            } }
+        ];
+
+        if (entry.type === 'appFolder') {
+            items.push({ label: 'Open folder', icon: UIIcons.folder('', 16), action: () => openFolder(entry.path) });
+        }
+
+        if (entry.appId && AppLoader.isLaunchable(entry.appId)) {
+            const pinned = isPinned(entry.appId);
+            const taskbarPinned = Taskbar.isPinned(entry.appId);
+            items.push('separator');
+            items.push(pinned
+                ? { label: 'Unpin from Start', icon: UIIcons.action('unpin'), action: () => { unpinApp(entry.appId); if (currentView === 'allApps') showAllApps(); } }
+                : { label: 'Pin to Start', icon: UIIcons.action('pin'), action: () => { pinApp(entry.appId); if (currentView === 'allApps') showAllApps(); } });
+            items.push(taskbarPinned
+                ? { label: 'Unpin from taskbar', icon: UIIcons.action('unpin'), action: () => Taskbar.unpinApp(entry.appId) }
+                : { label: 'Pin to taskbar', icon: UIIcons.action('pin'), action: () => Taskbar.pinApp(entry.appId) });
+        } else if (entry.kind === 'item') {
+            items.push({ label: 'Pin to taskbar', icon: UIIcons.action('pin'), action: () => Taskbar.pinEntry(entry.path, { name: entry.name, appId: entry.appId }) });
+        }
+
+        const location = entry.type === 'shortcut' ? entry.location
+            : (entry.type === 'file' ? entry.path.slice(0, -1) : null);
+        if (location) {
+            items.push({ label: 'Open file location', icon: UIIcons.folder('', 16), action: () => openFolder(location) });
+        }
+        if (entry.type === 'shortcut') {
+            items.push('separator');
+            items.push({ label: 'Properties', icon: UIIcons.action('properties'), action: () => shortcutsApi() && shortcutsApi().properties(entry.path) });
+        }
+        if (entry.appId && isStoreApp(entry.appId) && AppSystem.getInstalledApps().includes(entry.appId)) {
+            items.push('separator');
+            items.push({ label: 'Uninstall', icon: UIIcons.action('uninstall'), action: () => AppSystem.uninstallApp(entry.appId) });
+        }
+        ContextMenu.show(e.clientX, e.clientY, items);
     }
 
     function showMainView() {
@@ -542,6 +707,7 @@ const StartMenu = (() => {
     // identity, and reset the menu to its main view.
     function activate() {
         loadPinnedApps();
+        seedStartMenuOnce();
         if (sections && sections.length) showMainView();
         renderPinnedApps();
         renderRecommended();

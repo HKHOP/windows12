@@ -24,6 +24,8 @@ import AppIcons from './appIcons.js';
 import AppLoader from './appLoader.js';
 import Keyboard from './keyboard.js';
 import Users from './users.js';
+import AppBundles from './appBundles.js';
+import { DESTINATIONS, MANIFEST_DEFAULTS, normalizeConfig, mergeConfig, resolveCreate } from './shortcutConfig.js';
 
 const Shortcuts = (() => {
     const FORMAT = 'w12-lnk';
@@ -72,6 +74,66 @@ const Shortcuts = (() => {
     }
 
     // ---------- paths ----------
+
+    function homeDir(userId, sub) {
+        if (userId) {
+            try { return Users.homeFor(userId, sub); } catch { /* fall through */ }
+        }
+        return Users.home(sub);
+    }
+
+    function startMenuDir(userId) {
+        return homeDir(userId, ['AppData', 'Roaming', 'Microsoft', 'Windows', 'Start Menu', 'Programs']);
+    }
+
+    function taskbarDir(userId) {
+        return homeDir(userId, ['AppData', 'Roaming', 'Microsoft', 'Internet Explorer', 'Quick Launch', 'User Pinned', 'TaskBar']);
+    }
+
+    function desktopDir(userId) {
+        return homeDir(userId, ['Desktop']);
+    }
+
+    function destinationDir(destination, userId) {
+        if (destination === 'startMenu') return startMenuDir(userId);
+        if (destination === 'taskbar') return taskbarDir(userId);
+        if (destination === 'desktop') return desktopDir(userId);
+        return null;
+    }
+
+    function ensureFolder(path) {
+        if (!Array.isArray(path) || path.length === 0) return false;
+        try {
+            for (let i = 1; i < path.length; i++) {
+                const partial = path.slice(0, i + 1);
+                if (shell(() => FileSystem.itemExists(partial))) continue;
+                const parent = path.slice(0, i);
+                shell(() => FileSystem.createFolder(parent, path[i]));
+            }
+            return shell(() => FileSystem.isFolder(path));
+        } catch { return false; }
+    }
+
+    function readJson(path, fallback = null) {
+        try {
+            const raw = shell(() => FileSystem.readFile(path));
+            if (raw == null) return fallback;
+            return JSON.parse(raw);
+        } catch { return fallback; }
+    }
+
+    function writeJson(path, value) {
+        try {
+            if (!Array.isArray(path) || path.length < 2) return false;
+            ensureFolder(path.slice(0, -1));
+            const json = JSON.stringify(value, null, 2);
+            if (shell(() => FileSystem.itemExists(path))) {
+                return !!shell(() => FileSystem.writeFile(path, json));
+            }
+            const parent = path.slice(0, -1);
+            return !!shell(() => FileSystem.createFile(parent, path[path.length - 1], json, 'json'));
+        } catch { return false; }
+    }
 
     function formatPath(path) {
         if (!Array.isArray(path)) return String(path || '');
@@ -145,6 +207,10 @@ const Shortcuts = (() => {
             icon: data.icon && typeof data.icon === 'object' ? data.icon : { kind: 'target' },
             created: data.created || new Date().toISOString()
         };
+        if (data.source && typeof data.source === 'object') {
+            const kind = ['installer', 'system', 'user'].includes(data.source.kind) ? data.source.kind : 'user';
+            out.source = { kind, appId: data.source.appId ? String(data.source.appId) : null };
+        }
         if (out.type === 'file' || out.type === 'folder') {
             if (!Array.isArray(out.target) || out.target.length === 0) return null;
             out.target = out.target.slice();
@@ -190,7 +256,12 @@ const Shortcuts = (() => {
 
     function write(path, data) {
         try {
-            return shell(() => FileSystem.writeFile(path, serialize(data)));
+            const json = serialize(data);
+            if (shell(() => FileSystem.itemExists(path))) {
+                return !!shell(() => FileSystem.writeFile(path, json));
+            }
+            if (!Array.isArray(path) || path.length < 2) return false;
+            return !!shell(() => FileSystem.createFile(path.slice(0, -1), path[path.length - 1], json, 'lnk'));
         } catch { return false; }
     }
 
@@ -291,6 +362,8 @@ const Shortcuts = (() => {
         if (data.type === 'url') return appIconHtml('browser', size);
         if (data.type === 'app') return appIconHtml(data.target, size);
         if (data.type === 'folder') {
+            const man = AppBundles.manifestForFolder(data.target);
+            if (man) return AppBundles.iconHtml(data.target, man, size);
             const name = data.target && data.target[data.target.length - 1];
             return UIIcons.folder(name || '', size);
         }
@@ -298,14 +371,14 @@ const Shortcuts = (() => {
         return UIIcons.file(extOf(name), name, size);
     }
 
-    function iconHtml(data, size = 32) {
+    function iconHtml(data, size = 32, options = {}) {
         const icon = data && data.icon;
         let inner;
         if (icon && icon.kind === 'app' && icon.id) inner = appIconHtml(icon.id, size);
         else if (icon && icon.kind === 'builtin' && icon.name) {
             inner = UIIcons.get(icon.name, size) || UIIcons.files.generic(size);
         } else inner = targetIconHtml(data, size);
-        return withArrow(inner, size);
+        return options.arrow === false ? inner : withArrow(inner, size);
     }
 
     function iconForPath(path, size = 32) {
@@ -392,6 +465,8 @@ const Shortcuts = (() => {
             return openData(inner, data.target, depth + 1);
         }
         if (data.type === 'folder') {
+            const man = AppBundles.manifestForFolder(data.target);
+            if (man) return !!(await AppBundles.launchFolder(data.target, man));
             const popped = await AppLoader.launch('fileExplorer', { path: data.target });
             return !!popped;
         }
@@ -467,8 +542,9 @@ const Shortcuts = (() => {
         if (!wired) return;
         const out = [];
         const roots = [
-            Users.home(['Desktop']),
-            Users.home(['Start Menu'])
+            desktopDir(),
+            startMenuDir(),
+            taskbarDir()
         ];
         const visited = new Set();
         roots.forEach(root => {
@@ -1110,6 +1186,194 @@ const Shortcuts = (() => {
         });
     }
 
+    // ---------- app shortcuts / shell folders ----------
+
+    function listShortcutFiles(destination, userId) {
+        const dir = destinationDir(destination, userId);
+        if (!dir) return [];
+        const out = [];
+        const walk = (d, depth) => {
+            if (depth < 0) return;
+            let children = [];
+            try { children = shell(() => FileSystem.getChildren(d)) || []; } catch { return; }
+            for (const child of children) {
+                const full = [...d, child.name];
+                if (child.type === 'folder') {
+                    if (destination === 'startMenu') walk(full, depth - 1);
+                } else if (child.ext === 'lnk') {
+                    out.push(full);
+                }
+            }
+        };
+        walk(dir, destination === 'startMenu' ? 6 : 0);
+        return out;
+    }
+
+    function managedShortcut(path, appId) {
+        const data = readSync(path);
+        if (!data || !data.source || !data.source.appId) return null;
+        if (data.source.appId !== appId) return null;
+        if (!['installer', 'system'].includes(data.source.kind)) return null;
+        return data;
+    }
+
+    function findManagedShortcut(destination, appId, userId) {
+        for (const path of listShortcutFiles(destination, userId)) {
+            if (managedShortcut(path, appId)) return path;
+        }
+        return null;
+    }
+
+    function appShortcutConfig(manifest, installer) {
+        try {
+            return mergeConfig(
+                normalizeConfig(manifest && manifest.shortcuts, MANIFEST_DEFAULTS),
+                installer ? normalizeConfig(installer.shortcuts, null) : null
+            );
+        } catch {
+            return normalizeConfig(undefined, MANIFEST_DEFAULTS);
+        }
+    }
+
+    function appIdForShortcut(data) {
+        if (!data) return null;
+        if (data.type === 'app') return data.target;
+        if (data.type === 'folder') {
+            const man = AppBundles.manifestForFolder(data.target);
+            return man ? man.id : null;
+        }
+        return null;
+    }
+
+    function shortcutLocation(data) {
+        if (!data) return null;
+        if (data.type === 'folder' && Array.isArray(data.target)) return data.target.slice();
+        if (data.type === 'file' && Array.isArray(data.target) && data.target.length > 1) {
+            return data.target.slice(0, -1);
+        }
+        return null;
+    }
+
+    function createAppShortcut(appId, destination, options = {}) {
+        if (!DESTINATIONS.includes(destination)) return null;
+        const man = options.manifest || AppLoader.getManifest(appId) || { id: appId, name: appId };
+        if (man.service === true) return null;
+        const cfg = appShortcutConfig(man, options.installer);
+        const destCfg = cfg[destination] || {};
+        const shouldCreate = options.create !== undefined
+            ? !!options.create
+            : resolveCreate(cfg, options.selection || null)[destination];
+        if (!shouldCreate) {
+            const explicitFalse = options.selection && options.selection[destination] === false;
+            if (explicitFalse) {
+                const existing = findManagedShortcut(destination, appId, options.userId);
+                if (existing) deleteShortcut(existing);
+            }
+            return null;
+        }
+
+        const dir = destinationDir(destination, options.userId);
+        if (!dir) return null;
+        ensureFolder(dir);
+
+        const data = {
+            format: FORMAT,
+            version: VERSION,
+            type: 'app',
+            target: appId,
+            arguments: destCfg.arguments || '',
+            startIn: Array.isArray(destCfg.startIn) ? destCfg.startIn.slice() : null,
+            comment: destCfg.comment || '',
+            run: RUN_STATES.includes(destCfg.run) ? destCfg.run : 'normal',
+            hotkey: destCfg.hotkey || null,
+            icon: destCfg.icon || { kind: 'target' },
+            source: options.source || { kind: 'installer', appId },
+            created: new Date().toISOString()
+        };
+        const name = String(options.name || destCfg.name || man.name || appId).replace(/\.lnk$/i, '');
+
+        const existing = findManagedShortcut(destination, appId, options.userId);
+        if (existing) {
+            const old = readSync(existing);
+            if (old && old.created) data.created = old.created;
+            if (!write(existing, data)) return null;
+            const wanted = `${sanitizeName(name)}.lnk`;
+            if (existing[existing.length - 1] !== wanted &&
+                !shell(() => FileSystem.itemExists([...dir, wanted]))) {
+                if (shell(() => FileSystem.renameItem(existing, wanted))) {
+                    notifyChanged();
+                    return [...dir, wanted];
+                }
+            }
+            notifyChanged();
+            return existing;
+        }
+        return create(dir, data, { name });
+    }
+
+    function onAppInstalled(appId, manifest, options = {}) {
+        const man = manifest || AppLoader.getManifest(appId);
+        if (!man || man.service === true) return;
+        const selection = options.selection || null;
+        const cfg = appShortcutConfig(man, options.installer);
+        const shouldCreate = resolveCreate(cfg, selection);
+        for (const dest of DESTINATIONS) {
+            createAppShortcut(appId, dest, {
+                manifest: man,
+                installer: options.installer,
+                selection,
+                create: shouldCreate[dest],
+                source: { kind: 'installer', appId },
+                userId: options.userId
+            });
+        }
+    }
+
+    function removeAppShortcuts(appId, userId) {
+        let removed = 0;
+        for (const dest of DESTINATIONS) {
+            for (const path of listShortcutFiles(dest, userId)) {
+                if (managedShortcut(path, appId)) {
+                    if (deleteShortcut(path)) removed++;
+                }
+            }
+        }
+        return removed;
+    }
+
+    function pinToTaskbar(sourcePath, options = {}) {
+        if (!Array.isArray(sourcePath) || sourcePath.length === 0) return null;
+        const dir = taskbarDir(options.userId);
+        ensureFolder(dir);
+        const name = options.name || baseName(sourcePath[sourcePath.length - 1]);
+        let data;
+        if (isShortcutPath(sourcePath)) {
+            const inner = readSync(sourcePath);
+            if (!inner) return null;
+            data = { ...inner, source: { kind: 'user', appId: appIdForShortcut(inner) } };
+        } else {
+            const isDir = shell(() => FileSystem.isFolder(sourcePath));
+            const man = isDir ? AppBundles.manifestForFolder(sourcePath) : null;
+            data = {
+                format: FORMAT,
+                version: VERSION,
+                type: isDir ? 'folder' : 'file',
+                target: sourcePath.slice(),
+                icon: { kind: 'target' },
+                source: { kind: 'user', appId: man ? man.id : null },
+                created: new Date().toISOString()
+            };
+        }
+        const targetAppId = appIdForShortcut(data);
+        if (targetAppId) {
+            for (const path of listShortcutFiles('taskbar', options.userId)) {
+                const existing = readSync(path);
+                if (existing && appIdForShortcut(existing) === targetAppId) return path;
+            }
+        }
+        return create(dir, data, { name: options.name || baseName(sourcePath[sourcePath.length - 1]) || name });
+    }
+
     // ---------- lifecycle ----------
 
     function init() {
@@ -1134,6 +1398,11 @@ const Shortcuts = (() => {
         open, wizard, createForPath, properties,
         iconHtml, iconForPath, quickInfo, targetLabel, defaultName, targetExists,
         formatPath, parsePath, normalizeUrl, normalizeHotkey,
+        startMenuDir, taskbarDir, desktopDir, destinationDir,
+        ensureFolder, readJson, writeJson,
+        listShortcutFiles, appIdForShortcut, shortcutLocation,
+        createAppShortcut, onAppInstalled, onAppUninstalled: removeAppShortcuts,
+        removeAppShortcuts, pinToTaskbar, appShortcutConfig,
         refreshHotkeys
     };
 })();

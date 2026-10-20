@@ -11,6 +11,7 @@ import Scaling from './scaling.js';
 import Sounds from './sounds.js';
 import Users from './users.js';
 import Shortcuts from './shortcuts.js';
+import AppBundles from './appBundles.js';
 
 const DesktopIcons = (() => {
     // Desktop and its icon layout are per-user.
@@ -414,10 +415,12 @@ const DesktopIcons = (() => {
             `;
 
             const isDir = entry.type === 'folder';
+            const fullPath = [...desktopPath(), entry.name];
+            const appManifest = isDir ? AppBundles.manifestForFolder(fullPath) : null;
             const icon = isDir
-                ? getFolderIcon(entry.name)
+                ? (appManifest ? AppBundles.iconHtml(fullPath, appManifest, 36) : getFolderIcon(entry.name))
                 : ((entry.ext || '').toLowerCase() === 'lnk'
-                    ? Shortcuts.iconForPath([...desktopPath(), entry.name], 36)
+                    ? Shortcuts.iconForPath(fullPath, 36)
                     : getFileIcon(entry.ext));
 
             el.innerHTML = `
@@ -445,8 +448,14 @@ const DesktopIcons = (() => {
                     let ent = entries.find(x => x.name === n);
                     if (!ent && n === entry.name) ent = entry;
                     if (!ent) return;
-                    if (ent.type === 'folder') openFolderInExplorer([...desktopPath(), n]);
-                    else openFile([...desktopPath(), n]);
+                    const path = [...desktopPath(), n];
+                    if (ent.type === 'folder') {
+                        const man = AppBundles.manifestForFolder(path);
+                        if (man) AppBundles.launchFolder(path, man).catch(() => {});
+                        else openFolderInExplorer(path);
+                    } else {
+                        openFile(path);
+                    }
                 });
             });
 
@@ -497,6 +506,7 @@ const DesktopIcons = (() => {
             return;
         }
         const isDir = entry.type === 'folder';
+        const appManifest = isDir ? AppBundles.manifestForFolder(itemPath) : null;
         const isLnk = !isDir && String(entry.ext || '').toLowerCase() === 'lnk';
         const isImage = !isDir && ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'].includes(String(entry.ext || '').toLowerCase());
         const lnk = isLnk ? Shortcuts.quickInfo(itemPath) : null;
@@ -505,6 +515,13 @@ const DesktopIcons = (() => {
             : null;
         const createShortcut = { label: 'Create shortcut', icon: UIIcons.action('shortcut'), action: () => Shortcuts.createForPath(itemPath, desktopPath()) };
         const items = isDir ? [
+            ...(appManifest ? [
+                { label: 'Run app', icon: UIIcons.action('open'), action: () => AppBundles.launchFolder(itemPath, appManifest).catch(() => {}) },
+                { label: 'Pin to taskbar', icon: UIIcons.action('pin'), action: () => {
+                    const t = window._modules && window._modules.Taskbar;
+                    if (t) t.pinEntry(itemPath, { name: appManifest.name, appId: appManifest.id });
+                } }
+            ] : []),
             { label: 'Open', icon: UIIcons.action('open'), action: () => openFolderInExplorer(itemPath) },
             createShortcut,
             'separator',
@@ -545,8 +562,14 @@ const DesktopIcons = (() => {
         [...selected].filter(n => n !== '$Recycle.Bin').forEach(n => {
             const ent = byName.get(n);
             if (!ent) return;
-            if (ent.type === 'folder') openFolderInExplorer([...desktopPath(), n]);
-            else openFile([...desktopPath(), n]);
+            const path = [...desktopPath(), n];
+            if (ent.type === 'folder') {
+                const man = AppBundles.manifestForFolder(path);
+                if (man) AppBundles.launchFolder(path, man).catch(() => {});
+                else openFolderInExplorer(path);
+            } else {
+                openFile(path);
+            }
         });
     }
 
