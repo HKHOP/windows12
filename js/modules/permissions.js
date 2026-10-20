@@ -19,14 +19,17 @@
 //                 build-registry materializes either into manifest.background.
 //   microphone    getUserMedia audio ("Use your microphone")
 //   camera        getUserMedia video ("Use your camera")
+//   registry      read+write the Windows registry ("Change system settings")
 //
 // Trust model (honest): undeclared capabilities fail open at the generic
 // level (legacy back-compat), but declared permissions are enforced —
-// notifications at the Notifications choke point, and filesystem via
+// notifications at the Notifications choke point, filesystem via
 // FSGuard: an app may always touch its own AppData folders, while anything
 // outside them requires the 'filesystem' permission (revocable in
 // Settings > Apps). Apps that don't declare it get a one-time runtime
-// consent dialog instead (see requestFsAccess).
+// consent dialog instead (see requestFsAccess). The registry follows the
+// same rule: an app may always use its own key
+// (HKCU\Software\<its id>), anything else needs 'registry'.
 import AppLoader from './appLoader.js';
 import FileSystem from './fileSystem.js';
 import Popup from './popup.js';
@@ -39,6 +42,7 @@ const Permissions = (() => {
     const GLOBE_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3z"/></svg>';
     const MIC_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg>';
     const CAMERA_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="6" width="13" height="12" rx="2"/><path d="M15 10l7-3v10l-7-3" stroke-linejoin="round"/></svg>';
+    const REGISTRY_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="5" rx="1"/><rect x="3" y="10" width="18" height="5" rx="1"/><rect x="3" y="17" width="18" height="4" rx="1"/><path d="M6 5.5h.01M6 12.5h.01M6 19h.01" stroke-linecap="round" stroke-width="2.2"/></svg>';
 
     const CATALOG = {
         filesystem: {
@@ -75,6 +79,11 @@ const Permissions = (() => {
             label: 'Use your camera',
             description: 'Take pictures and scan codes',
             icon: () => CAMERA_SVG
+        },
+        registry: {
+            label: 'Change system settings',
+            description: 'Read and write the Windows registry',
+            icon: () => REGISTRY_SVG
         }
     };
 

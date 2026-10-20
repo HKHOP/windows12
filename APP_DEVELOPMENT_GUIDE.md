@@ -47,7 +47,7 @@ Minimal `manifest.json` for a builtin app:
 }
 ```
 
-Known permissions: `filesystem` (virtual files), `notifications` (toasts + panel), `network` (fetch + remote embeds), `clipboard` (read copies), `background` (headless execution — equals the `"background": true` flag, so declare one or the other), `microphone` (audio capture via `app.media`), `camera` (video capture via `app.media`). `scripts/build-registry.js` rejects unknown names.
+Known permissions: `filesystem` (virtual files), `notifications` (toasts + panel), `network` (fetch + remote embeds), `clipboard` (read copies), `background` (headless execution - equals the `"background": true` flag, so declare one or the other), `microphone` (audio capture via `app.media`), `camera` (video capture via `app.media`), `registry` (read + write the Windows registry, see §9.5). `scripts/build-registry.js` rejects unknown names.
 
 Store apps show their permissions on the Store page, install asks for consent, and users can revoke per app in Settings > Apps (a revoked `notifications` permission blocks that app's toasts). Builtins are first-party and always granted. Check at runtime with `Permissions.isGranted(appId, perm)` (see §24).
 
@@ -625,6 +625,71 @@ el.addEventListener('contextmenu', (e) => {
 | `SystemConfig.set(key, value)` | Set a value and apply |
 
 **Common keys:** `accentColor`, `backgroundStyle`, `taskbarOpacity`, `userName`, `darkMode`, `masterVolume`, `scaling`
+
+---
+
+## 9.5 Registry
+
+**Import:** `import { Registry } from '../../sdk/index.js';` — or, inside an app, `app.registry`.
+
+The registry is the machine's settings database, Windows style: **hives** → **keys** → **values**.
+
+| Hive | Short | Holds |
+|------|-------|-------|
+| `HKEY_LOCAL_MACHINE` | `HKLM` | machine-wide settings and the app registrations |
+| `HKEY_CURRENT_USER` | `HKCU` | the current profile's settings |
+| `HKEY_CLASSES_ROOT` | `HKCR` | file types and their handlers |
+| `HKEY_USERS` | `HKU` | every profile's hive |
+| `HKEY_CURRENT_CONFIG` | `HKCC` | the display/hardware configuration |
+
+Paths are Windows style (`'HKLM\\Software\\Windows 12'`), the hive may be
+written short or long, and the registry is **case insensitive**.
+
+**Value kinds:** `REG_SZ`, `REG_EXPAND_SZ`, `REG_MULTI_SZ`, `REG_DWORD`,
+`REG_QWORD`, `REG_BINARY`.
+
+| Method | Description |
+|--------|-------------|
+| `Registry.key(path)` | Everything about a key: its values, subkeys, timestamps |
+| `Registry.keys(path)` | The subkey names |
+| `Registry.values(path)` | The values: `[{ name, kind, data, modified }]` |
+| `Registry.get(path, name?)` | One value (`'(Default)'` when the name is omitted) |
+| `Registry.getString(path, name?, fallback?)` | A value as a string |
+| `Registry.set(path, name, kind, data)` | Write a value (creating the key) |
+| `Registry.createKey(path)` | Create a key and its missing parents |
+| `Registry.deleteKey(path)` | Delete a key and everything under it |
+| `Registry.deleteValue(path, name)` | Delete one value |
+| `Registry.renameKey(path, newName)` | Rename a key |
+| `Registry.renameValue(path, name, newName)` | Rename a value |
+| `Registry.exportKey(path)` | A key as a `.reg` file (Windows text format) |
+| `Registry.importKey(text)` | Import a `.reg` file |
+| `Registry.search(term)` | Search keys and values |
+| `Registry.apps()` | The apps registered on this machine |
+| `app.registry.ownKey()` | The app's own key, `HKCU\Software\<its id>` |
+
+**Permissions.** An app may always use **its own key**
+(`HKCU\Software\<its id>`). Any other key needs the **`registry`**
+permission in the manifest:
+
+```json
+{ "permissions": ["registry"] }
+```
+
+Without it, writes to other keys are refused (and reads outside the app's own
+key too). The permission is revocable in **Settings > Apps**.
+
+**The built-in Registry Editor** (`regedit`) shows the whole thing: the hive
+tree on the left, the values (Name / Type / Data) on the right, the key path in
+the status bar, and File / Edit / View / Help menus. It can import and export
+`.reg` files.
+
+```js
+import { createApp } from '../../sdk/index.js';
+
+const app = createApp({ id: 'myApp', name: 'My App' });
+app.registry.set('HKCU\\Software\\MyApp', 'Theme', 'REG_SZ', 'dark');
+const theme = app.registry.getString('HKCU\\Software\\MyApp', 'Theme', 'light');
+```
 
 ---
 

@@ -54,20 +54,25 @@ const StartMenu = (() => {
         if (!s) return;
         const marker = Users.userData(['startmenu', 'folders.json']);
         const state = s.readJson(marker, null) || {};
-        if (state.startSeeded) return;
+        // The apps that were seeded. A new app (one that arrived with an OS
+        // update) still gets its shortcut, but a shortcut the user deleted
+        // stays deleted.
+        const seeded = new Set(Array.isArray(state.seededApps) ? state.seededApps : []);
         s.ensureFolder(startMenuDir());
         let all = [];
         try { all = AppLoader.getAll(); } catch { return; }
         for (const man of all) {
+            if (seeded.has(man.id)) continue;
             try {
                 if (AppLoader.isService(man.id) || !AppLoader.isLaunchable(man.id)) continue;
                 s.createAppShortcut(man.id, 'startMenu', {
                     manifest: man,
                     source: { kind: 'system', appId: man.id }
                 });
+                seeded.add(man.id);
             } catch { /* skip an unreadable manifest */ }
         }
-        s.writeJson(marker, { ...state, startSeeded: true });
+        s.writeJson(marker, { ...state, startSeeded: true, seededApps: [...seeded] });
     }
 
     function isStoreApp(appId) {

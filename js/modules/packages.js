@@ -19,6 +19,7 @@ import Users from './users.js';
 import UAC from './uac.js';
 import OpfsClient from './opfsClient.js';
 import Zip from './zip.js';
+import Registry from './registry.js';
 import { notifyTreeChanged } from './treeNotify.js';
 import { APP_MANIFESTS } from '../apps/registry.js';
 import { normalizeConfig, DESTINATIONS } from './shortcutConfig.js';
@@ -146,6 +147,20 @@ const Packages = (() => {
                 const dir = [...uroot, c.name];
                 installed.set(c.name, { id: c.name, scope: 'user', user: uid, path: dir, manifest: readManifest(dir) });
             }
+        }
+        // Record every app in the registry, so the catalog knows about the
+        // apps that live in a folder nobody chose as well.
+        for (const rec of installed.values()) {
+            if (!rec.manifest) continue;
+            try {
+                Registry.registerApp(rec.id, {
+                    path: rec.path ? rec.path.filter(p => p !== '/').join('\\') : '',
+                    version: rec.manifest.version || '',
+                    name: rec.manifest.name || rec.id,
+                    scope: rec.scope,
+                    user: rec.scope === 'user' ? rec.user : null
+                });
+            } catch (e) { /* the registry is optional */ }
         }
     }
 
@@ -743,6 +758,17 @@ const Packages = (() => {
             window.dispatchEvent(new CustomEvent('apps-changed', {
                 detail: { installed: man.id, updated: !!rec }
             }));
+            // The app is registered in the registry, which is what makes it
+            // findable no matter which folder it was installed into.
+            try {
+                Registry.registerApp(man.id, {
+                    path: target.filter(p => p !== '/').join('\\'),
+                    version: man.version || '',
+                    name: man.name || man.id,
+                    scope: selection.scope,
+                    user: selection.scope === 'user' ? uid : null
+                });
+            } catch (e) { /* the registry is optional */ }
             try {
                 const shortcuts = window._Shortcuts;
                 if (shortcuts) {
@@ -874,6 +900,7 @@ const Packages = (() => {
             }
         }
         installed.delete(id);
+        try { Registry.unregisterApp(id); } catch (e) { /* the registry is optional */ }
         await FileSystem.flushAsync();
         writeSession();
         window.dispatchEvent(new CustomEvent('apps-changed'));

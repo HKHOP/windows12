@@ -36,6 +36,38 @@ the operating system itself. Run them from the repository root:
 | `node scripts/test/boot.smoke.mjs` | a real browser: install → restart → boot → launch an app → boot again offline |
 | `node scripts/test/update.smoke.mjs` | a real browser: the install/update prompts appear exactly when they should |
 
+### The registry
+
+The registry (`js/modules/registry.js`) is the machine's settings database,
+Windows style: **HIVES** → **KEYS** → **VALUES**.
+
+| Hive | Short | Holds |
+|------|-------|-------|
+| `HKEY_LOCAL_MACHINE` | HKLM | machine-wide settings and the app registrations |
+| `HKEY_CURRENT_USER` | HKCU | the current profile's settings |
+| `HKEY_CLASSES_ROOT` | HKCR | file types and their handlers |
+| `HKEY_USERS` | HKU | every profile's hive |
+| `HKEY_CURRENT_CONFIG` | HKCC | the display/hardware configuration |
+
+Paths are Windows style (`'HKLM\\Software\\Windows 12'`), the hive may be
+written short or long, and **the registry is case insensitive** - a key is
+found whatever case it is written in.
+
+- The store is `/system/registry/registry.json`, which is **OS-only**
+  (`fsGuard`'s `OS_ONLY_PREFIXES`): apps reach it through the module and the
+  SDK, never through the filesystem.
+- **The app registrations live here**: `HKLM\Software\Windows 12\Apps\<id>`
+  (and `HKU\<user>\Software\Windows 12\Apps\<id>` for a per-user install)
+  holds the app's `Path`, `Version`, `DisplayName` and `Scope`. That is what
+  makes an app findable **whatever folder it was installed into** - the
+  catalog is built from the registry, not from a scan of two fixed roots.
+- The **Registry Editor** (`js/apps/regedit/`) is the built-in editor: the
+  hive tree on the left, the values (Name / Type / Data) on the right, the
+  key path in the status bar, and File / Edit / View / Help menus.
+- An app may always use **its own key**, `HKCU\Software\<its id>`. Any other
+  key needs the **`registry` permission** (a new permission id, revocable in
+  Settings > Apps).
+
 ### An app IS a folder
 
 There is no separate "installed app" concept. **An app is a folder** in the
@@ -151,7 +183,10 @@ browser  ──import /js/main.js──▶ sw.js (fetch)  ──read──▶─
 - `js/modules/popup.js` - Popup/dialog API (info, warn, error, confirm, pick, textbox, forum)
 - `js/modules/backgroundApps.js` - Headless execution: background apps + launchable-nowhere services (manifest `background`/`service`), autostart, `background-apps-changed` event
 - `js/modules/fsStorage.js` - Filesystem persistence: OPFS only (tree snapshot + blob files); the capability probe throws when OPFS is missing
-- `js/modules/coreStore.js` - Mirrors the installed OS core from OPFS into the read-only `\Windows` tree
+- `js/modules/coreStore.js` - Mirrors the installed OS core from OPFS into the read-only `\Windows` tree, and materializes the builtin apps as app folders under `\Program Files`
+- `js/modules/registry.js` - The registry (HKLM/HKCU/HKCR/HKU/HKCC, keys, values, .reg import/export) and the app registrations the catalog is built from
+- `js/modules/siteBase.js` - The site base URL and the app URL scheme (`/js/apps/<encoded folder>/…`)
+- `js/modules/treeNotify.js` - Tells the service worker that the filesystem changed, so it never serves a stale tree
 - `js/workers/opfsWorker.js` + `js/modules/opfsClient.js` - OPFS I/O through a dedicated worker (`createSyncAccessHandle`); required because Safari before 26 only exposes OPFS writes in workers
 
 - `js/modules/users.js` - Multi-user accounts at `/system/users/accounts.json`: `administrator` / `standard` types, per-user home + AppData roots, password hashing; `loadAccounts()` (read the store) is separate from `activate(id)` (make a profile current); `homeFor`/`appDataFor`/`userDataFor(id, …)` target an explicit profile

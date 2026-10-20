@@ -37,11 +37,12 @@ import { Audio } from './audio.js';
 import { Net } from './net.js';
 import { Inject } from './inject.js';
 import { Scripts } from './scripts.js';
+import { Registry } from './registry.js';
 import { SDKError, ErrorCodes } from './errors.js';
 import { Engine3D } from './engine3d/engine.js';
 
 /** SDK major contract version (semver, independent of the OS version). */
-const SDK_VERSION = '1.5.0';
+const SDK_VERSION = '1.6.0';
 
 const Windows12 = {
     SDK_VERSION,
@@ -71,6 +72,7 @@ const Windows12 = {
     Net,
     Inject,
     Scripts,
+    Registry,
     Engine3D,
     SDKError,
     ErrorCodes
@@ -102,6 +104,7 @@ export {
     Net,
     Inject,
     Scripts,
+    Registry,
     Engine3D,
     SDKError,
     ErrorCodes

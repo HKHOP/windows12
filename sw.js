@@ -40,11 +40,11 @@ const CACHE_NAME = 'w12-shell-v1';
 const SHELL_FILES = ['./', './index.html', './manifest.json', './favicon.svg', './js/apps/registry.js'];
 
 // >>> w12:core
-const CORE_VERSION = '14.0.0';
-const CORE_HASH = '357829fe913d9f7c';
+const CORE_VERSION = '15.0.0';
+const CORE_HASH = '8f282c369faaeb64';
 const CORE_PACKAGE = './w12-core.pkg';
-const CORE_FILE_COUNT = 170;
-const CORE_BYTES = 1737752;
+const CORE_FILE_COUNT = 175;
+const CORE_BYTES = 1753158;
 // <<< w12:core
 
 // >>> w12:apps-dist
@@ -80,6 +80,7 @@ const APP_DIST = {
     "pomodoro": "store",
     "powershell": "builtin",
     "qrStudio": "store",
+    "regedit": "builtin",
     "remoteDesktop": "builtin",
     "riftboundRunner": "store",
     "roblox": "store",

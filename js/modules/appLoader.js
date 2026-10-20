@@ -23,6 +23,7 @@ import FileAssociations from './fileAssociations.js';
 import AppIcons from './appIcons.js';
 import { APP_MANIFESTS } from '../apps/registry.js';
 import Packages from './packages.js';
+import Registry from './registry.js';
 import FileSystem from './fileSystem.js';
 import { fileUrl } from './siteBase.js';
 
@@ -114,28 +115,31 @@ const AppLoader = (() => {
         }
     }
 
-    // Rebuilds the catalog: the shipped registry plus every app folder on
-    // disk. An app that is not installed has no folder yet, so it is known
-    // (Start menu, Store) but not runnable.
+    // Rebuilds the catalog: the shipped registry plus every app the registry
+    // knows about. An app is in the catalog when it is registered in the
+    // Windows registry - which is true for the builtins (materialized at
+    // boot) and for every installed app, whatever folder it lives in.
     function refreshInstalled() {
         ensureMaps();
         const next = new Map();
         for (const m of APP_MANIFESTS) {
             next.set(m.id, { id: m.id, name: m.name, manifest: m, folderPath: null });
         }
-        let records = [];
-        try { records = Packages.getInstalled(); } catch (e) { records = []; }
-        for (const rec of records) {
+        let registered = [];
+        try { registered = Registry.registeredApps(); } catch (e) { registered = []; }
+        for (const rec of registered) {
             if (!rec || !rec.id) continue;
             const existing = next.get(rec.id);
-            const manifest = (existing && existing.manifest) || rec.manifest;
+            const manifest = (existing && existing.manifest) || null;
             next.set(rec.id, {
                 id: rec.id,
-                name: (manifest && manifest.name) || rec.id,
-                manifest: manifest || null,
-                folderPath: rec.path || (existing && existing.folderPath) || null
+                name: rec.name || (manifest && manifest.name) || rec.id,
+                manifest: manifest,
+                folderPath: rec.path ? rec.path.split('\\').filter(Boolean) : null
             });
         }
+        // Apps that were dropped into a folder by hand are not registered and
+        // therefore not in the catalog: you start them from their folder.
         catalog = next;
         refreshIcons();
     }

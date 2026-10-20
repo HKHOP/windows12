@@ -1,0 +1,11 @@
+{
+    "manifestVersion": 1,
+    "id": "regedit",
+    "uuid": "0b7d3f66-a716-4f50-aeaf-c6f4cef4e46f",
+    "name": "Registry Editor",
+    "version": "1.0.0",
+    "distribution": "builtin",
+    "entry": "main.js",
+    "associations": ["reg"],
+    "permissions": ["registry"]
+}

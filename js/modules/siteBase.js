@@ -34,3 +34,16 @@ export function fileUrl(folderPath, relative) {
 }
 
 export default SITE_BASE;
+
+// The app folder a URL belongs to.
+//
+// An app's code is served from '/js/apps/<encoded folder>/…', so the folder
+// can be recovered from any URL (or stack frame) that points at app code.
+export function folderFromUrl(url) {
+    const m = String(url || '').match(/\/js\/apps\/([^/]+)\//);
+    if (!m) return null;
+    let decoded;
+    try { decoded = decodeURIComponent(m[1]); } catch { return null; }
+    const parts = decoded.split('/').filter(Boolean);
+    return parts.length ? parts : null;
+}

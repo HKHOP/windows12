@@ -19,6 +19,8 @@
 // are OS-only: app access there is denied without a prompt.
 import Permissions from './permissions.js';
 import FileSystem from './fileSystem.js';
+import Registry from './registry.js';
+import { folderFromUrl } from './siteBase.js';
 
 const FSGuard = (() => {
     let activeApp = null;        // focus-tracked fallback attribution
@@ -30,6 +32,8 @@ const FSGuard = (() => {
         'system/users',
         'system/programs data/permissions',
         'system/programs data/display',
+        'system/programs data/fileAssociations',
+        'system/registry',
         'system/$Recycle.Bin',
         'system/config.json',
         'system/desktop-layout.json'
@@ -73,13 +77,22 @@ const FSGuard = (() => {
         };
     }
 
-    // Nearest app module on the stack: innermost `js/apps/<id>/` frame.
+    // Nearest app module on the stack: the app's own code, which is served
+    // from '/js/apps/<folder>/…'. The folder tells us the app (the registry
+    // knows which app lives in a folder of its own choosing).
     function stackApp() {
         let stack;
         try { stack = new Error().stack; } catch { return null; }
         if (!stack) return null;
-        const m = stack.match(/js[\/\\]apps[\/\\]([A-Za-z0-9]+)[\/\\]/);
-        return m ? m[1] : null;
+        const m = stack.match(/js[\/\\]apps[\/\\]([^"')\s]+)[\/\\]/);
+        if (!m) return null;
+        const folder = folderFromUrl('/js/apps/' + m[1] + '/');
+        if (!folder || !folder.length) return null;
+        try {
+            const id = Registry.appIdForFolder(folder);
+            if (id) return id;
+        } catch (e) { /* the registry is optional */ }
+        return folder[folder.length - 1];
     }
 
     function currentApp() {

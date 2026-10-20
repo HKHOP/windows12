@@ -37,6 +37,7 @@ import { Audio } from './audio.js';
 import { Net } from './net.js';
 import { Inject } from './inject.js';
 import { bindScripts } from './scripts.js';
+import { bindRegistry } from './registry.js';
 import Users from '../modules/users.js';
 import InternalFS from '../modules/fileSystem.js';
 import { ErrorCodes, SDKError, requireString, requireOptions } from './errors.js';
@@ -481,7 +482,8 @@ function createApp(def) {
         audio,
         net,
         inject,
-        scripts: bindScripts(id)
+        scripts: bindScripts(id),
+        registry: bindRegistry(id)
     };
 }
 

@@ -73,6 +73,33 @@ declare module '../../sdk/index.js' {
         action?: () => void;
         disabled?: boolean;
     }
+
+    export interface RegistryValue {
+        name: string;
+        kind: string;
+        data: unknown;
+        modified: number;
+    }
+
+    export interface RegistryKeyInfo {
+        path: string;
+        displayPath: string;
+        name: string;
+        hive: string;
+        created: number;
+        modified: number;
+        subkeys: string[];
+        values: RegistryValue[];
+    }
+
+    export interface RegistryApp {
+        id: string;
+        path: string;
+        version: string;
+        name: string;
+        scope: string;
+        user: string | null;
+    }
     export interface TrayIconSpec {
         id?: string;
         icon?: string | { svg?: string; app?: string; action?: string; setting?: string; url?: string; size?: number };
@@ -239,6 +266,7 @@ declare module '../../sdk/index.js' {
         system: typeof System;
         events: typeof Events;
         scripts: typeof Scripts;
+        registry: typeof Registry & { ownKey(): string; own(): RegistryKeyInfo | null };
     }
 
     export const WindowManager: {
@@ -527,6 +555,27 @@ declare module '../../sdk/index.js' {
         detectLanguage(name: string): ScriptLanguage | null;
         supportedExtensions(): string[];
     };
+    export const Registry: {
+        hives(): Array<{ name: string; short: string; label: string }>;
+        kinds(): Record<string, string>;
+        key(path: string): RegistryKeyInfo | null;
+        keys(path: string): string[];
+        values(path: string): RegistryValue[];
+        get(path: string, name?: string): RegistryValue | null;
+        getString(path: string, name?: string, fallback?: string): string | null;
+        set(path: string, name: string, kind: string, data: unknown): boolean;
+        createKey(path: string): boolean;
+        deleteKey(path: string): boolean;
+        deleteValue(path: string, name: string): boolean;
+        renameKey(path: string, newName: string): boolean;
+        renameValue(path: string, name: string, newName: string): boolean;
+        exportKey(path: string): string | null;
+        importKey(text: string): boolean;
+        import(text: string): boolean;
+        search(term: string): Array<{ path: string; name: string | null; kind: string; data: unknown }>;
+        apps(): RegistryApp[];
+        displayPath(path: string): string;
+    };
     export class SDKError extends Error {
         code: string;
         details: unknown;
@@ -560,6 +609,7 @@ declare module '../../sdk/index.js' {
         Input: typeof Input;
         Audio: typeof Audio;
         Scripts: typeof Scripts;
+        Registry: typeof Registry;
         SDKError: typeof SDKError;
         ErrorCodes: Record<string, string>;
     };

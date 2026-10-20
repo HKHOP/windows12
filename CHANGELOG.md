@@ -4,6 +4,23 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.0.0] - 2026-10-20
+
+### Added
+- **The Windows registry.** A Windows-style settings database: five hives (`HKEY_LOCAL_MACHINE`, `HKEY_CURRENT_USER`, `HKEY_CLASSES_ROOT`, `HKEY_USERS`, `HKEY_CURRENT_CONFIG`), keys, and values of every Windows type (`REG_SZ`, `REG_EXPAND_SZ`, `REG_MULTI_SZ`, `REG_DWORD`, `REG_QWORD`, `REG_BINARY`). Paths are Windows style (`HKLM\Software\Windows 12`), the hive may be written short or long, and the registry is case insensitive. It can import and export `.reg` files.
+- **The Registry Editor** (`regedit`) - the built-in editor: the hive tree on the left, the values (Name / Type / Data) on the right, the key path in the status bar, and File / Edit / View / Help menus with New key, New value, Rename, Delete, Find, Import and Export.
+- **A `registry` SDK namespace** (`Registry`, and `app.registry` inside an app): read and write keys and values, export and import `.reg` files, search the tree, and list the registered apps. An app may always use its own key, `HKCU\Software\<its id>`.
+- **A `registry` permission** - reading or writing any other key needs it. It is declared in the manifest, asked for at install time, and revocable in Settings > Apps.
+- **Apps are registered in the registry**, which is what makes an app findable **whatever folder it was installed into**. The catalog is now built from the registry instead of a scan of two fixed roots, so an app in a folder of your own choosing is listed like any other.
+
+### Changed
+- **The app catalog comes from the registry.** `HKLM\Software\Windows 12\Apps\<id>` holds an app's `Path`, `Version`, `DisplayName` and `Scope`; a per-user install is registered under `HKU\<user>\Software\Windows 12\Apps\<id>`.
+- **The registry store is OS-only** (`/system/registry/registry.json`), so apps reach it through the module and the SDK, never through the filesystem.
+- **The app attribution follows the new URL scheme.** An app's code is served from `/js/apps/<folder>/…`, so the guard now resolves the app from the folder (through the registry) instead of reading the id out of the stack trace.
+
+### Fixed
+- **Registry keys are found whatever case they are written in**, like in Windows.
+
 ## [14.0.0] - 2026-10-20
 
 ### Added
