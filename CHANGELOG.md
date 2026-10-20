@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.5002] - 2026-10-20
+
+### Added
+- **Open file location** - available on every Start Menu right-click entry and on shortcuts in the desktop, File Explorer and taskbar, falling back to the shortcut's own folder when the target has no path.
+
+### Changed
+- **File Explorer 1.3.0** - shortcut context menus always expose Open file location.
+
 ## [12.0.5001] - 2026-10-20
 
 ### Changed
