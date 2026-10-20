@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.5005] - 2026-10-20
+
+### Changed
+- **Sign-in and sign-out sounds** - shortened both cues. Sign-in is now just the warm string-like pad with no foreground ding; sign-out keeps one soft note.
+
 ## [12.0.5004] - 2026-10-20
 
 ### Added
