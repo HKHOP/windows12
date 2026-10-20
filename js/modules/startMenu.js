@@ -345,7 +345,7 @@ const StartMenu = (() => {
                 out.push({
                     kind: 'item', type: 'shortcut', name: String(child.name).replace(/\.lnk$/i, ''),
                     path: full, appId, manifest: man, data,
-                    icon: s.iconHtml(data, 22),
+                    icon: s.iconHtml(data, 22, { arrow: false }),
                     open: () => s.open(full),
                     location: s.shortcutLocation(data)
                 });
