@@ -4,6 +4,18 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.5004] - 2026-10-20
+
+### Added
+- **Custom sound files** - every event in Personalization > Sounds now has a Choose / Upload button. Pick an audio file already in the virtual filesystem, or upload one from the device into `Music/System Sounds`. Only the filesystem path is stored in the per-user config.
+- **Shared file picker** - a reusable virtual-filesystem open dialog (`js/modules/filePicker.js`) with places, extension filtering and optional device upload.
+
+### Changed
+- **Soft tactile sound palette** - replaced the synthesized presets with generated WAV textures designed to be soft and non-piercing: muffled cloth transients, rounded water-bubble glides and warm creamy pads. Notes now use gentle attacks, per-note releases and a low-passed top end instead of bright bell partials.
+- **Sound schemes** - Default, Soft and Classic now change level and top-end softness instead of pitch, so custom files keep their original pitch.
+- **Settings 1.3.0** - custom sound selection, file status and upload support on the Sounds page.
+- **Offline sounds** - the WAV presets are part of the service-worker precache, so system sounds still work without a network.
+
 ## [12.0.5003] - 2026-10-20
 
 ### Added
