@@ -173,6 +173,7 @@ function collectCore() {
     };
     walk('css', rel => rel.endsWith('.css'));
     walk('js', rel => rel.endsWith('.js') && (!rel.startsWith('js/apps/') || rel === 'js/apps/registry.js'));
+    walk('assets', rel => /\.(wav|ogg|mp3|m4a|flac|opus)$/i.test(rel));
     return urls;
 }
 

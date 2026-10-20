@@ -234,6 +234,17 @@ const SystemConfig = (() => {
             recycle: 'scheme',
             keyboard: 'scheme'
         },
+        soundEventFiles: {
+            error: null,
+            warning: null,
+            info: null,
+            confirm: null,
+            notification: null,
+            login: null,
+            logout: null,
+            recycle: null,
+            keyboard: null
+        },
         outputDevice: 'Speakers (Realtek Audio)',
         inputDevice: 'Microphone (Realtek Audio)',
         notificationAlerts: true,

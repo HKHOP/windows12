@@ -178,6 +178,7 @@ const CORE_PRECACHE = [
     "./js/modules/cursor.js",
     "./js/modules/desktopIcons.js",
     "./js/modules/fileAssociations.js",
+    "./js/modules/filePicker.js",
     "./js/modules/fileSystem.js",
     "./js/modules/flyout.js",
     "./js/modules/fsGuard.js",
@@ -251,6 +252,16 @@ const CORE_PRECACHE = [
     "./js/sdk/tray.js",
     "./js/sdk/windowManager.js",
     "./js/workers/opfsWorker.js",
+    "./assets/sounds/click.wav",
+    "./assets/sounds/confirm.wav",
+    "./assets/sounds/error.wav",
+    "./assets/sounds/info.wav",
+    "./assets/sounds/keyboard.wav",
+    "./assets/sounds/login.wav",
+    "./assets/sounds/logout.wav",
+    "./assets/sounds/notification.wav",
+    "./assets/sounds/recycle.wav",
+    "./assets/sounds/warning.wav",
 ];
 // <<< w12:core-precache
 

@@ -1,94 +1,30 @@
+import FileSystem from './fileSystem.js';
+
 const Sounds = (() => {
     let ctx = null;
+    let preloaded = false;
+    const bufferCache = new Map();
+    const customCache = new Map();
 
-    // Sound schemes change the character of every event that follows the
-    // scheme. Events can override this individually in Personalization.
+    // Schemes keep the presets' pitch intact and only change level and top-end
+    // softness. Never pitch-shift a user's own file.
     const SCHEMES = {
-        default: { label: 'Default', gain: 1, pitch: 1, wave: null, attack: 0.012, release: 1 },
-        soft: { label: 'Soft', gain: 0.62, pitch: 0.94, wave: 'sine', attack: 0.03, release: 1.25 },
-        classic: { label: 'Classic', gain: 0.85, pitch: 1.02, wave: 'triangle', attack: 0.008, release: 0.9 }
+        default: { label: 'Default', gain: 1, filter: 0 },
+        soft: { label: 'Soft', gain: 0.7, filter: 2200 },
+        classic: { label: 'Classic', gain: 0.9, filter: 6000 }
     };
 
-    // One entry per customizable event. Notes are:
-    // [frequency, start offset, duration, waveform, volume].
-    // Adding a new sound is just another entry here.
     const EVENTS = {
-        error: {
-            label: 'Error',
-            notes: [
-                [392, 0, 0.18, 'sawtooth', 0.14],
-                [311.13, 0.12, 0.24, 'sawtooth', 0.14],
-                [233.08, 0.3, 0.42, 'triangle', 0.16]
-            ],
-            noise: { delay: 0.28, duration: 0.18, volume: 0.05, cutoff: 400 }
-        },
-        warning: {
-            label: 'Warning',
-            notes: [
-                [659.25, 0, 0.18, 'triangle', 0.2],
-                [523.25, 0.14, 0.32, 'triangle', 0.18]
-            ],
-            harmonic: 0.08
-        },
-        info: {
-            label: 'Information',
-            notes: [
-                [1046.5, 0, 0.18, 'sine', 0.17],
-                [1318.51, 0.09, 0.3, 'sine', 0.15]
-            ],
-            harmonic: 0.18
-        },
-        confirm: {
-            label: 'Confirmation',
-            notes: [
-                [659.25, 0, 0.15, 'sine', 0.17],
-                [987.77, 0.08, 0.28, 'sine', 0.19]
-            ],
-            harmonic: 0.16
-        },
-        notification: {
-            label: 'Notification',
-            notes: [
-                [1318.51, 0, 0.16, 'sine', 0.16],
-                [1760, 0.08, 0.34, 'sine', 0.12]
-            ],
-            harmonic: 0.2
-        },
-        login: {
-            label: 'Sign in',
-            notes: [
-                [523.25, 0, 0.24, 'sine', 0.15],
-                [659.25, 0.12, 0.24, 'sine', 0.15],
-                [783.99, 0.24, 0.5, 'sine', 0.17]
-            ],
-            harmonic: 0.12
-        },
-        logout: {
-            label: 'Sign out',
-            notes: [
-                [783.99, 0, 0.24, 'sine', 0.13],
-                [659.25, 0.12, 0.26, 'sine', 0.12],
-                [523.25, 0.24, 0.46, 'sine', 0.1]
-            ],
-            harmonic: 0.1
-        },
-        recycle: {
-            label: 'Recycle Bin',
-            notes: [
-                [196, 0, 0.18, 'sine', 0.12],
-                [146.83, 0.12, 0.28, 'sine', 0.1]
-            ],
-            noise: { delay: 0, duration: 0.32, volume: 0.12, cutoff: 900 }
-        },
-        keyboard: {
-            label: 'Keyboard click',
-            notes: [[1250, 0, 0.05, 'sine', 0.07]]
-        },
-        click: {
-            label: 'UI click',
-            hidden: true,
-            notes: [[1000, 0, 0.05, 'sine', 0.08]]
-        }
+        error: { label: 'Error', file: 'error.wav' },
+        warning: { label: 'Warning', file: 'warning.wav' },
+        info: { label: 'Information', file: 'info.wav' },
+        confirm: { label: 'Confirmation', file: 'confirm.wav' },
+        notification: { label: 'Notification', file: 'notification.wav' },
+        login: { label: 'Sign in', file: 'login.wav' },
+        logout: { label: 'Sign out', file: 'logout.wav' },
+        recycle: { label: 'Recycle Bin', file: 'recycle.wav' },
+        keyboard: { label: 'Keyboard click', file: 'keyboard.wav' },
+        click: { label: 'UI click', hidden: true, file: 'click.wav' }
     };
 
     function getCtx() {
@@ -121,76 +57,108 @@ const Sounds = (() => {
         return Math.max(0, Math.min(1, value / 100));
     }
 
-    function envelope(gain, peak, start, end, attack) {
-        gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.linearRampToValueAtTime(peak, start + Math.max(0.005, attack));
-        gain.gain.exponentialRampToValueAtTime(0.0001, end);
+    function asShell(fn) {
+        const guard = window._FSGuard;
+        if (guard) return guard.asShell(fn)();
+        return fn();
     }
 
-    function playNote(c, note, scheme, harmonic, volume) {
-        const [freq, start, duration, type, level] = note;
-        const t = c.currentTime + start;
-        const end = t + duration * scheme.release;
-        const peak = (level || 0.1) * scheme.gain * volume;
-        if (peak <= 0) return;
-
-        const osc = c.createOscillator();
-        const gain = c.createGain();
-        osc.type = scheme.wave || type || 'sine';
-        osc.frequency.setValueAtTime(freq * scheme.pitch, t);
-        envelope(gain, peak, t, end, scheme.attack);
-        osc.connect(gain);
-        gain.connect(c.destination);
-        osc.start(t);
-        osc.stop(end + 0.02);
-
-        if (harmonic > 0) {
-            const shimmer = c.createOscillator();
-            const shimmerGain = c.createGain();
-            shimmer.type = 'sine';
-            shimmer.frequency.setValueAtTime(freq * 2 * scheme.pitch, t);
-            envelope(shimmerGain, peak * harmonic, t, end, scheme.attack);
-            shimmer.connect(shimmerGain);
-            shimmerGain.connect(c.destination);
-            shimmer.start(t);
-            shimmer.stop(end + 0.02);
-        }
+    function assetUrl(file) {
+        return new URL('../../assets/sounds/' + file, import.meta.url).href;
     }
 
-    function playNoise(c, spec, scheme, volume) {
-        const duration = spec.duration || 0.25;
-        const delay = spec.delay || 0;
-        const t = c.currentTime + delay;
-        const end = t + duration * scheme.release;
-        const peak = (spec.volume || 0.1) * scheme.gain * volume;
-        if (peak <= 0) return;
+    function loadBuffer(url) {
+        if (bufferCache.has(url)) return bufferCache.get(url);
+        const promise = (async () => {
+            const c = getCtx();
+            if (!c) return null;
+            try {
+                const res = await fetch(url);
+                if (!res.ok) return null;
+                return await c.decodeAudioData(await res.arrayBuffer());
+            } catch (e) {
+                return null;
+            }
+        })();
+        bufferCache.set(url, promise);
+        promise.then(buffer => { if (!buffer) bufferCache.delete(url); });
+        return promise;
+    }
 
-        const size = Math.max(1, Math.floor(c.sampleRate * duration));
-        const buffer = c.createBuffer(1, size, c.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < size; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
+    function loadCustomBuffer(path) {
+        const node = asShell(() => FileSystem.getNode(path));
+        if (!node || node.type !== 'file') return Promise.resolve(null);
+        const key = path.join('/') + '|' + (node.modified || 0) + '|' + (node.size || 0);
+        if (customCache.has(key)) return customCache.get(key);
 
+        const promise = (async () => {
+            const c = getCtx();
+            if (!c) return null;
+            try {
+                let bytes = null;
+                if (asShell(() => FileSystem.isBlobFile(path))) {
+                    const blob = await asShell(() => FileSystem.readFileBlob(path));
+                    if (!blob) return null;
+                    bytes = await blob.arrayBuffer();
+                } else {
+                    const text = asShell(() => FileSystem.readFile(path));
+                    if (!text || !/^data:audio\//i.test(text)) return null;
+                    const res = await fetch(text);
+                    bytes = await res.arrayBuffer();
+                }
+                return await c.decodeAudioData(bytes);
+            } catch (e) {
+                return null;
+            }
+        })();
+
+        customCache.set(key, promise);
+        promise.then(buffer => { if (!buffer) customCache.delete(key); });
+        if (customCache.size > 12) customCache.delete(customCache.keys().next().value);
+        return promise;
+    }
+
+    function playBuffer(buffer, gain, filterFreq) {
+        const c = getCtx();
+        if (!c || !buffer) return false;
         const source = c.createBufferSource();
+        const volume = c.createGain();
         source.buffer = buffer;
-        const filter = c.createBiquadFilter();
-        filter.type = 'lowpass';
-        const cutoff = spec.cutoff || 800;
-        filter.frequency.setValueAtTime(cutoff, t);
-        filter.frequency.exponentialRampToValueAtTime(Math.max(80, cutoff * 0.35), end);
-        const gain = c.createGain();
-        envelope(gain, peak, t, end, 0.01);
-        source.connect(filter);
-        filter.connect(gain);
-        gain.connect(c.destination);
-        source.start(t);
-        source.stop(end + 0.02);
+        volume.gain.value = Math.max(0, Math.min(1, gain));
+
+        let tail = source;
+        if (filterFreq) {
+            const filter = c.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = filterFreq;
+            filter.Q.value = 0.5;
+            tail.connect(filter);
+            tail = filter;
+        }
+        tail.connect(volume);
+        volume.connect(c.destination);
+        source.start();
+        return true;
+    }
+
+    function playPreset(event, scheme, volume) {
+        void loadBuffer(assetUrl(event.file)).then(buffer => {
+            if (buffer) playBuffer(buffer, volume * scheme.gain, scheme.filter);
+        });
+    }
+
+    function playCustom(event, path, scheme, volume) {
+        void loadCustomBuffer(path).then(buffer => {
+            if (buffer) playBuffer(buffer, volume * Math.min(1, scheme.gain), scheme.filter);
+            else playPreset(event, scheme, volume);
+        });
     }
 
     // Play one system event. `force` is used by the Settings preview buttons so
     // a muted shell can still be auditioned without changing the setting.
     function play(id, force) {
-        const def = EVENTS[id];
-        if (!def) return false;
+        const event = EVENTS[id];
+        if (!event) return false;
 
         const config = getConfig();
         if (!force && config.soundEnabled === false) return false;
@@ -204,26 +172,30 @@ const Sounds = (() => {
         const volume = getVolume();
         if (volume <= 0) return false;
 
-        const c = getCtx();
-        if (!c) return false;
-
-        try {
-            (def.notes || []).forEach(note => playNote(c, note, scheme, def.harmonic || 0, volume));
-            if (def.noise) playNoise(c, def.noise, scheme, volume);
-            return true;
-        } catch (e) {
-            return false;
+        const files = config.soundEventFiles || {};
+        const custom = Array.isArray(files[id]) ? files[id] : null;
+        if (custom && asShell(() => FileSystem.itemExists(custom))) {
+            playCustom(event, custom, scheme, volume);
+        } else {
+            playPreset(event, scheme, volume);
         }
+        return true;
+    }
+
+    function preload() {
+        if (preloaded) return;
+        preloaded = true;
+        Object.values(EVENTS).forEach(event => { void loadBuffer(assetUrl(event.file)); });
     }
 
     function events() {
         return Object.entries(EVENTS)
-            .filter(([, def]) => !def.hidden)
-            .map(([id, def]) => ({ id, label: def.label }));
+            .filter(([, event]) => !event.hidden)
+            .map(([id, event]) => ({ id, label: event.label }));
     }
 
     function schemes() {
-        return Object.entries(SCHEMES).map(([id, def]) => ({ id, label: def.label }));
+        return Object.entries(SCHEMES).map(([id, scheme]) => ({ id, label: scheme.label }));
     }
 
     const info = () => play('info');
@@ -237,9 +209,13 @@ const Sounds = (() => {
     const click = () => play('click');
 
     // Browsers only allow audio after a user gesture. Prime the context on the
-    // first interaction so async sounds (sign-in, notifications) can play.
+    // first interaction, then decode the small preset set in the background so
+    // notifications and sign-in sounds start without a fetch delay.
     if (typeof document !== 'undefined') {
-        const unlock = () => getCtx();
+        const unlock = () => {
+            if (!getCtx()) return;
+            setTimeout(preload, 250);
+        };
         document.addEventListener('pointerdown', unlock, { once: true, capture: true, passive: true });
         document.addEventListener('keydown', unlock, { once: true, capture: true });
     }

@@ -18,6 +18,7 @@ import Users from '../../modules/users.js';
 import Packages from '../../modules/packages.js';
 import UAC from '../../modules/uac.js';
 import Sounds from '../../modules/sounds.js';
+import FilePicker from '../../modules/filePicker.js';
 
 const Settings = (() => {
     const icon = AppIcons.get('settings');
@@ -28,6 +29,8 @@ const Settings = (() => {
 
     // No keyboard glyph in ShellIcons — inline tile icon (same 20px box).
     const TOUCH_KBD_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6" stroke-linecap="round"/></svg>';
+
+    const SOUND_FILE_EXTS = ['wav', 'mp3', 'ogg', 'oga', 'm4a', 'aac', 'flac', 'opus', 'webm'];
 
     const pages = {
         system: { name: 'System', icon: UIIcons.setting('system', 20) },
@@ -1030,6 +1033,7 @@ const Settings = (() => {
     function renderSoundCustomization(el) {
         const config = SystemConfig.getAll();
         const styles = config.soundEventStyles || {};
+        const files = config.soundEventFiles || {};
         const enabled = config.soundEnabled !== false;
         const scheme = config.soundScheme || 'default';
 
@@ -1047,14 +1051,26 @@ const Settings = (() => {
 
         const rows = Sounds.events().map(event => {
             const current = styles[event.id] || 'scheme';
+            const customPath = Array.isArray(files[event.id]) ? files[event.id] : null;
+            const customName = customPath ? customPath[customPath.length - 1] : '';
+            const exists = customPath ? FileSystem.itemExists(customPath) : false;
+            const detail = customPath
+                ? (exists ? `Custom: ${customName}` : `Missing file: ${customName}`)
+                : 'Scheme preset';
+            const detailColor = customPath && !exists ? '#ff8a80' : 'var(--text-secondary)';
             const options = styleChoices.map(([value, label]) =>
                 `<option value="${value}" ${value === current ? 'selected' : ''}>${label}</option>`
             ).join('');
             return `
-                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--window-border);">
-                    <span style="flex:1 1 130px;font-size:13px;">${esc(event.label)}</span>
-                    <select class="sound-event-select" data-event="${event.id}" style="font-size:12px;padding:5px 8px;min-width:120px;">${options}</select>
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--window-border);">
+                    <div style="flex:1 1 150px;min-width:0;">
+                        <div style="font-size:13px;">${esc(event.label)}</div>
+                        <div style="font-size:11px;color:${detailColor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(customPath ? customPath.join('/') : detail)}">${esc(detail)}</div>
+                    </div>
+                    <select class="sound-event-select" data-event="${event.id}" style="font-size:12px;padding:5px 8px;min-width:110px;">${options}</select>
+                    <button class="sound-file-btn" data-event="${event.id}" style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:5px;padding:5px 10px;color:var(--text-primary);font-size:12px;cursor:pointer;">Choose / Upload...</button>
                     <button class="sound-test-btn" data-event="${event.id}" style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:5px;padding:5px 12px;color:var(--text-primary);font-size:12px;cursor:pointer;">Test</button>
+                    ${customPath ? `<button class="sound-clear-btn" data-event="${event.id}" style="background:none;border:none;padding:5px 2px;color:var(--text-secondary);font-size:12px;cursor:pointer;">Clear</button>` : ''}
                 </div>`;
         }).join('');
 
@@ -1076,8 +1092,9 @@ const Settings = (() => {
                 </div>
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;">Sound events</div>
-                    <div style="font-size:12px;color:var(--text-secondary);margin:2px 0 4px;">Choose a sound for each event, or turn it off.</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin:2px 0 4px;">Choose a built-in scheme, or pick your own audio file.</div>
                     ${rows}
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Custom sounds play from the filesystem. Uploads are saved to Music/System Sounds.</div>
                 </div>
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:var(--text-secondary);">
                     <span>Master volume is controlled separately.</span>
@@ -1103,6 +1120,44 @@ const Settings = (() => {
                 next[select.dataset.event] = select.value;
                 SystemConfig.set('soundEventStyles', next);
                 if (select.value !== 'off') Sounds.play(select.dataset.event, true);
+            });
+        });
+
+        el.querySelectorAll('.sound-file-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const eventId = btn.dataset.event;
+                const event = Sounds.events().find(item => item.id === eventId);
+                const path = await FilePicker.open({
+                    appId: 'settings',
+                    title: `Select sound${event ? ' — ' + event.label : ''}`,
+                    extensions: SOUND_FILE_EXTS,
+                    startPath: Users.home(['Music']),
+                    allowUpload: true,
+                    uploadPath: Users.home(['Music', 'System Sounds']),
+                    confirmLabel: 'Use sound'
+                });
+                if (!path) return;
+
+                const nextFiles = { ...(SystemConfig.get('soundEventFiles') || {}) };
+                nextFiles[eventId] = path.slice();
+                SystemConfig.set('soundEventFiles', nextFiles);
+
+                const nextStyles = { ...(SystemConfig.get('soundEventStyles') || {}) };
+                if (!nextStyles[eventId] || nextStyles[eventId] === 'off') {
+                    nextStyles[eventId] = 'scheme';
+                    SystemConfig.set('soundEventStyles', nextStyles);
+                }
+                refreshPersonalization();
+                Sounds.play(eventId, true);
+            });
+        });
+
+        el.querySelectorAll('.sound-clear-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const next = { ...(SystemConfig.get('soundEventFiles') || {}) };
+                next[btn.dataset.event] = null;
+                SystemConfig.set('soundEventFiles', next);
+                refreshPersonalization();
             });
         });
 
