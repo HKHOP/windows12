@@ -4,6 +4,16 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.5006] - 2026-10-20
+
+### Removed
+- **Built-in sound schemes** - removed the Soft and Classic schemes and the scheme selector. The default palette is always used. Per-event custom files and On/Off controls remain, and each user's custom setup is saved with their profile.
+
+### Changed
+- **Recycle Bin sound** - replaced the heavy thud with a realistic paper-crumple synth made from short, irregular crackles and a quiet paper body.
+- **Keyboard sound** - replaced the blocky click with a very soft water-tap tick.
+- **Settings 2.0.0** - simplified the Sounds page to default presets, On/Off per event, and the custom file picker.
+
 ## [12.0.5005] - 2026-10-20
 
 ### Changed
