@@ -4,6 +4,20 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.4999] - 2026-10-20
+
+### Added
+- **Shortcuts (`.lnk`)** - a Windows-style shortcut system for files, folders, websites and installed apps. Shortcuts can be created from the desktop or File Explorer, open through the desktop, File Explorer and Search, show the target icon with a shortcut arrow, and handle broken targets with Delete / Properties choices.
+- **Shortcut wizard and properties** - a shared editor for target type and path (with a virtual file-system browse dialog), app selection, arguments, start-in folder, run state (normal, minimized, maximized), comment, custom icon (target, app or built-in icon picker) and a global shortcut key. Shortcut files are UTF-8 JSON carrying a `w12-lnk` marker, so they remain portable inside the text-based virtual file system.
+- **Shortcut hotkeys** - global keys registered through the Keyboard module from shortcuts on the Desktop and Start Menu, refreshed after create, edit or delete and on user switch, and suppressed while the lock screen or UAC secure desktop is active.
+- **`Create shortcut` and `Open file location`** - added to the desktop and File Explorer context menus, with the Explorer action selecting the shortcut target's folder.
+- **Browser URL launch** - `Browser.launch(url)` and `Browser.openUrl(url)` let a shortcut open a website directly instead of always starting on a blank tab.
+
+### Changed
+- **File associations** - `.lnk` paths are intercepted before extension resolution, so the desktop, File Explorer, Search and future callers all resolve shortcuts consistently; the shared icon set gains `.lnk`, shortcut and open-location glyphs.
+- **File Explorer 1.1.0** - shortcut-aware icons, preview details and context menus; rename keeps the `.lnk` extension; creating or editing a shortcut refreshes the current view.
+- **Browser 1.1.0** - accepts an initial URL when launched by a shortcut.
+
 ## [12.0.4998] - 2026-10-19
 
 ### Fixed
