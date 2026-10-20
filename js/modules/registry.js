@@ -622,6 +622,33 @@ const Registry = (() => {
         return parts[parts.length - 1];
     }
 
+    // Reads a key's values as a plain object.
+    function getObject(path) {
+        const out = {};
+        for (const value of values(path)) out[value.name] = value.data;
+        return out;
+    }
+
+    // Writes a settings object as the values of a key. The kind of each
+    // value is decided by the caller, so a number stays a DWORD and a
+    // boolean stays a readable 'true'/'false'.
+    function setObject(path, obj, encode) {
+        for (const name of Object.keys(obj || {})) {
+            const encoded = encode ? encode(name, obj[name]) : { kind: 'REG_SZ', data: String(obj[name]) };
+            set(path, name, encoded.kind, encoded.data);
+        }
+    }
+
+    // Runs a one-time migration. The markers live in the registry itself, so
+    // the registry remembers what it has already moved.
+    function migrateOnce(marker, fn) {
+        const path = 'HKLM\\SOFTWARE\\Windows 12\\Migrations';
+        if (get(path, marker)) return false;
+        try { fn(); } catch (e) { /* the migration is best effort */ }
+        set(path, marker, 'REG_DWORD', 1);
+        return true;
+    }
+
     // ---- lifecycle ----
 
     function init() {
@@ -637,9 +664,9 @@ const Registry = (() => {
     return {
         init, refresh, hives: () => HIVES.map(h => ({ ...h })), kinds: () => ({ ...KINDS }),
         parsePath, formatPath, displayPath, DEFAULT_VALUE,
-        keyInfo, keys, values, get, getString,
+        keyInfo, keys, values, get, getString, getObject, setObject,
         createKey, deleteKey, set, deleteValue, renameKey, renameValue,
-        exportKey, importReg, search,
+        exportKey, importReg, search, migrateOnce,
         registerApp, unregisterApp, registeredApps, appIdForFolder
     };
 })();

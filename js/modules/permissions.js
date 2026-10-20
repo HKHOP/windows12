@@ -34,6 +34,7 @@ import AppLoader from './appLoader.js';
 import FileSystem from './fileSystem.js';
 import Popup from './popup.js';
 import UIIcons from './uiIcons.js';
+import Registry from './registry.js';
 
 const Permissions = (() => {
     const DATA_DIR = ['/', 'system', 'programs data', 'permissions'];
@@ -118,31 +119,70 @@ const Permissions = (() => {
         return !!man && man.distribution === 'builtin';
     }
 
-    // ---------- grants store (keyed by manifest uuid) ----------
+    // ---------- grants store (in the profile's own registry hive) ----------
+    //
+    // The grants are per user, so they live in HKCU under the app's uuid:
+    // HKCU\Software\Windows 12\Permissions\<uuid>. The old grants.json is
+    // migrated into it once.
 
-    function ensureDir() {
-        for (let i = 1; i <= DATA_DIR.length; i++) {
-            const partial = DATA_DIR.slice(0, i);
-            if (!FileSystem.itemExists(partial)) {
-                FileSystem.createFolder(DATA_DIR.slice(0, i - 1), DATA_DIR[i - 1]);
-            }
-        }
+    const GRANTS_ROOT = 'HKCU\\Software\\Windows 12\\Permissions';
+
+    function grantsKey(uuid) {
+        return GRANTS_ROOT + '\\' + uuid;
     }
 
     function readGrants() {
+        const all = {};
         try {
-            const raw = FileSystem.readFile(GRANTS_PATH);
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (parsed && typeof parsed === 'object') return parsed;
+            for (const uuid of Registry.keys(GRANTS_ROOT)) {
+                const values = Registry.getObject(grantsKey(uuid));
+                const entry = {};
+                for (const name of Object.keys(values)) {
+                    const value = values[name];
+                    if (name === 'fsAlways') entry[name] = value === 'true' || value === true;
+                    else entry[name] = value === 'false' ? false : value === 'true' ? true : value;
+                }
+                all[uuid] = entry;
+            }
+            if (Object.keys(all).length) return all;
+
+            // First run on the registry: move the old file in, once.
+            let migrated = false;
+            Registry.migrateOnce('permissions-to-hkcu', () => {
+                const raw2 = FileSystem.readFile(GRANTS_PATH);
+                if (!raw2) return;
+                const parsed = JSON.parse(raw2);
+                if (!parsed || typeof parsed !== 'object') return;
+                for (const uuid of Object.keys(parsed)) {
+                    const entry = parsed[uuid];
+                    if (!entry || typeof entry !== 'object') continue;
+                    for (const name of Object.keys(entry)) {
+                        const value = entry[name];
+                        const data = value === true ? 'true' : value === false ? 'false' : String(value);
+                        Registry.set(grantsKey(uuid), name, 'REG_SZ', data);
+                    }
+                }
+                migrated = true;
+            });
+            if (migrated) {
+                for (const uuid of Registry.keys(GRANTS_ROOT)) {
+                    const values = Registry.getObject(grantsKey(uuid));
+                    const entry = {};
+                    for (const name of Object.keys(values)) {
+                        const value = values[name];
+                        if (name === 'fsAlways') entry[name] = value === 'true' || value === true;
+                        else entry[name] = value === 'false' ? false : value === 'true' ? true : value;
+                    }
+                    all[uuid] = entry;
+                }
             }
         } catch { /* corrupt -> fresh */ }
-        return {};
+        return all;
     }
 
     function writeGrants(grants) {
         // Grant writes can be triggered from an app context (runtime consent,
-        // revocations) — they are OS-owned state, so shield them from the
+        // revocations) - they are OS-owned state, so shield them from the
         // filesystem guard. window._FSGuard avoids a static import cycle.
         const guard = window._FSGuard;
         const run = guard ? guard.asShell(() => { try { _writeGrants(grants); } catch { /* session-only */ } })
@@ -151,10 +191,15 @@ const Permissions = (() => {
     }
 
     function _writeGrants(grants) {
-        ensureDir();
-        const json = JSON.stringify(grants);
-        if (FileSystem.itemExists(GRANTS_PATH)) FileSystem.writeFile(GRANTS_PATH, json);
-        else FileSystem.createFile(DATA_DIR, 'grants.json', json, 'json');
+        for (const uuid of Object.keys(grants || {})) {
+            const entry = grants[uuid];
+            if (!entry || typeof entry !== 'object') continue;
+            for (const name of Object.keys(entry)) {
+                const value = entry[name];
+                const data = value === true ? 'true' : value === false ? 'false' : String(value);
+                Registry.set(grantsKey(uuid), name, 'REG_SZ', data);
+            }
+        }
     }
 
     function uuidOf(appId) {

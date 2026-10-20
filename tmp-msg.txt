@@ -1,0 +1,19 @@
+feat: the registry becomes the OS's settings store
+
+The registry was the install index and an app sandbox; now the OS keeps
+its own state in it too, Windows-style, instead of a handful of separate
+JSON files:
+
+- HKCU\Software\Windows 12\Shell      the current profile's settings
+- HKLM\SYSTEM\CurrentControlSet\Control\Video  the device's display settings
+- HKCU\Software\Windows 12\Permissions\<uuid>  the per-app permission grants
+- HKCR\<ext>                          the default app for a file type
+
+HKCU is really per profile now: two people signed in at the same time have
+their own hives, their own settings and their own grants, and the Registry
+Editor shows exactly that.
+
+The old files are migrated into the registry once (the markers live in the
+registry itself) and are not written any more: the per-user config.json,
+the device's display/settings.json, the permissions/grants.json and the
+fileAssociations/defaults.json.

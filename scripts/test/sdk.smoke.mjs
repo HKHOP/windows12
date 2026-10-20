@@ -375,9 +375,10 @@ check('display keys are recognised as global',
     ['scaling', 'displayResolution'].every(k => SysCfg.isGlobalKey(k)) && SysCfg.isGlobalKey('brightness') === false);
 check('global writes route through get()', (() => { SysCfg.set('scaling', '150'); return SysCfg.get('scaling') === '150'; })());
 check('global values surface in getAll()', SysCfg.getAll().scaling === '150');
-check('global display store persists to the device path', (() => {
-    if (!FSMod.default.itemExists(DISPLAY_PATH)) return false;
-    try { return JSON.parse(FSMod.default.readFile(DISPLAY_PATH)).scaling === '150'; } catch { return false; }
+const RegistryMod = (await import('../../js/modules/registry.js')).default;
+check('global display store persists to the machine hive', (() => {
+    const value = RegistryMod.getString('HKLM\\SYSTEM\\CurrentControlSet\\Control\\Video', 'scaling', '');
+    return value === '150';
 })());
 check('per-user writes leave the global store alone', (() => {
     SysCfg.set('brightness', 55);

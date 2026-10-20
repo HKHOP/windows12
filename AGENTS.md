@@ -56,11 +56,26 @@ found whatever case it is written in.
 - The store is `/system/registry/registry.json`, which is **OS-only**
   (`fsGuard`'s `OS_ONLY_PREFIXES`): apps reach it through the module and the
   SDK, never through the filesystem.
+- **The registry is the OS's settings store.** Each of these used to be its
+  own little JSON file; they now live in the registry, Windows-style:
+
+  | Key | Holds | Was |
+  |------|-------|------|
+  | `HKLM\Software\Windows 12\Apps\<id>` | the app registrations (Path, Version, DisplayName, Scope) | the catalog was a scan of two fixed roots |
+  | `HKLM\SYSTEM\CurrentControlSet\Control\Video` | the machine-wide display settings (scaling, resolution) | `programs data/display/settings.json` |
+  | `HKCU\Software\Windows 12\Shell` | **this profile's** settings (accent, wallpaper, taskbar, sounds…) | the per-user `config.json` |
+  | `HKCU\Software\Windows 12\Permissions\<uuid>` | the per-app permission grants | `programs data/permissions/grants.json` |
+  | `HKCU\Software\<appId>` | an app's own settings | (new - the app sandbox) |
+  | `HKCR\<ext>` | the default app per file type | `programs data/fileAssociations/defaults.json` |
+  | `HKLM\SOFTWARE\Windows 12\Migrations` | the one-time migration markers | (new) |
+
+  The old files are **migrated into the registry once** (the markers live in
+  the registry itself) and are not written any more.
 - **The app registrations live here**: `HKLM\Software\Windows 12\Apps\<id>`
-  (and `HKU\<user>\Software\Windows 12\Apps\<id>` for a per-user install)
-  holds the app's `Path`, `Version`, `DisplayName` and `Scope`. That is what
-  makes an app findable **whatever folder it was installed into** - the
-  catalog is built from the registry, not from a scan of two fixed roots.
+  (and `HKU\<user>\Software\Windows 12\Apps\<id>` for a per-user install).
+  That is what makes an app findable **whatever folder it was installed
+  into** - the catalog is built from the registry, not from a scan of two
+  fixed roots.
 - The **Registry Editor** (`js/apps/regedit/`) is the built-in editor: the
   hive tree on the left, the values (Name / Type / Data) on the right, the
   key path in the status bar, and File / Edit / View / Help menus.

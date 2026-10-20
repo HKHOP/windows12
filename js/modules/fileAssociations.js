@@ -2,6 +2,7 @@ import FileSystem from './fileSystem.js';
 import WindowManager from './windowManager.js';
 import Popup from './popup.js';
 import UIIcons from './uiIcons.js';
+import Registry from './registry.js';
 
 // FileAssociations — the complete "Open With" system.
 //
@@ -122,14 +123,6 @@ const FileAssociations = (() => {
 
     // ---------- persisted user defaults ("Always use this app") ----------
 
-    function ensureDir() {
-        for (let i = 1; i <= DATA_DIR.length; i++) {
-            const partial = DATA_DIR.slice(0, i);
-            if (!FileSystem.itemExists(partial)) {
-                FileSystem.createFolder(DATA_DIR.slice(0, i - 1), DATA_DIR[i - 1]);
-            }
-        }
-    }
 
     // Shell-owned FS access (shield from fsGuard app attribution).
     function asShell(fn) {
@@ -140,23 +133,47 @@ const FileAssociations = (() => {
         };
     }
 
+    // The default app per file type lives in HKCR, which is what that hive is
+    // for: one key per extension. The old defaults.json is migrated once.
+    function defaultKey(extension) {
+        return 'HKCR\\' + String(extension || '').toLowerCase();
+    }
+
     const readDefaults = asShell(function readDefaults() {
         try {
-            const raw = FileSystem.readFile(DEFAULTS_PATH);
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (parsed && typeof parsed === 'object') return parsed;
-            }
+            const read = () => {
+                const out = {};
+                for (const ext of Registry.keys('HKCR')) {
+                    const appId = Registry.getString(defaultKey(ext), '(Default)', '');
+                    if (appId) out[ext] = appId;
+                }
+                return out;
+            };
+            const out = read();
+            if (Object.keys(out).length) return out;
+
+            // First run on the registry: move the old file in, once.
+            let migrated = false;
+            Registry.migrateOnce('file-associations-to-hkcr', () => {
+                const raw2 = FileSystem.readFile(DEFAULTS_PATH);
+                if (!raw2) return;
+                const parsed = JSON.parse(raw2);
+                if (!parsed || typeof parsed !== 'object') return;
+                for (const ext of Object.keys(parsed)) {
+                    Registry.set(defaultKey(ext), '(Default)', 'REG_SZ', String(parsed[ext]));
+                }
+                migrated = true;
+            });
+            if (migrated) return read();
         } catch { /* corrupt -> empty */ }
         return {};
     });
 
     const writeDefaults = asShell(function writeDefaults(defaults) {
         try {
-            ensureDir();
-            const json = JSON.stringify(defaults);
-            if (FileSystem.itemExists(DEFAULTS_PATH)) FileSystem.writeFile(DEFAULTS_PATH, json);
-            else FileSystem.createFile(DATA_DIR, 'defaults.json', json, 'json');
+            for (const ext of Object.keys(defaults || {})) {
+                Registry.set(defaultKey(ext), '(Default)', 'REG_SZ', String(defaults[ext]));
+            }
         } catch { /* session-only */ }
     });
 

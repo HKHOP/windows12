@@ -678,6 +678,22 @@ permission in the manifest:
 Without it, writes to other keys are refused (and reads outside the app's own
 key too). The permission is revocable in **Settings > Apps**.
 
+**Where the OS keeps its own settings.** The registry is not just an app
+sandbox - it is where Windows 12 keeps its state, Windows-style:
+
+| Key | Holds |
+|-----|-------|
+| `HKLM\Software\Windows 12\Apps\<id>` | the installed apps (their folder, version, scope) |
+| `HKLM\SYSTEM\CurrentControlSet\Control\Video` | the device's display settings (scaling, resolution) |
+| `HKCU\Software\Windows 12\Shell` | the current profile's settings (accent, wallpaper, taskbar, sounds) |
+| `HKCU\Software\Windows 12\Permissions\<uuid>` | the per-app permission grants |
+| `HKCR\<ext>` | the default app for a file type |
+| `HKU\<user>\Software\Windows 12\Apps\<id>` | a per-user installation |
+
+So `HKCU` is **per profile**: two people signed in at the same time have
+their own hives, their own settings and their own grants - and the Registry
+Editor shows you exactly that.
+
 **The built-in Registry Editor** (`regedit`) shows the whole thing: the hive
 tree on the left, the values (Name / Type / Data) on the right, the key path in
 the status bar, and File / Edit / View / Help menus. It can import and export

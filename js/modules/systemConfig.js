@@ -1,9 +1,14 @@
 import Users from './users.js';
+import Registry from './registry.js';
 
 const SystemConfig = (() => {
-    // Config is per-user, stored in the account's OS data. The legacy
-    // global /system/config.json is migrated to the first account by
-    // Users.init(); fileExplorer still references CONFIG_PATH (dynamic).
+    // The per-user settings live in the registry, in this profile's own hive
+    // (HKCU\Software\Windows 12\Shell), so every profile has its own and the
+    // Registry Editor shows them. The old per-user config.json is migrated
+    // into it once.
+    const USER_KEY = 'HKCU\\Software\\Windows 12\\Shell';
+
+    // The legacy location, kept only for that one-time migration.
     function configPath() {
         return Users.userData(['config.json']);
     }
@@ -18,18 +23,6 @@ const SystemConfig = (() => {
         };
     }
 
-    function ensureParentDirs(path) {
-        try {
-            const FileSystem = window._FileSystem;
-            if (!FileSystem) return;
-            for (let i = 1; i <= path.length - 1; i++) {
-                const partial = path.slice(0, i);
-                if (!FileSystem.itemExists(partial)) {
-                    FileSystem.createFolder(path.slice(0, i - 1), path[i - 1]);
-                }
-            }
-        } catch (e) { /* best effort */ }
-    }
 
     // Touch devices get the on-screen keyboard out of the box (it replaces
     // the native iOS/Android keyboard); desktops default to off but can
@@ -598,41 +591,86 @@ const SystemConfig = (() => {
 
     const syncToFilesystem = asShell(function syncToFilesystem() {
         try {
-            const FileSystem = window._FileSystem;
-            if (FileSystem) {
-                // Machine-wide display keys are not this profile's to own;
-                // keep them out of the per-user file (they live in the
-                // global display store).
-                const persisted = { ...config };
-                GLOBAL_KEYS.forEach(k => { delete persisted[k]; });
-                const json = JSON.stringify(persisted, null, 2);
-                const path = configPath();
-                ensureParentDirs(path);
-                const parentPath = path.slice(0, -1);
-                if (FileSystem.itemExists(path)) {
-                    FileSystem.writeFile(path, json);
-                } else {
-                    FileSystem.createFile(parentPath, 'config.json', json, 'json');
-                }
-            }
+            // The per-user settings live in the registry, under this
+            // profile's own hive (HKCU\Software\Windows 12\Shell) - so every
+            // profile has its own, and the Registry Editor shows them.
+            const persisted = { ...config };
+            GLOBAL_KEYS.forEach(k => { delete persisted[k]; });
+            Registry.setObject(USER_KEY, persisted, encodeValue);
         } catch (e) {}
     });
 
+    // The value kinds and the way they come back: a number stays a number, a
+    // boolean stays a boolean, an object is stored as JSON.
+    function encodeValue(key, value) {
+        if (value === null || value === undefined) return { kind: 'REG_SZ', data: '' };
+        if (typeof value === 'number') return { kind: 'REG_DWORD', data: value };
+        if (typeof value === 'boolean') return { kind: 'REG_SZ', data: value ? 'true' : 'false' };
+        if (typeof value === 'object') return { kind: 'REG_SZ', data: JSON.stringify(value) };
+        return { kind: 'REG_SZ', data: String(value) };
+    }
+
+    function decodeValue(key, raw) {
+        const sample = defaults[key];
+        if (raw === '' || raw === undefined || raw === null) {
+            if (sample && typeof sample === 'object') return sample;
+            return sample === undefined ? '' : sample;
+        }
+        if (typeof sample === 'boolean') return raw === 'true' || raw === '1';
+        if (typeof sample === 'number') {
+            const n = Number(raw);
+            return Number.isFinite(n) ? n : sample;
+        }
+        if (sample && typeof sample === 'object') {
+            try { return JSON.parse(raw); } catch { return sample; }
+        }
+        return String(raw);
+    }
+
     const loadFromFilesystem = asShell(function loadFromFilesystem() {
         try {
-            const FileSystem = window._FileSystem;
-            const path = configPath();
-            if (FileSystem && FileSystem.itemExists(path)) {
-                const json = FileSystem.readFile(path);
-                if (json) {
-                    config = { ...defaults, ...JSON.parse(json) };
-                    config.wallpaperImage = sanitizeWallpaperImage(config.wallpaperImage);
-                    if (!WALLPAPER_FITS.includes(config.wallpaperFit)) config.wallpaperFit = 'fill';
-                    apply();
-                    return true;
+            const stored = Registry.getObject(USER_KEY);
+            const keys = Object.keys(stored);
+            if (keys.length) {
+                for (const key of keys) {
+                    if (!Object.hasOwn(defaults, key)) continue;
+                    config[key] = decodeValue(key, stored[key]);
                 }
+                config.wallpaperImage = sanitizeWallpaperImage(config.wallpaperImage);
+                if (!WALLPAPER_FITS.includes(config.wallpaperFit)) config.wallpaperFit = 'fill';
+                apply();
+                return true;
             }
-        } catch (e) {}
+
+            // First run on the registry: move the old per-user file into
+            // HKCU, once.
+            const migrated = Registry.migrateOnce('config-to-hkcu', () => {
+                const FileSystem = window._FileSystem;
+                const path = configPath();
+                if (!FileSystem || !FileSystem.itemExists(path)) return;
+                const json = FileSystem.readFile(path);
+                if (!json) return;
+                const data = JSON.parse(json) || {};
+                const moved = {};
+                for (const key of Object.keys(data)) {
+                    if (!Object.hasOwn(defaults, key)) continue;
+                    if (GLOBAL_KEYS.includes(key)) continue;
+                    moved[key] = data[key];
+                }
+                Registry.setObject(USER_KEY, moved, encodeValue);
+            });
+            if (migrated) {
+                const stored = Registry.getObject(USER_KEY);
+                for (const key of Object.keys(stored)) {
+                    if (!Object.hasOwn(defaults, key)) continue;
+                    config[key] = decodeValue(key, stored[key]);
+                }
+                config.wallpaperImage = sanitizeWallpaperImage(config.wallpaperImage);
+                if (!WALLPAPER_FITS.includes(config.wallpaperFit)) config.wallpaperFit = 'fill';
+                apply();
+                return true;
+            }
+        } catch (e) { /* keep the defaults */ }
         return false;
     });
 
@@ -650,38 +688,52 @@ const SystemConfig = (() => {
     // profile and the login/lock screens share them. main.js primes them
     // with initGlobal() before the first sign-in.
 
+    // The machine-wide display settings live in HKLM, so they belong to the
+    // device and not to a profile.
+    const GLOBAL_KEY = 'HKLM\\SYSTEM\\CurrentControlSet\\Control\\Video';
+
     function globalConfigPath() {
         return ['/', 'system', 'programs data', 'display', 'settings.json'];
     }
 
     const persistGlobal = asShell(function persistGlobal() {
         try {
-            const FileSystem = window._FileSystem;
-            if (!FileSystem) return;
-            const path = globalConfigPath();
-            ensureParentDirs(path);
-            const json = JSON.stringify(globalConfig, null, 2);
-            if (FileSystem.itemExists(path)) {
-                FileSystem.writeFile(path, json);
-            } else {
-                FileSystem.createFile(path.slice(0, -1), 'settings.json', json, 'json');
-            }
+            // The machine-wide display settings are a machine setting, so they
+            // live in HKLM - not in a profile's hive.
+            Registry.setObject(GLOBAL_KEY, globalConfig, (key, value) => ({
+                kind: typeof value === 'number' ? 'REG_DWORD' : 'REG_SZ',
+                data: value === null || value === undefined ? '' : String(value)
+            }));
         } catch (e) { /* best effort */ }
     });
 
     const loadGlobalFromFilesystem = asShell(function loadGlobalFromFilesystem() {
         try {
-            const FileSystem = window._FileSystem;
-            const path = globalConfigPath();
-            if (FileSystem && FileSystem.itemExists(path)) {
-                const raw = FileSystem.readFile(path);
-                if (raw) {
-                    const data = JSON.parse(raw) || {};
-                    GLOBAL_KEYS.forEach(k => {
-                        if (data[k] !== undefined) globalConfig[k] = data[k];
-                    });
-                    return true;
-                }
+            const stored = Registry.getObject(GLOBAL_KEY);
+            const keys = Object.keys(stored);
+            if (keys.length) {
+                GLOBAL_KEYS.forEach(k => {
+                    if (stored[k] !== undefined) globalConfig[k] = stored[k];
+                });
+                return true;
+            }
+            // First run on the registry: move the old device file into HKLM,
+            // once.
+            const migrated = Registry.migrateOnce('display-to-hklm', () => {
+                const FileSystem = window._FileSystem;
+                const path = globalConfigPath();
+                if (!FileSystem || !FileSystem.itemExists(path)) return;
+                const data = JSON.parse(FileSystem.readFile(path) || '{}') || {};
+                const moved = {};
+                GLOBAL_KEYS.forEach(k => { if (data[k] !== undefined) moved[k] = data[k]; });
+                Registry.setObject(GLOBAL_KEY, moved);
+            });
+            if (migrated) {
+                const stored = Registry.getObject(GLOBAL_KEY);
+                GLOBAL_KEYS.forEach(k => {
+                    if (stored[k] !== undefined) globalConfig[k] = stored[k];
+                });
+                return true;
             }
         } catch (e) { /* keep defaults */ }
         return false;

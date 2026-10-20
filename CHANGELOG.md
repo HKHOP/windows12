@@ -4,6 +4,19 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.1.0] - 2026-10-20
+
+### Changed
+- **The registry is now where the OS keeps its settings**, Windows-style, instead of a handful of separate JSON files:
+  - `HKCU\Software\Windows 12\Shell` holds the current profile's settings (accent, wallpaper, taskbar, sounds) - so `HKCU` is really per profile, and two people signed in at once have their own.
+  - `HKLM\SYSTEM\CurrentControlSet\Control\Video` holds the machine-wide display settings (scaling, resolution).
+  - `HKCU\Software\Windows 12\Permissions\<uuid>` holds the per-app permission grants.
+  - `HKCR\<ext>` holds the default app for a file type - which is what that hive is for.
+- **The old files are migrated into the registry once** (the markers live in the registry itself) and are not written any more: the per-user `config.json`, the device's `display/settings.json`, the `permissions/grants.json` and the `fileAssociations/defaults.json`.
+
+### Added
+- **A real home for an app's own options.** An app keeps its settings in `HKCU\Software\<its id>` - the Windows convention - and can read and write them through `app.registry`.
+
 ## [15.0.0] - 2026-10-20
 
 ### Added
