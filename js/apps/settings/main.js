@@ -1035,28 +1035,20 @@ const Settings = (() => {
         const styles = config.soundEventStyles || {};
         const files = config.soundEventFiles || {};
         const enabled = config.soundEnabled !== false;
-        const scheme = config.soundScheme || 'default';
-
-        const schemeOptions = Sounds.schemes().map(s =>
-            `<option value="${s.id}" ${s.id === scheme ? 'selected' : ''}>${esc(s.label)}</option>`
-        ).join('');
 
         const styleChoices = [
-            ['scheme', 'Use scheme'],
-            ['default', 'Default'],
-            ['soft', 'Soft'],
-            ['classic', 'Classic'],
+            ['on', 'On'],
             ['off', 'Off']
         ];
 
         const rows = Sounds.events().map(event => {
-            const current = styles[event.id] || 'scheme';
+            const current = styles[event.id] === 'off' ? 'off' : 'on';
             const customPath = Array.isArray(files[event.id]) ? files[event.id] : null;
             const customName = customPath ? customPath[customPath.length - 1] : '';
             const exists = customPath ? FileSystem.itemExists(customPath) : false;
             const detail = customPath
                 ? (exists ? `Custom: ${customName}` : `Missing file: ${customName}`)
-                : 'Scheme preset';
+                : 'Built-in preset';
             const detailColor = customPath && !exists ? '#ff8a80' : 'var(--text-secondary)';
             const options = styleChoices.map(([value, label]) =>
                 `<option value="${value}" ${value === current ? 'selected' : ''}>${label}</option>`
@@ -1086,13 +1078,8 @@ const Settings = (() => {
                     </label>
                 </div>
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
-                    <div style="font-size:14px;font-weight:500;margin-bottom:8px;">Sound scheme</div>
-                    <select class="sound-scheme-select" style="width:100%;padding:8px 12px;font-size:13px;">${schemeOptions}</select>
-                    <div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">Sets the character of every event that uses the scheme.</div>
-                </div>
-                <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
                     <div style="font-size:14px;font-weight:500;">Sound events</div>
-                    <div style="font-size:12px;color:var(--text-secondary);margin:2px 0 4px;">Choose a built-in scheme, or pick your own audio file.</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin:2px 0 4px;">Use the built-in sound, or pick your own audio file. Your setup is saved automatically.</div>
                     ${rows}
                     <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Custom sounds play from the filesystem. Uploads are saved to Music/System Sounds.</div>
                 </div>
@@ -1107,11 +1094,6 @@ const Settings = (() => {
         enabledToggle.addEventListener('change', () => {
             SystemConfig.set('soundEnabled', enabledToggle.checked);
             if (enabledToggle.checked) Sounds.play('notification', true);
-        });
-
-        el.querySelector('.sound-scheme-select').addEventListener('change', (e) => {
-            SystemConfig.set('soundScheme', e.target.value);
-            Sounds.play('notification', true);
         });
 
         el.querySelectorAll('.sound-event-select').forEach(select => {
@@ -1144,7 +1126,7 @@ const Settings = (() => {
 
                 const nextStyles = { ...(SystemConfig.get('soundEventStyles') || {}) };
                 if (!nextStyles[eventId] || nextStyles[eventId] === 'off') {
-                    nextStyles[eventId] = 'scheme';
+                    nextStyles[eventId] = 'on';
                     SystemConfig.set('soundEventStyles', nextStyles);
                 }
                 refreshPersonalization();
@@ -1179,7 +1161,7 @@ const Settings = (() => {
                 ${systemCard(UIIcons.setting('moon', 22), 'Theme', 'Dark and light mode', 'theme')}
                 ${systemCard(UIIcons.setting('palette', 22), 'Accent color', 'Highlight color for the shell', 'accent')}
                 ${systemCard(UIIcons.setting('background', 22), 'Background', 'Wallpaper styles and custom images', 'background')}
-                ${systemCard(UIIcons.setting('sound', 22), 'Sounds', 'Schemes and event sounds', 'sounds')}
+                ${systemCard(UIIcons.setting('sound', 22), 'Sounds', 'Event sounds and custom files', 'sounds')}
                 ${systemCard(UIIcons.setting('cursor', 22), 'Mouse cursor', 'Pointer theme, size, and style', 'cursor')}
                 ${systemCard(UIIcons.setting('taskbarSettings', 22), 'Taskbar', 'Opacity, position, and grouping', 'taskbar')}
             </div>

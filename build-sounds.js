@@ -147,6 +147,58 @@ function addCloth(buf, start, duration, opts = {}) {
     }
 }
 
+// Realistic crumpled paper: many very short, randomly placed band-passed noise
+// grains. The short high grains are the crackles; the rarer low grains give the
+// sheet its body. This avoids the continuous "shhh" of a filtered noise wash.
+function addPaper(buf, start, duration, opts = {}) {
+    const rand = opts.rand || Math.random;
+    const gain = opts.gain == null ? 0.2 : opts.gain;
+    const density = opts.density == null ? 115 : opts.density;
+    const offset = Math.max(0, Math.round((start || 0) * SR));
+    const total = Math.round(duration * density);
+
+    for (let g = 0; g < total; g++) {
+        const pos = Math.pow(rand(), 1.2) * duration;
+        const env = (1 - Math.exp(-pos / 0.008)) * Math.exp(-pos / (duration * 0.42));
+        const big = rand() < 0.28;
+        const grainDur = big ? 0.008 + rand() * 0.012 : 0.002 + rand() * 0.006;
+        const amp = (big ? 0.7 + rand() * 0.6 : 0.18 + rand() * 0.45) * env * gain;
+        const center = big ? 300 + rand() * 500 : 700 + Math.pow(rand(), 1.6) * 2500;
+        const q = big ? 1.2 + rand() * 1.8 : 1 + rand() * 3.5;
+        const pan = (rand() * 2 - 1) * 0.3;
+        const [panL, panR] = panGains(pan);
+
+        const count = Math.max(12, Math.round(grainDur * SR));
+        const attack = Math.max(1, Math.round(Math.min(0.0005, grainDur * 0.2) * SR));
+        const release = Math.max(1, Math.round(Math.min(0.0015, grainDur * 0.3) * SR));
+        const decay = Math.max(1, grainDur * 0.25 * SR);
+
+        const w0 = TAU * center / SR;
+        const alpha = Math.sin(w0) / (2 * q);
+        const a0 = 1 + alpha;
+        const b0 = alpha / a0;
+        const b2 = -alpha / a0;
+        const a1 = (-2 * Math.cos(w0)) / a0;
+        const a2 = (1 - alpha) / a0;
+
+        let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+        const grainStart = offset + Math.round(pos * SR);
+        for (let i = 0; i < count; i++) {
+            let w;
+            if (i < attack) w = i / attack;
+            else w = Math.exp(-(i - attack) / decay);
+            if (i > count - release) w *= (count - i) / release;
+            const white = rand() * 2 - 1;
+            const x = white * w;
+            const y = b0 * x + b2 * x2 - a1 * y1 - a2 * y2;
+            x2 = x1; x1 = x;
+            y2 = y1; y1 = y;
+            const s = y * amp;
+            mix(buf, grainStart + i, s * panL, s * panR);
+        }
+    }
+}
+
 // Warm pad. Two slightly detuned layers create a gentle chorus without any
 // high-frequency shimmer.
 function addPad(buf, freq, duration, opts = {}) {
@@ -329,15 +381,18 @@ const RENDERERS = {
         });
     },
     recycle(buf, rand) {
-        addCloth(buf, 0, 0.4, { gain: 0.28, cutoff: 1200, highpass: 200, decay: 0.13, pan: -0.12, rand });
-        addCloth(buf, 0.14, 0.2, { gain: 0.12, cutoff: 800, highpass: 150, decay: 0.08, pan: 0.15, rand });
-        addThump(buf, 0.02, 120, 60, 0.3, { gain: 0.15, decay: 0.12 });
-        addBubble(buf, 0.1, 300, 220, 0.3, { gain: 0.05, decay: 0.12, pan: 0.1 });
+        addPaper(buf, 0, 0.58, { gain: 0.24, density: 210, rand });
+        // Quiet low-mid sheet body under the crackles.
+        addCloth(buf, 0.01, 0.5, { gain: 0.045, cutoff: 900, highpass: 220, decay: 0.25, attack: 0.015, pan: 0, rand });
     },
     keyboard(buf, rand) {
-        addCloth(buf, 0, 0.055, { gain: 0.25, cutoff: 1100, highpass: 150, decay: 0.016, attack: 0.001, rand });
-        addCloth(buf, 0.028, 0.025, { gain: 0.08, cutoff: 900, highpass: 200, decay: 0.008, pan: 0.08, rand });
-        addThump(buf, 0, 180, 150, 0.04, { gain: 0.04, decay: 0.01 });
+        // A very small water-tap tick: soft tap body, then a rounded droplet.
+        addThump(buf, 0, 220, 150, 0.05, { gain: 0.035, decay: 0.012, attack: 0.002 });
+        addBubble(buf, 0.004, 620, 860, 0.13, {
+            gain: 0.045, decay: 0.035, attack: 0.004, glide: 0.018,
+            release: 0.025, pan: 0.02
+        });
+        addCloth(buf, 0, 0.025, { gain: 0.03, cutoff: 1000, highpass: 350, decay: 0.007, attack: 0.001, pan: -0.05, rand });
     },
     click(buf, rand) {
         addCloth(buf, 0, 0.04, { gain: 0.18, cutoff: 900, highpass: 140, decay: 0.01, attack: 0.001, rand });
@@ -353,8 +408,8 @@ const SOUNDS = [
     { name: 'notification', seconds: 1.15, peak: 0.4, room: 0.2, lowpass: 2600 },
     { name: 'login', seconds: 1.45, peak: 0.44, room: 0.18, lowpass: 3000 },
     { name: 'logout', seconds: 1.4, peak: 0.4, room: 0.18, lowpass: 2600 },
-    { name: 'recycle', seconds: 0.7, peak: 0.4, room: 0.1, lowpass: 2000 },
-    { name: 'keyboard', seconds: 0.08, peak: 0.14, room: 0, lowpass: 2000, fadeOut: 0.02 },
+    { name: 'recycle', seconds: 0.6, peak: 0.38, room: 0.04, lowpass: 5200, fadeOut: 0.04 },
+    { name: 'keyboard', seconds: 0.14, peak: 0.11, room: 0, lowpass: 2800, fadeOut: 0.02 },
     { name: 'click', seconds: 0.06, peak: 0.08, room: 0, lowpass: 1800, fadeOut: 0.015 }
 ];
 

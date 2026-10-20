@@ -222,17 +222,16 @@ const SystemConfig = (() => {
         displayResolution: 'native',
         masterVolume: 75,
         soundEnabled: true,
-        soundScheme: 'default',
         soundEventStyles: {
-            error: 'scheme',
-            warning: 'scheme',
-            info: 'scheme',
-            confirm: 'scheme',
-            notification: 'scheme',
-            login: 'scheme',
-            logout: 'scheme',
-            recycle: 'scheme',
-            keyboard: 'scheme'
+            error: 'on',
+            warning: 'on',
+            info: 'on',
+            confirm: 'on',
+            notification: 'on',
+            login: 'on',
+            logout: 'on',
+            recycle: 'on',
+            keyboard: 'on'
         },
         soundEventFiles: {
             error: null,

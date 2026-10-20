@@ -6,14 +6,6 @@ const Sounds = (() => {
     const bufferCache = new Map();
     const customCache = new Map();
 
-    // Schemes keep the presets' pitch intact and only change level and top-end
-    // softness. Never pitch-shift a user's own file.
-    const SCHEMES = {
-        default: { label: 'Default', gain: 1, filter: 0 },
-        soft: { label: 'Soft', gain: 0.7, filter: 2200 },
-        classic: { label: 'Classic', gain: 0.9, filter: 6000 }
-    };
-
     const EVENTS = {
         error: { label: 'Error', file: 'error.wav' },
         warning: { label: 'Warning', file: 'warning.wav' },
@@ -118,39 +110,29 @@ const Sounds = (() => {
         return promise;
     }
 
-    function playBuffer(buffer, gain, filterFreq) {
+    function playBuffer(buffer, gain) {
         const c = getCtx();
         if (!c || !buffer) return false;
         const source = c.createBufferSource();
         const volume = c.createGain();
         source.buffer = buffer;
         volume.gain.value = Math.max(0, Math.min(1, gain));
-
-        let tail = source;
-        if (filterFreq) {
-            const filter = c.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.value = filterFreq;
-            filter.Q.value = 0.5;
-            tail.connect(filter);
-            tail = filter;
-        }
-        tail.connect(volume);
+        source.connect(volume);
         volume.connect(c.destination);
         source.start();
         return true;
     }
 
-    function playPreset(event, scheme, volume) {
+    function playPreset(event, volume) {
         void loadBuffer(assetUrl(event.file)).then(buffer => {
-            if (buffer) playBuffer(buffer, volume * scheme.gain, scheme.filter);
+            if (buffer) playBuffer(buffer, volume);
         });
     }
 
-    function playCustom(event, path, scheme, volume) {
+    function playCustom(event, path, volume) {
         void loadCustomBuffer(path).then(buffer => {
-            if (buffer) playBuffer(buffer, volume * Math.min(1, scheme.gain), scheme.filter);
-            else playPreset(event, scheme, volume);
+            if (buffer) playBuffer(buffer, volume);
+            else playPreset(event, volume);
         });
     }
 
@@ -164,20 +146,18 @@ const Sounds = (() => {
         if (!force && config.soundEnabled === false) return false;
 
         const styles = config.soundEventStyles || {};
-        const style = styles[id] || 'scheme';
+        const style = styles[id] || 'on';
         if (style === 'off') return false;
 
-        const schemeName = style === 'scheme' ? (config.soundScheme || 'default') : style;
-        const scheme = SCHEMES[schemeName] || SCHEMES.default;
         const volume = getVolume();
         if (volume <= 0) return false;
 
         const files = config.soundEventFiles || {};
         const custom = Array.isArray(files[id]) ? files[id] : null;
         if (custom && asShell(() => FileSystem.itemExists(custom))) {
-            playCustom(event, custom, scheme, volume);
+            playCustom(event, custom, volume);
         } else {
-            playPreset(event, scheme, volume);
+            playPreset(event, volume);
         }
         return true;
     }
@@ -192,10 +172,6 @@ const Sounds = (() => {
         return Object.entries(EVENTS)
             .filter(([, event]) => !event.hidden)
             .map(([id, event]) => ({ id, label: event.label }));
-    }
-
-    function schemes() {
-        return Object.entries(SCHEMES).map(([id, scheme]) => ({ id, label: scheme.label }));
     }
 
     const info = () => play('info');
@@ -221,7 +197,7 @@ const Sounds = (() => {
     }
 
     return {
-        play, events, schemes,
+        play, events,
         info, warn, error, confirm, notification,
         login, logout, recycleBin, click
     };
