@@ -266,7 +266,7 @@ const Browser = (() => {
         });
     }
 
-    function launch() {
+    function launch(startUrl) {
         const tabState = {
             tabs: new Map(),
             activeTabId: null,
@@ -1010,6 +1010,7 @@ const Browser = (() => {
 
         renderTabs();
         showNewTab();
+        if (typeof startUrl === 'string' && startUrl.trim()) navigateTo(startUrl.trim());
 
         // Follow touchpad mode without polling; syncPane self-removes this
         // listener once the window is gone.
@@ -1061,7 +1062,11 @@ const Browser = (() => {
         });
     }
 
-    return { launch };
+    function openUrl(url) {
+        launch(url);
+    }
+
+    return { launch, openUrl };
 })();
 
 export default Browser;

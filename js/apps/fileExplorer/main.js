@@ -14,6 +14,7 @@ import Keyboard from '../../modules/keyboard.js';
 import Zip from '../../modules/zip.js';
 import Users from '../../modules/users.js';
 import Notifications from '../../modules/notifications.js';
+import Shortcuts from '../../modules/shortcuts.js';
 
 const FileExplorer = (() => {
     const icon = AppIcons.get('fileExplorer');
@@ -353,7 +354,7 @@ const FileExplorer = (() => {
                 ? `<div style="font-size:10px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${basePath.slice(path.length).join('/') || ''}</div>`
                 : '';
             item.innerHTML = `
-                <div style="display:flex;justify-content:center;margin-bottom:4px;">${isDir ? getFolderIcon(entry.name) : getFileIcon(entry.ext, entry.name)}</div>
+                <div style="display:flex;justify-content:center;margin-bottom:4px;">${isDir ? getFolderIcon(entry.name) : ((entry.ext || '').toLowerCase() === 'lnk' ? Shortcuts.iconForPath(fullPath, 36) : getFileIcon(entry.ext, entry.name))}</div>
                 <div class="fe-label" style="font-size:12px;word-break:break-all;line-height:1.3;">${entry.name}</div>
                 ${relDir}
             `;
@@ -476,6 +477,34 @@ const FileExplorer = (() => {
                     showCutFeedback(win, wstate, action === 'cut');
                 };
                 const pinLabel = isDir && qaContains(loadQA(), fullPath) ? 'Unpin from Quick access' : 'Pin to Quick access';
+                const isLnk = !isDir && String(entry.ext || '').toLowerCase() === 'lnk';
+                const lnkInfo = isLnk ? Shortcuts.quickInfo(fullPath) : null;
+                const lnkLocation = lnkInfo && Array.isArray(lnkInfo.target) && Shortcuts.targetExists(lnkInfo)
+                    ? (lnkInfo.type === 'folder' ? lnkInfo.target : lnkInfo.target.slice(0, -1))
+                    : null;
+                const createShortcut = {
+                    label: 'Create shortcut',
+                    icon: UIIcons.action('shortcut'),
+                    action: () => Shortcuts.createForPath(itemPath, basePath).then(created => {
+                        if (!created || !win.element.isConnected) return;
+                        if (searchMode) {
+                            wstate.search = '';
+                            const searchInput = win.element.querySelector('.fe-search');
+                            if (searchInput) searchInput.value = '';
+                        }
+                        navigate(win, basePath, false, wstate);
+                        refreshIfDesktop(basePath);
+                    })
+                };
+                const propertiesItem = isLnk
+                    ? {
+                        label: 'Properties',
+                        icon: UIIcons.action('properties'),
+                        action: () => Shortcuts.properties(itemPath).then(saved => {
+                            if (saved && win.element.isConnected) navigate(win, basePath, false, wstate);
+                        })
+                    }
+                    : { label: 'Properties', icon: UIIcons.action('properties'), action: () => showProperties(entry, itemPath) };
                 const menuItems = isDir ? [
                     { label: 'Open', icon: UIIcons.action('open'), action: () => {
                         if (searchMode) {
@@ -489,6 +518,7 @@ const FileExplorer = (() => {
                         toggleQAPin(fullPath);
                         renderSidebar(win, wstate);
                     } },
+                    createShortcut,
                     'separator',
                     { label: `Cut${multiLabel}`, icon: UIIcons.action('cut'), action: () => { searchMode ? copySearchSelection('cut') : cutSelected(win, wstate); } },
                     { label: `Copy${multiLabel}`, icon: UIIcons.action('copy'), action: () => { searchMode ? copySearchSelection('copy') : copySelected(win, wstate); } },
@@ -496,10 +526,19 @@ const FileExplorer = (() => {
                     { label: 'Rename', icon: UIIcons.action('rename'), action: () => { if (selCount === 1) renameItem(win, itemPath); } },
                     { label: `Delete${multiLabel}`, icon: UIIcons.action('delete'), action: () => { searchMode ? deletePaths(win, wstate, selectedFullPaths()) : deleteSelected(win, wstate); } },
                     'separator',
-                    { label: 'Properties', icon: UIIcons.action('properties'), action: () => showProperties(entry, itemPath) }
+                    propertiesItem
                 ] : [
                     { label: 'Open', icon: UIIcons.action('open'), action: () => openFileWithDefaultApp(itemPath, entry) },
                     { label: 'Open With...', icon: UIIcons.action('openWith'), action: () => showOpenWithMenu(itemPath, entry) },
+                    ...(lnkLocation ? [{ label: 'Open file location', icon: UIIcons.action('openLocation'), action: () => {
+                        if (searchMode) {
+                            wstate.search = '';
+                            const searchInput = win.element.querySelector('.fe-search');
+                            if (searchInput) searchInput.value = '';
+                        }
+                        navigate(win, lnkLocation, true, wstate);
+                    } }] : []),
+                    createShortcut,
                     ...((selCount === 1 && (entry.ext || '').toLowerCase() === 'zip')
                         ? [{ label: 'Extract All…', icon: UIIcons.action('open'), action: () => extractZipFlow(win, itemPath, wstate) }]
                         : []),
@@ -514,7 +553,7 @@ const FileExplorer = (() => {
                     { label: 'Rename', icon: UIIcons.action('rename'), action: () => { if (selCount === 1) { searchMode ? renameViaDialog(win, itemPath, entry.name, wstate) : renameItem(win, itemPath); } } },
                     { label: `Delete${multiLabel}`, icon: UIIcons.action('delete'), action: () => { searchMode ? deletePaths(win, wstate, selectedFullPaths()) : deleteSelected(win, wstate); } },
                     'separator',
-                    { label: 'Properties', icon: UIIcons.action('properties'), action: () => showProperties(entry, itemPath) }
+                    propertiesItem
                 ];
                 ContextMenu.show(clientX, clientY, menuItems);
             }
@@ -1037,7 +1076,8 @@ const FileExplorer = (() => {
         const commit = () => {
             if (done) return;
             done = true;
-            const newName = input.value.trim();
+            let newName = input.value.trim();
+            if (/\.lnk$/i.test(oldName) && newName && !/\.lnk$/i.test(newName)) newName += '.lnk';
             if (!newName || newName === oldName) {
                 labelEl.textContent = original;
                 return;
@@ -1057,6 +1097,7 @@ const FileExplorer = (() => {
             labelEl.textContent = newName;
             refreshIfDesktop(itemPath);
             refreshIfDesktop([...parentPath, newName]);
+            Shortcuts.notifyChanged();
         };
         input.addEventListener('keydown', (e) => {
             e.stopPropagation();
@@ -1080,11 +1121,15 @@ const FileExplorer = (() => {
 
     function renameViaDialog(win, itemPath, oldName, wstate) {
         Popup.textbox('Rename', 'Enter new name:', { value: oldName }).then(newName => {
-            if (newName && newName !== oldName) {
-                FileSystem.renameItem(itemPath, newName);
-                if (wstate) navigate(win, itemPath.slice(0, -1), false, wstate);
-                refreshIfDesktop(itemPath);
-            }
+            if (!newName) return;
+            const finalName = /\.lnk$/i.test(oldName) && !/\.lnk$/i.test(newName)
+                ? `${newName}.lnk`
+                : newName;
+            if (finalName === oldName) return;
+            FileSystem.renameItem(itemPath, finalName);
+            if (wstate) navigate(win, itemPath.slice(0, -1), false, wstate);
+            refreshIfDesktop(itemPath);
+            Shortcuts.notifyChanged();
         });
     }
 
@@ -1192,6 +1237,7 @@ const FileExplorer = (() => {
         if (action === 'cut') wstate.clipboard = [];
         navigate(win, destPath, false, wstate);
         refreshIfDesktop(destPath);
+        Shortcuts.notifyChanged();
     }
 
     async function moveNamesWithProgress(win, destPath, srcDir, names, refreshPath, wstate) {
@@ -1225,6 +1271,7 @@ const FileExplorer = (() => {
         navigate(win, refreshPath, false, wstate);
         refreshIfDesktop(destPath);
         refreshIfDesktop(srcDir);
+        Shortcuts.notifyChanged();
     }
 
     function deleteSelected(win, wstate) {
@@ -1243,6 +1290,7 @@ const FileExplorer = (() => {
                     });
                     deselectAll(tab);
                     navigate(win, currentPath, false, wstate);
+                    Shortcuts.notifyChanged();
                     hideProgressBar(win);
                 }, 300);
             }
@@ -1789,6 +1837,7 @@ const FileExplorer = (() => {
                 const tab = activeTab(wstate);
                 if (tab) deselectAll(tab);
                 hideProgressBar(win);
+                Shortcuts.notifyChanged();
                 const cur = tab && tab.currentPath;
                 if (cur) navigate(win, cur, false, wstate);
             }, 300);
@@ -1846,7 +1895,7 @@ const FileExplorer = (() => {
         const fullPath = [...dir, name];
         const finishIcon = () => {
             if (myToken !== previewToken || !pane.isConnected) return;
-            visual.innerHTML = `<div style="transform:scale(2);opacity:0.9;">${isDir ? UIIcons.folder(name, 48) : UIIcons.file(ext, name, 48)}</div>`;
+            visual.innerHTML = `<div style="transform:scale(2);opacity:0.9;">${isDir ? UIIcons.folder(name, 48) : (ext === 'lnk' ? Shortcuts.iconForPath(fullPath, 48) : UIIcons.file(ext, name, 48))}</div>`;
         };
         if (isDir) {
             let count = 0;
@@ -1854,6 +1903,12 @@ const FileExplorer = (() => {
                 count = FileSystem.getChildren(fullPath).length;
             } catch { count = 0; }
             textEl.textContent = `${count} item${count !== 1 ? 's' : ''}`;
+            finishIcon();
+        } else if (ext === 'lnk') {
+            const info = Shortcuts.quickInfo(fullPath);
+            textEl.textContent = info
+                ? `${info.type === 'url' ? 'Website' : info.type === 'app' ? 'App' : info.type === 'folder' ? 'Folder' : 'File'}: ${Shortcuts.targetLabel(info)}`
+                : 'Invalid shortcut file.';
             finishIcon();
         } else if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'].includes(ext)) {
             const showSrc = (src) => {

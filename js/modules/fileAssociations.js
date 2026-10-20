@@ -25,9 +25,21 @@ const FileAssociations = (() => {
     const DEFAULTS_PATH = [...DATA_DIR, 'defaults.json'];
 
     let appInfoProvider = null;
+    let shortcutHandler = null;
 
     function setAppInfoProvider(fn) {
         appInfoProvider = fn;
+    }
+
+    // Shell link interception: `.lnk` files are opened by the Shortcuts
+    // module before extension resolution (they have no manifest handler).
+    function setShortcutHandler(fn) {
+        shortcutHandler = typeof fn === 'function' ? fn : null;
+    }
+
+    function isShortcutPath(path) {
+        if (!shortcutHandler || !Array.isArray(path) || path.length === 0) return false;
+        return /\.lnk$/i.test(String(path[path.length - 1] || ''));
     }
 
     function appInfo(appId) {
@@ -180,6 +192,10 @@ const FileAssociations = (() => {
     // ---------- opening ----------
 
     function openFile(path) {
+        if (isShortcutPath(path)) {
+            shortcutHandler(path);
+            return true;
+        }
         const ext = path[path.length - 1].split('.').pop().toLowerCase();
         const handler = associations.get(ext);
         if (!handler) return false;
@@ -219,6 +235,10 @@ const FileAssociations = (() => {
     // success (callers track recents there). Returns true when something
     // was (or is being) opened.
     function openDefault(path, onOpened) {
+        if (isShortcutPath(path)) {
+            shortcutHandler(path);
+            return true;
+        }
         const name = path[path.length - 1];
         const ext = getExtension(path);
         const candidate = resolveCandidate(ext);
@@ -263,6 +283,10 @@ const FileAssociations = (() => {
     }
 
     function openDefaultVia(candidate, path, onOpened) {
+        if (isShortcutPath(path)) {
+            shortcutHandler(path);
+            return true;
+        }
         const name = path[path.length - 1];
         if (FileSystem.isBlobFile(path)) {
             FileSystem.readFileBlob(path).then(blob => {
@@ -398,7 +422,7 @@ const FileAssociations = (() => {
         register, unregister, registerViewer, getHandler, getViewers,
         getCandidates, getAllCapable,
         getDefault, setDefault, clearDefault,
-        setAppInfoProvider,
+        setAppInfoProvider, setShortcutHandler, isShortcutPath,
         openFile, openDefault, openWith, openWithDialog,
         getExtension, getSupportedExtensions
     };

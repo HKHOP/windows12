@@ -31,6 +31,7 @@ import LockScreen from './modules/lockScreen.js';
 import WindowState from './modules/windowState.js';
 import NetworkStatus from './modules/networkStatus.js';
 import Tray from './modules/tray.js';
+import Shortcuts from './modules/shortcuts.js';
 
 // Filesystem access policy: app code may always touch its own AppData,
 // anything else requires the 'filesystem' permission (see fsGuard.js).
@@ -43,6 +44,7 @@ window._Users = Users;
 window._UAC = UAC;
 window._FileSystem = FileSystem;
 window._Sessions = Sessions;
+window._Shortcuts = Shortcuts;
 // Scaling owns the shell's zoom factor; SystemConfig nudges it when the
 // machine-wide display scaling changes.
 window._Scaling = Scaling;
@@ -141,6 +143,7 @@ async function bootShell() {
     StartMenu.init();
     ContextMenu.init();
     DesktopIcons.init();
+    Shortcuts.init();
     Touch.init();
     WindowsUpdate.init();
     Search.init();
@@ -208,6 +211,7 @@ async function activateSession(userId) {
     Notifications.activate();
     StartMenu.activate();
     DesktopIcons.activate();
+    Shortcuts.activate();
     Taskbar.activate();
     VirtualDesktops.activate(userId);
     try { await BackgroundApps.activate(userId); } catch (e) { /* keep the session usable */ }
@@ -249,6 +253,7 @@ function setupDesktopContextMenu() {
             'separator',
             { label: 'New folder', icon: UIIcons.action('newFolder'), action: () => { DesktopIcons.createNewFolder(); } },
             { label: 'New text file', icon: UIIcons.action('newFile'), action: () => { DesktopIcons.createNewFile(); } },
+            { label: 'New shortcut', icon: UIIcons.action('shortcut'), action: () => { Shortcuts.wizard(Users.home(['Desktop'])); } },
             'separator',
             { label: 'Display settings', icon: UIIcons.action('display'), action: () => { Taskbar.openApp('settings', { page: 'system', subPage: 'display' }); } },
             { label: 'Personalize', icon: UIIcons.action('personalize'), action: () => { Taskbar.openApp('settings', { page: 'personalization' }); } }

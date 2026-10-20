@@ -10,6 +10,7 @@ import Popup from './popup.js';
 import Scaling from './scaling.js';
 import Sounds from './sounds.js';
 import Users from './users.js';
+import Shortcuts from './shortcuts.js';
 
 const DesktopIcons = (() => {
     // Desktop and its icon layout are per-user.
@@ -66,6 +67,11 @@ const DesktopIcons = (() => {
                 resizeTimer = null;
                 try { render(); } catch (e) { /* noop */ }
             }, 200);
+        });
+        // A shortcut created, edited or deleted anywhere (desktop wizard,
+        // File Explorer, properties) changes the icons on this desktop.
+        window.addEventListener('shortcuts-changed', () => {
+            try { render(); } catch (e) { /* noop */ }
         });
     }
 
@@ -408,7 +414,11 @@ const DesktopIcons = (() => {
             `;
 
             const isDir = entry.type === 'folder';
-            const icon = isDir ? getFolderIcon(entry.name) : getFileIcon(entry.ext);
+            const icon = isDir
+                ? getFolderIcon(entry.name)
+                : ((entry.ext || '').toLowerCase() === 'lnk'
+                    ? Shortcuts.iconForPath([...desktopPath(), entry.name], 36)
+                    : getFileIcon(entry.ext));
 
             el.innerHTML = `
                 <div style="display:flex;justify-content:center;margin-bottom:4px;">${icon}</div>
@@ -487,15 +497,31 @@ const DesktopIcons = (() => {
             return;
         }
         const isDir = entry.type === 'folder';
+        const isLnk = !isDir && String(entry.ext || '').toLowerCase() === 'lnk';
         const isImage = !isDir && ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'].includes(String(entry.ext || '').toLowerCase());
+        const lnk = isLnk ? Shortcuts.quickInfo(itemPath) : null;
+        const lnkLocation = lnk && Array.isArray(lnk.target) && Shortcuts.targetExists(lnk)
+            ? (lnk.type === 'folder' ? lnk.target : lnk.target.slice(0, -1))
+            : null;
+        const createShortcut = { label: 'Create shortcut', icon: UIIcons.action('shortcut'), action: () => Shortcuts.createForPath(itemPath, desktopPath()) };
         const items = isDir ? [
             { label: 'Open', icon: UIIcons.action('open'), action: () => openFolderInExplorer(itemPath) },
+            createShortcut,
             'separator',
             { label: 'Rename', icon: UIIcons.action('rename'), action: () => renameItem(itemPath) },
             { label: 'Delete', icon: UIIcons.action('delete'), action: () => deleteItem(itemPath) }
+        ] : isLnk ? [
+            { label: 'Open', icon: UIIcons.action('open'), action: () => Shortcuts.open(itemPath) },
+            ...(lnkLocation ? [{ label: 'Open file location', icon: UIIcons.action('openLocation'), action: () => openFolderInExplorer(lnkLocation) }] : []),
+            'separator',
+            { label: 'Rename', icon: UIIcons.action('rename'), action: () => renameItem(itemPath) },
+            { label: 'Delete', icon: UIIcons.action('delete'), action: () => deleteItem(itemPath) },
+            'separator',
+            { label: 'Properties', icon: UIIcons.action('properties'), action: () => Shortcuts.properties(itemPath) }
         ] : [
             { label: 'Open', icon: UIIcons.action('open'), action: () => openFile(itemPath) },
             ...(isImage ? [{ label: 'Set as desktop background', icon: UIIcons.action('personalize'), action: () => setAsWallpaper(itemPath) }] : []),
+            createShortcut,
             'separator',
             { label: 'Rename', icon: UIIcons.action('rename'), action: () => renameItem(itemPath) },
             { label: 'Delete', icon: UIIcons.action('delete'), action: () => deleteItem(itemPath) }
@@ -534,6 +560,7 @@ const DesktopIcons = (() => {
                 try { FileSystem.deleteItem([...desktopPath(), n]); } catch (e) { /* noop */ }
                 delete positions[n];
             });
+            Shortcuts.notifyChanged();
             selected.clear();
             lastClicked = null;
             savePositions();
@@ -867,6 +894,10 @@ const DesktopIcons = (() => {
     }
 
     function openFile(path) {
+        if (Shortcuts.isShortcutPath(path)) {
+            Shortcuts.open(path);
+            return;
+        }
         const content = FileSystem.readFile(path);
         if (content === null) return;
         const name = path[path.length - 1];
@@ -914,13 +945,20 @@ const DesktopIcons = (() => {
     function renameItem(path) {
         const oldName = path[path.length - 1];
         Popup.textbox('Rename', 'Enter new name:', { value: oldName }).then(newName => {
-            if (newName && newName !== oldName) {
+            if (!newName) return;
+            // Keep the shell-link extension: a `.lnk` renamed to `foo` would
+            // silently stop being a shortcut.
+            const finalName = /\.lnk$/i.test(oldName) && !/\.lnk$/i.test(newName)
+                ? `${newName}.lnk`
+                : newName;
+            if (finalName !== oldName) {
                 if (positions[oldName]) {
-                    positions[newName] = positions[oldName];
+                    positions[finalName] = positions[oldName];
                     delete positions[oldName];
                     savePositions();
                 }
-                FileSystem.renameItem(path, newName);
+                FileSystem.renameItem(path, finalName);
+                Shortcuts.notifyChanged();
                 render();
             }
         });
@@ -931,6 +969,7 @@ const DesktopIcons = (() => {
         Popup.confirm('Delete', `Delete "${name}"?`).then(ok => {
             if (ok) {
                 FileSystem.deleteItem(path);
+                Shortcuts.notifyChanged();
                 delete positions[name];
                 selected.delete(name);
                 savePositions();

@@ -197,6 +197,7 @@ const CORE_PRECACHE = [
     "./js/modules/scaling.js",
     "./js/modules/search.js",
     "./js/modules/sessions.js",
+    "./js/modules/shortcuts.js",
     "./js/modules/sounds.js",
     "./js/modules/startMenu.js",
     "./js/modules/systemConfig.js",
