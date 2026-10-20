@@ -74,13 +74,16 @@ function addBubble(buf, start, f0, f1, duration, opts = {}) {
     const attack = opts.attack == null ? 0.009 : opts.attack;
     const glide = opts.glide == null ? 0.075 : opts.glide;
     const release = opts.release == null ? 0.05 : opts.release;
+    const vibrato = opts.vibrato || 0;
+    const vibratoRate = opts.vibratoRate || 5;
     const pan = panGains(opts.pan);
     const offset = Math.max(0, Math.round((start || 0) * SR));
     const count = Math.min(buf.n - offset, Math.ceil(duration * SR));
     let phase = 0;
     for (let i = 0; i < count; i++) {
         const t = i / SR;
-        const f = f1 + (f0 - f1) * Math.exp(-t / glide);
+        let f = f1 + (f0 - f1) * Math.exp(-t / glide);
+        if (vibrato) f *= 1 + Math.sin(TAU * vibratoRate * t) * vibrato;
         phase += TAU * f / SR;
         const env = softEnvelope(t, duration, attack, decay, release);
         const s = (Math.sin(phase) + Math.sin(phase * 2) * 0.04) * env * gain;
@@ -310,20 +313,20 @@ const RENDERERS = {
         addCloth(buf, 0.02, 0.035, { gain: 0.012, cutoff: 1000, highpass: 200, decay: 0.01, rand });
     },
     login(buf) {
+        // Just the slow string-like pad. No foreground note or ding.
         [130.81, 196, 261.63, 329.63].forEach((freq, i) => {
-            addPad(buf, freq, 1.7, { gain: 0.035 - i * 0.005, attack: 0.3, decay: 1.4 });
+            addPad(buf, freq, 1.4, { gain: 0.034 - i * 0.005, attack: 0.32, decay: 1.2 });
         });
-        addBubble(buf, 0.18, 523.25, 587.33, 0.55, { gain: 0.1, decay: 0.3, pan: -0.06 });
-        addBubble(buf, 0.34, 659.25, 739.99, 0.6, { gain: 0.09, decay: 0.32, pan: 0.03 });
-        addBubble(buf, 0.5, 783.99, 880, 0.65, { gain: 0.08, decay: 0.34, pan: 0.08 });
     },
     logout(buf) {
+        // The same warm pad, resolving down with a single soft note.
         [130.81, 196, 261.63].forEach((freq, i) => {
-            addPad(buf, freq, 1.55, { gain: 0.032 - i * 0.005, attack: 0.32, decay: 1.3 });
+            addPad(buf, freq, 1.35, { gain: 0.032 - i * 0.005, attack: 0.34, decay: 1.15 });
         });
-        addBubble(buf, 0, 783.99, 659.25, 0.58, { gain: 0.09, decay: 0.3, pan: 0.06 });
-        addBubble(buf, 0.18, 659.25, 523.25, 0.6, { gain: 0.085, decay: 0.32, pan: -0.03 });
-        addBubble(buf, 0.36, 523.25, 392, 0.65, { gain: 0.08, decay: 0.34, pan: -0.08 });
+        addBubble(buf, 0.18, 535, 523.25, 0.72, {
+            gain: 0.06, decay: 0.48, attack: 0.035, glide: 0.12,
+            release: 0.16, vibrato: 0.0035, vibratoRate: 4.6, pan: -0.02
+        });
     },
     recycle(buf, rand) {
         addCloth(buf, 0, 0.4, { gain: 0.28, cutoff: 1200, highpass: 200, decay: 0.13, pan: -0.12, rand });
@@ -348,8 +351,8 @@ const SOUNDS = [
     { name: 'info', seconds: 1.05, peak: 0.42, room: 0.15, lowpass: 2800 },
     { name: 'confirm', seconds: 1.05, peak: 0.44, room: 0.15, lowpass: 3000 },
     { name: 'notification', seconds: 1.15, peak: 0.4, room: 0.2, lowpass: 2600 },
-    { name: 'login', seconds: 1.75, peak: 0.5, room: 0.2, lowpass: 3000 },
-    { name: 'logout', seconds: 1.6, peak: 0.44, room: 0.2, lowpass: 2600 },
+    { name: 'login', seconds: 1.45, peak: 0.44, room: 0.18, lowpass: 3000 },
+    { name: 'logout', seconds: 1.4, peak: 0.4, room: 0.18, lowpass: 2600 },
     { name: 'recycle', seconds: 0.7, peak: 0.4, room: 0.1, lowpass: 2000 },
     { name: 'keyboard', seconds: 0.08, peak: 0.14, room: 0, lowpass: 2000, fadeOut: 0.02 },
     { name: 'click', seconds: 0.06, peak: 0.08, room: 0, lowpass: 1800, fadeOut: 0.015 }

@@ -642,8 +642,8 @@ el.addEventListener('contextmenu', (e) => {
 | `Sounds.error()` | Low muffled thump and a descending bubble |
 | `Sounds.confirm()` | Warm rising bubble pair |
 | `Sounds.notification()` | Gentle bubble over a creamy pad |
-| `Sounds.login()` | Creamy rising sign-in |
-| `Sounds.logout()` | Creamy falling sign-out |
+| `Sounds.login()` | Warm string pad sign-in |
+| `Sounds.logout()` | Warm pad with a falling note |
 | `Sounds.click()` | Muffled UI tick |
 | `Sounds.recycleBin()` | Soft cloth crumple |
 
