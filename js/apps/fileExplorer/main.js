@@ -485,9 +485,7 @@ const FileExplorer = (() => {
                 const pinLabel = isDir && qaContains(loadQA(), fullPath) ? 'Unpin from Quick access' : 'Pin to Quick access';
                 const isLnk = !isDir && String(entry.ext || '').toLowerCase() === 'lnk';
                 const lnkInfo = isLnk ? Shortcuts.quickInfo(fullPath) : null;
-                const lnkLocation = lnkInfo && Array.isArray(lnkInfo.target) && Shortcuts.targetExists(lnkInfo)
-                    ? (lnkInfo.type === 'folder' ? lnkInfo.target : lnkInfo.target.slice(0, -1))
-                    : null;
+                const lnkLocation = lnkInfo ? Shortcuts.locationFor(fullPath, lnkInfo) : null;
                 const createShortcut = {
                     label: 'Create shortcut',
                     icon: UIIcons.action('shortcut'),

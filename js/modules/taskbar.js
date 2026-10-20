@@ -229,7 +229,7 @@ const Taskbar = (() => {
                 return {
                     path, name, appId, data, icon,
                     meta: { name, icon },
-                    targetLocation: s.shortcutLocation(data),
+                    targetLocation: s.locationFor(path, data),
                     launch: () => s.open(path)
                 };
             }

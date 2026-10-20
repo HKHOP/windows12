@@ -1254,6 +1254,15 @@ const Shortcuts = (() => {
         return null;
     }
 
+    // Where "Open file location" should go for a shortcut: the target's folder
+    // when it has a real path, otherwise the folder that contains the .lnk.
+    function locationFor(path, data) {
+        const d = data || readSync(path);
+        const target = shortcutLocation(d);
+        if (target) return target;
+        return Array.isArray(path) && path.length > 1 ? path.slice(0, -1) : null;
+    }
+
     function createAppShortcut(appId, destination, options = {}) {
         if (!DESTINATIONS.includes(destination)) return null;
         const man = options.manifest || AppLoader.getManifest(appId) || { id: appId, name: appId };
@@ -1400,7 +1409,7 @@ const Shortcuts = (() => {
         formatPath, parsePath, normalizeUrl, normalizeHotkey,
         startMenuDir, taskbarDir, desktopDir, destinationDir,
         ensureFolder, readJson, writeJson,
-        listShortcutFiles, appIdForShortcut, shortcutLocation,
+        listShortcutFiles, appIdForShortcut, shortcutLocation, locationFor,
         createAppShortcut, onAppInstalled, onAppUninstalled: removeAppShortcuts,
         removeAppShortcuts, pinToTaskbar, appShortcutConfig,
         refreshHotkeys

@@ -346,8 +346,7 @@ const StartMenu = (() => {
                     kind: 'item', type: 'shortcut', name: String(child.name).replace(/\.lnk$/i, ''),
                     path: full, appId, manifest: man, data,
                     icon: s.iconHtml(data, 22, { arrow: false }),
-                    open: () => s.open(full),
-                    location: s.shortcutLocation(data)
+                    open: () => s.open(full)
                 });
                 continue;
             }
@@ -474,8 +473,10 @@ const StartMenu = (() => {
             items.push({ label: 'Pin to taskbar', icon: UIIcons.action('pin'), action: () => Taskbar.pinEntry(entry.path, { name: entry.name, appId: entry.appId }) });
         }
 
-        const location = entry.type === 'shortcut' ? entry.location
-            : (entry.type === 'file' ? entry.path.slice(0, -1) : null);
+        const s = shortcutsApi();
+        const location = entry.type === 'shortcut'
+            ? (s ? s.locationFor(entry.path, entry.data) : entry.path.slice(0, -1))
+            : (entry.path && entry.path.length > 1 ? entry.path.slice(0, -1) : null);
         if (location) {
             items.push({ label: 'Open file location', icon: UIIcons.folder('', 16), action: () => openFolder(location) });
         }

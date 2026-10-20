@@ -510,9 +510,7 @@ const DesktopIcons = (() => {
         const isLnk = !isDir && String(entry.ext || '').toLowerCase() === 'lnk';
         const isImage = !isDir && ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'].includes(String(entry.ext || '').toLowerCase());
         const lnk = isLnk ? Shortcuts.quickInfo(itemPath) : null;
-        const lnkLocation = lnk && Array.isArray(lnk.target) && Shortcuts.targetExists(lnk)
-            ? (lnk.type === 'folder' ? lnk.target : lnk.target.slice(0, -1))
-            : null;
+        const lnkLocation = lnk ? Shortcuts.locationFor(itemPath, lnk) : null;
         const createShortcut = { label: 'Create shortcut', icon: UIIcons.action('shortcut'), action: () => Shortcuts.createForPath(itemPath, desktopPath()) };
         const items = isDir ? [
             ...(appManifest ? [
