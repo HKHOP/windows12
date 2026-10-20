@@ -3,7 +3,7 @@
 // Owns a single dedicated worker and funnels every storage call through it
 // with request/response ids. A worker-level failure (CSP blocks worker-src,
 // spawn error, crash) permanently marks the client dead and rejects pending
-// calls, so fsStorage can fall back to the legacy backend instead of hanging.
+// calls, so a broken worker surfaces as a clear error instead of hanging.
 //
 // Op surface mirrors the worker: writeFile / readFile / readText /
 // removeEntry / stat / probe. All methods return Promises.

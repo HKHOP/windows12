@@ -33,6 +33,7 @@ import NetworkStatus from './modules/networkStatus.js';
 import Tray from './modules/tray.js';
 import Shortcuts from './modules/shortcuts.js';
 import Sounds from './modules/sounds.js';
+import CoreStore from './modules/coreStore.js';
 
 // Filesystem access policy: app code may always touch its own AppData,
 // anything else requires the 'filesystem' permission (see fsGuard.js).
@@ -69,12 +70,12 @@ FileSystem.setAccessChecker(FSGuard.check);
 // elevation for protected zones such as /Program Files (see fsGuard.js).
 FileSystem.setWriteChecker(FSGuard.checkWrite);
 
-document.addEventListener('DOMContentLoaded', async () => {
+// The shell is started by the bootstrap in index.html, which loads this
+// module from the service worker (the OS core lives in OPFS). DOMContentLoaded
+// has already fired by then, so the boot sequence is an explicit entry point
+// rather than an event listener.
+export async function boot() {
     window.SystemConfig = SystemConfig;
-
-    // Register the service worker as early as possible: it virtualizes
-    // /js/apps/<id>/… to serve installed packages from the filesystem.
-    registerServiceWorker();
 
     // Device connectivity: paints the tray Wi-Fi indicator and gives online
     // features a shared, clean "you're offline" surface. Runs before the
@@ -88,6 +89,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // a profile only once you pick it.
     await FileSystem.init();
     Users.loadAccounts();
+
+    // Mirror the installed OS core (OPFS) into \Windows so the operating
+    // system's own files are visible in File Explorer — read-only. This is
+    // machine-level work: it happens before anyone signs in.
+    try { await CoreStore.init(); } catch (e) { /* the mirror is optional */ }
 
     // Device display settings (resolution and scaling) are global:
     // read them before the shell exists so the boot / login / lock screens
@@ -103,13 +109,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const desktop = document.getElementById('desktop');
     const taskbar = document.getElementById('taskbar');
     const wallpaper = document.getElementById('wallpaper');
-    desktop.style.opacity = '0';
-    taskbar.style.opacity = '0';
+    if (desktop) desktop.style.opacity = '0';
+    if (taskbar) taskbar.style.opacity = '0';
     if (wallpaper) wallpaper.style.opacity = '0';
 
     // Boot animation → user picker → sign-in → profile load → desktop.
     LoginScreen.bootSequence({ onSignIn: (id) => Sessions.signIn(id) });
-});
+}
 
 // One-time shell construction for the FIRST profile to sign in: everything
 // that builds DOM or global wiring (windows, taskbar, start menu, ...) plus
@@ -230,19 +236,9 @@ async function closeSession(userId) {
     try { Tray.closeUser(userId); } catch (e) { /* noop */ }
 }
 
-// Offline shell + virtual package host. Best-effort: without it the OS still
-// runs (builtins load from the network, store apps fall back to the shipped
-// bundle), it just can't serve packages from the filesystem.
-function registerServiceWorker() {
-    if (!('serviceWorker' in navigator)) return;
-    if (location.protocol === 'file:') return;
-    try {
-        const swUrl = new URL('sw.js', document.baseURI).href;
-        navigator.serviceWorker.register(swUrl, { scope: './' }).catch(() => {
-            /* offline/packaging features unavailable — ignore */
-        });
-    } catch (e) { /* noop */ }
-}
+// The service worker is registered by the bootstrap in index.html, before
+// this module is ever loaded: it has to install the OS core into OPFS first.
+// Nothing to do here.
 
 function setupDesktopContextMenu() {
     const desktop = document.getElementById('desktop');

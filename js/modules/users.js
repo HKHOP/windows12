@@ -113,7 +113,7 @@ const Users = (() => {
     }
 
     // Move a node within the same FS without tripping blob cleanup
-    // (permanentDelete would drop IndexedDB blobs; we reattach instead).
+    // (permanentDelete would drop the blob files; we reattach instead).
     // Handles both files (e.g. legacy config.json) and folders.
     function moveNode(srcPath, destParentPath) {
         const run = asShell(() => {

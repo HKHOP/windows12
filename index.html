@@ -12,120 +12,293 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Windows 12">
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=12.0.5006">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=13.0.0">
     <link rel="apple-touch-icon" href="favicon.svg">
-    <link rel="stylesheet" href="css/main.css?v=12.0.5006">
-    <link rel="stylesheet" href="css/taskbar.css?v=12.0.5006">
-    <link rel="stylesheet" href="css/startmenu.css?v=12.0.5006">
-    <link rel="stylesheet" href="css/windows.css?v=12.0.5006">
-    <link rel="stylesheet" href="css/contextmenu.css?v=12.0.5006">
-    <link rel="stylesheet" href="css/browser.css?v=12.0.5006">
-    <link rel="stylesheet" href="css/popup.css?v=12.0.5006">
-    <link rel="stylesheet" href="css/search.css?v=12.0.5006">
-    <link rel="stylesheet" href="css/notifications.css?v=12.0.5006">
-    <link rel="stylesheet" href="css/clipboard.css?v=12.0.5006">
-    <link rel="stylesheet" href="css/taskview.css?v=12.0.5006">
-    <link rel="stylesheet" href="css/virtualKeyboard.css?v=12.0.5006">
     <title>Windows 12</title>
+    <style>
+        /* The bootstrap screen. It is intentionally self-contained: the shell
+           stylesheets live in OPFS and are only loaded once the core is
+           installed, so this screen must not depend on them. */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: #000;
+            color: #fff;
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        }
+        #boot-status {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 24px;
+            font-size: 15px;
+            line-height: 1.6;
+            letter-spacing: 0.2px;
+            opacity: 0.92;
+        }
+        #boot-status .hint {
+            display: block;
+            margin-top: 10px;
+            font-size: 13px;
+            opacity: 0.6;
+        }
+    </style>
 </head>
 <body>
-    <div id="boot-screen">
-        <div class="boot-logo">
-            <svg width="88" height="88" viewBox="0 0 20 20" fill="none">
-                <rect x="1" y="1" width="8.5" height="8.5" rx="1.5" fill="white"/>
-                <rect x="10.5" y="1" width="8.5" height="8.5" rx="1.5" fill="white"/>
-                <rect x="1" y="10.5" width="8.5" height="8.5" rx="1.5" fill="white"/>
-                <rect x="10.5" y="10.5" width="8.5" height="8.5" rx="1.5" fill="white"/>
-            </svg>
-        </div>
-        <div class="boot-spinner"></div>
-    </div>
-
-    <!-- Login screen (user picker + sign-in) is built dynamically by js/modules/loginScreen.js -->
-
-    <div id="resolution-layer">
-        <!-- Full-screen wallpaper layer: sits behind #desktop so the
-             translucent taskbar (and its acrylic blur) reveals the desktop
-             background instead of the black body. -->
-        <div id="wallpaper"></div>
-        <div id="desktop">
-            <div id="windows-container"></div>
-        </div>
-
-        <div id="taskbar">
-            <div id="taskbar-center"></div>
-            <div id="taskbar-tray">
-                <div id="tray-icons">
-                    <button id="tray-network" type="button" aria-label="Network" title="Network"></button>
-                    <svg id="tray-chevron" width="16" height="16" viewBox="0 0 24 24" fill="white" style="display:none;"><path d="M7 10l5 5 5-5z"/></svg>
-                </div>
-                <div id="clock"></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="start-menu" class="hidden">
-        <div class="start-menu-search">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="#888" stroke="#888" stroke-width="2"><circle cx="10.5" cy="10.5" r="7"/><line x1="15.5" y1="15.5" x2="21" y2="21"/></svg>
-            <input type="text" id="start-search" placeholder="Type here to search">
-        </div>
-        <div class="start-menu-body">
-            <div class="start-menu-section">
-                <div class="start-menu-section-header">
-                    <span>Pinned</span>
-                    <button class="start-menu-all-btn">All apps &gt;</button>
-                </div>
-                <div id="pinned-apps" class="start-menu-grid"></div>
-            </div>
-            <div class="start-menu-section">
-                <div class="start-menu-section-header">
-                    <span>Recommended</span>
-                </div>
-                <div id="recommended-apps" class="start-menu-list"></div>
-            </div>
-        </div>
-        <div id="start-menu-footer">
-            <div class="user-info">
-                <div class="user-avatar">U</div>
-                <span>User</span>
-            </div>
-            <button id="power-btn" title="Power">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
-                    <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
-                    <line x1="12" y1="2" x2="12" y2="12"/>
-                </svg>
-            </button>
-        </div>
-    </div>
-
-    <div id="search-panel" class="hidden">
-        <div class="search-header">
-            <div class="search-input-wrap">
-                <svg class="search-input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="7"/><line x1="15.5" y1="15.5" x2="21" y2="21"/></svg>
-                <input type="text" class="search-input" placeholder="Type here to search">
-            </div>
-            <div class="search-avatar">U</div>
-        </div>
-        <div class="search-body"></div>
-    </div>
-
-    <div id="context-menu" class="hidden"></div>
+    <!-- The bootstrap paints a black screen with a status line while the OS
+         core is downloaded into the Origin Private File System. Once the core
+         is installed the page reloads and this screen is replaced by the real
+         shell, which is served out of OPFS by the service worker. -->
+    <div id="boot-status">Starting Windows 12&hellip;</div>
 
     <script>
-    (function() {
-        var ver = '12.0.4988';
-        var stored = localStorage.getItem('app_version');
-        if (stored && stored !== ver) {
-            localStorage.setItem('app_version', ver);
-            location.reload(true);
-            return;
+    (function () {
+        'use strict';
+
+        var PAGE_LOAD = Date.now();
+        var statusEl = document.getElementById('boot-status');
+
+        function setStatus(text, hint) {
+            if (!statusEl) return;
+            statusEl.textContent = text;
+            if (hint) {
+                var span = document.createElement('span');
+                span.className = 'hint';
+                span.textContent = hint;
+                statusEl.appendChild(span);
+            }
         }
-        localStorage.setItem('app_version', ver);
-        if ('performance' in window && performance.navigation && performance.navigation.type === 2) {
-            location.reload(true);
+
+        function fail(title, detail) {
+            document.body.innerHTML = '';
+            var box = document.createElement('div');
+            box.id = 'boot-status';
+            box.textContent = title;
+            if (detail) {
+                var span = document.createElement('span');
+                span.className = 'hint';
+                span.textContent = detail;
+                box.appendChild(span);
+            }
+            document.body.appendChild(box);
         }
+
+        // --- service worker plumbing ---------------------------------------
+
+        function workerMessage(type, timeoutMs, target) {
+            return new Promise(function (resolve, reject) {
+                var id = Math.random().toString(36).slice(2);
+                var timer = setTimeout(function () {
+                    navigator.serviceWorker.removeEventListener('message', onMessage);
+                    reject(new Error('worker-timeout:' + type));
+                }, timeoutMs || 30000);
+                function onMessage(event) {
+                    if (!event.data || event.data.type !== type) return;
+                    if (event.data.__id !== id) return;
+                    clearTimeout(timer);
+                    navigator.serviceWorker.removeEventListener('message', onMessage);
+                    resolve(event.data);
+                }
+                navigator.serviceWorker.addEventListener('message', onMessage);
+                var worker = target || navigator.serviceWorker.controller;
+                if (!worker) {
+                    clearTimeout(timer);
+                    navigator.serviceWorker.removeEventListener('message', onMessage);
+                    reject(new Error('no-controller'));
+                    return;
+                }
+                worker.postMessage({ type: type, __id: id });
+            });
+        }
+
+        function waitForWorker(worker) {
+            if (!worker) return Promise.resolve(null);
+            if (worker.state === 'activated' || worker.state === 'installed' || worker.state === 'redundant') {
+                return Promise.resolve(worker);
+            }
+            return new Promise(function (resolve) {
+                function onState() {
+                    if (worker.state === 'activated' || worker.state === 'installed' || worker.state === 'redundant') {
+                        worker.removeEventListener('statechange', onState);
+                        resolve(worker);
+                    }
+                }
+                worker.addEventListener('statechange', onState);
+            });
+        }
+
+        // The worker must control the page before the shell can be loaded
+        // from OPFS. Activation claims the client, so give the claim a
+        // moment to land.
+        function waitForController(timeoutMs) {
+            if (navigator.serviceWorker.controller) return Promise.resolve(true);
+            return new Promise(function (resolve) {
+                var done = false;
+                function finish(ok) {
+                    if (done) return;
+                    done = true;
+                    navigator.serviceWorker.removeEventListener('controllerchange', onChange);
+                    resolve(ok);
+                }
+                function onChange() {
+                    if (navigator.serviceWorker.controller) finish(true);
+                }
+                navigator.serviceWorker.addEventListener('controllerchange', onChange);
+                setTimeout(function () { finish(!!navigator.serviceWorker.controller); }, timeoutMs || 10000);
+            });
+        }
+
+        // --- boot ----------------------------------------------------------
+
+        function loadStyles(list, version) {
+            return Promise.all(list.map(function (href) {
+                return new Promise(function (resolve) {
+                    var link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.href = href + '?v=' + encodeURIComponent(version);
+                    link.onload = resolve;
+                    link.onerror = resolve;
+                    document.head.appendChild(link);
+                });
+            }));
+        }
+
+        async function startShell() {
+            setStatus('Starting Windows 12…');
+            var manifestResponse = await fetch('./core-manifest.json', { cache: 'no-store' });
+            if (!manifestResponse.ok) throw new Error('core-manifest-missing');
+            var manifest = await manifestResponse.json();
+
+            var shellResponse = await fetch('./shell.html', { cache: 'no-store' });
+            if (!shellResponse.ok) throw new Error('shell-missing');
+            var shell = await shellResponse.text();
+
+            document.body.innerHTML = shell;
+            await loadStyles(manifest.css || [], manifest.version || '0');
+
+            var mod = await import('./js/main.js?v=' + encodeURIComponent(manifest.version || '0'));
+            if (!mod || typeof mod.boot !== 'function') throw new Error('boot-export-missing');
+            await mod.boot();
+
+            // The OS is up: let the worker drop superseded core versions.
+            try {
+                var worker = navigator.serviceWorker.controller;
+                if (worker) worker.postMessage({ type: 'core-gc' });
+            } catch (e) { /* best effort */ }
+        }
+
+        async function run() {
+            if (!('serviceWorker' in navigator)) {
+                fail('Windows 12 needs a modern browser.',
+                     'This browser does not support service workers.');
+                return;
+            }
+            if (!navigator.storage || !navigator.storage.getDirectory) {
+                fail('Windows 12 needs a modern browser.',
+                     'This browser does not support the Origin Private File System.');
+                return;
+            }
+
+            // Core progress (the worker broadcasts it while unpacking). The
+            // listener is registered first so the very first install reports.
+            navigator.serviceWorker.addEventListener('message', function (event) {
+                var data = event.data || {};
+                if (data.type === 'core-progress' && data.total) {
+                    setStatus('Installing Windows 12… ' + Math.round((data.done / data.total) * 100) + '%');
+                } else if (data.type === 'core-installed') {
+                    setStatus('Installing Windows 12… done');
+                }
+            });
+
+            setStatus('Preparing…');
+            var registration = await navigator.serviceWorker.register('./sw.js', { scope: './' });
+            if (registration.installing) await waitForWorker(registration.installing);
+            await Promise.race([
+                navigator.serviceWorker.ready,
+                new Promise(function (resolve) { setTimeout(resolve, 120000); })
+            ]);
+            if (!await waitForController(15000)) {
+                fail('Windows 12 could not be downloaded.',
+                     'The service worker could not start. Check your connection and reload this page.');
+                return;
+            }
+
+            // The core the running worker serves. Each worker owns its own
+            // core version directory, so this never changes because some
+            // other worker installed something.
+            var status = await workerMessage('core-status', 20000);
+
+            // A newer service worker is waiting. It only matters to the user
+            // when it carries a different OS version — a worker that merely
+            // brings a fresher app catalog is taken over silently.
+            if (registration.waiting) {
+                var waiting = null;
+                try {
+                    waiting = await workerMessage('core-status', 10000, registration.waiting);
+                } catch (e) { waiting = null; }
+                var waitingVersion = waiting && waiting.ok ? waiting.version : null;
+                var runningVersion = status && status.ok ? status.version : null;
+                var isOsUpdate = !!(waitingVersion && runningVersion && waitingVersion !== runningVersion);
+                if (isOsUpdate) {
+                    var update = confirm('A new version of Windows 12 is ready.\n\nRefresh now to install it?');
+                    if (update) {
+                        var changed = new Promise(function (resolve) {
+                            navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true });
+                        });
+                        registration.waiting.postMessage({ type: 'skip-waiting' });
+                        await Promise.race([
+                            changed,
+                            new Promise(function (resolve) { setTimeout(resolve, 5000); })
+                        ]);
+                        location.reload();
+                        return;
+                    }
+                } else {
+                    // Same OS, new worker: take it over quietly, no restart.
+                    registration.waiting.postMessage({ type: 'skip-waiting' });
+                }
+            }
+
+            if (!status || !status.ok) {
+                setStatus('Downloading Windows 12…');
+                var ready = await workerMessage('ensure-core', 300000);
+                if (!ready || !ready.ok) {
+                    fail('Windows 12 could not be downloaded.',
+                         'Check your connection and reload this page.');
+                    return;
+                }
+                promptRestart();
+                return;
+            }
+
+            // The core was installed while this page was loading: the worker
+            // that serves it may still be the previous one, so restart once.
+            if (status.installedAt && status.installedAt >= PAGE_LOAD) {
+                promptRestart();
+                return;
+            }
+
+            await startShell();
+        }
+
+        function promptRestart() {
+            setStatus('Windows 12 is ready.');
+            var restart = confirm('Windows 12 has been downloaded and installed.\n\nRefresh to start?');
+            if (restart) {
+                location.reload();
+                return;
+            }
+            setStatus('Windows 12 is ready.', 'Refresh this page to start.');
+        }
+
+        run().catch(function (err) {
+            fail('Windows 12 failed to start.', String((err && err.message) || err));
+        });
     })();
     </script>
-    <script type="module" src="js/main.js?v=12.0.5006"></script>
 </body>
 </html>

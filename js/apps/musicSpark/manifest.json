@@ -3,7 +3,7 @@
     "id": "musicSpark",
     "uuid": "3a17e9c1-d05a-4798-ad50-5b4d322f8293",
     "name": "Music Spark",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "distribution": "store",
     "entry": "main.js",
     "associations": [

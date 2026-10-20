@@ -94,6 +94,53 @@ globalThis.CustomEvent = class CustomEvent {
 try {
     Object.defineProperty(globalThis, 'navigator', { value: {}, configurable: true, writable: true });
 } catch { /* fixed in this runtime */ }
+
+// ---------- fake OPFS ----------
+// The OS stores everything in the Origin Private File System, which Node does
+// not have. This stub answers the worker's protocol with an in-memory map, so
+// the filesystem tests exercise the real modules instead of a mock.
+const opfsFiles = new Map();
+globalThis.Worker = class FakeOpfsWorker {
+    constructor() {
+        this.onmessage = null;
+        this.onerror = null;
+        this.onmessageerror = null;
+    }
+    postMessage(msg) {
+        const { id, op, args } = msg || {};
+        let ok = true;
+        let value = null;
+        try {
+            if (op === 'selftest') value = true;
+            else if (op === 'writeFile') { opfsFiles.set(args[0], args[1]); value = true; }
+            else if (op === 'readText') {
+                if (!opfsFiles.has(args[0])) throw new Error('not-found');
+                value = String(opfsFiles.get(args[0]));
+            } else if (op === 'readFile') {
+                if (!opfsFiles.has(args[0])) throw new Error('not-found');
+                value = new Blob([opfsFiles.get(args[0])]);
+            } else if (op === 'removeEntry') { opfsFiles.delete(args[0]); value = true; }
+            else if (op === 'stat') {
+                const v = opfsFiles.get(args[0]);
+                value = v == null
+                    ? { exists: false }
+                    : { exists: true, size: String(v).length, lastModified: Date.now() };
+            } else throw new Error('unknown-op:' + op);
+        } catch (e) {
+            ok = false;
+            value = String((e && e.message) || e);
+        }
+        setTimeout(() => {
+            if (this.onmessage) this.onmessage({ data: { id, ok, value } });
+        }, 0);
+    }
+    terminate() {}
+};
+globalThis.navigator.storage = {
+    getDirectory: async () => ({}),
+    persist: async () => true,
+    estimate: async () => ({ usage: 0, quota: 0 })
+};
 globalThis.Audio = class Audio { play() {} pause() {} };
 globalThis.AudioContext = class AudioContext {
     constructor() {

@@ -3,7 +3,7 @@
 // The full virtual filesystem with friendlier names. Paths are string
 // arrays starting with '/' (e.g. ['/', 'users', 'default', 'notes.txt']).
 // delete() recycles (restorable); destroy() deletes forever. Large media
-// should use the blob methods so localStorage never sees the bulk bytes.
+// should use the blob methods so the tree snapshot never sees the bulk bytes.
 // App-scoped storage (the enforced convention) lives on createApp().files;
 // this namespace is the raw, explicit-path power tool.
 import InternalFS from '../modules/fileSystem.js';
@@ -155,7 +155,7 @@ function isBlob(path) {
 }
 
 /**
- * Store raw bytes (audio/video/images) outside the localStorage budget.
+ * Store raw bytes (audio/video/images) outside the tree snapshot.
  * @param {string[]} dir
  * @param {string} name
  * @param {Blob} blob
@@ -208,6 +208,17 @@ function emptyRecycleBin() {
 }
 
 /**
+ * True when the path is inside a read-only area (the OS core, \Windows).
+ * Writes there are always refused — no elevation, no consent dialog.
+ * @param {string[]} path
+ * @returns {boolean}
+ */
+function isReadOnly(path) {
+    needPath(path, 'path');
+    return InternalFS.isReadOnly(path);
+}
+
+/**
  * Storage budget info { used, quota }.
  * @returns {object}
  */
@@ -249,6 +260,7 @@ export const FileSystem = {
     getRecycleBinContent: recycleBin,
     restoreFromRecycleBin,
     emptyRecycleBin,
+    isReadOnly,
     storageInfo,
     pickSave,
     saveDialog: pickSave

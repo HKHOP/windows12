@@ -1,11 +1,11 @@
-// Persistent storage backends for the virtual filesystem.
+// Persistence for the virtual filesystem.
 //
 // The FileSystem module keeps the whole tree in memory and exposes a
 // synchronous API; this module owns only the *persistence* of that tree and
 // of the large ("blob") files, behind a small async interface:
 //
-//     id                       'opfs' | 'legacy'
-//     limited                  true when the backend has a hard size cap
+//     id                       'opfs'
+//     limited                  false (OPFS is quota-based, not size-capped)
 //     loadTree()               Promise<tree|null>
 //     saveTree(tree)           Promise<boolean>
 //     putBlob(ref, blob)       Promise<boolean>
@@ -13,116 +13,33 @@
 //     delBlob(ref)             Promise<void>
 //     storageInfo()            Promise<{ backend, localBytes, usage, quota }>
 //
-// Two backends exist:
+// There is exactly one backend: the Origin Private File System (Chrome 86+ /
+// Firefox 111+ / Safari 15.2+). The old localStorage + IndexedDB fallback has
+// been removed — a browser without OPFS cannot run the OS.
 //
-//   opfs   — Origin Private File System (Chrome 86+/Firefox 111+/Safari
-//            15.2+). The tree is one JSON snapshot; large files are real
-//            files. Quota-based, so no 4.5MB ceiling. All I/O runs in a
-//            dedicated worker (see opfsClient.js / opfsWorker.js) because
-//            Safari before 26 only exposes OPFS writes through
-//            createSyncAccessHandle(), which is worker-only.
+// OPFS layout (origin-private, invisible to the user):
 //
-//   legacy — the original localStorage tree + IndexedDB blob store. Used
-//            automatically whenever OPFS is missing or unusable (old
-//            browsers, Firefox/Safari Private Browsing, HTTP, CSP-blocked
-//            workers). Behaviour here is unchanged from before OPFS.
+//   w12/fs.json            the serialized tree snapshot (source of truth)
+//   w12/blobs/<ref>       raw bytes for large user files
+//   w12/core/<version>/…  the unpacked OS core (written by the service
+//                          worker; the tree only *references* it, see
+//                          js/modules/coreStore.js)
 //
-// OPFS is preferred whenever the probe succeeds; existing legacy data is
-// copied forward non-destructively, so the fallback path keeps working.
-import BlobStore from './blobStore.js';
+// All I/O runs in a dedicated worker (see opfsClient.js / opfsWorker.js)
+// because Safari before 26 only exposes OPFS writes through
+// createSyncAccessHandle(), which is worker-only.
 import OpfsClient from './opfsClient.js';
 
-// --- legacy (localStorage + IndexedDB) --------------------------------------
-const LEGACY_KEY = 'windows12-filesystem';
-const LEGACY_BUDGET = Math.floor(4.5 * 1024 * 1024);
-
-// --- OPFS layout (origin-private, invisible to the user) --------------------
-//   w12/fs.json        the serialized tree snapshot (source of truth)
-//   w12/blobs/<ref>    raw bytes for large files
 const TREE_PATH = 'w12/fs.json';
 const BLOBS_DIR = 'w12/blobs';
+
+// Core files are addressed with a 'core/' prefix and live outside the user's
+// blob area, so a factory reset of w12/blobs never touches the OS itself.
+const CORE_PREFIX = 'core/';
+
 function blobPath(ref) {
+    if (String(ref).startsWith(CORE_PREFIX)) return 'w12/' + ref;
     return BLOBS_DIR + '/' + ref;
-}
-
-const legacyBackend = {
-    id: 'legacy',
-    limited: true,
-
-    async loadTree() {
-        let saved = null;
-        try { saved = localStorage.getItem(LEGACY_KEY); } catch (e) { /* storage disabled */ }
-        if (!saved) return null;
-        try {
-            return JSON.parse(saved);
-        } catch (e) {
-            return null;
-        }
-    },
-
-    async saveTree(tree) {
-        try {
-            localStorage.setItem(LEGACY_KEY, JSON.stringify(tree));
-            return true;
-        } catch (e) {
-            console.error('FileSystem: localStorage save failed:', e.name);
-            return false;
-        }
-    },
-
-    async putBlob(ref, blob) {
-        try {
-            await BlobStore.put(ref, blob);
-            const check = await BlobStore.get(ref);
-            if (!check || check.size !== blob.size) {
-                try { await BlobStore.del(ref); } catch (e2) { /* best effort */ }
-                return false;
-            }
-            return true;
-        } catch (e) {
-            return false;
-        }
-    },
-
-    async getBlob(ref) {
-        try {
-            return await BlobStore.get(ref);
-        } catch (e) {
-            return null;
-        }
-    },
-
-    async delBlob(ref) {
-        try { await BlobStore.del(ref); } catch (e) { /* best effort */ }
-    },
-
-    async storageInfo() {
-        let localBytes = 0;
-        try { localBytes = (localStorage.getItem(LEGACY_KEY) || '').length; } catch (e) { /* noop */ }
-        return { backend: 'legacy', localBytes, usage: null, quota: null };
-    }
-};
-
-// One-time, non-destructive copy of the localStorage tree into OPFS. Leaves
-// the localStorage copy untouched so the legacy fallback still has data.
-// Returns false only when the copy was needed and failed — the caller then
-// keeps the legacy backend rather than showing an empty OPFS filesystem.
-async function migrateLegacyTree() {
-    try {
-        const existing = await OpfsClient.stat(TREE_PATH);
-        if (existing.exists) return true;
-    } catch (e) {
-        return false;
-    }
-    let legacy = null;
-    try { legacy = localStorage.getItem(LEGACY_KEY); } catch (e) { legacy = null; }
-    if (!legacy) return true; // nothing to migrate — OPFS starts fresh
-    try {
-        await OpfsClient.writeFile(TREE_PATH, legacy);
-        return true;
-    } catch (e) {
-        return false;
-    }
 }
 
 const opfsBackend = {
@@ -175,33 +92,27 @@ const opfsBackend = {
             // OPFS files carry no MIME type; restore it from the tree node.
             return type && file.type !== type ? new Blob([file], { type }) : file;
         } catch (e) {
-            // Bytes written before the OPFS migration may still live only in
-            // IndexedDB. Serve them and copy them forward for next time.
-            const legacy = await legacyBackend.getBlob(ref);
-            if (!legacy) return null;
-            try {
-                await OpfsClient.writeFile(blobPath(ref), legacy);
-            } catch (e2) { /* serve from legacy this time */ }
-            return legacy;
+            return null;
         }
     },
 
     async delBlob(ref) {
         try { await OpfsClient.removeEntry(blobPath(ref), false); } catch (e) { /* best effort */ }
-        // Clear the legacy copy too so nothing can resurrect it.
-        try { await BlobStore.del(ref); } catch (e) { /* best effort */ }
     },
 
     async storageInfo() {
         let localBytes = 0;
-        try { localBytes = (localStorage.getItem(LEGACY_KEY) || '').length; } catch (e) { /* noop */ }
+        try {
+            const text = await OpfsClient.readText(TREE_PATH);
+            localBytes = text ? text.length : 0;
+        } catch (e) { /* noop */ }
         return { backend: 'opfs', localBytes, usage: null, quota: null };
     }
 };
 
-// Chooses the backend for this session. Never throws: any probe failure
-// (unsupported browser, private browsing, insecure context, blocked worker)
-// falls back to the legacy backend.
+// OPFS is mandatory. The probe performs a real write/read/delete round-trip
+// in the worker, so an unusable filesystem (private browsing, blocked worker,
+// insecure context) is detected before the OS pretends to have a disk.
 async function select() {
     let ok = false;
     try {
@@ -209,18 +120,16 @@ async function select() {
     } catch (e) {
         ok = false;
     }
-    if (!ok) return legacyBackend;
+    if (!ok) {
+        throw new Error('Windows 12 needs the Origin Private File System, which this browser does not provide.');
+    }
 
     // Ask for durable storage so the origin isn't evicted under pressure.
     try {
         if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => { /* best effort */ });
     } catch (e) { /* noop */ }
 
-    // Copy any existing legacy data forward. If that copy was needed but
-    // failed (e.g. quota), stay on the legacy backend so the user still sees
-    // their files instead of a fresh OPFS filesystem.
-    if (!await migrateLegacyTree()) return legacyBackend;
     return opfsBackend;
 }
 
-export default { select, LEGACY_KEY, LEGACY_BUDGET };
+export default { select, blobPath };

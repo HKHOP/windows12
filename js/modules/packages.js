@@ -83,9 +83,6 @@ function isInstallerOnly(path) {
 const Packages = (() => {
     // id -> { id, scope: 'system'|'user', user: <uid|null>, manifest }
     let installed = new Map();
-    // ids that are "installed" only in the old localStorage world: they still
-    // open from the shipped HTTP bundle until migration completes.
-    let legacy = new Set();
     let inited = false;
     // Package Installer guard: one install per app id at a time.
     const installing = new Set();
@@ -151,12 +148,6 @@ const Packages = (() => {
         }
     }
 
-    function uuidMap() {
-        const map = {};
-        for (const m of APP_MANIFESTS) map[String(m.uuid).toLowerCase()] = m.id;
-        return map;
-    }
-
     function pkgUrl(id) {
         return new URL(`../../packages/${id}.w12pkg`, import.meta.url).href;
     }
@@ -166,8 +157,6 @@ const Packages = (() => {
     function getInstalled() { return [...installed.values()].map(r => ({ ...r })); }
     function isInstalled(id) { return installed.has(id); }
     function getRecord(id) { return installed.get(id) || null; }
-    function getLegacy() { return new Set(legacy); }
-    function legacyInstalled() { return legacy; }
     function manifests() {
         const out = {};
         for (const r of installed.values()) if (r.manifest) out[r.id] = r.manifest;
@@ -741,8 +730,6 @@ const Packages = (() => {
             stagingParent = null;
 
             await FileSystem.flushAsync();
-            legacy.delete(man.id);
-            persistLegacy();
             scan(uid);
             writeSession();
             report(1, 'Done');
@@ -842,8 +829,6 @@ const Packages = (() => {
         }
 
         await FileSystem.flushAsync();
-        legacy.delete(id);
-        persistLegacy();
         scan();
         writeSession();
         onProgress && onProgress(1, 'Done');
@@ -882,9 +867,6 @@ const Packages = (() => {
             }
         }
         installed.delete(id);
-        // A legacy (localStorage-era) install has no folder record; without
-        // this it reappeared on the next catalog refresh.
-        if (legacy.delete(id)) persistLegacy();
         await FileSystem.flushAsync();
         writeSession();
         window.dispatchEvent(new CustomEvent('apps-changed'));
@@ -996,54 +978,6 @@ const Packages = (() => {
         return { id, scope };
     }
 
-    // ---- legacy install migration (localStorage era) ----
-
-    function legacyKey() { return 'installed_apps_' + userId(); }
-    const GLOBAL_KEY = 'installed_apps';
-
-    function readLegacyUuids() {
-        const out = [];
-        const push = (arr) => { if (Array.isArray(arr)) arr.forEach(v => out.push(String(v))); };
-        try { push(JSON.parse(localStorage.getItem(legacyKey()) || 'null')); } catch (e) { /* none */ }
-        try { push(JSON.parse(localStorage.getItem(GLOBAL_KEY) || 'null')); } catch (e) { /* none */ }
-        return [...new Set(out.filter(v => UUID_RE.test(v)))];
-    }
-
-    function persistLegacy() {
-        const remaining = readLegacyUuids().filter(uuid => {
-            const id = uuidMap()[uuid.toLowerCase()];
-            return !id || !installed.has(id);
-        });
-        try {
-            if (remaining.length) localStorage.setItem(legacyKey(), JSON.stringify(remaining));
-            else localStorage.removeItem(legacyKey());
-            localStorage.removeItem(GLOBAL_KEY);
-        } catch (e) { /* storage unavailable */ }
-    }
-
-    async function migrateLegacy() {
-        const map = uuidMap();
-        const uuids = readLegacyUuids();
-        if (uuids.length === 0) return;
-        // Immediately honor them as legacy installs so nothing disappears
-        // while the (network) migration runs.
-        for (const uuid of uuids) {
-            const id = map[uuid.toLowerCase()];
-            if (id && !installed.has(id)) legacy.add(id);
-        }
-        window.dispatchEvent(new CustomEvent('apps-changed'));
-
-        for (const uuid of uuids) {
-            const id = map[uuid.toLowerCase()];
-            if (!id || installed.has(id)) continue;
-            try {
-                await install(id, { scope: 'user' });
-            } catch (e) { /* stays on the legacy shim for this session */ }
-        }
-        persistLegacy();
-        window.dispatchEvent(new CustomEvent('apps-changed'));
-    }
-
     // ---- boot ----
 
     // A cancelled/crashed install can leave a staging folder behind; it is
@@ -1070,7 +1004,6 @@ const Packages = (() => {
 
         scan();
         writeSession();
-        try { migrateLegacy(); } catch (e) { /* best effort */ }
     }
 
     // Foreground session changed: rescan this profile's package root (the
@@ -1079,7 +1012,6 @@ const Packages = (() => {
     function activate() {
         scan();
         writeSession();
-        try { migrateLegacy(); } catch (e) { /* best effort */ }
         try { window.dispatchEvent(new CustomEvent('apps-changed')); } catch (e) { /* noop */ }
     }
 
@@ -1087,7 +1019,7 @@ const Packages = (() => {
         init, activate, install, uninstall, update, clearAll,
         inspectArchive, installArchive,
         getInstalled, isInstalled, getRecord, scopeOf,
-        manifests, legacyInstalled, getLegacy,
+        manifests,
         vfsActive, writeSession, pkgUrl,
         SYSTEM_ROOT, userRoot
     };

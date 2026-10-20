@@ -72,7 +72,7 @@ const ClipboardManager = (() => {
         try {
             ensureDir();
             let json = JSON.stringify(history);
-            // Storage guard: localStorage-backed FS (~5MB). Evict oldest
+            // Storage guard: keep the history index small. Evict oldest
             // unpinned images first, then oldest unpinned text, until small.
             while (json.length > MAX_STORE_CHARS) {
                 const idx = history.findIndex(h => !h.pinned && h.type === 'image')

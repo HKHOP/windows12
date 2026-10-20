@@ -3,7 +3,7 @@
     "id": "mediaPlayer",
     "uuid": "23917c1e-2117-4404-b620-82cedd12a70e",
     "name": "Media Player",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "distribution": "builtin",
     "entry": "main.js",
     "associations": [

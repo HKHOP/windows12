@@ -3,9 +3,8 @@ import FsStorage from './fsStorage.js';
 const FileSystem = (() => {
     let root = {};
     let saveTimeout = null;
-    // Selected persistence backend: OPFS when the browser supports it,
-    // otherwise the original localStorage + IndexedDB pair. Chosen in
-    // init(); see fsStorage.js for the probe and the fallback rules.
+    // Persistence backend: OPFS. Chosen in init(); see fsStorage.js for the
+    // capability probe (a browser without OPFS cannot run the OS).
     let backend = null;
     // Access policy hook (multi-user AppData model): main.js injects
     // FSGuard.check here. Denying a call makes it return the usual
@@ -17,10 +16,11 @@ const FileSystem = (() => {
     // keep using accessChecker, so File Explorer can still browse.
     let writeChecker = null;
     const RECYCLE_BIN_PATH = ['/', 'system', '$Recycle.Bin'];
-    // Legacy backend ceiling: localStorage caps the whole serialized tree at
-    // ~5MB, so one huge file can't silently take every save down with it.
-    // The OPFS backend is quota-based and ignores this.
-    const STORAGE_BUDGET = FsStorage.LEGACY_BUDGET;
+    // Roots that are read-only for everyone. The OS core mirror (\Windows) is
+    // installed by the service worker from the bundle that is actually
+    // running, so the operating system must never be edited from inside
+    // itself. Reads stay allowed — File Explorer can show the files.
+    const READ_ONLY_ROOTS = ['Windows'];
 
     function getDefaultFS() {
         return {
@@ -157,18 +157,10 @@ const FileSystem = (() => {
         }
     }
 
-    // Pre-flight check before writing a large file. The OPFS backend is
-    // quota-based and always reports fit; the legacy backend keeps its
-    // ~4.5MB localStorage ceiling.
-    function wouldFit(extraBytes) {
-        if (backend && !backend.limited) return true;
-        return serializedSize() + (extraBytes || 0) < STORAGE_BUDGET;
-    }
-
     // Diagnostics for the storage UI: the backend's own footprint plus the
     // real origin usage/quota (which also covers every blob store).
     async function storageInfo() {
-        let base = { backend: backend ? backend.id : 'legacy', localBytes: 0 };
+        let base = { backend: backend ? backend.id : 'opfs', localBytes: 0 };
         try {
             if (backend) base = await backend.storageInfo();
         } catch (e) { /* keep defaults */ }
@@ -186,7 +178,15 @@ const FileSystem = (() => {
     }
 
     function backendId() {
-        return backend ? backend.id : 'legacy';
+        return backend ? backend.id : 'opfs';
+    }
+
+    // True when the path lives in a read-only root (see READ_ONLY_ROOTS).
+    function isReadOnly(path) {
+        const parts = typeof path === 'string' ? path.split('/') : (path || []);
+        const first = parts.filter(p => p !== '/' && p !== '')[0];
+        if (!first) return false;
+        return READ_ONLY_ROOTS.includes(first);
     }
 
     function getNode(path) {
@@ -237,6 +237,34 @@ const FileSystem = (() => {
         return true;
     }
 
+    // Creates a file entry that points at bytes that already live on disk.
+    // The OS core uses this to mirror its own files into the tree without
+    // copying them: the reference is resolved by the storage backend, which
+    // maps a 'core/…' reference to the OS core area of OPFS.
+    function linkBlob(path, name, ref, type = '', size = 0) {
+        const parent = getNode(path);
+        if (!parent || parent.type !== 'folder') return false;
+        const dot = name.lastIndexOf('.');
+        const ext = dot > 0 ? name.slice(dot + 1) : '';
+        parent.children[name] = {
+            type: 'file', name, ext, modified: Date.now(),
+            blobRef: ref, size: size || 0, blobType: type || ''
+        };
+        save();
+        return true;
+    }
+
+    // Replaces the contents of a folder wholesale. The caller owns the
+    // referenced bytes: nothing is written to or removed from blob storage.
+    // Used by the OS core mirror to refresh itself in one shot.
+    function setFolderContents(path, children) {
+        const node = getNode(path);
+        if (!node || node.type !== 'folder') return false;
+        node.children = children || {};
+        save();
+        return true;
+    }
+
     function readFile(path) {
         const node = getNode(path);
         if (!node || node.type !== 'file') return null;
@@ -269,7 +297,7 @@ const FileSystem = (() => {
         return 'blob_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e9).toString(36);
     }
 
-    // Store a large file (audio, video, images) as raw bytes in IndexedDB.
+    // Store a large file (audio, video, images) as raw bytes in OPFS.
     // The tree keeps a tiny pointer, so the snapshot never sees the bulk.
     // The write is read back and verified — a success return means the bytes
     // were confirmed on disk, never just "sent and hoped".
@@ -501,7 +529,7 @@ const FileSystem = (() => {
         return allowed(path) && writeAllowed(path);
     }
 
-    return { setAccessChecker, setWriteChecker, init, save, flush, flushAsync, backendId, serializedSize, wouldFit, storageInfo, STORAGE_BUDGET, resetToDefault,
+    return { setAccessChecker, setWriteChecker, init, save, flush, flushAsync, backendId, serializedSize, storageInfo, resetToDefault, isReadOnly,
         // Guarded public surface: every path-reaching operation consults the
         // access checker first. Internal implementations above stay unguarded
         // so shell internals (recycle bin bookkeeping, migrations) can't be
@@ -512,6 +540,8 @@ const FileSystem = (() => {
         writeFile: (p, c) => canWrite(p) ? writeFile(p, c) : false,
         createFile: (p, n, c, e) => canWrite([...p, n]) ? createFile(p, n, c, e) : false,
         createFolder: (p, n) => canWrite([...p, n]) ? createFolder(p, n) : false,
+        linkBlob: (p, n, r, t, s) => canWrite([...p, n]) ? linkBlob(p, n, r, t, s) : false,
+        setFolderContents: (p, c) => canWrite(p) ? setFolderContents(p, c) : false,
         writeFileBlob: async (p, n, b, e) => canWrite([...p, n]) ? writeFileBlob(p, n, b, e) : false,
         readFileBlob: async (p) => allowed(p) ? readFileBlob(p) : null,
         isBlobFile: (p) => allowed(p) ? isBlobFile(p) : false,

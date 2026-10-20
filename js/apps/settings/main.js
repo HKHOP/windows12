@@ -562,9 +562,9 @@ const Settings = (() => {
     }
 
     // Recursively totals a filesystem subtree. Inline file contents live in
-    // the tree snapshot (localStorage, or OPFS on the OPFS backend); the
-    // string length is the footprint. Blob-backed files store raw bytes in
-    // IndexedDB (legacy) or OPFS files, and their verified `size` is used.
+    // the tree snapshot; blob-backed files (media, and the read-only OS core
+    // mirror) store their raw bytes in OPFS, and their verified `size` is
+    // used.
     function measureNode(node) {
         if (!node) return { local: 0, blob: 0, files: 0 };
         if (node.type === 'file') {
@@ -584,14 +584,7 @@ const Settings = (() => {
     function renderStorageSettings(el) {
         let totalLocal = 0;
         try { totalLocal = FileSystem.serializedSize(); } catch (e) { totalLocal = 0; }
-        const budget = FileSystem.STORAGE_BUDGET || Math.floor(4.5 * 1024 * 1024);
-        const usedPct = Math.min(100, Math.max(0, (totalLocal / budget) * 100));
-        const backendId = FileSystem.backendId ? FileSystem.backendId() : 'legacy';
-        const isOpfs = backendId === 'opfs';
-        const barWidth = isOpfs ? 0 : usedPct;
-        const diskCaption = isOpfs
-            ? `${formatBytes(totalLocal)} in the file index (OPFS is quota-based, no fixed ceiling)`
-            : `${formatBytes(totalLocal)} of ${formatBytes(budget)} used (${usedPct.toFixed(1)}%)`;
+        const diskCaption = `${formatBytes(totalLocal)} in the file index (OPFS is quota-based, no fixed ceiling)`;
 
         const home = Users.home();
         const categories = [
@@ -602,6 +595,7 @@ const Settings = (() => {
             { name: 'Videos', path: [...home, 'Videos'], color: '#E53935' },
             { name: 'Desktop', path: [...home, 'Desktop'], color: '#7E57C2' },
             { name: 'Apps & data', path: [...home, 'AppData'], color: '#0078D4' },
+            { name: 'Windows 12 (system)', path: ['Windows'], color: '#4FC3F7' },
             { name: 'System & reserved', path: ['/', 'system'], color: '#888' }
         ].map(cat => {
             let m = { local: 0, blob: 0, files: 0 };
@@ -609,17 +603,14 @@ const Settings = (() => {
             return { ...cat, ...m, bytes: m.local + m.blob };
         });
 
-        const blobTotal = categories.reduce((sum, c) => sum + c.blob, 0);
-        const diskSub = isOpfs
-            ? 'Backend: OPFS • files and media stored as real files'
-            : `Media files (IndexedDB): ${formatBytes(blobTotal)}${blobTotal > 0 ? '' : ' • nothing stored off-index yet'}`;
+        const diskSub = 'Backend: OPFS • files and media stored as real files';
 
         el.innerHTML += `
             <div style="display:flex;flex-direction:column;gap:16px;">
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
-                    <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Virtual disk (${isOpfs ? 'OPFS' : 'browser storage'})</div>
+                    <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Virtual disk (OPFS)</div>
                     <div style="height:20px;background:rgba(255,255,255,0.06);border-radius:10px;overflow:hidden;margin-bottom:8px;">
-                        <div class="storage-disk-bar" style="height:100%;width:${barWidth.toFixed(1)}%;background:linear-gradient(90deg,#0078D4,#00a8e8);border-radius:10px;"></div>
+                        <div class="storage-disk-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#0078D4,#00a8e8);border-radius:10px;"></div>
                     </div>
                     <div class="storage-disk-caption" style="font-size:13px;color:var(--text-secondary);">${diskCaption}</div>
                     <div class="storage-disk-line" style="font-size:12px;color:var(--text-secondary);margin-top:4px;">${diskSub}</div>
@@ -648,12 +639,10 @@ const Settings = (() => {
                 const quota = info.quota == null ? 'unknown' : formatBytes(info.quota);
                 const line = el.querySelector('.storage-disk-line');
                 if (line) {
-                    line.textContent = isOpfs
-                        ? `Backend: OPFS • On-disk usage: ${usage} of ${quota}`
-                        : `Media files (IndexedDB): ${formatBytes(blobTotal)} • On-disk usage: ${usage} of ${quota}`;
+                    line.textContent = `Backend: OPFS • On-disk usage: ${usage} of ${quota}`;
                 }
                 const bar = el.querySelector('.storage-disk-bar');
-                if (isOpfs && bar && info.usage != null && info.quota) {
+                if (bar && info.usage != null && info.quota) {
                     bar.style.width = Math.min(100, (info.usage / info.quota) * 100).toFixed(1) + '%';
                 }
             }).catch(() => { /* keep the synchronous numbers */ });
@@ -1008,16 +997,8 @@ const Settings = (() => {
         // 4. Clear all installed packages (store apps)
         try { Packages.clearAll(); } catch (e) { /* noop */ }
 
-        // 5. Clear localStorage/IndexedDB leftovers
-        try {
-            localStorage.clear();
-            if (window.indexedDB && indexedDB.databases) {
-                const dbs = await indexedDB.databases();
-                for (const db of dbs) {
-                    if (db.name) indexedDB.deleteDatabase(db.name);
-                }
-            }
-        } catch (e) { /* noop */ }
+        // 5. Clear localStorage leftovers from the pre-OPFS era
+        try { localStorage.clear(); } catch (e) { /* noop */ }
 
         // 6. Drop OPFS blob files too (the fresh tree has no references, but
         // the old bytes would otherwise survive the "factory reset").

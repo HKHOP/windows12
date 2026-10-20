@@ -123,7 +123,15 @@ Use it in the app via `AppIcons.get('myReddit')` (returns an `<img>` for package
 node build-registry.js
 ```
 
-This validates all manifests, rewrites `js/apps/registry.js` (metadata only — module imports are lazy, see §2.5), and refreshes the `sw.js` precache (core shell assets + every builtin app file). Commit the regenerated files.
+This validates all manifests, rewrites `js/apps/registry.js` (metadata only — module imports are lazy, see §2.5), and refreshes the `sw.js` app distribution map. Commit the regenerated files.
+
+Then rebuild the OS core bundle — this is what the browser actually downloads and runs:
+
+```sh
+node build-core.js
+```
+
+This writes `w12-core.pkg` (a DEFLATE ZIP with the shell, stylesheets, modules, SDK and every **builtin** app) plus the `sw.js` core metadata block. Commit the bundle. **Skip it only if your app is a store app** — store apps travel in their own `.w12pkg` and are downloaded by the Store.
 
 If the app is a store app, also build its download archive:
 
@@ -131,7 +139,7 @@ If the app is a store app, also build its download archive:
 node build-packages.js
 ```
 
-This writes `packages/<id>.w12pkg` (an uncompressed ZIP of the whole app folder) that the Store downloads on install. Commit those too.
+This writes `packages/<id>.w12pkg` (an uncompressed ZIP of the whole app folder) that the Store downloads on install. Commit those too — but only the archives whose app actually changed; the builder rewrites all of them with fresh timestamps.
 
 Everything else is automatic: display name (manifest `name`), taskbar/start menu/search listings, store listing (from the manifest `store` block), install/uninstall by uuid, and file associations (manifest `associations` wired to your exported `open`).
 
@@ -142,19 +150,19 @@ Everything else is automatic: display name (manifest `name`), taskbar/start menu
 **Catalog vs. code.** `js/apps/registry.js` now carries *metadata only* (`APP_MANIFESTS`: id, uuid, name, version, distribution, entry, `hasIcon`, icon path, permissions, associations, store block). The shell reads the catalog for Start/Search/Store/permissions without ever importing an app. A package's `main.js` is `import()`-ed the first time it launches (`AppLoader.ensureLoaded(id)`), so 50+ apps no longer evaluate at boot.
 
 **Where packages live.**
-- Builtins ship with the OS (served from the network) and are always installed; they cannot be uninstalled.
+- Builtins ship **inside the OS core bundle** (`w12-core.pkg`, unpacked into OPFS by the service worker) and are always installed; they cannot be uninstalled.
 - Store apps install as real package folders in the virtual filesystem:
   - system-wide (`Install for all users`): `/Program Files/<id>/`
   - per-user: `/users/<uid>/AppData/Programs/<id>/`
 - The *presence of the folder* is the install record — there is no separate install list.
 
-**How they run from disk.** Installing downloads `packages/<id>.w12pkg`, unpacks it with `js/modules/zip.js` and writes each file into the vFS (code/assets as blob-backed nodes so the tree snapshot stays small; `manifest.json` inline so the catalog stays synchronous). A service worker (`sw.js`, registered in `js/main.js`) intercepts the canonical app URL `/js/apps/<id>/…` and serves the **installed copy from the vFS** — so no import path is ever rewritten, and store code genuinely executes from "disk". When the worker is not controlling, or the storage backend is the non-OPFS fallback, the same URL falls through to the shipped bundle (so store apps still run, just not from disk).
+**How they run from disk.** Installing downloads `packages/<id>.w12pkg`, unpacks it with `js/modules/zip.js` and writes each file into the vFS (code/assets as blob-backed nodes so the tree snapshot stays small; `manifest.json` inline so the catalog stays synchronous). A service worker (`sw.js`, registered by the `index.html` bootstrap) intercepts the canonical app URL `/js/apps/<id>/…` and serves the **installed copy from the vFS** — so no import path is ever rewritten, and store code genuinely executes from "disk". When the worker is not controlling, store app code falls through to the shipped bundle (so store apps still run, just not from disk).
 
-**Key modules.** `js/modules/packages.js` (scan/install/uninstall, legacy migration, session user pointer), `build-packages.js` (archive builder), `build-registry.js` (registry + `sw.js` blocks), `sw.js` (virtual host + offline precache).
+**Key modules.** `js/modules/packages.js` (scan/install/uninstall, session user pointer), `js/modules/coreStore.js` (mirrors the OS core into the read-only `\Windows` tree), `build-packages.js` (archive builder), `build-registry.js` (registry + `sw.js` distribution map), `build-core.js` (OS core bundle), `sw.js` (OPFS file server + virtual host).
 
 **An app id is resolvable but not loaded** until its first launch — `AppLoader.getModule(id)` returns `null` before that, so always go through `AppLoader.ensureLoaded(id)` / `Taskbar.openApp(id)` (both async) rather than reading modules directly.
 
-**Store installs ask for a scope** (Just me / All users) and stream progress; uninstall deletes the package folder and wipes that app's permission grants. Legacy installs recorded in the old `installed_apps_*` localStorage keys are honored immediately and migrated to per-user packages in the background.
+**Store installs ask for a scope** (Just me / All users) and stream progress; uninstall deletes the package folder and wipes that app's permission grants.
 
 ### 2.6 Package Installer (.msi) and `installer.json`
 
@@ -395,7 +403,7 @@ Retrieves window data by ID.
 
 **Import:** `import FileSystem from '../../modules/fileSystem.js';`
 
-All data is a virtual JSON tree. The persistence backend is chosen automatically at boot (`js/modules/fsStorage.js`): OPFS (Origin Private File System) when the browser supports it, otherwise the legacy `localStorage` tree + IndexedDB blob store — your app never has to know which is active. Paths are **arrays of strings** starting with `/`. The OS is **multi-user** — always derive user-relative paths from the `Users` module, never hardcode a user id.
+All data is a virtual JSON tree stored in the Origin Private File System (OPFS) — the tree snapshot lives in `w12/fs.json` and large files are real files next to it. OPFS is mandatory: a browser without it cannot run the OS. Paths are **arrays of strings** starting with `/`. The OS is **multi-user** — always derive user-relative paths from the `Users` module, never hardcode a user id.
 
 > The FileSystem API is **synchronous**, but persistence is asynchronous. Call `await FileSystem.flushAsync()` before any deliberate reload if you just wrote data.
 
@@ -404,6 +412,8 @@ All data is a virtual JSON tree. The persistence backend is chosen automatically
 - Current user's home: `Users.home()` → `['/', 'users', '<currentUserId>']`
 - Home folder: `Users.home(['Documents'])`
 - Your app's per-user data: `Users.appData('myApp')` → `['/', 'users', '<currentUserId>', 'AppData', 'myApp']`
+
+**Read-only areas.** `['Windows']` is the OS core itself — the files the service worker unpacked into OPFS. You can read them, but every write (edit, rename, delete, move) is refused with no prompt and no elevation. Check with `FileSystem.isReadOnly(path)` (also exposed as `FileSystem.isReadOnly(path)` in the SDK) before offering such an action in your UI.
 
 **Import:** `import Users from '../../modules/users.js';`
 

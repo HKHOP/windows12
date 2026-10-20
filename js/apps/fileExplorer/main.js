@@ -195,9 +195,7 @@ const FileExplorer = (() => {
     }
 
     async function getStorageInfo() {
-        // Real origin usage (covers the OPFS backend and the legacy
-        // IndexedDB/localStorage pair alike) instead of guessing from
-        // localStorage keys.
+        // Real origin usage (OPFS) instead of guessing from the tree.
         try {
             const info = await FileSystem.storageInfo();
             return { used: info.usage || 0, quota: info.quota || 0 };
@@ -1094,7 +1092,11 @@ const FileExplorer = (() => {
                 return;
             }
             if (!FileSystem.renameItem(itemPath, newName)) {
-                Popup.error('Rename failed', `Could not rename to "${newName}". A file with that name may already exist.`);
+                if (FileSystem.isReadOnly(itemPath)) {
+                    showAccessDenied(itemPath);
+                } else {
+                    Popup.error('Rename failed', `Could not rename to "${newName}". A file with that name may already exist.`);
+                }
                 labelEl.textContent = original;
                 return;
             }
@@ -1295,14 +1297,17 @@ const FileExplorer = (() => {
                 showProgressBar(win);
                 const currentPath = tab.pathHistory[tab.historyIndex];
                 setTimeout(() => {
+                    let denied = null;
                     names.forEach(name => {
-                        FileSystem.deleteItem([...currentPath, name]);
-                        refreshIfDesktop([...currentPath, name]);
+                        const target = [...currentPath, name];
+                        if (!FileSystem.deleteItem(target)) denied = target;
+                        refreshIfDesktop(target);
                     });
                     deselectAll(tab);
                     navigate(win, currentPath, false, wstate);
                     Shortcuts.notifyChanged();
                     hideProgressBar(win);
+                    if (denied) showAccessDenied(denied);
                 }, 300);
             }
         });
@@ -1839,9 +1844,10 @@ const FileExplorer = (() => {
             if (!ok) return;
             showProgressBar(win);
             setTimeout(() => {
+                let denied = null;
                 paths.forEach(p => {
                     if (FileSystem.itemExists(p)) {
-                        FileSystem.deleteItem(p);
+                        if (!FileSystem.deleteItem(p)) denied = p;
                         refreshIfDesktop(p);
                     }
                 });
@@ -1851,8 +1857,19 @@ const FileExplorer = (() => {
                 Shortcuts.notifyChanged();
                 const cur = tab && tab.currentPath;
                 if (cur) navigate(win, cur, false, wstate);
+                if (denied) showAccessDenied(denied);
             }, 300);
         });
+    }
+
+    // The OS core (\Windows) is a read-only mirror of the files the service
+    // worker installed. Any attempt to change it is refused by the
+    // filesystem, and the user gets told why.
+    function showAccessDenied(path) {
+        const readOnly = FileSystem.isReadOnly(path);
+        Popup.error('Access denied', readOnly
+            ? 'Windows 12 system files are read-only and cannot be changed.'
+            : 'This item could not be changed.');
     }
 
     // ---------- preview pane ----------

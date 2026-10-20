@@ -18,6 +18,7 @@
 // Zones under /system (per-user OS data, permission grants, recycle bin)
 // are OS-only: app access there is denied without a prompt.
 import Permissions from './permissions.js';
+import FileSystem from './fileSystem.js';
 
 const FSGuard = (() => {
     let activeApp = null;        // focus-tracked fallback attribution
@@ -41,6 +42,15 @@ const FSGuard = (() => {
     const PROTECTED_WRITE_PREFIXES = ['Program Files'];
     const elevatedApps = new Set();
     const pendingElevation = new Set();
+
+    // The OS core itself (\Windows) is a read-only mirror of the files the
+    // service worker installed in OPFS. Nothing may modify it — not even an
+    // elevated app: editing the operating system from inside itself is not
+    // a thing the OS allows. Reads stay allowed, so File Explorer can show
+    // the files. The roots live in fileSystem.js, which owns the filesystem.
+    function isReadOnlyPath(path) {
+        try { return FileSystem.isReadOnly(path); } catch (e) { return false; }
+    }
 
     function setActiveApp(appId) {
         activeApp = appId || null;
@@ -203,14 +213,27 @@ const FSGuard = (() => {
     // zones. A denied write returns false; if the user later approves the
     // UAC prompt, a retry in the same session succeeds.
     function checkWrite(path) {
-        if (suspendDepth > 0) return true;
+        if (suspendDepth > 0) return true; // shell-owned work (asShell)
+
+        // The OS core is read-only for everyone — apps, shell code and
+        // scripts alike. Only the core mirror itself (which runs as
+        // shell-owned work) may touch it. This is checked before the read
+        // policy so no consent dialog is raised for a path that can never
+        // be written.
+        const target = pathStr(path);
+        if (target && isReadOnlyPath(path)) {
+            const appId = currentApp();
+            try {
+                window.dispatchEvent(new CustomEvent('fs-write-readonly', { detail: { appId, path: target } }));
+            } catch { /* non-fatal */ }
+            return false;
+        }
+
         const appId = currentApp();
         if (!appId || !isApp(appId)) return true;
 
         if (!check(path)) return false;
 
-        const target = pathStr(path);
-        if (!target) return true;
         let isProtected = false;
         for (const zone of PROTECTED_WRITE_PREFIXES) {
             if (isUnder(target, zone)) { isProtected = true; break; }

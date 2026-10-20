@@ -10,7 +10,7 @@
 // (uninstall wipes them).
 //
 // Catalog:
-//   filesystem    FileSystem / blobStore read+write ("Access your files")
+//   filesystem    FileSystem read+write ("Access your files")
 //   notifications Notifications toasts + panel entries ("Send notifications")
 //   network       fetch() and remote iframe embeds ("Access the internet")
 //   clipboard     navigator.clipboard read/write ("Read your clipboard")

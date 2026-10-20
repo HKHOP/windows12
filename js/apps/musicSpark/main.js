@@ -1374,8 +1374,8 @@ const MusicSpark = (() => {
             const safe = name.replace(/[\\/:*?"<>|]/g, '').slice(0, 40) || 'beat';
             const fileName = safe.endsWith('.wav') ? safe : safe + '.wav';
             const mb = (buf.byteLength / 1048576).toFixed(1);
-            // Stored as raw bytes in the IndexedDB blob store — no base64
-            // inflation, no localStorage quota involved.
+            // Stored as raw bytes in the OPFS blob store — no base64
+            // inflation, no tree-snapshot quota involved.
             const blob = new Blob([buf], { type: 'audio/wav' });
             const target = [...MUSIC_DIR(), fileName];
             if (FileSystem.itemExists(target)) FileSystem.permanentDelete(target);

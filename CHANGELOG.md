@@ -4,6 +4,34 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [13.0.0] - 2026-10-20
+
+### Added
+- **The OS now lives on your device.** The entire operating system - stylesheets, modules, the SDK, the builtin apps and the sounds - is packed into one bundle (`w12-core.pkg`), downloaded once and unpacked into the browser's private file system. `index.html` is now just a small black startup screen that installs the core and then boots the desktop.
+- **Offline by design.** Once the core is installed, Windows 12 starts and runs with no network at all, even if the host is unreachable. The service worker now serves the operating system out of the private file system instead of caching it.
+- **\Windows in File Explorer.** The operating system's own files are visible under `\Windows`. The folder is read-only: editing, renaming or deleting any of it is refused with an "Access denied" message.
+- **Core mirror** (`js/modules/coreStore.js`) keeps the tree snapshot small by pointing at the files on disk instead of copying them.
+- **Headless boot test** (`node test/boot.smoke.mjs`) drives a real browser through the whole flow: install, restart, boot, launch an app and boot again with the network switched off.
+- **Update-flow test** (`node test/update.smoke.mjs`) checks that the startup prompts appear exactly when they should - and never otherwise.
+
+### Changed
+- **Startup experience** - the first launch shows the download progress on the black screen and then asks to refresh; every later launch goes straight to the desktop.
+- **Updates** - a new release is a new service worker, so the new core is downloaded and the restart that activates it is offered on the next launch.
+- **Store app updates no longer touch the operating system.** The app catalog is served fresh from the network instead of being part of the core bundle, so updating a Microsoft Store app never ships a whole new OS.
+- **Storage** - the virtual filesystem, the media files and the operating system all live in the private file system. The old browser-storage fallback is gone; a browser without private file system support cannot run the OS.
+- **Settings 2.1.0** - the storage page reports the private file system, adds the Windows 12 system folder to the usage breakdown and drops the old browser-storage wording.
+- **File Explorer 1.4.0** - refusing to change a read-only file now explains why instead of silently doing nothing.
+- **Media Player 1.0.1** - the storage info dialog describes the private file system.
+- **MusicSpark 1.0.1** - refreshed the storage comments.
+
+### Fixed
+- **The "download complete, refresh to start" prompt no longer comes back.** It could reappear on an ordinary reload when a new version was waiting in the background, because the workers shared one "current core" pointer. Each version now keeps its own marker, so the prompt only shows right after a real installation.
+- **A pending update no longer interrupts the session** when it carries the same operating system version - it is applied silently in the background.
+
+### Removed
+- **Browser-storage fallback** - the localStorage tree, the IndexedDB blob store and the migration that copied old installs into packages are gone. Installations from the browser-storage era are no longer carried over.
+- **Offline precache** - the service worker no longer keeps a second copy of the operating system in the cache; the copy on disk is the only one.
+
 ## [12.0.5006] - 2026-10-20
 
 ### Removed

@@ -99,7 +99,6 @@ const AppLoader = (() => {
                 }
                 next.add(r.id);
             });
-            Packages.getLegacy().forEach(id => next.add(id));
         } catch (e) { /* packages not ready yet — keep previous set */ }
         installedIds = next;
         refreshIcons();

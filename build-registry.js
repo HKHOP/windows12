@@ -145,62 +145,17 @@ function replaceBlock(text, start, end, body) {
     return text.replace(re, `$1${body}$2`);
 }
 
-// All non-dot files under a directory, as paths relative to it.
-function walkFiles(dir, prefix, out) {
-    for (const name of fs.readdirSync(dir)) {
-        if (name === '.gitkeep' || name.startsWith('.')) continue;
-        const full = path.join(dir, name);
-        const rel = prefix ? prefix + '/' + name : name;
-        if (fs.statSync(full).isDirectory()) walkFiles(full, rel, out);
-        else if (fs.statSync(full).isFile()) out.push(rel);
-    }
-    return out;
-}
-
-// Shell assets: everything the OS needs offline. App modules load lazily, so
-// only registry.js is part of the core; builtin app files are added below.
-function collectCore() {
-    const urls = ['./', './index.html', './favicon.svg', './manifest.json'];
-    const walk = (relDir, include) => {
-        const dir = path.join(ROOT, relDir);
-        if (!fs.existsSync(dir)) return;
-        for (const name of fs.readdirSync(dir)) {
-            const rel = relDir + '/' + name;
-            const full = path.join(ROOT, rel);
-            if (fs.statSync(full).isDirectory()) { walk(rel, include); continue; }
-            if (include(rel)) urls.push('./' + rel);
-        }
-    };
-    walk('css', rel => rel.endsWith('.css'));
-    walk('js', rel => rel.endsWith('.js') && (!rel.startsWith('js/apps/') || rel === 'js/apps/registry.js'));
-    walk('assets', rel => /\.(wav|ogg|mp3|m4a|flac|opus)$/i.test(rel));
-    return urls;
-}
-
+// The service worker only needs the distribution map: the OS core itself is
+// bundled by build-core.js and served out of OPFS, so there is no precache
+// list to maintain here.
 function refreshServiceWorker(manifests) {
     let sw = fs.readFileSync(SW_PATH, 'utf8');
 
     const distLines = manifests.map(m => `    ${JSON.stringify(m.id)}: ${JSON.stringify(m.distribution)},`).join('\n');
     sw = replaceBlock(sw, '// >>> w12:apps-dist', '// <<< w12:apps-dist', `const APP_DIST = {\n${distLines}\n};`);
 
-    const coreUrls = collectCore();
-    const coreLines = coreUrls.map(u => `    ${JSON.stringify(u)},`).join('\n');
-    sw = replaceBlock(sw, '// >>> w12:core-precache', '// <<< w12:core-precache', `const CORE_PRECACHE = [\n${coreLines}\n];`);
-
-    // Builtin apps ship with the OS, so cache every one of their files.
-    // Store packages are downloaded on demand and are NOT precached.
-    const appUrls = [];
-    for (const m of manifests) {
-        if (m.distribution !== 'builtin') continue;
-        for (const rel of walkFiles(path.join(APPS_DIR, m.id), '', [])) {
-            appUrls.push('./js/apps/' + m.id + '/' + rel);
-        }
-    }
-    const precache = appUrls.map(u => `    ${JSON.stringify(u)},`).join('\n');
-    sw = replaceBlock(sw, '// >>> w12:app-precache', '// <<< w12:app-precache', `const APP_PRECACHE = [\n${precache}\n];`);
-
     fs.writeFileSync(SW_PATH, sw);
-    console.log(`refreshed sw.js (dist map + ${coreUrls.length} core + ${appUrls.length} builtin files)`);
+    console.log(`refreshed sw.js (dist map, ${manifests.length} apps)`);
 }
 
 const manifests = loadManifests();
