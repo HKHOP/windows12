@@ -124,7 +124,7 @@ const VirtualKeyboard = (() => {
     }
 
     function click() {
-        try { Sounds.click(); } catch (e) { /* audio unavailable */ }
+        try { Sounds.keyboard(); } catch (e) { /* audio unavailable */ }
     }
 
     // ---------- native keyboard suppression ----------

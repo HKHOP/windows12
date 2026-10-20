@@ -246,7 +246,7 @@ const Notifications = (() => {
         updateBadge();
         try {
             if (rec.critical) Sounds.warn();
-            else Sounds.click();
+            else Sounds.notification();
         } catch (e) { /* audio unavailable */ }
         if (!rec.sticky && rec.timeout > 0) {
             rec.timer = setTimeout(() => dismiss(rec.id, 'timeout'), rec.timeout);

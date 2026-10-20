@@ -17,6 +17,7 @@ import Permissions from '../../modules/permissions.js';
 import Users from '../../modules/users.js';
 import Packages from '../../modules/packages.js';
 import UAC from '../../modules/uac.js';
+import Sounds from '../../modules/sounds.js';
 
 const Settings = (() => {
     const icon = AppIcons.get('settings');
@@ -55,6 +56,7 @@ const Settings = (() => {
         theme: { name: 'Theme', icon: UIIcons.setting('moon', 20) },
         accent: { name: 'Accent color', icon: UIIcons.setting('palette', 20) },
         background: { name: 'Background', icon: UIIcons.setting('background', 20) },
+        sounds: { name: 'Sounds', icon: UIIcons.setting('sound', 20) },
         cursor: { name: 'Mouse cursor', icon: UIIcons.setting('cursor', 20) },
         taskbar: { name: 'Taskbar', icon: UIIcons.setting('taskbarSettings', 20) }
     };
@@ -1025,6 +1027,96 @@ const Settings = (() => {
         await FileSystem.flushAsync();
     }
 
+    function renderSoundCustomization(el) {
+        const config = SystemConfig.getAll();
+        const styles = config.soundEventStyles || {};
+        const enabled = config.soundEnabled !== false;
+        const scheme = config.soundScheme || 'default';
+
+        const schemeOptions = Sounds.schemes().map(s =>
+            `<option value="${s.id}" ${s.id === scheme ? 'selected' : ''}>${esc(s.label)}</option>`
+        ).join('');
+
+        const styleChoices = [
+            ['scheme', 'Use scheme'],
+            ['default', 'Default'],
+            ['soft', 'Soft'],
+            ['classic', 'Classic'],
+            ['off', 'Off']
+        ];
+
+        const rows = Sounds.events().map(event => {
+            const current = styles[event.id] || 'scheme';
+            const options = styleChoices.map(([value, label]) =>
+                `<option value="${value}" ${value === current ? 'selected' : ''}>${label}</option>`
+            ).join('');
+            return `
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--window-border);">
+                    <span style="flex:1 1 130px;font-size:13px;">${esc(event.label)}</span>
+                    <select class="sound-event-select" data-event="${event.id}" style="font-size:12px;padding:5px 8px;min-width:120px;">${options}</select>
+                    <button class="sound-test-btn" data-event="${event.id}" style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:5px;padding:5px 12px;color:var(--text-primary);font-size:12px;cursor:pointer;">Test</button>
+                </div>`;
+        }).join('');
+
+        el.innerHTML += `
+            <div style="display:flex;flex-direction:column;gap:16px;">
+                <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
+                    <label style="display:flex;justify-content:space-between;align-items:center;gap:16px;cursor:pointer;">
+                        <span>
+                            <span style="display:block;font-size:14px;font-weight:500;">System sounds</span>
+                            <span style="display:block;font-size:12px;color:var(--text-secondary);margin-top:2px;">Play sounds for system events</span>
+                        </span>
+                        <input type="checkbox" class="sound-enabled-toggle" ${enabled ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--accent-color);cursor:pointer;">
+                    </label>
+                </div>
+                <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
+                    <div style="font-size:14px;font-weight:500;margin-bottom:8px;">Sound scheme</div>
+                    <select class="sound-scheme-select" style="width:100%;padding:8px 12px;font-size:13px;">${schemeOptions}</select>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">Sets the character of every event that uses the scheme.</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
+                    <div style="font-size:14px;font-weight:500;">Sound events</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin:2px 0 4px;">Choose a sound for each event, or turn it off.</div>
+                    ${rows}
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:var(--text-secondary);">
+                    <span>Master volume is controlled separately.</span>
+                    <button class="sound-open-system" style="background:var(--hover-bg);border:1px solid var(--window-border);border-radius:5px;padding:6px 12px;color:var(--text-primary);font-size:12px;cursor:pointer;">Open volume settings</button>
+                </div>
+            </div>
+        `;
+
+        const enabledToggle = el.querySelector('.sound-enabled-toggle');
+        enabledToggle.addEventListener('change', () => {
+            SystemConfig.set('soundEnabled', enabledToggle.checked);
+            if (enabledToggle.checked) Sounds.play('notification', true);
+        });
+
+        el.querySelector('.sound-scheme-select').addEventListener('change', (e) => {
+            SystemConfig.set('soundScheme', e.target.value);
+            Sounds.play('notification', true);
+        });
+
+        el.querySelectorAll('.sound-event-select').forEach(select => {
+            select.addEventListener('change', () => {
+                const next = { ...(SystemConfig.get('soundEventStyles') || {}) };
+                next[select.dataset.event] = select.value;
+                SystemConfig.set('soundEventStyles', next);
+                if (select.value !== 'off') Sounds.play(select.dataset.event, true);
+            });
+        });
+
+        el.querySelectorAll('.sound-test-btn').forEach(btn => {
+            btn.addEventListener('click', () => Sounds.play(btn.dataset.event, true));
+        });
+
+        el.querySelector('.sound-open-system').addEventListener('click', () => {
+            currentPage = 'system';
+            currentSubPage = 'sound';
+            renderPage();
+        });
+    }
+
     function renderPersonalization(el) {
         el.innerHTML = `
             <h2 style="font-size:28px;font-weight:600;margin-bottom:24px;">Personalization</h2>
@@ -1032,6 +1124,7 @@ const Settings = (() => {
                 ${systemCard(UIIcons.setting('moon', 22), 'Theme', 'Dark and light mode', 'theme')}
                 ${systemCard(UIIcons.setting('palette', 22), 'Accent color', 'Highlight color for the shell', 'accent')}
                 ${systemCard(UIIcons.setting('background', 22), 'Background', 'Wallpaper styles and custom images', 'background')}
+                ${systemCard(UIIcons.setting('sound', 22), 'Sounds', 'Schemes and event sounds', 'sounds')}
                 ${systemCard(UIIcons.setting('cursor', 22), 'Mouse cursor', 'Pointer theme, size, and style', 'cursor')}
                 ${systemCard(UIIcons.setting('taskbarSettings', 22), 'Taskbar', 'Opacity, position, and grouping', 'taskbar')}
             </div>
@@ -1048,6 +1141,7 @@ const Settings = (() => {
             case 'theme': renderThemeSettings(el); break;
             case 'accent': renderAccentSettings(el); break;
             case 'background': renderBackgroundSettings(el); break;
+            case 'sounds': renderSoundCustomization(el); break;
             case 'cursor': renderCursorSettings(el); break;
             case 'taskbar': renderTaskbarSettings(el); break;
         }

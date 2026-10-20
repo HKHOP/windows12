@@ -637,12 +637,17 @@ el.addEventListener('contextmenu', (e) => {
 
 | Method | Sound |
 |--------|-------|
-| `Sounds.info()` | Two ascending tones |
-| `Sounds.warn()` | Two descending tones |
-| `Sounds.error()` | Three descending tones |
-| `Sounds.confirm()` | Two ascending tones |
-| `Sounds.click()` | Short click |
-| `Sounds.recycleBin()` | Trash sound |
+| `Sounds.info()` | Soft two-note information chime |
+| `Sounds.warn()` | Descending warning tones |
+| `Sounds.error()` | Three-note error motif with a low tail |
+| `Sounds.confirm()` | Bright confirmation chime |
+| `Sounds.notification()` | Short notification bell |
+| `Sounds.login()` | Rising sign-in chord |
+| `Sounds.logout()` | Falling sign-out chord |
+| `Sounds.click()` | Short UI click |
+| `Sounds.recycleBin()` | Trash sweep |
+
+`Sounds.play(id, force?)` plays any event by id; `Sounds.events()` lists the customizable events. Users choose a scheme, override individual events, or turn them off in **Personalization > Sounds**. Adding a new event is one entry in `js/modules/sounds.js`.
 
 ---
 

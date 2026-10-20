@@ -32,6 +32,7 @@ import WindowState from './modules/windowState.js';
 import NetworkStatus from './modules/networkStatus.js';
 import Tray from './modules/tray.js';
 import Shortcuts from './modules/shortcuts.js';
+import Sounds from './modules/sounds.js';
 
 // Filesystem access policy: app code may always touch its own AppData,
 // anything else requires the 'filesystem' permission (see fsGuard.js).
@@ -217,11 +218,13 @@ async function activateSession(userId) {
     try { await BackgroundApps.activate(userId); } catch (e) { /* keep the session usable */ }
     Tray.activate(userId);
     WindowManager.applyVisibility();
+    Sounds.login();
 }
 
 // A session is ending (sign out): close its windows and stop its headless
 // apps, leaving the other sessions untouched.
 async function closeSession(userId) {
+    Sounds.logout();
     try { WindowManager.closeWindowsForUser(userId); } catch (e) { /* noop */ }
     try { await BackgroundApps.stopUser(userId); } catch (e) { /* noop */ }
     try { Tray.closeUser(userId); } catch (e) { /* noop */ }
