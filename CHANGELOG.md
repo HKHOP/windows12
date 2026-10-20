@@ -4,6 +4,17 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.5003] - 2026-10-20
+
+### Added
+- **System sounds** - a new event-driven sound engine with richer sounds for errors, warnings, information, confirmations, notifications, sign-in, sign-out, the Recycle Bin and keyboard clicks. Every sound uses a softer envelope and a subtle harmonic layer.
+- **Personalization > Sounds** - choose a sound scheme (Default, Soft or Classic), override any event with its own scheme, turn individual events off, preview each sound, and toggle system sounds. Master volume stays in System > Sound.
+
+### Changed
+- **Settings 1.2.0** - added the Sounds page under Personalization.
+- **Notifications** - normal toasts now use the new notification chime; critical alerts keep the warning sound.
+- **Sounds API** - `Sounds.play(id)` and `Sounds.events()` make adding new system sounds a single registry entry; existing `info` / `warn` / `error` / `confirm` / `click` / `recycleBin` calls keep working.
+
 ## [12.0.5002] - 2026-10-20
 
 ### Added
