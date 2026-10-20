@@ -83,9 +83,20 @@ function isInstallerOnly(path) {
 }
 
 const Packages = (() => {
-    // id -> { id, scope: 'system'|'user', user: <uid|null>, manifest }
+    // id -> { id, scope: 'system'|'user', user: <uid|null>, path, manifest }
     let installed = new Map();
     let inited = false;
+    // The ids the OS publishes (the shipped catalog). An app that is not in
+    // here was never published: it is somebody's own app, living in a
+    // folder, and it stays out of the catalog and out of the Store.
+    let knownAppIds = null;
+    function isPublishedApp(id) {
+        if (!knownAppIds) {
+            try { knownAppIds = new Set(APP_MANIFESTS.map(m => m.id)); }
+            catch (e) { knownAppIds = new Set(); }
+        }
+        return knownAppIds.has(id);
+    }
     // Package Installer guard: one install per app id at a time.
     const installing = new Set();
 
@@ -148,10 +159,14 @@ const Packages = (() => {
                 installed.set(c.name, { id: c.name, scope: 'user', user: uid, path: dir, manifest: readManifest(dir) });
             }
         }
-        // Record every app in the registry, so the catalog knows about the
-        // apps that live in a folder nobody chose as well.
+        // Record the apps the OS knows about in the registry, so the catalog
+        // finds them wherever they live. Only the apps that are part of the
+        // shipped catalog are registered by a scan: an app somebody dropped
+        // into Program Files by hand is NOT published, it just runs from its
+        // folder when you start it.
         for (const rec of installed.values()) {
             if (!rec.manifest) continue;
+            if (!isPublishedApp(rec.id)) continue;
             try {
                 Registry.registerApp(rec.id, {
                     path: rec.path ? rec.path.filter(p => p !== '/').join('\\') : '',
