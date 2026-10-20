@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.5001] - 2026-10-20
+
+### Changed
+- **Start Menu icons** - shortcut entries no longer show the shortcut arrow, keeping the All apps list clean.
+
 ## [12.0.5000] - 2026-10-20
 
 ### Added
