@@ -4,6 +4,19 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [12.0.5000] - 2026-10-20
+
+### Added
+- **Folder-backed Start Menu** - All apps now comes from the real per-user Start Menu folder (`AppData/Roaming/Microsoft/Windows/Start Menu/Programs`). Any shortcut, file or folder can live there, subfolders render as nested groups, and built-in app shortcuts are seeded once per profile so later deletions stick.
+- **Per-user taskbar pins** - taskbar pins now live as real shortcuts in `AppData/Roaming/Microsoft/Internet Explorer/Quick Launch/User Pinned/TaskBar`, with automatic migration of the old machine-wide `pins.json`. Apps, files and folders can be pinned and unpinned.
+- **Installer shortcuts** - manifests and `installer.json` can declare `shortcuts` options (Start Menu by default, desktop/taskbar opt-in) with custom name, icon, arguments, start-in folder, run state and hotkey. Installer shortcuts are tagged by app, refreshed on update and removed on uninstall; the wizard shows shortcut checkboxes.
+- **Portable app folders** - double-clicking any folder with a valid `manifest.json` launches it as an app through a validated service-worker route; right-click Open browses the folder contents instead.
+
+### Changed
+- **File Explorer 1.2.0** - app folders run on double-click, while Open browses them; added Run app and Pin to taskbar actions.
+- **Package Installer 1.1.0** - setup options include shortcut destinations and pass them through headless, silent and custom installer flows.
+- **Shortcuts** - gained shell-folder helpers, source metadata, app shortcut lifecycle and taskbar pinning.
+
 ## [12.0.4999] - 2026-10-20
 
 ### Added
