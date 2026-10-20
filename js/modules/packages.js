@@ -19,6 +19,7 @@ import Users from './users.js';
 import UAC from './uac.js';
 import OpfsClient from './opfsClient.js';
 import Zip from './zip.js';
+import { notifyTreeChanged } from './treeNotify.js';
 import { APP_MANIFESTS } from '../apps/registry.js';
 import { normalizeConfig, DESTINATIONS } from './shortcutConfig.js';
 
@@ -134,7 +135,7 @@ const Packages = (() => {
             for (const c of sh(() => FileSystem.getChildren(SYSTEM_ROOT))) {
                 if (c.type !== 'folder') continue;
                 const dir = [...SYSTEM_ROOT, c.name];
-                installed.set(c.name, { id: c.name, scope: 'system', user: null, manifest: readManifest(dir) });
+                installed.set(c.name, { id: c.name, scope: 'system', user: null, path: dir, manifest: readManifest(dir) });
             }
         }
         const uroot = [...Users.homeFor(uid), ...PROGRAM_SUBDIR];
@@ -143,7 +144,7 @@ const Packages = (() => {
                 if (c.type !== 'folder') continue;
                 if (installed.has(c.name)) continue; // system install wins
                 const dir = [...uroot, c.name];
-                installed.set(c.name, { id: c.name, scope: 'user', user: uid, manifest: readManifest(dir) });
+                installed.set(c.name, { id: c.name, scope: 'user', user: uid, path: dir, manifest: readManifest(dir) });
             }
         }
     }
@@ -632,15 +633,16 @@ const Packages = (() => {
                 );
             }
 
-            const targetParent = selection.scope === 'system'
-                ? [...SYSTEM_ROOT]
-                : [...Users.homeFor(uid), ...PROGRAM_SUBDIR];
+            // The app's folder. It may be the default for the scope, or a
+            // path the caller asked for.
+            const target = targetFolder(man.id, selection.scope, uid, opts.path);
+            const targetParent = target.slice(0, -1);
             ensureDir(targetParent);
 
             const token = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
             stagingParent = [...STAGING_ROOT, token];
             ensureDir(stagingParent);
-            const staging = [...stagingParent, man.id];
+            const staging = [...stagingParent, target[target.length - 1]];
             ensureDir(staging);
 
             const files = inspection.files.filter(f => !isInstallerOnly(f.path));
@@ -698,7 +700,12 @@ const Packages = (() => {
                 fields: persistedFields,
                 shortcuts: selection.shortcuts,
                 data: installer ? installer.data : null,
-                source: opts.sourceName || null
+                // Where the app came from. A store app is the only kind that
+                // is ever re-downloaded; a package you brought yourself is
+                // never fetched again.
+                source: opts.storeId
+                    ? { type: 'store', id: opts.storeId }
+                    : { type: 'package', name: opts.sourceName || null }
             };
             if (sh(() => FileSystem.itemExists([...staging, 'install.json']))) {
                 sh(() => FileSystem.permanentDelete([...staging, 'install.json']));
@@ -708,7 +715,6 @@ const Packages = (() => {
             if (opts.isCancelled && opts.isCancelled()) throw cancellationError();
 
             report(0.84, 'Finalizing');
-            const target = [...targetParent, man.id];
             const backupParent = [...stagingParent, 'backup'];
             let backedUp = false;
             if (sh(() => FileSystem.itemExists(target))) {
@@ -720,18 +726,19 @@ const Packages = (() => {
             }
             if (!sh(() => FileSystem.moveItem(staging, targetParent))) {
                 if (backedUp) {
-                    const restored = sh(() => FileSystem.moveItem([...backupParent, man.id], targetParent));
+                    const restored = sh(() => FileSystem.moveItem([...backupParent, target[target.length - 1]], targetParent));
                     if (!restored) preserveStaging = true;
                 }
                 throw pkgError('Could not move the installed files into place.', 'commit-failed');
             }
-            if (backedUp) sh(() => FileSystem.permanentDelete([...backupParent, man.id]));
+            if (backedUp) sh(() => FileSystem.permanentDelete([...backupParent, target[target.length - 1]]));
             sh(() => FileSystem.permanentDelete(stagingParent));
             stagingParent = null;
 
             await FileSystem.flushAsync();
             scan(uid);
             writeSession();
+            notifyTreeChanged();
             report(1, 'Done');
             window.dispatchEvent(new CustomEvent('apps-changed', {
                 detail: { installed: man.id, updated: !!rec }
@@ -742,6 +749,9 @@ const Packages = (() => {
                     shortcuts.onAppInstalled(man.id, man, {
                         selection: selection.shortcuts,
                         installer,
+                        // The folder the app now lives in: the shortcut leads
+                        // to it.
+                        folder: target,
                         userId: uid
                     });
                 }
@@ -770,77 +780,69 @@ const Packages = (() => {
         }
     }
 
-    async function install(id, opts = {}) {
+    // ---- installation ----
+
+    // An installation source is either a store app ("download this from the
+    // Store") or a package you already have ("install these bytes"). Both
+    // end the same way: the app's folder is written to the virtual
+    // filesystem and the app runs from there.
+    function normalizeSource(source) {
+        if (!source) return null;
+        if (typeof source === 'string') return { type: 'store', id: source };
+        if (source.type === 'store' && source.id) {
+            return { type: 'store', id: String(source.id), name: source.name || null };
+        }
+        if (source.type === 'package' && source.bytes) {
+            const bytes = source.bytes instanceof Uint8Array
+                ? source.bytes
+                : (source.bytes instanceof ArrayBuffer ? new Uint8Array(source.bytes) : null);
+            if (!bytes) return null;
+            return { type: 'package', id: source.id || null, bytes, name: source.name || null };
+        }
+        return null;
+    }
+
+    // The folder an app is installed into.
+    function targetFolder(id, scope, uid, explicitPath) {
+        if (Array.isArray(explicitPath) && explicitPath.length) {
+            const parts = explicitPath.filter(p => p !== '/' && p !== '');
+            if (parts.length && !parts.some(p => p === '.' || p === '..')) return parts;
+        }
+        return scope === 'system' ? [...SYSTEM_ROOT, id] : [...Users.homeFor(uid), ...PROGRAM_SUBDIR, id];
+    }
+
+    async function install(source, opts = {}) {
+        const src = normalizeSource(source);
+        if (!src) throw new Error('Unknown app source');
         const scope = opts.scope === 'system' ? 'system' : 'user';
         const onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : null;
 
-        if (scope === 'system') {
-            await requireElevation(id, `"${labelFor(id)}" will be installed for all users on this device, into \\Program Files. Allow it to make changes to your device?`);
+        let bytes = src.bytes;
+        if (!bytes) {
+            if (scope === 'system') {
+                await requireElevation(src.id, `"${labelFor(src.id)}" will be installed for all users on this device, into \\Program Files. Allow it to make changes to your device?`);
+            }
+            onProgress && onProgress(0.02, 'Connecting');
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+                throw new Error("You're offline — connect to the internet to download apps from the Store.");
+            }
+            let res;
+            try {
+                res = await fetch(pkgUrl(src.id), { cache: 'no-store' });
+            } catch (e) {
+                throw new Error("Couldn't reach the Store — check your internet connection and try again.");
+            }
+            if (!res.ok) throw new Error('Package download failed (' + res.status + ')');
+            bytes = new Uint8Array(await res.arrayBuffer());
         }
-
-        onProgress && onProgress(0.02, 'Connecting');
-        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-            throw new Error("You're offline — connect to the internet to download apps from the Store.");
-        }
-        let res;
-        try {
-            res = await fetch(pkgUrl(id), { cache: 'no-store' });
-        } catch (e) {
-            throw new Error("Couldn't reach the Store — check your internet connection and try again.");
-        }
-        if (!res.ok) throw new Error('Package download failed (' + res.status + ')');
-        const buf = new Uint8Array(await res.arrayBuffer());
         onProgress && onProgress(0.35, 'Unpacking');
 
-        let entries;
-        try {
-            entries = Zip.readZip(buf).filter(e => !e.isDir && !/(^|\/)\.gitkeep$/.test(e.name));
-        } catch (e) {
-            throw new Error('Package archive is corrupt');
-        }
-        if (entries.length === 0) throw new Error('Package archive is empty');
-
-        const target = scope === 'system' ? [...SYSTEM_ROOT, id] : [...userRoot(), id];
-
-        // Fresh install: clear any previous copy first.
-        if (sh(() => FileSystem.itemExists(target))) {
-            sh(() => FileSystem.permanentDelete(target));
-        }
-        ensureDir(target);
-
-        let done = 0;
-        for (const entry of entries) {
-            const segments = entry.name.split('/').filter(Boolean);
-            const fileName = segments.pop();
-            const dir = [...target, ...segments];
-            ensureDir(dir);
-
-            const bytes = await Zip.extractFile(buf, entry);
-            if (!bytes) continue;
-
-            if (fileName === 'manifest.json') {
-                sh(() => FileSystem.createFile(dir, fileName, new TextDecoder().decode(bytes), 'json'));
-            } else {
-                const blob = new Blob([bytes], { type: mimeOf(fileName) });
-                await sh(() => FileSystem.writeFileBlob(dir, fileName, blob, extOf(fileName)));
-            }
-            done++;
-            onProgress && onProgress(0.35 + 0.6 * (done / entries.length), 'Installing');
-        }
-
-        await FileSystem.flushAsync();
-        scan();
-        writeSession();
-        onProgress && onProgress(1, 'Done');
-        window.dispatchEvent(new CustomEvent('apps-changed'));
-        try {
-            const rec = installed.get(id);
-            const shortcuts = window._Shortcuts;
-            if (shortcuts && rec && rec.manifest) {
-                shortcuts.onAppInstalled(id, rec.manifest, { selection: opts.shortcuts || rec.shortcuts, userId: rec.user || userId() });
-            }
-        } catch { /* shortcuts are best-effort */ }
-        return { id, scope };
+        return installArchive(bytes, {
+            ...opts,
+            scope,
+            storeId: src.type === 'store' ? src.id : null,
+            sourceName: src.name || null
+        });
     }
 
     async function uninstall(id) {
@@ -852,9 +854,14 @@ const Packages = (() => {
         }
         let removed = false;
         if (rec) {
-            const dir = rec.scope === 'system'
+            // Builtin apps belong to the OS core: they are part of the
+            // system, not something the user installed.
+            if (isBuiltinFolder(rec.path)) {
+                throw new Error(`"${labelFor(id)}" is part of Windows 12 and cannot be uninstalled.`);
+            }
+            const dir = rec.path || (rec.scope === 'system'
                 ? [...SYSTEM_ROOT, id]
-                : [...Users.homeFor(rec.user), ...PROGRAM_SUBDIR, id];
+                : [...Users.homeFor(rec.user), ...PROGRAM_SUBDIR, id]);
             if (sh(() => FileSystem.itemExists(dir))) removed = sh(() => FileSystem.permanentDelete(dir));
         }
         if (!removed) {
@@ -882,6 +889,7 @@ const Packages = (() => {
         // Clear system packages
         for (const id of installed.keys()) {
             const dir = [...SYSTEM_ROOT, id];
+            if (isBuiltinFolder(dir)) continue; // part of the OS core
             if (sh(() => FileSystem.itemExists(dir))) sh(() => FileSystem.permanentDelete(dir));
         }
         // Clear user packages
@@ -889,6 +897,7 @@ const Packages = (() => {
             const uRoot = userRoot();
             for (const id of installed.keys()) {
                 const dir = [...uRoot, id];
+                if (isBuiltinFolder(dir)) continue;
                 if (sh(() => FileSystem.itemExists(dir))) sh(() => FileSystem.permanentDelete(dir));
             }
         } catch { /* user root may not exist */ }
@@ -900,8 +909,9 @@ const Packages = (() => {
     // ---- update ----
 
     async function update(id, opts = {}) {
-        // An update is essentially a reinstall of the same app with the same scope.
-        // We fetch the new package and replace the folder.
+        // An update is a reinstall of the same app, in the same folder and
+        // with the same scope: the new package is downloaded and the folder
+        // it already lives in is replaced.
         const rec = installed.get(id);
         if (!rec) throw new Error('App is not installed: ' + id);
         const scope = rec.scope; // preserve original scope
@@ -922,60 +932,29 @@ const Packages = (() => {
             throw new Error("Couldn't reach the Store — check your internet connection and try again.");
         }
         if (!res.ok) throw new Error('Package download failed (' + res.status + ')');
-        const buf = new Uint8Array(await res.arrayBuffer());
+        const bytes = new Uint8Array(await res.arrayBuffer());
         onProgress && onProgress(0.35, 'Unpacking');
 
-        let entries;
+        return installArchive(bytes, {
+            ...opts,
+            scope,
+            path: rec.path,
+            storeId: id,
+            allowReplace: true,
+            onProgress
+        });
+    }
+
+    // A folder that belongs to the OS core (a builtin app) is part of the
+    // system: it may not be removed, and it is re-created at every boot.
+    function isBuiltinFolder(folderPath) {
+        if (!Array.isArray(folderPath) || !folderPath.length) return false;
         try {
-            entries = Zip.readZip(buf).filter(e => !e.isDir && !/(^|\/)\.gitkeep$/.test(e.name));
+            const node = sh(() => FileSystem.getNode(folderPath));
+            return !!(node && node.builtin === true);
         } catch (e) {
-            throw new Error('Package archive is corrupt');
+            return false;
         }
-        if (entries.length === 0) throw new Error('Package archive is empty');
-
-        // Remove old version first. Target the profile that owns the record
-        // (an update can run while a different user is in the foreground).
-        const target = scope === 'system'
-            ? [...SYSTEM_ROOT, id]
-            : [...Users.homeFor(rec.user), ...PROGRAM_SUBDIR, id];
-        if (sh(() => FileSystem.itemExists(target))) {
-            sh(() => FileSystem.permanentDelete(target));
-        }
-        ensureDir(target);
-
-        let done = 0;
-        for (const entry of entries) {
-            const segments = entry.name.split('/').filter(Boolean);
-            const fileName = segments.pop();
-            const dir = [...target, ...segments];
-            ensureDir(dir);
-
-            const bytes = await Zip.extractFile(buf, entry);
-            if (!bytes) continue;
-
-            if (fileName === 'manifest.json') {
-                sh(() => FileSystem.createFile(dir, fileName, new TextDecoder().decode(bytes), 'json'));
-            } else {
-                const blob = new Blob([bytes], { type: mimeOf(fileName) });
-                await sh(() => FileSystem.writeFileBlob(dir, fileName, blob, extOf(fileName)));
-            }
-            done++;
-            onProgress && onProgress(0.35 + 0.6 * (done / entries.length), 'Installing');
-        }
-
-        await FileSystem.flushAsync();
-        scan();
-        writeSession();
-        onProgress && onProgress(1, 'Done');
-        window.dispatchEvent(new CustomEvent('apps-changed'));
-        try {
-            const rec = installed.get(id);
-            const shortcuts = window._Shortcuts;
-            if (shortcuts && rec && rec.manifest) {
-                shortcuts.onAppInstalled(id, rec.manifest, { selection: opts.shortcuts || rec.shortcuts, userId: rec.user || userId() });
-            }
-        } catch { /* shortcuts are best-effort */ }
-        return { id, scope };
     }
 
     // ---- boot ----
@@ -989,6 +968,13 @@ const Packages = (() => {
                 sh(() => FileSystem.permanentDelete([...STAGING_ROOT, child.name]));
             }
         } catch (e) { /* staging is best-effort */ }
+    }
+
+    // Re-reads the folders on disk. The app catalog is built from them, so
+    // this is called whenever the filesystem changed.
+    function rescan() {
+        scan();
+        writeSession();
     }
 
     async function init() {
@@ -1016,7 +1002,7 @@ const Packages = (() => {
     }
 
     return {
-        init, activate, install, uninstall, update, clearAll,
+        init, activate, rescan, install, uninstall, update, clearAll,
         inspectArchive, installArchive,
         getInstalled, isInstalled, getRecord, scopeOf,
         manifests,

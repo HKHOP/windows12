@@ -9,8 +9,8 @@ Apps are **packages**: a self-contained folder that the OS imports lazily on fir
 ## Quick Start
 
 1. Create `js/apps/<id>/` with `manifest.json` + `main.js` + `assets/icon.svg` (copy `js/apps/sampleApp/`)
-2. Run `node build-registry.js` to regenerate `js/apps/registry.js` (+ `sw.js` precache)
-3. If `distribution` is `"store"`, also run `node build-packages.js` to build its downloadable archive — it then appears in the Microsoft Store automatically
+2. Run `node scripts/build-registry.js` to regenerate `js/apps/registry.js` (+ `sw.js` precache)
+3. If `distribution` is `"store"`, also run `node scripts/build-packages.js` to build its downloadable archive — it then appears in the Microsoft Store automatically
 
 That's it. The OS handles windows, taskbar, dragging, resizing, snapping, and persistence for you.
 
@@ -47,11 +47,11 @@ Minimal `manifest.json` for a builtin app:
 }
 ```
 
-Known permissions: `filesystem` (virtual files), `notifications` (toasts + panel), `network` (fetch + remote embeds), `clipboard` (read copies), `background` (headless execution — equals the `"background": true` flag, so declare one or the other), `microphone` (audio capture via `app.media`), `camera` (video capture via `app.media`). `build-registry.js` rejects unknown names.
+Known permissions: `filesystem` (virtual files), `notifications` (toasts + panel), `network` (fetch + remote embeds), `clipboard` (read copies), `background` (headless execution — equals the `"background": true` flag, so declare one or the other), `microphone` (audio capture via `app.media`), `camera` (video capture via `app.media`). `scripts/build-registry.js` rejects unknown names.
 
 Store apps show their permissions on the Store page, install asks for consent, and users can revoke per app in Settings > Apps (a revoked `notifications` permission blocks that app's toasts). Builtins are first-party and always granted. Check at runtime with `Permissions.isGranted(appId, perm)` (see §24).
 
-For a store app use `"distribution": "store"` and add `associations` (file extensions it opens, requires an exported `open(path, content)` function) plus a `store` block (`developer`, `category`, `rating`, `reviews`, `description`, `features[]`, `screenshots[]`, `size`, `ageRating`). Then run `node build-packages.js` so its `.w12pkg` archive exists for the Store to download.
+For a store app use `"distribution": "store"` and add `associations` (file extensions it opens, requires an exported `open(path, content)` function) plus a `store` block (`developer`, `category`, `rating`, `reviews`, `description`, `features[]`, `screenshots[]`, `size`, `ageRating`). Then run `node scripts/build-packages.js` so its `.w12pkg` archive exists for the Store to download.
 
 Generate the uuid once with `node -e "console.log(crypto.randomUUID())"` and never change it — installs are recorded by package folder, keyed by uuid during legacy migration.
 
@@ -120,7 +120,7 @@ Use it in the app via `AppIcons.get('myReddit')` (returns an `<img>` for package
 ### Step 2: Regenerate the registry
 
 ```sh
-node build-registry.js
+node scripts/build-registry.js
 ```
 
 This validates all manifests, rewrites `js/apps/registry.js` (metadata only — module imports are lazy, see §2.5), and refreshes the `sw.js` app distribution map. Commit the regenerated files.
@@ -128,7 +128,7 @@ This validates all manifests, rewrites `js/apps/registry.js` (metadata only — 
 Then rebuild the OS core bundle — this is what the browser actually downloads and runs:
 
 ```sh
-node build-core.js
+node scripts/build-core.js
 ```
 
 This writes `w12-core.pkg` (a DEFLATE ZIP with the shell, stylesheets, modules, SDK and every **builtin** app) plus the `sw.js` core metadata block. Commit the bundle. **Skip it only if your app is a store app** — store apps travel in their own `.w12pkg` and are downloaded by the Store.
@@ -136,7 +136,7 @@ This writes `w12-core.pkg` (a DEFLATE ZIP with the shell, stylesheets, modules, 
 If the app is a store app, also build its download archive:
 
 ```sh
-node build-packages.js
+node scripts/build-packages.js
 ```
 
 This writes `packages/<id>.w12pkg` (an uncompressed ZIP of the whole app folder) that the Store downloads on install. Commit those too — but only the archives whose app actually changed; the builder rewrites all of them with fresh timestamps.
@@ -158,7 +158,7 @@ Everything else is automatic: display name (manifest `name`), taskbar/start menu
 
 **How they run from disk.** Installing downloads `packages/<id>.w12pkg`, unpacks it with `js/modules/zip.js` and writes each file into the vFS (code/assets as blob-backed nodes so the tree snapshot stays small; `manifest.json` inline so the catalog stays synchronous). A service worker (`sw.js`, registered by the `index.html` bootstrap) intercepts the canonical app URL `/js/apps/<id>/…` and serves the **installed copy from the vFS** — so no import path is ever rewritten, and store code genuinely executes from "disk". When the worker is not controlling, store app code falls through to the shipped bundle (so store apps still run, just not from disk).
 
-**Key modules.** `js/modules/packages.js` (scan/install/uninstall, session user pointer), `js/modules/coreStore.js` (mirrors the OS core into the read-only `\Windows` tree), `build-packages.js` (archive builder), `build-registry.js` (registry + `sw.js` distribution map), `build-core.js` (OS core bundle), `sw.js` (OPFS file server + virtual host).
+**Key modules.** `js/modules/packages.js` (scan/install/uninstall, session user pointer), `js/modules/coreStore.js` (mirrors the OS core into the read-only `\Windows` tree), `scripts/build-packages.js` (archive builder), `scripts/build-registry.js` (registry + `sw.js` distribution map), `scripts/build-core.js` (OS core bundle), `sw.js` (OPFS file server + virtual host).
 
 **An app id is resolvable but not loaded** until its first launch — `AppLoader.getModule(id)` returns `null` before that, so always go through `AppLoader.ensureLoaded(id)` / `Taskbar.openApp(id)` (both async) rather than reading modules directly.
 
@@ -1401,7 +1401,7 @@ The SDK is a **stability facade, not a sandbox** -- apps share one JS context, s
 
 ### Migration (new vs existing apps)
 
-- **New apps:** scaffold from `js/apps/sampleApp/` (already SDK-only), declare `permissions` honestly, run `node build-registry.js`.
+- **New apps:** scaffold from `js/apps/sampleApp/` (already SDK-only), declare `permissions` honestly, run `node scripts/build-registry.js`.
 - **Existing apps:** do nothing -- `../../modules/*` imports keep working. Migrate opportunistically: replace one import block at a time (`WindowManager` -> `app.window` usually needs only the `appId` prefilled), then delete the manual guards the SDK now owns (focus checks, path building, toast attribution).
 
 ### Versioning
@@ -1410,7 +1410,7 @@ The SDK is a **stability facade, not a sandbox** -- apps share one JS context, s
 
 ### Test coverage
 
-`node test/sdk.smoke.mjs` (zero dependencies) stubs the browser surface and imports the real SDK, filesystem, catalog and lazy loader, asserting 151 checks: surface, error codes, shortcut dispatch/passthrough/unregister, events (incl. window lifecycle), filesystem roundtrip + recycle, sandbox scoping + traversal rejection, catalogs (incl. microphone/camera grants and package icons / lazy-entry flags), accounts + UAC (default administrator, standard-by-default new accounts, last-administrator demote/delete guardrails, UAC API), clipboard denial honesty, headless window create/close, window geometry + state (bounds, resizable lock, maximize, minimize, drag/resize subscriptions, lifecycle subscriptions, per-window close veto, fullscreen refusal mapping), pointer lock validation, Input keyState tracking/clearing, Audio lazy context + master volume + beep, media denial honesty, tray icon registration/capability/updates/handles, virtual-keyboard init/gating/layouts/auto-show. DOM-painted paths (toast animation, live permission prompts, the UAC dialog itself) are exercised in-OS via the sample app. Package *installation* (network download → vFS) runs in the browser, not in this headless suite.
+`node scripts/test/sdk.smoke.mjs` (zero dependencies) stubs the browser surface and imports the real SDK, filesystem, catalog and lazy loader, asserting 151 checks: surface, error codes, shortcut dispatch/passthrough/unregister, events (incl. window lifecycle), filesystem roundtrip + recycle, sandbox scoping + traversal rejection, catalogs (incl. microphone/camera grants and package icons / lazy-entry flags), accounts + UAC (default administrator, standard-by-default new accounts, last-administrator demote/delete guardrails, UAC API), clipboard denial honesty, headless window create/close, window geometry + state (bounds, resizable lock, maximize, minimize, drag/resize subscriptions, lifecycle subscriptions, per-window close veto, fullscreen refusal mapping), pointer lock validation, Input keyState tracking/clearing, Audio lazy context + master volume + beep, media denial honesty, tray icon registration/capability/updates/handles, virtual-keyboard init/gating/layouts/auto-show. DOM-painted paths (toast animation, live permission prompts, the UAC dialog itself) are exercised in-OS via the sample app. Package *installation* (network download → vFS) runs in the browser, not in this headless suite.
 
 ---
 

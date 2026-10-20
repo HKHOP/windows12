@@ -11,7 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = __dirname;
+const ROOT = path.resolve(__dirname, '..');
 const APPS_DIR = path.join(ROOT, 'js', 'apps');
 const OUT_DIR = path.join(ROOT, 'packages');
 

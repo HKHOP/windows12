@@ -7,19 +7,72 @@ A web-based OS simulation built with vanilla HTML, CSS, and JavaScript modules. 
 ## Critical rules (read first)
 
 1. **Bump the app version on every app change.** Whenever you modify anything under `js/apps/<id>/` (code, styles, assets, manifest), increment `version` in that app's `manifest.json` using semver (`1.0.0` → `1.0.1` for fixes, `1.1.0` for features, `2.0.0` for breaking changes). The version is both the lazy-module cache key (`?w12pkg=`, `js/modules/appLoader.js`) and the Store's update signal (`js/apps/appStore/main.js`); without a bump, installed packages can keep running stale code and the Store will not offer the update.
-2. **After an app change, regenerate the catalog, the core bundle and the package.** Run `node build-registry.js` (required after any `manifest.json` change), then `node build-core.js` (**required after every change to the OS core** — see *The OS core lives in OPFS* below), then `node build-packages.js` for changed **store** apps. Only rebuild the packages you changed: the builder rewrites every archive, producing timestamp-only diffs that must not be committed.
+2. **After an app change, regenerate the catalog, the core bundle and the package.** Run `node scripts/build-registry.js` (required after any `manifest.json` change), then `node scripts/build-core.js` (**required after every change to the OS core** — see *The OS core lives in OPFS* below), then `node scripts/build-packages.js` for changed **store** apps. Only rebuild the packages you changed: the builder rewrites every archive, producing timestamp-only diffs that must not be committed.
 3. **Never hand-edit generated files.** `js/apps/registry.js`, the `>>> w12:*` blocks in `sw.js`, `w12-core.pkg` and `packages/*.w12pkg` are generated. Edit sources, then rerun the builder.
-4. **Freeze app identity.** Never change an existing app's `id`, `uuid`, or manifest `entry` path; install records, file associations and settings are keyed by them. Adding/removing an app folder also requires `node build-registry.js`.
-5. **Release every change.** Every commit gets a new CHANGELOG.md version entry (never modify older entries), using only **Added**, **Removed**, **Changed**, **Fixed**. Bump `version.json`, run `node update-version.js` to refresh the `?v=` cache-busters in `index.html`, and commit code first, then the changelog/version sync, then push.
-6. **Verify before committing.** Run `node test/sdk.smoke.mjs`, `node test/boot.smoke.mjs` and `node test/update.smoke.mjs` (all must pass) and `node --check` on modified JS. Run `node build-registry.js` and confirm it produces no unexpected diff. UI changes must also be checked at a narrow/mobile viewport (see *Scaling & overlay positioning* below).
+4. **Freeze app identity.** Never change an existing app's `id`, `uuid`, or manifest `entry` path; install records, file associations and settings are keyed by them. Adding/removing an app folder also requires `node scripts/build-registry.js`.
+5. **Release every change.** Every commit gets a new CHANGELOG.md version entry (never modify older entries), using only **Added**, **Removed**, **Changed**, **Fixed**. Bump `version.json`, run `node scripts/update-version.js` to refresh the `?v=` cache-busters in `index.html`, and commit code first, then the changelog/version sync, then push.
+6. **Verify before committing.** Run `node scripts/test/sdk.smoke.mjs`, `node scripts/test/boot.smoke.mjs` and `node scripts/test/update.smoke.mjs` (all must pass) and `node --check` on modified JS. Run `node scripts/build-registry.js` and confirm it produces no unexpected diff. UI changes must also be checked at a narrow/mobile viewport (see *Scaling & overlay positioning* below).
 7. **No dead code or debug output.** Remove unused imports/files, `console.log`/`debugger`, commented-out experiments and temporary artifacts before finishing. No native `alert()`/`confirm()`/`prompt()` — the single exception is the bootstrap's "refresh to start" prompt in `index.html`, which runs before the OS (and therefore the `Popup` API) exists.
 8. **Use the OS APIs, not raw DOM hacks.** Restore/focus/minimize through `WindowManager` (`focusWindow`, `setMinimized`, `closeWindow`, `isMinimized`, `isFocused`) — never reveal a window by writing `element.style.display` (it bypasses session and virtual-desktop visibility). Use `ContextMenu.show(clientX, clientY, items)` for menus; do not build your own coordinate-positioned menus.
 9. **Clean up what you bind.** Register global/document listeners once, not inside render loops. Per-window timers and listeners must be released when `window-closed` fires. Any Promise-based dialog must settle when its window is closed externally (`window-closed`), or callers hang.
 10. **Respect multi-user and persistence rules.** Never assume a single profile; use `Users.homeFor/appDataFor/userDataFor(id, …)` in code that can outlive a session switch. Persistent data goes through `FileSystem`/the SDK, never `localStorage`.
 11. **No external dependencies.** No CDNs, npm packages, external fonts or remote assets. Everything ships in the repo and must work offline.
-12. **The OS core is a build artifact — rebuild it.** `w12-core.pkg` is the bundle the browser downloads and unpacks into OPFS. If you change anything under `js/modules/`, `js/sdk/`, `js/workers/`, `css/`, `assets/`, `shell.html`, `js/main.js`, `js/apps/registry.js` or a **builtin** app, run `node build-core.js` before testing or committing. A stale bundle silently ships the old code: the browser serves the package, not your working tree.
+12. **The OS core is a build artifact — rebuild it.** `w12-core.pkg` is the bundle the browser downloads and unpacks into OPFS. If you change anything under `js/modules/`, `js/sdk/`, `js/workers/`, `css/`, `assets/`, `shell.html`, `js/main.js`, `js/apps/registry.js` or a **builtin** app, run `node scripts/build-core.js` before testing or committing. A stale bundle silently ships the old code: the browser serves the package, not your working tree.
 
 ## Architecture
+
+### Scripts (`scripts/`)
+
+Every script an agent runs lives in `scripts/`, so the repository root stays
+the operating system itself. Run them from the repository root:
+
+| Script | What it does |
+|--------|--------------|
+| `node scripts/build-registry.js` | validates the app manifests, writes `js/apps/registry.js` and the `sw.js` distribution map |
+| `node scripts/build-core.js` | writes `w12-core.pkg` — the OS core bundle the browser downloads |
+| `node scripts/build-packages.js` | writes `packages/<id>.w12pkg` — the store apps' archives |
+| `node scripts/update-version.js` | syncs the `?v=` cache-busters in `index.html` with `CHANGELOG.md` |
+| `node scripts/test/sdk.smoke.mjs` | the SDK suite (no browser needed) |
+| `node scripts/test/boot.smoke.mjs` | a real browser: install → restart → boot → launch an app → boot again offline |
+| `node scripts/test/update.smoke.mjs` | a real browser: the install/update prompts appear exactly when they should |
+
+### An app IS a folder
+
+There is no separate "installed app" concept. **An app is a folder** in the
+virtual filesystem that holds a `manifest.json` plus its code, and the folder
+path is the app's handle:
+
+- the folder is what you launch (`AppLoader.launch(folderPath)`),
+- the folder is what a `.lnk` points at,
+- the folder is what the URL shows (`/js/apps/Program%20Files%2Fnotepad/main.js`),
+- the manifest's `id` is the app's identity (windows, taskbar, associations).
+
+So all of these behave identically:
+
+| Where the app sits | What it is |
+|--------------------|------------|
+| `\Program Files\<id>` | a builtin app, materialized from the core bundle at boot |
+| `\Program Files\<id>` | a store app the user installed |
+| `~\AppData\Programs\<id>` | a store app installed for one user |
+| anywhere else | an app folder nobody installed - a work in progress, a portable copy |
+
+An app folder that nobody installed is **not** in the catalog and has no
+update checks; you start it from its folder or from a shortcut that points
+at it. Everything else is the same app, running from its own folder.
+
+**One way to install.** `Packages.install(source, options)` takes either a
+store app (`{ type: 'store', id }`) or a package you already have
+(`{ type: 'package', bytes }`); both unpack the app into the target folder
+(`/Program Files\<id>` or `~\AppData\Programs\<id>` by default, or an
+explicit `options.path`) and the app then runs from there. Only a
+store-sourced install is ever re-downloaded.
+
+**The URL scheme matters.** An app reaches the shell with relative imports
+(`'../../modules/x.js'`), so an app's folder is **one** URL segment
+(`/js/apps/<encoded folder>/…`) and the shell's own modules keep their
+canonical URLs (`/js/modules/…`). If the app were served from a different
+depth, it would get a *second* copy of the shell modules and the two copies
+would not share any state.
 
 ### The OS core lives in OPFS (read this first)
 
@@ -27,7 +80,7 @@ The operating system is **not served as static files**. The site serves a tiny
 `index.html` bootstrap, `sw.js`, the core bundle `w12-core.pkg` (plus
 `manifest.json`, `favicon.svg` and the `packages/*.w12pkg` archives for the
 Store). Everything the OS runs — stylesheets, ES modules, the SDK, the builtin
-apps, the sounds — is bundled into `w12-core.pkg` by `node build-core.js`,
+apps, the sounds — is bundled into `w12-core.pkg` by `node scripts/build-core.js`,
 downloaded once by the service worker, unpacked into the Origin Private File
 System and served from there.
 
@@ -73,7 +126,7 @@ browser  ──import /js/main.js──▶ sw.js (fetch)  ──read──▶─
   bootstrap offers the restart that activates it. Core versions are
   per-directory (`w12/core/<version>/`), so an old worker never serves a
   half-updated OS.
-- **The prompt rules** (enforced by `test/update.smoke.mjs`):
+- **The prompt rules** (enforced by `scripts/test/update.smoke.mjs`):
   - *"Windows 12 has been downloaded and installed. Refresh to start?"* appears
     **only** when the core was just installed — never on an ordinary reload.
   - *"A new version of Windows 12 is ready"* appears **only** when the
@@ -115,9 +168,9 @@ browser  ──import /js/main.js──▶ sw.js (fetch)  ──read──▶─
 ### Apps (folder-based — see APP_DEVELOPMENT_GUIDE.md)
 - Each app lives in `js/apps/<id>/` with `manifest.json` (id, uuid, name, version, distribution, associations, store info), `main.js` (wired entry), `scripts/` (extra modules), `assets/` (static files incl. `icon.svg`)
 - **Any change inside an app folder requires a semver `version` bump in its `manifest.json`** (see Critical rules). Never reuse a version for changed app code.
-- `js/apps/registry.js` is GENERATED by `node build-registry.js` (validates all manifests, emits **metadata only**, rewrites the `sw.js` distribution map) — never hand-edit; run the script after any manifest change and after adding/removing an app folder
-- `w12-core.pkg` is GENERATED by `node build-core.js` (the OS core bundle: shell, stylesheets, modules, SDK, builtin apps, sounds) — run it after **any** change to the core; a stale bundle ships old code
-- `packages/<id>.w12pkg` archives (store apps) are GENERATED by `node build-packages.js` — run it after changing any store app; commit the archives, but only rebuild/commit the packages whose app actually changed (the builder rewrites all of them with fresh timestamps)
+- `js/apps/registry.js` is GENERATED by `node scripts/build-registry.js` (validates all manifests, emits **metadata only**, rewrites the `sw.js` distribution map) — never hand-edit; run the script after any manifest change and after adding/removing an app folder
+- `w12-core.pkg` is GENERATED by `node scripts/build-core.js` (the OS core bundle: shell, stylesheets, modules, SDK, builtin apps, sounds) — run it after **any** change to the core; a stale bundle ships old code
+- `packages/<id>.w12pkg` archives (store apps) are GENERATED by `node scripts/build-packages.js` — run it after changing any store app; commit the archives, but only rebuild/commit the packages whose app actually changed (the builder rewrites all of them with fresh timestamps)
 - **Packages** are the app unit: builtins ship inside the core bundle (always installed, not removable) and store apps are downloaded into the vFS and executed from disk; the package folder existing *is* the install record
 - Examples: `js/apps/settings/` (system cards), `js/apps/notepad/` (text editing), `js/apps/fileExplorer/` (virtual file system), `js/apps/sampleApp/` (reference template)
 
@@ -141,7 +194,7 @@ browser  ──import /js/main.js──▶ sw.js (fetch)  ──read──▶─
 - **Display resolution and scaling are machine-wide**, not per-profile. They live in one global, shell-owned/OS-only store (`/system/programs data/display/settings.json`, written through `SystemConfig.setGlobal`/`setGlobals`) and are read back with `SystemConfig.initGlobal()`/`loadGlobal()`; `isGlobalKey()` reports the global keys. `js/main.js` calls `SystemConfig.initGlobal()` before `Scaling.init()`, so the boot/login/lock screens (which render before any profile) share the device's configuration. Changing them is **privileged**: Settings > System > Display raises UAC, then sets them via `SystemConfig.set('scaling'|'displayResolution', …)`, which routes to the global store. Keep those keys out of the per-user `config.json` (the SDK `Settings.set` rejects them).
 - **Filesystem permission is enforced** (`js/modules/fsGuard.js`): apps freely access their own AppData folders; anything outside requires the manifest `filesystem` permission, or a runtime consent dialog for apps that don't declare it. Reads use `FSGuard.check` (injected via `FileSystem.setAccessChecker`); **mutations** additionally use `FSGuard.checkWrite` (injected via `FileSystem.setWriteChecker`), which is identical except that writes inside `/Program Files` require a per-app session elevation (a UAC prompt; reads stay allowed so File Explorer can browse) and writes inside `\Windows` are always refused. OS modules must wrap their FS access in `window._FSGuard.asShell(fn)` so shell writes aren't attributed to the focused app (the guard is a synchronous inc/dec, so wrap each *synchronous* FS call individually, not a whole async function); shell-context writes skip the elevation gate. Accessing `/system/users/**`, `system/programs data/permissions/**`, `system/programs data/display/**` or the recycle bin from app code is denied.
 - **App modules must not call `AppLoader`/`AppRegistry`/`AppMetadata`/`Packages`/`Users` user-dependent paths at module scope** (top-level). The registry <-> app import cycle leaves those bindings uninitialized during evaluation — only call them inside functions like `launch()`. This includes `Users.home()`/`Users.appData()` (current user isn't resolved until boot): store them as lazy functions (`const DATA_PATH = () => Users.appData(APP_ID)`).
-- **After changing an app**, bump its version, then run `node build-registry.js` and `node build-core.js`; for a changed store app also run `node build-packages.js` (rebuild only that package). Run `node build-registry.js` after adding/removing any app folder, and `node build-core.js` after **any** change to the core (`js/modules/`, `js/sdk/`, `js/workers/`, `css/`, `assets/`, `shell.html`, `js/main.js`, `js/apps/registry.js`, a builtin app) — otherwise the browser keeps running the code in the previous bundle.
+- **After changing an app**, bump its version, then run `node scripts/build-registry.js` and `node scripts/build-core.js`; for a changed store app also run `node scripts/build-packages.js` (rebuild only that package). Run `node scripts/build-registry.js` after adding/removing any app folder, and `node scripts/build-core.js` after **any** change to the core (`js/modules/`, `js/sdk/`, `js/workers/`, `css/`, `assets/`, `shell.html`, `js/main.js`, `js/apps/registry.js`, a builtin app) — otherwise the browser keeps running the code in the previous bundle.
 - **Never use native `alert()`, `confirm()`, or `prompt()`** — the one exception is the bootstrap's "refresh to start" prompt in `index.html`, which runs before the OS exists. Inside the OS, always use the Popup API (`js/modules/popup.js`). All methods return Promises — use `.then()` or `await`. Available methods: `Popup.info()`, `Popup.warn()`, `Popup.error()`, `Popup.confirm()`, `Popup.pick()`, `Popup.textbox()`, `Popup.forum()`, `Popup.custom()`. Import it with `import Popup from '../modules/popup.js';`
 - **For non-modal toasts use the Notifications API** (`js/modules/notifications.js`): `Notifications.info()`, `Notifications.action()` (buttons + `onAction`), `Notifications.forum()` (fields + `onSubmit`). Flags: `sticky`, `critical`, `silent`, `tag`. Methods return the id immediately; outcomes arrive via `onAction`/`onSubmit`/`onDismiss(reason)`. Import it with `import Notifications from '../modules/notifications.js';`
 - **The OS must work offline.** The whole OS is on disk in OPFS: the service worker serves the core and the installed packages from there, so the OS boots and runs with no network at all — even if the host is down. Only genuinely-online features are affected: the Store's package downloads, `CHANGELOG.md` (Windows Update), cross-origin `fetch`es (Weather, Copilot, peer pairing) and remote iframes (Browser). Check connectivity with `import NetworkStatus from '../modules/networkStatus.js'` (`isOnline()`, `onChange(cb)`, `ensureOnline(feature)` → clean Popup + `false`, or `showError(feature)`) and fail with a readable connection error instead of hanging or crashing. The tray Wi-Fi indicator reflects `navigator.onLine` automatically.
@@ -177,9 +230,9 @@ Rules:
 **Definition of done (run through before every commit):**
 
 1. Any change under `js/apps/<id>/` has a semver bump in that app's `manifest.json`.
-2. `node build-registry.js` **and** `node build-core.js` were run (the core bundle is what the browser actually runs); changed store apps had `node build-packages.js` run (only those packages committed).
+2. `node scripts/build-registry.js` **and** `node scripts/build-core.js` were run (the core bundle is what the browser actually runs); changed store apps had `node scripts/build-packages.js` run (only those packages committed).
 3. No dead code, unused imports, `console.log`/`debugger` or temporary files remain.
-4. `node test/sdk.smoke.mjs`, `node test/boot.smoke.mjs` and `node test/update.smoke.mjs` pass, and `node --check` is clean on modified JS.
+4. `node scripts/test/sdk.smoke.mjs`, `node scripts/test/boot.smoke.mjs` and `node scripts/test/update.smoke.mjs` pass, and `node --check` is clean on modified JS.
 5. UI/overlay changes were checked at desktop size **and** a narrow/mobile viewport.
 
 **Releasing:**
@@ -187,10 +240,10 @@ Rules:
 - Always commit and push changes after completing a task.
 - Use descriptive commit messages with conventional commits format (e.g. `feat:`, `fix:`, `chore:`).
 - **Before every commit**, add a new CHANGELOG.md version entry (never modify older entries). Only use these sections: **Added**, **Removed**, **Changed**, **Fixed**.
-- As part of the release, bump `version.json` (`version` + `date`) and run `node update-version.js` so every `?v=` cache-buster in `index.html` matches the new version, then `node build-core.js` again (the core manifest carries the version).
+- As part of the release, bump `version.json` (`version` + `date`) and run `node scripts/update-version.js` so every `?v=` cache-buster in `index.html` matches the new version, then `node scripts/build-core.js` again (the core manifest carries the version).
 - Commit order: 1) code changes 2) CHANGELOG.md + `version.json` + `index.html` 3) push.
 
 ## Running
 Serve `index.html` statically via any web server (e.g. GitHub Pages). The site only needs to serve `index.html`, `sw.js`, `w12-core.pkg`, `manifest.json`, `favicon.svg` and `packages/*.w12pkg` — everything else the OS needs is downloaded into OPFS on the first run.
 
-Requirements: a secure context (HTTPS or `localhost`), a browser with the Origin Private File System and `DecompressionStream` (Chrome 80+, Edge 80+, Firefox 113+, Safari 16.4+). `node test/boot.smoke.mjs` drives a headless browser through exactly this flow.
+Requirements: a secure context (HTTPS or `localhost`), a browser with the Origin Private File System and `DecompressionStream` (Chrome 80+, Edge 80+, Firefox 113+, Safari 16.4+). `node scripts/test/boot.smoke.mjs` drives a headless browser through exactly this flow.

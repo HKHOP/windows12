@@ -3,7 +3,7 @@
     "id": "packageInstaller",
     "uuid": "a9b044cd-c27f-4e3f-81b8-49ef108926ff",
     "name": "Package Installer",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "distribution": "builtin",
     "entry": "main.js",
     "icon": "assets/icon.svg",

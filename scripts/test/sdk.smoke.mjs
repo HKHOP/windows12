@@ -196,7 +196,7 @@ function fireDocKeydown(event) {
 // ---------- import the real SDK ----------
 
 console.log('importing js/sdk/index.js ...');
-const SDK = await import('../js/sdk/index.js');
+const SDK = await import('../../js/sdk/index.js');
 const Windows12 = SDK.default;
 console.log('import ok\n');
 
@@ -253,7 +253,7 @@ check('unsubscribe works', (() => { unsub(); evtPayload = null; globalThis.dispa
 check('names() lists the nine supported events', SDK.Events.names().length === 9);
 
 console.log('[filesystem]');
-const FSMod = await import('../js/modules/fileSystem.js');
+const FSMod = await import('../../js/modules/fileSystem.js');
 await FSMod.default.init();
 check('seed tree exists', SDK.FileSystem.exists(['/', 'users', 'default', 'Documents']));
 check('write→read roundtrip', (() => {
@@ -299,7 +299,7 @@ check('permissions.require throws when undeclared path revoked', (() => {
 })());
 
 console.log('[catalogs]');
-const AppLoaderMod = await import('../js/modules/appLoader.js');
+const AppLoaderMod = await import('../../js/modules/appLoader.js');
 await AppLoaderMod.default.init();
 check('discord declares network', SDK.Permissions.getDeclared('discord').includes('network'));
 check('copilot declares 4 permissions', SDK.Permissions.getDeclared('copilotButBetter').length === 4);
@@ -318,8 +318,8 @@ check('catalog exposes lazy entry + icon flags', (() => {
 check('system info shape', (() => { const i = SDK.System.info(); return i.name === 'Windows 12' && typeof i.version === 'string'; })());
 
 console.log('[accounts & uac]');
-const UsersMod = await import('../js/modules/users.js');
-const UACMod = await import('../js/modules/uac.js');
+const UsersMod = await import('../../js/modules/users.js');
+const UACMod = await import('../../js/modules/uac.js');
 globalThis._FileSystem = FSMod.default;
 UsersMod.default.init();
 const stdAcc = await UsersMod.default.createAccount('Smoke Std', null);
@@ -347,7 +347,7 @@ check('home() follows the foreground profile', (() => {
 })());
 check('primaryAdminId resolves the surviving administrator', UsersMod.default.primaryAdminId() === adminAcc.id);
 
-const SessionsMod = (await import('../js/modules/sessions.js')).default;
+const SessionsMod = (await import('../../js/modules/sessions.js')).default;
 const sessionLog = [];
 SessionsMod.setHooks({
     onBoot: (id) => { sessionLog.push(`boot:${id}`); },
@@ -367,7 +367,7 @@ check('signOut ran the close hook', sessionLog[sessionLog.length - 1] === `close
 SessionsMod.reset();
 
 console.log('[machine-wide display settings]');
-const SysCfg = (await import('../js/modules/systemConfig.js')).default;
+const SysCfg = (await import('../../js/modules/systemConfig.js')).default;
 SysCfg.load();
 SysCfg.initGlobal();
 const DISPLAY_PATH = ['/', 'system', 'programs data', 'display', 'settings.json'];
@@ -394,7 +394,7 @@ check('readText without browser API → UNSUPPORTED',
     await (async () => { try { await SDK.Clipboard.readText(); return false; } catch (e) { return e.code === 'UNSUPPORTED'; } })());
 
 console.log('[window creation headless]');
-const WMMod = await import('../js/modules/windowManager.js');
+const WMMod = await import('../../js/modules/windowManager.js');
 WMMod.default.init();
 check('WindowManager.create builds a window against stubs', (() => {
     try {
@@ -622,9 +622,9 @@ check('requestCamera without device API → UNSUPPORTED',
     await (async () => { try { await SDK.Media.requestCamera('sdkSmoke'); return false; } catch (e) { return e.code === 'UNSUPPORTED'; } })());
 
 console.log('[virtual keyboard]');
-const VKMod = await import('../js/modules/virtualKeyboard.js');
+const VKMod = await import('../../js/modules/virtualKeyboard.js');
 const VK = VKMod.default;
-const SysConfMod = await import('../js/modules/systemConfig.js');
+const SysConfMod = await import('../../js/modules/systemConfig.js');
 const SysConf = SysConfMod.default;
 check('init is safe headless', (() => { try { VK.init(); return true; } catch (e) { return false; } })());
 check('disabled by default in node (no touch)', VK.isEnabled() === false);

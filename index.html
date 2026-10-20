@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Windows 12">
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=13.0.0">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=14.0.0">
     <link rel="apple-touch-icon" href="favicon.svg">
     <title>Windows 12</title>
     <style>
@@ -152,6 +152,35 @@
             });
         }
 
+        // --- storage reset ----
+
+        // ?wipe=1 empties the Origin Private File System and starts over.
+        // Some browsers make the OPFS awkward to clear from the devtools, so
+        // the bootstrap can do it for you.
+        async function wipeStorage() {
+            try {
+                var root = await navigator.storage.getDirectory();
+                for await (var name of root.keys()) {
+                    await root.removeEntry(name, { recursive: true });
+                }
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        async function maybeWipe() {
+            var params;
+            try { params = new URL(location.href).searchParams; } catch (e) { return false; }
+            if (!params.has('wipe')) return false;
+            params.delete('wipe');
+            var clean = location.pathname + (params.toString() ? '?' + params.toString() : '');
+            setStatus('Clearing the system files…');
+            await wipeStorage();
+            location.replace(clean);
+            return true;
+        }
+
         // --- boot ----------------------------------------------------------
 
         function loadStyles(list, version) {
@@ -192,6 +221,7 @@
         }
 
         async function run() {
+            if (await maybeWipe()) return;
             if (!('serviceWorker' in navigator)) {
                 fail('Windows 12 needs a modern browser.',
                      'This browser does not support service workers.');
@@ -221,6 +251,7 @@
                 navigator.serviceWorker.ready,
                 new Promise(function (resolve) { setTimeout(resolve, 120000); })
             ]);
+            setStatus('Starting the system…');
             if (!await waitForController(15000)) {
                 fail('Windows 12 could not be downloaded.',
                      'The service worker could not start. Check your connection and reload this page.');

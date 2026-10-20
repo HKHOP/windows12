@@ -1,4 +1,5 @@
 import AppIcons from '../../modules/appIcons.js';
+import AppLoader from '../../modules/appLoader.js';
 import UIIcons from '../../modules/uiIcons.js';
 import WindowManager from '../../modules/windowManager.js';
 import ContextMenu from '../../modules/contextMenu.js';
@@ -15,7 +16,7 @@ import Zip from '../../modules/zip.js';
 import Users from '../../modules/users.js';
 import Notifications from '../../modules/notifications.js';
 import Shortcuts from '../../modules/shortcuts.js';
-import AppBundles from '../../modules/appBundles.js';
+
 
 const FileExplorer = (() => {
     const icon = AppIcons.get('fileExplorer');
@@ -339,7 +340,7 @@ const FileExplorer = (() => {
             const basePath = row.base;
             const fullPath = [...basePath, entry.name];
             const isDir = entry.type === 'folder';
-            const appManifest = isDir ? AppBundles.manifestForFolder(fullPath) : null;
+            const appManifest = isDir ? AppLoader.manifestForFolder(fullPath) : null;
             const item = document.createElement('div');
             item.className = 'fe-item';
             // Native HTML5 drag: mouse/pen only. On touch the long-press is
@@ -354,7 +355,7 @@ const FileExplorer = (() => {
                 ? `<div style="font-size:10px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${basePath.slice(path.length).join('/') || ''}</div>`
                 : '';
             item.innerHTML = `
-                <div style="display:flex;justify-content:center;margin-bottom:4px;">${isDir ? (appManifest ? AppBundles.iconHtml(fullPath, appManifest, 36) : getFolderIcon(entry.name)) : ((entry.ext || '').toLowerCase() === 'lnk' ? Shortcuts.iconForPath(fullPath, 36) : getFileIcon(entry.ext, entry.name))}</div>
+                <div style="display:flex;justify-content:center;margin-bottom:4px;">${isDir ? (appManifest ? AppIcons.forFolder(fullPath, appManifest) : getFolderIcon(entry.name)) : ((entry.ext || '').toLowerCase() === 'lnk' ? Shortcuts.iconForPath(fullPath, 36) : getFileIcon(entry.ext, entry.name))}</div>
                 <div class="fe-label" style="font-size:12px;word-break:break-all;line-height:1.3;">${entry.name}</div>
                 ${relDir}
             `;
@@ -400,7 +401,7 @@ const FileExplorer = (() => {
                 }
                 if (isDir) {
                     if (appManifest) {
-                        AppBundles.launchFolder(fullPath, appManifest).catch(() => {});
+                        AppLoader.launch(fullPath).catch(() => {});
                         return;
                     }
                     if (searchMode) {
@@ -509,7 +510,7 @@ const FileExplorer = (() => {
                     : { label: 'Properties', icon: UIIcons.action('properties'), action: () => showProperties(entry, itemPath) };
                 const menuItems = isDir ? [
                     ...(appManifest ? [
-                        { label: 'Run app', icon: UIIcons.action('open'), action: () => AppBundles.launchFolder(itemPath, appManifest).catch(() => {}) },
+                        { label: 'Run app', icon: UIIcons.action('open'), action: () => AppLoader.launch(itemPath).catch(() => {}) },
                         { label: 'Pin to taskbar', icon: UIIcons.action('pin'), action: () => {
                             const t = window._modules && window._modules.Taskbar;
                             if (t) t.pinEntry(itemPath, { name: appManifest.name, appId: appManifest.id });

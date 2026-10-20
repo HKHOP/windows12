@@ -5,6 +5,7 @@
 // table below remains for shell-only glyphs that are not apps (e.g. the
 // Windows Update badge) and as a safety net.
 import { APP_MANIFESTS } from '../apps/registry.js';
+import SITE_BASE, { fileUrl } from './siteBase.js';
 
 const AppIcons = (() => {
     const icons = {
@@ -95,18 +96,29 @@ const AppIcons = (() => {
 
     function setPackagedIcons(map) {
         dynamicIcons.clear();
-        for (const [id, icon] of Object.entries(map || {})) {
-            const path = String(icon || 'assets/icon.svg');
-            if (path) dynamicIcons.set(id, path);
+        for (const [id, value] of Object.entries(map || {})) {
+            // Either a plain icon path, or { icon, folder }: an app that
+            // lives on disk has its icon in its own folder.
+            const entry = (value && typeof value === 'object') ? value : { icon: value };
+            const path = String(entry.icon || 'assets/icon.svg');
+            if (path) dynamicIcons.set(id, { path, folder: entry.folder || null });
         }
     }
 
-    // Packages live at the canonical app URL; the service worker serves the
-    // installed copy from the virtual filesystem and falls back to the
-    // shipped bundle for static assets, so this works before and after install.
-    function packagedIcon(id, iconPath) {
+    // The URL of a file inside an app folder. The folder is the app's
+    // handle, so the URL shows where the app lives.
+    function folderUrl(folder, relative) {
+        return fileUrl(folder, relative);
+    }
+
+    // Icons live in the app's folder, so the service worker serves them from
+    // the virtual filesystem. An app that is not installed yet has no
+    // folder, so its icon comes from the shipped bundle.
+    function packagedIcon(id, iconPath, folder) {
         try {
-            const url = new URL(`../apps/${id}/${iconPath || 'assets/icon.svg'}`, import.meta.url).href;
+            const url = folder
+                ? folderUrl(folder, iconPath || 'assets/icon.svg')
+                : new URL(`../apps/${id}/${iconPath || 'assets/icon.svg'}`, import.meta.url).href;
             return `<img class="app-icon-img" src="${url}" alt="" draggable="false">`;
         } catch (e) {
             return null;
@@ -114,8 +126,9 @@ const AppIcons = (() => {
     }
 
     function get(id) {
-        if (dynamicIcons.has(id)) {
-            const img = packagedIcon(id, dynamicIcons.get(id));
+        const dynamic = dynamicIcons.get(id);
+        if (dynamic) {
+            const img = packagedIcon(id, dynamic.path, dynamic.folder);
             return img || icons[id] || fallback;
         }
         if (ICON_APPS.has(id)) {
@@ -125,11 +138,22 @@ const AppIcons = (() => {
         return icons[id] || fallback;
     }
 
+    // The icon of an app folder, whether or not the app is in the catalog.
+    function forFolder(folder, manifest) {
+        try {
+            const icon = (manifest && manifest.icon) || 'assets/icon.svg';
+            const img = packagedIcon((manifest && manifest.id) || '', icon, folder);
+            return img || fallback;
+        } catch (e) {
+            return fallback;
+        }
+    }
+
     function getAll() {
         return { ...icons };
     }
 
-    return { get, getAll, setPackagedIcons };
+    return { get, getAll, setPackagedIcons, forFolder, folderUrl };
 })();
 
 export default AppIcons;

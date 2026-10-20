@@ -204,7 +204,7 @@ const Search = (() => {
             el.addEventListener('click', () => {
                 const appId = el.dataset.app;
                 if (AppLoader.isLaunchable(appId)) {
-                    AppLoader.launch(appId).catch(() => { /* crash monitor reports */ });
+                    AppLoader.launchById(appId).catch(() => { /* crash monitor reports */ });
                     close();
                 }
             });

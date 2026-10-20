@@ -7,6 +7,7 @@ import UserActivity from './userActivity.js';
 import FileSystem from './fileSystem.js';
 import AppSystem from './appSystem.js';
 import AppLoader from './appLoader.js';
+import AppIcons from './appIcons.js';
 import Users from './users.js';
 import LockScreen from './lockScreen.js';
 import FileAssociations from './fileAssociations.js';
@@ -40,7 +41,6 @@ const StartMenu = (() => {
     // Built from app manifests (see js/apps/*/manifest.json). Store apps are
     // hidden until installed; builtin apps always show.
     function shortcutsApi() { return window._Shortcuts || null; }
-    function bundlesApi() { return window._AppBundles || null; }
 
     function startMenuDir() {
         const s = shortcutsApi();
@@ -289,26 +289,20 @@ const StartMenu = (() => {
     }
 
     function openFolder(path) {
-        const b = bundlesApi();
-        if (b) {
-            b.openFolder(path).catch(() => {});
-            return;
-        }
-        AppLoader.launch('fileExplorer', { path }).catch(() => {});
+        AppLoader.launchById('fileExplorer', { path }).catch(() => {});
     }
 
     function openFilePath(path) {
         let opened = false;
         try { opened = FileAssociations.openDefault(path); } catch { opened = false; }
         if (opened) return;
-        AppLoader.ensureLoaded('notepad').then(app => {
+        AppLoader.ensureLoadedById('notepad').then(app => {
             if (app && typeof app.launch === 'function') app.launch(path, path[path.length - 1]);
         }).catch(() => {});
     }
 
     function readStartEntries(dir, depth) {
         const s = shortcutsApi();
-        const b = bundlesApi();
         let children = [];
         try { children = asShell(FileSystem.getChildren)(dir) || []; } catch { return []; }
         const out = [];
@@ -316,13 +310,13 @@ const StartMenu = (() => {
             if (String(child.name).startsWith('.')) continue;
             const full = [...dir, child.name];
             if (child.type === 'folder') {
-                const man = b ? b.manifestForFolder(full) : null;
+                const man = AppLoader.manifestForFolder(full);
                 if (man) {
                     out.push({
                         kind: 'item', type: 'appFolder', name: man.name || child.name,
                         path: full, appId: man.id, manifest: man,
-                        icon: b.iconHtml(full, man, 22),
-                        open: () => b.launchFolder(full, man)
+                        icon: AppIcons.forFolder(full, man),
+                        open: () => AppLoader.launch(full)
                     });
                 } else if (depth > 0) {
                     const kids = readStartEntries(full, depth - 1);
@@ -597,7 +591,7 @@ const StartMenu = (() => {
             }
             WindowManager.focusWindow(win.id);
         } else {
-            AppLoader.launch(appId).catch(() => { /* crash monitor reports */ });
+            AppLoader.launchById(appId).catch(() => { /* crash monitor reports */ });
         }
     }
 

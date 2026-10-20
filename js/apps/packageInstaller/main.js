@@ -223,7 +223,7 @@ function createSession({ app, win, bytes, inspection, existing, sourceName }) {
             ],
             onAction: (value) => {
                 if (value === 'open') {
-                    AppLoader.launch(result.id).catch(() => {});
+                    AppLoader.launchById(result.id).catch(() => {});
                 }
             }
         });
@@ -265,7 +265,7 @@ function createSession({ app, win, bytes, inspection, existing, sourceName }) {
         hasStartedInstall: () => attempted,
         close: () => { if (win) app.window.close(win.id); },
         setTitle: (title) => { if (win) app.window.setTitle(win.id, title); },
-        launchInstalled: (appId) => { AppLoader.launch(appId).catch(() => {}); },
+        launchInstalled: (appId) => { AppLoader.launchById(appId).catch(() => {}); },
         addCleanup: (fn) => { if (typeof fn === 'function') cleanups.push(fn); },
         dispose,
         notifyComplete,

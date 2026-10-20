@@ -24,7 +24,6 @@ import AppIcons from './appIcons.js';
 import AppLoader from './appLoader.js';
 import Keyboard from './keyboard.js';
 import Users from './users.js';
-import AppBundles from './appBundles.js';
 import { DESTINATIONS, MANIFEST_DEFAULTS, normalizeConfig, mergeConfig, resolveCreate } from './shortcutConfig.js';
 
 const Shortcuts = (() => {
@@ -211,7 +210,7 @@ const Shortcuts = (() => {
             const kind = ['installer', 'system', 'user'].includes(data.source.kind) ? data.source.kind : 'user';
             out.source = { kind, appId: data.source.appId ? String(data.source.appId) : null };
         }
-        if (out.type === 'file' || out.type === 'folder') {
+        if (out.type === 'file' || out.type === 'folder' || (out.type === 'app' && Array.isArray(out.target))) {
             if (!Array.isArray(out.target) || out.target.length === 0) return null;
             out.target = out.target.slice();
         } else {
@@ -300,10 +299,30 @@ const Shortcuts = (() => {
         } catch { return appId; }
     }
 
+    // The folder an app shortcut points at. New shortcuts store the folder
+    // itself - the app's handle - while older ones stored the app id, which
+    // is resolved through the catalog.
+    function appFolder(data) {
+        if (!data || data.type !== 'app') return null;
+        if (Array.isArray(data.target)) return data.target;
+        try { return AppLoader.folderFor(data.target); } catch { return null; }
+    }
+
+    // The manifest of the app a shortcut points at.
+    function appManifest(data) {
+        const folder = appFolder(data);
+        if (!folder) return null;
+        try { return AppLoader.manifestForFolder(folder); } catch { return null; }
+    }
+
     function targetLabel(data) {
         if (!data) return '';
         if (data.type === 'url') return data.target;
-        if (data.type === 'app') return appName(data.target);
+        if (data.type === 'app') {
+            const man = appManifest(data);
+            if (man) return man.name;
+            return appName(Array.isArray(data.target) ? data.target[data.target.length - 1] : data.target);
+        }
         return formatPath(data.target);
     }
 
@@ -313,7 +332,11 @@ const Shortcuts = (() => {
             try { return new URL(normalizeUrl(data.target)).hostname.replace(/^www\./, '') || 'Internet Shortcut'; }
             catch { return 'Internet Shortcut'; }
         }
-        if (data.type === 'app') return appName(data.target);
+        if (data.type === 'app') {
+            const man = appManifest(data);
+            if (man) return man.name;
+            return appName(Array.isArray(data.target) ? data.target[data.target.length - 1] : data.target);
+        }
         if (Array.isArray(data.target) && data.target.length > 0) {
             const last = data.target[data.target.length - 1];
             return data.type === 'file' ? baseName(last) : last;
@@ -325,7 +348,9 @@ const Shortcuts = (() => {
         if (!data) return false;
         if (data.type === 'url') return !!data.target;
         if (data.type === 'app') {
-            try { return AppLoader.isLaunchable(data.target); } catch { return false; }
+            const folder = appFolder(data);
+            if (!folder) return false;
+            try { return shell(() => FileSystem.itemExists(folder)); } catch { return false; }
         }
         try { return shell(() => FileSystem.itemExists(data.target)); } catch { return false; }
     }
@@ -360,10 +385,15 @@ const Shortcuts = (() => {
     function targetIconHtml(data, size) {
         if (!data) return UIIcons.files.lnk(size);
         if (data.type === 'url') return appIconHtml('browser', size);
-        if (data.type === 'app') return appIconHtml(data.target, size);
+        if (data.type === 'app') {
+            const folder = appFolder(data);
+            const man = appManifest(data);
+            if (folder) return AppIcons.forFolder(folder, man);
+            return UIIcons.files.generic(size);
+        }
         if (data.type === 'folder') {
-            const man = AppBundles.manifestForFolder(data.target);
-            if (man) return AppBundles.iconHtml(data.target, man, size);
+            const man = AppLoader.manifestForFolder(data.target);
+            if (man) return AppIcons.forFolder(data.target, man);
             const name = data.target && data.target[data.target.length - 1];
             return UIIcons.folder(name || '', size);
         }
@@ -425,9 +455,12 @@ const Shortcuts = (() => {
 
         // No association/viewer yet (File Explorer registers its viewers on
         // first launch) — fall back to Notepad, which renders anything.
-        AppLoader.ensureLoaded('notepad').then(app => {
-            if (app && typeof app.launch === 'function') app.launch(path, path[path.length - 1]);
-        }).catch(() => { /* crash monitor reports load failures */ });
+        const notepad = AppLoader.folderFor('notepad');
+        if (notepad) {
+            AppLoader.ensureLoaded(notepad).then(app => {
+                if (app && typeof app.launch === 'function') app.launch(path, path[path.length - 1]);
+            }).catch(() => { /* crash monitor reports load failures */ });
+        }
         return true;
     }
 
@@ -438,18 +471,22 @@ const Shortcuts = (() => {
             return false;
         }
         if (data.type === 'url') {
-            const browser = await AppLoader.ensureLoaded('browser');
+            const browserFolder = AppLoader.folderFor('browser');
+            const browser = browserFolder ? await AppLoader.ensureLoaded(browserFolder) : null;
             if (browser && typeof browser.openUrl === 'function') browser.openUrl(data.target);
             else if (browser && typeof browser.launch === 'function') browser.launch(data.target);
             else return false;
             return true;
         }
         if (data.type === 'app') {
-            if (!AppLoader.isLaunchable(data.target)) {
+            // An app shortcut leads to the app's folder: that is where the
+            // app lives and where it runs from.
+            const folder = appFolder(data);
+            if (!folder) {
                 brokenDialog(data, sourcePath);
                 return false;
             }
-            return !!(await AppLoader.launch(data.target));
+            return !!(await AppLoader.launch(folder));
         }
 
         if (!targetExists(data)) {
@@ -465,9 +502,9 @@ const Shortcuts = (() => {
             return openData(inner, data.target, depth + 1);
         }
         if (data.type === 'folder') {
-            const man = AppBundles.manifestForFolder(data.target);
-            if (man) return !!(await AppBundles.launchFolder(data.target, man));
-            const popped = await AppLoader.launch('fileExplorer', { path: data.target });
+            const man = AppLoader.manifestForFolder(data.target);
+            if (man) return !!(await AppLoader.launch(data.target));
+            const popped = await AppLoader.launchById('fileExplorer', { path: data.target });
             return !!popped;
         }
         return openFileTarget(data.target);
@@ -1237,9 +1274,14 @@ const Shortcuts = (() => {
 
     function appIdForShortcut(data) {
         if (!data) return null;
-        if (data.type === 'app') return data.target;
+        if (data.type === 'app') {
+            if (data.source && data.source.appId) return data.source.appId;
+            const man = appManifest(data);
+            if (man) return man.id;
+            return Array.isArray(data.target) ? data.target[data.target.length - 1] : data.target;
+        }
         if (data.type === 'folder') {
-            const man = AppBundles.manifestForFolder(data.target);
+            const man = AppLoader.manifestForFolder(data.target);
             return man ? man.id : null;
         }
         return null;
@@ -1247,6 +1289,10 @@ const Shortcuts = (() => {
 
     function shortcutLocation(data) {
         if (!data) return null;
+        if (data.type === 'app') {
+            const folder = appFolder(data);
+            return folder ? folder.slice() : null;
+        }
         if (data.type === 'folder' && Array.isArray(data.target)) return data.target.slice();
         if (data.type === 'file' && Array.isArray(data.target) && data.target.length > 1) {
             return data.target.slice(0, -1);
@@ -1285,11 +1331,16 @@ const Shortcuts = (() => {
         if (!dir) return null;
         ensureFolder(dir);
 
+        // The shortcut leads to the app's folder: that is the app's handle,
+        // and the app runs from there.
+        const folder = options.folder || AppLoader.folderFor(appId);
+        if (!folder) return null;
+
         const data = {
             format: FORMAT,
             version: VERSION,
             type: 'app',
-            target: appId,
+            target: folder.slice(),
             arguments: destCfg.arguments || '',
             startIn: Array.isArray(destCfg.startIn) ? destCfg.startIn.slice() : null,
             comment: destCfg.comment || '',
@@ -1362,7 +1413,7 @@ const Shortcuts = (() => {
             data = { ...inner, source: { kind: 'user', appId: appIdForShortcut(inner) } };
         } else {
             const isDir = shell(() => FileSystem.isFolder(sourcePath));
-            const man = isDir ? AppBundles.manifestForFolder(sourcePath) : null;
+            const man = isDir ? AppLoader.manifestForFolder(sourcePath) : null;
             data = {
                 format: FORMAT,
                 version: VERSION,

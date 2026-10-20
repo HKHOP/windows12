@@ -553,7 +553,7 @@ const AppStore = (() => {
         async function openAppById(appId) {
             if (isService(appId)) return;
             try {
-                await AppLoader.launch(appId);
+                await AppLoader.launchById(appId);
             } catch (err) {
                 CrashMonitor.reportCrash(appId, {
                     message: err && err.message ? err.message : String(err),

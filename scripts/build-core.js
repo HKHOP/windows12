@@ -31,7 +31,7 @@ const path = require('path');
 const zlib = require('zlib');
 const crypto = require('crypto');
 
-const ROOT = __dirname;
+const ROOT = path.resolve(__dirname, '..');
 const OUT_FILE = path.join(ROOT, 'w12-core.pkg');
 const SW_FILE = path.join(ROOT, 'sw.js');
 

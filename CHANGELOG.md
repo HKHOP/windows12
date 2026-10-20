@@ -4,6 +4,29 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [14.0.0] - 2026-10-20
+
+### Added
+- **An app is now a folder.** There is no separate "installed app" concept any more: an app is a folder in the filesystem that holds a `manifest.json` plus its code, and the folder path is the app's handle. It is what you launch, what a `.lnk` points at, and what the URL shows (`/js/apps/Program%20Files%2Fnotepad/main.js`). The manifest's id stays the app's identity for windows, taskbar buttons and file associations.
+- **One way to install.** The Microsoft Store and a `.w12pkg`/`.msi` package now go through the same install path: the app is unpacked into a folder (`\Program Files\<id>`, `~\AppData\Programs\<id>`, or a path the caller names) and runs from there. Only a store-sourced install is ever downloaded again; a package you brought yourself never phones home.
+- **Apps that were never installed now run like any other app.** A folder you dropped into the filesystem, a work in progress, a portable copy: open it and it starts, with the same window, the same taskbar button and the same permissions. Such an app is not listed in the catalog and has no update checks.
+- **Builtin apps live in the filesystem.** At boot the OS materializes them under `\Program Files` (pointing at the core bundle, so nothing is copied), which makes them ordinary app folders - they cannot be uninstalled, and the File Explorer shows them like everything else.
+- **`?wipe=1`** empties the private file system and starts over, for the times a browser makes it awkward to clear from the devtools.
+
+### Changed
+- **The app catalog is no longer part of the OS.** It is served fresh from the network (with a cached copy for offline use), so updating a Microsoft Store app never ships a whole new operating system.
+- **Shortcuts lead to the app's folder.** A `.lnk` for an app now stores the folder it points at instead of an id, so a shortcut and the app it starts can never drift apart.
+- **The scripts moved into `scripts/`.** The build scripts and the test suites now live in `scripts/` (with the tests in `scripts/test/`), so the repository root stays the operating system itself.
+- **File Explorer 1.4.0** - refusing to change a read-only file now explains why instead of silently doing nothing.
+
+### Fixed
+- **An app no longer gets its own copy of the shell.** Apps are served from a fixed URL depth, so their relative imports (`'../../modules/x.js'`) land on the very same module URLs the shell uses. Before, an app could end up with a second copy of the window manager or the filesystem, and the two copies did not share any state.
+- **The startup prompts appear exactly when they should.** The "downloaded and installed, refresh to start" prompt now only shows right after a real installation, and the "new version is ready" prompt only when the new version really carries a different core.
+
+### Removed
+- **`js/modules/appBundles.js`** - the separate "portable bundle" path is gone; portable apps are ordinary app folders now.
+- **The `__w12p_` synthetic app ids** - an app's folder is its handle now.
+
 ## [13.0.0] - 2026-10-20
 
 ### Added

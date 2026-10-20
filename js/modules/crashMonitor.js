@@ -155,7 +155,7 @@ const CrashMonitor = (() => {
     async function launchApp(appId) {
         let mod = null;
         try {
-            mod = await AppLoader.ensureLoaded(appId);
+            mod = await AppLoader.ensureLoadedById(appId);
         } catch (err) {
             reportCrash(appId, {
                 message: err && err.message ? err.message : String(err),

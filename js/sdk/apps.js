@@ -31,11 +31,14 @@ function getMetadata(id) {
 }
 
 /**
- * Every known manifest (builtins + store apps).
+ * Every known manifest (builtins + store apps), each with the folder it
+ * lives in (null when it is not on disk yet).
  * @returns {object[]}
  */
 function getAll() {
-    return AppLoader.getAll();
+    return AppLoader.getAll()
+        .filter(e => e.manifest)
+        .map(e => ({ ...e.manifest, folderPath: e.folderPath }));
 }
 
 /**
@@ -50,17 +53,38 @@ function isInstalled(id) {
 /**
  * Open or focus an app (taskbar semantics: toggles a focused window).
  * Services can never be launched.
- * @param {string} id
+ *
+ * An app IS a folder, so the folder is the handle: pass the app's folder
+ * (a path array) to launch exactly that copy. An app id from the catalog
+ * is accepted too and is resolved to its folder.
+ * @param {string[]|string} target the app's folder, or an app id
  * @param {object} [options] forwarded (e.g. Settings pages)
  * @returns {Promise<boolean>} false when the app is unknown or a service
  * @throws {SDKError} NOT_FOUND when the app does not exist
  */
-function launch(id, options) {
-    requireString(id, 'id');
-    if (!AppLoader.getManifest(id)) {
-        throw new SDKError(ErrorCodes.NOT_FOUND, `App "${id}" does not exist.`);
+function launch(target, options) {
+    if (Array.isArray(target)) {
+        const man = AppLoader.manifestForFolder(target);
+        if (!man) {
+            throw new SDKError(ErrorCodes.NOT_FOUND, 'There is no app in that folder.');
+        }
+        return AppLoader.launch(target, options || {});
     }
-    return Taskbar.openApp(id, options || {});
+    requireString(target, 'target');
+    if (!AppLoader.getManifest(target)) {
+        throw new SDKError(ErrorCodes.NOT_FOUND, `App "${target}" does not exist.`);
+    }
+    return Taskbar.openApp(target, options || {});
+}
+
+/**
+ * The folder an app lives in, or null when it is not on disk.
+ * @param {string} id
+ * @returns {string[]|null}
+ */
+function folderFor(id) {
+    requireString(id, 'id');
+    return AppLoader.folderFor(id);
 }
 
 /**
@@ -84,7 +108,7 @@ async function install(idOrUuid, options) {
     if (!ok) return false;
     const scope = options && options.scope === 'system' ? 'system' : 'user';
     try {
-        return await AppLoader.install(man.id, { scope });
+        return await AppLoader.install({ type: 'store', id: man.id }, { scope });
     } catch (err) {
         if (err && err.elevationDenied) return false;
         throw err;
@@ -150,6 +174,7 @@ export const Apps = {
     isInstalled,
     launch,
     open: launch,
+    folderFor,
     install,
     uninstall,
     getPermissions,

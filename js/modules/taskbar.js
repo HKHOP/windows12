@@ -128,7 +128,6 @@ const Taskbar = (() => {
     }
 
     function shortcutApi() { return window._Shortcuts || null; }
-    function bundleApi() { return window._AppBundles || null; }
 
     function visibleChildren(dir) {
         try {
@@ -202,22 +201,21 @@ const Taskbar = (() => {
 
     function buildPinEntry(path, child) {
         const s = shortcutApi();
-        const b = bundleApi();
         if (child.type === 'folder') {
-            const man = b ? b.manifestForFolder(path) : null;
+            const man = AppLoader.manifestForFolder(path);
             if (man) {
-                const icon = b.iconHtml(path, man, 20);
+                const icon = AppIcons.forFolder(path, man);
                 return {
                     path, name: man.name || child.name, appId: man.id,
                     meta: { name: man.name || child.name, icon }, icon,
-                    launch: () => b.launchFolder(path, man)
+                    launch: () => AppLoader.launch(path)
                 };
             }
             const icon = UIIcons.folder(child.name, 20);
             return {
                 path, name: child.name, appId: null,
                 meta: { name: child.name, icon }, icon,
-                launch: () => b ? b.openFolder(path) : AppLoader.launch('fileExplorer', { path })
+                launch: () => AppLoader.launchById('fileExplorer', { path })
             };
         }
         if (child.ext === 'lnk') {
@@ -246,7 +244,7 @@ const Taskbar = (() => {
         let opened = false;
         try { opened = FileAssociations.openDefault(path); } catch { opened = false; }
         if (opened) return true;
-        AppLoader.ensureLoaded('notepad').then(app => {
+        AppLoader.ensureLoadedById('notepad').then(app => {
             if (app && typeof app.launch === 'function') app.launch(path, path[path.length - 1]);
         }).catch(() => {});
         return true;
@@ -594,9 +592,7 @@ const Taskbar = (() => {
             if (entry.pin.targetLocation) {
                 items.push({
                     label: 'Open file location', icon: UIIcons.folder('', 16), action: () => {
-                        const b = bundleApi();
-                        if (b) b.openFolder(entry.pin.targetLocation).catch(() => {});
-                        else AppLoader.launch('fileExplorer', { path: entry.pin.targetLocation }).catch(() => {});
+                        AppLoader.launchById('fileExplorer', { path: entry.pin.targetLocation }).catch(() => {});
                     }
                 });
             }
@@ -942,7 +938,7 @@ const Taskbar = (() => {
             }
             if (options.page) {
                 try {
-                    const app = await AppLoader.ensureLoaded(appId);
+                    const app = await AppLoader.ensureLoadedById(appId);
                     if (app && typeof app.showPage === 'function') {
                         app.showPage(options.page, options.subPage);
                     }
@@ -961,7 +957,7 @@ const Taskbar = (() => {
         } catch (e) { /* manifest unreadable — fall through */ }
         if (!AppLoader.isLaunchable(appId)) return false;
         try {
-            await AppLoader.launch(appId, options);
+            await AppLoader.launchById(appId, options);
             return true;
         } catch (err) {
             // Load or launch failure -> crash recovery dialog.

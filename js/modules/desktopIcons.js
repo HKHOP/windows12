@@ -11,7 +11,7 @@ import Scaling from './scaling.js';
 import Sounds from './sounds.js';
 import Users from './users.js';
 import Shortcuts from './shortcuts.js';
-import AppBundles from './appBundles.js';
+
 
 const DesktopIcons = (() => {
     // Desktop and its icon layout are per-user.
@@ -416,9 +416,9 @@ const DesktopIcons = (() => {
 
             const isDir = entry.type === 'folder';
             const fullPath = [...desktopPath(), entry.name];
-            const appManifest = isDir ? AppBundles.manifestForFolder(fullPath) : null;
+            const appManifest = isDir ? AppLoader.manifestForFolder(fullPath) : null;
             const icon = isDir
-                ? (appManifest ? AppBundles.iconHtml(fullPath, appManifest, 36) : getFolderIcon(entry.name))
+                ? (appManifest ? AppIcons.forFolder(fullPath, appManifest) : getFolderIcon(entry.name))
                 : ((entry.ext || '').toLowerCase() === 'lnk'
                     ? Shortcuts.iconForPath(fullPath, 36)
                     : getFileIcon(entry.ext));
@@ -450,8 +450,8 @@ const DesktopIcons = (() => {
                     if (!ent) return;
                     const path = [...desktopPath(), n];
                     if (ent.type === 'folder') {
-                        const man = AppBundles.manifestForFolder(path);
-                        if (man) AppBundles.launchFolder(path, man).catch(() => {});
+                        const man = AppLoader.manifestForFolder(path);
+                        if (man) AppLoader.launch(path).catch(() => {});
                         else openFolderInExplorer(path);
                     } else {
                         openFile(path);
@@ -506,7 +506,7 @@ const DesktopIcons = (() => {
             return;
         }
         const isDir = entry.type === 'folder';
-        const appManifest = isDir ? AppBundles.manifestForFolder(itemPath) : null;
+        const appManifest = isDir ? AppLoader.manifestForFolder(itemPath) : null;
         const isLnk = !isDir && String(entry.ext || '').toLowerCase() === 'lnk';
         const isImage = !isDir && ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'].includes(String(entry.ext || '').toLowerCase());
         const lnk = isLnk ? Shortcuts.quickInfo(itemPath) : null;
@@ -514,7 +514,7 @@ const DesktopIcons = (() => {
         const createShortcut = { label: 'Create shortcut', icon: UIIcons.action('shortcut'), action: () => Shortcuts.createForPath(itemPath, desktopPath()) };
         const items = isDir ? [
             ...(appManifest ? [
-                { label: 'Run app', icon: UIIcons.action('open'), action: () => AppBundles.launchFolder(itemPath, appManifest).catch(() => {}) },
+                { label: 'Run app', icon: UIIcons.action('open'), action: () => AppLoader.launch(itemPath).catch(() => {}) },
                 { label: 'Pin to taskbar', icon: UIIcons.action('pin'), action: () => {
                     const t = window._modules && window._modules.Taskbar;
                     if (t) t.pinEntry(itemPath, { name: appManifest.name, appId: appManifest.id });
@@ -562,8 +562,8 @@ const DesktopIcons = (() => {
             if (!ent) return;
             const path = [...desktopPath(), n];
             if (ent.type === 'folder') {
-                const man = AppBundles.manifestForFolder(path);
-                if (man) AppBundles.launchFolder(path, man).catch(() => {});
+                const man = AppLoader.manifestForFolder(path);
+                if (man) AppLoader.launch(path).catch(() => {});
                 else openFolderInExplorer(path);
             } else {
                 openFile(path);
@@ -905,7 +905,7 @@ const DesktopIcons = (() => {
         // Route through the Explorer module so the window actually lands on
         // the folder (reused or freshly opened) instead of just appearing.
         // fileExplorer is a builtin, but its module loads lazily on demand.
-        AppLoader.ensureLoaded('fileExplorer').then(explorer => {
+        AppLoader.ensureLoadedById('fileExplorer').then(explorer => {
             if (explorer && typeof explorer.openPath === 'function') {
                 explorer.openPath(path);
             } else if (explorer && typeof explorer.launch === 'function') {

@@ -18,7 +18,7 @@ import os from 'node:os';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PORT = 8123;
 
 const MIME = {
@@ -205,24 +205,58 @@ async function main() {
         }
         console.log('last status text:', JSON.stringify(lastStatus));
 
-        // Sign in so the shell (and File Explorer) is fully alive.
+        // Sign in so the shell (and File Explorer) is fully alive. The login
+        // screen appears once the machine phase (filesystem, OS core) is
+        // done, so wait for it before signing in.
         await cdp.eval(`(async () => {
+            const deadline = Date.now() + 60000;
+            while (Date.now() < deadline) {
+                const el = document.getElementById('login-screen');
+                if (el && !el.classList.contains('hidden')) break;
+                await new Promise(r => setTimeout(r, 200));
+            }
             const accounts = window._Users.getAccounts();
             if (accounts && accounts.length) {
                 await window._Sessions.signIn(accounts[0].id);
             }
             return true;
         })()`);
-        await new Promise(r => setTimeout(r, 3000));
+        // The shell is built after the sign-in: wait until the taskbar shows
+        // its pins, so nothing races the shell construction.
+        await cdp.eval(`(async () => {
+            const deadline = Date.now() + 60000;
+            while (Date.now() < deadline) {
+                const pins = document.querySelectorAll('#taskbar-center .taskbar-app, #taskbar-center .taskbar-item, #taskbar-center button');
+                if (window._Users.getCurrent() && pins.length > 0) break;
+                await new Promise(r => setTimeout(r, 200));
+            }
+            return true;
+        })()`);
+        await new Promise(r => setTimeout(r, 1500));
+
+        console.log('--- after sign in ---');
+        console.log(JSON.stringify(await cdp.eval(`(() => {
+            const FS = window._FileSystem;
+            const root = FS ? FS.getNode(['/']) : null;
+            const pf = FS ? FS.getNode(['Program Files']) : null;
+            return {
+                users: window._Users ? window._Users.getCurrent() : null,
+                accounts: window._Users ? window._Users.getAccounts().length : -1,
+                rootKids: root && root.children ? Object.keys(root.children).sort() : [],
+                pfKids: pf && pf.children ? Object.keys(pf.children).sort() : []
+            };
+        })()`)));
 
         // A builtin app must launch from the copy on disk.
         const appLaunch = await cdp.eval(`(async () => {
             try {
                 const mod = await import('/js/modules/appLoader.js');
-                await mod.default.launch('notepad');
+                const folder = mod.default.folderFor('notepad');
+                if (!folder) return { ok: false, error: 'notepad has no folder' };
+                const opened = await mod.default.launch(folder);
                 await new Promise(r => setTimeout(r, 1500));
                 const wins = document.querySelectorAll('.app-window').length;
-                return { ok: true, windows: wins };
+                return { ok: opened === true, folder, windows: wins };
             } catch (e) {
                 return { ok: false, error: String(e && e.message) };
             }
@@ -281,6 +315,22 @@ async function main() {
             const el = document.getElementById('boot-status');
             return { text: el ? el.textContent : null, hasShell: !!document.getElementById('taskbar') };
         })()`);
+        console.log('--- after offline reload ---');
+        console.log(JSON.stringify(await cdp.eval(`(async () => {
+            const FS = window._FileSystem;
+            const root = FS ? FS.getNode(['/']) : null;
+            const reg = await navigator.serviceWorker.getRegistration();
+            return {
+                rootKids: root && root.children ? Object.keys(root.children).sort() : [],
+                backend: FS ? FS.backendId() : null,
+                controller: !!navigator.serviceWorker.controller,
+                sw: reg ? {
+                    installing: reg.installing ? reg.installing.state : null,
+                    waiting: reg.waiting ? reg.waiting.state : null,
+                    active: reg.active ? reg.active.state : null
+                } : null
+            };
+        })()`)));
         await cdp.send('Network.emulateNetworkConditions', {
             offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1
         });

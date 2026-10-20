@@ -129,7 +129,7 @@ const BackgroundApps = (() => {
         try {
             // Modules load lazily; background apps/services are the exception
             // that needs the code at boot (they run without a window).
-            const mod = await AppLoader.ensureLoaded(id);
+            const mod = await AppLoader.ensureLoadedById(id);
             if (mod && typeof mod[method] === 'function') {
                 await mod[method]();
             }
