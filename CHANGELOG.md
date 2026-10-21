@@ -4,6 +4,10 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.3.2] - 2026-10-21
+
+### Fixed
+- **An app without an icon showed the browser's "image cannot be loaded" box.** The icon layer pointed at `assets/icon.svg` even when the app had no such file. There is now a **universal icon** for apps that ship no icon of their own (a window on a neutral tile), and a broken icon URL falls back to it instead of leaving the browser's placeholder behind.
 ## [15.3.1] - 2026-10-21
 
 ### Changed

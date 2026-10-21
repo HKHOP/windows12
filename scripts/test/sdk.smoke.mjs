@@ -342,6 +342,23 @@ check('builtin counts as installed', SDK.Apps.isInstalled('notepad') === true);
 check('store list non-empty', SDK.Apps.getAll().filter(m => m.distribution === 'store').length > 5);
 check('every catalog app resolves a package icon', SDK.Apps.getAll().every(m => typeof SDK.Shell.icons.app(m.id) === 'string' && SDK.Shell.icons.app(m.id).length > 0));
 check('shell icons resolve', SDK.Shell.icons.app('notepad').length > 0 && SDK.Shell.icons.action('copy').includes('<svg'));
+const AppIconsMod = (await import('../../js/modules/appIcons.js')).default;
+check('an app without an icon gets the universal one', (() => {
+    const unknown = AppIconsMod.get('an-app-that-does-not-exist');
+    return typeof unknown === 'string' && unknown.includes('<svg') && !unknown.includes('<img');
+})());
+check('an app folder without an icon file gets the universal one', (() => {
+    const icon = AppIconsMod.forFolder(['Program Files', 'noIconApp'], { id: 'noIconApp', hasIcon: false });
+    return typeof icon === 'string' && icon.includes('<svg') && !icon.includes('<img');
+})());
+check('an installed app without an icon file gets the universal one', (() => {
+    const icon = AppIconsMod.forFolder(['Program Files', 'noIconApp'], { id: 'noIconApp', _hasIcon: false });
+    return typeof icon === 'string' && icon.includes('<svg') && !icon.includes('<img');
+})());
+check('an app with an icon still gets its own image', (() => {
+    const icon = AppIconsMod.forFolder(['Program Files', 'notepad'], { id: 'notepad', hasIcon: true });
+    return typeof icon === 'string' && icon.includes('<img');
+})());
 check('catalog exposes lazy entry + icon flags', (() => {
     const m = AppLoaderMod.default.getManifest('notepad');
     return !!m && m.entry === 'main.js' && m.hasIcon === true && AppLoaderMod.default.isLoaded('notepad') === false;

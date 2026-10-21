@@ -145,14 +145,15 @@ const AppLoader = (() => {
     }
 
     // Icons come from the app folder. An app that is not installed has no
-    // folder yet, so its icon is fetched from the shipped bundle.
+    // folder yet, so its icon is fetched from the shipped bundle. An app
+    // that ships no icon at all gets the universal one (see appIcons.js).
     function refreshIcons() {
         const map = {};
         for (const entry of catalog.values()) {
             const man = entry.manifest;
             if (!man) continue;
             const icon = man.icon || 'assets/icon.svg';
-            if (man.hasIcon || man._hasIcon || entry.folderPath) {
+            if (man.hasIcon || man._hasIcon) {
                 map[entry.id] = { icon, folder: entry.folderPath };
             }
         }

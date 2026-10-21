@@ -84,7 +84,34 @@ const AppIcons = (() => {
         roblox: `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="4" fill="#0f0f12"/><g transform="rotate(14 12 12)"><rect x="6.8" y="6.8" width="10.4" height="10.4" fill="#fff"/><rect x="10.35" y="10.35" width="3.3" height="3.3" fill="#0f0f12"/></g></svg>`,
     };
 
-    const fallback = `<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="2" fill="#666"/></svg>`;
+    // The universal icon: every app that ships no icon of its own gets this
+    // one (a window on a neutral tile). It is also what a broken icon URL
+    // falls back to, so the browser never shows its "image cannot be
+    // loaded" placeholder.
+    const fallback = `<svg viewBox="0 0 24 24" fill="none"><rect x="2.5" y="2.5" width="19" height="19" rx="4.5" fill="#3f4b5b"/><rect x="5.5" y="6.5" width="13" height="11" rx="1.6" fill="#e8eef6"/><rect x="5.5" y="6.5" width="13" height="3" rx="1.6" fill="#c3cedd"/><circle cx="7.6" cy="8.25" r="0.7" fill="#8a97a8"/><circle cx="9.8" cy="8.25" r="0.7" fill="#8a97a8"/><path d="M8 13.5h8M8 15.5h5" stroke="#93a2b4" stroke-width="1.2" stroke-linecap="round"/></svg>`;
+
+    // An app that points at an icon file it does not have would leave the
+    // browser's broken-image placeholder behind. The error event does not
+    // bubble, so it is caught in the capture phase and the universal icon
+    // takes the place of the image.
+    function installBrokenIconGuard() {
+        if (typeof document === 'undefined') return;
+        try {
+            document.addEventListener('error', (event) => {
+                const el = event && event.target;
+                if (!el || el.tagName !== 'IMG') return;
+                if (!el.classList || !el.classList.contains('app-icon-img')) return;
+                if (el.dataset && el.dataset.iconFallback) return;
+                if (el.dataset) el.dataset.iconFallback = '1';
+                // The universal icon takes the place of the image. It keeps
+                // the icon class, so the surrounding CSS still sizes it.
+                const holder = document.createElement('span');
+                holder.className = 'app-icon-img';
+                holder.innerHTML = fallback.replace('<svg ', '<svg style="width:100%;height:100%" ');
+                try { el.replaceWith(holder); } catch (e) { el.style.visibility = 'hidden'; }
+            }, true);
+        } catch (e) { /* no document (tests) */ }
+    }
 
     // Apps whose package ships an icon. The registry seeds this set for
     // shipped apps; AppLoader adds installed package manifests (sideloaded
@@ -141,6 +168,13 @@ const AppIcons = (() => {
     // The icon of an app folder, whether or not the app is in the catalog.
     function forFolder(folder, manifest) {
         try {
+            // An app that ships no icon gets the universal one. Without this
+            // the browser would show its "image cannot be loaded" box for
+            // every app whose folder has no assets/icon.svg.
+            const known = manifest
+                ? (manifest._hasIcon !== undefined ? manifest._hasIcon : manifest.hasIcon)
+                : undefined;
+            if (known === false) return fallback;
             const icon = (manifest && manifest.icon) || 'assets/icon.svg';
             const img = packagedIcon((manifest && manifest.id) || '', icon, folder);
             return img || fallback;
@@ -153,7 +187,9 @@ const AppIcons = (() => {
         return { ...icons };
     }
 
-    return { get, getAll, setPackagedIcons, forFolder, folderUrl };
+    installBrokenIconGuard();
+
+    return { get, getAll, setPackagedIcons, forFolder, folderUrl, fallback };
 })();
 
 export default AppIcons;
