@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.1.1] - 2026-10-21
+
+### Fixed
+- **The Registry Editor refused to open.** The permission check asks the registry who is calling, and the permission grants now live in the registry - so reading the grants asked the registry, which asked the grants, and the two called each other in a loop. The registry now reads its own bookkeeping (the app registrations) and the grants through unchecked readers, which breaks the loop.
+
 ## [15.1.0] - 2026-10-20
 
 ### Changed

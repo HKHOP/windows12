@@ -54,6 +54,8 @@ const Registry = (() => {
     // The whole store, or null when it has not been read yet.
     let store = null;
     let loaded = false;
+    // The registered apps, cached: they are read on every access check.
+    let registeredCache = null;
 
     function emptyNode() {
         return { values: {}, subkeys: {}, created: Date.now(), modified: Date.now() };
@@ -100,6 +102,7 @@ const Registry = (() => {
 
     function write() {
         if (!store) return;
+        registeredCache = null; // the registrations may have changed
         asShell(() => {
             try {
                 ensureDir();
@@ -253,6 +256,26 @@ const Registry = (() => {
         return out;
     }
 
+    // The subkeys of a path, without the permission check. The registry's own
+    // bookkeeping reads itself (the app registrations), and those reads must
+    // not go through the check: the check asks who is calling, which asks
+    // for the registrations, which would come back here.
+    function rawKeys(path) {
+        const parsed = parsePath(path);
+        if (!parsed) return [];
+        const node = findNode(parsed);
+        return node && node.subkeys ? Object.keys(node.subkeys).sort() : [];
+    }
+
+    function rawGetString(path, name, fallback) {
+        const parsed = parsePath(path);
+        if (!parsed) return fallback;
+        const node = findNode(parsed);
+        const value = node && node.values ? node.values[name || DEFAULT_VALUE] : null;
+        if (!value) return fallback;
+        return value.data === undefined || value.data === null ? fallback : String(value.data);
+    }
+
     // The subkeys of a path.
     function keys(path) {
         const parsed = parsePath(path);
@@ -260,6 +283,15 @@ const Registry = (() => {
         const node = findNode(parsed);
         if (!node || !node.subkeys) return [];
         return Object.keys(node.subkeys).sort((a, b) => a.localeCompare(b));
+    }
+
+    // The values of a path, without the permission check (see rawKeys).
+    function rawValues(path) {
+        const parsed = parsePath(path);
+        if (!parsed) return [];
+        const node = findNode(parsed);
+        if (!node || !node.values) return [];
+        return Object.keys(node.values).map(name => ({ name, ...node.values[name] }));
     }
 
     // The values of a path.
@@ -587,23 +619,25 @@ const Registry = (() => {
 
     // Every registered app: { id, path, version, name, scope, user }
     function registeredApps() {
+        if (registeredCache) return registeredCache;
         const out = [];
         const collect = (hivePath, scope, userId) => {
             const base = hivePath + '\\Software\\Windows 12\\Apps';
-            for (const id of keys(base)) {
+            for (const id of rawKeys(base)) {
                 const key = base + '\\' + id;
                 out.push({
                     id,
-                    path: getString(key, 'Path', '') || '',
-                    version: getString(key, 'Version', '') || '',
-                    name: getString(key, 'DisplayName', id) || id,
-                    scope: getString(key, 'Scope', scope) || scope,
+                    path: rawGetString(key, 'Path', '') || '',
+                    version: rawGetString(key, 'Version', '') || '',
+                    name: rawGetString(key, 'DisplayName', id) || id,
+                    scope: rawGetString(key, 'Scope', scope) || scope,
                     user: userId || null
                 });
             }
         };
         collect('HKLM', 'system', null);
         collect('HKU\\' + currentUserId(), 'user', currentUserId());
+        registeredCache = out;
         return out;
     }
 
@@ -658,6 +692,7 @@ const Registry = (() => {
     function refresh() {
         loaded = false;
         store = null;
+        registeredCache = null;
         read();
     }
 
@@ -665,6 +700,9 @@ const Registry = (() => {
         init, refresh, hives: () => HIVES.map(h => ({ ...h })), kinds: () => ({ ...KINDS }),
         parsePath, formatPath, displayPath, DEFAULT_VALUE,
         keyInfo, keys, values, get, getString, getObject, setObject,
+        // Unchecked readers, for the OS's own bookkeeping (the registry reads
+        // itself, and the permission check asks the registry who is calling).
+        rawKeys, rawValues, rawGetString,
         createKey, deleteKey, set, deleteValue, renameKey, renameValue,
         exportKey, importReg, search, migrateOnce,
         registerApp, unregisterApp, registeredApps, appIdForFolder

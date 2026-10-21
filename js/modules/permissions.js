@@ -131,11 +131,17 @@ const Permissions = (() => {
         return GRANTS_ROOT + '\\' + uuid;
     }
 
+    function rawValues(path) {
+        const out = {};
+        for (const value of Registry.rawValues(path)) out[value.name] = value.data;
+        return out;
+    }
+
     function readGrants() {
         const all = {};
         try {
-            for (const uuid of Registry.keys(GRANTS_ROOT)) {
-                const values = Registry.getObject(grantsKey(uuid));
+            for (const uuid of Registry.rawKeys(GRANTS_ROOT)) {
+                const values = rawValues(grantsKey(uuid));
                 const entry = {};
                 for (const name of Object.keys(values)) {
                     const value = values[name];
@@ -165,8 +171,8 @@ const Permissions = (() => {
                 migrated = true;
             });
             if (migrated) {
-                for (const uuid of Registry.keys(GRANTS_ROOT)) {
-                    const values = Registry.getObject(grantsKey(uuid));
+                for (const uuid of Registry.rawKeys(GRANTS_ROOT)) {
+                    const values = rawValues(grantsKey(uuid));
                     const entry = {};
                     for (const name of Object.keys(values)) {
                         const value = values[name];

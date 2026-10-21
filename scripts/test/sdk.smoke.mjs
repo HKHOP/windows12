@@ -298,6 +298,29 @@ check('permissions.require throws when undeclared path revoked', (() => {
     return SDK.Permissions.has('sdkSmoke', 'notifications') === true;
 })());
 
+console.log('[registry]');
+const RegMod = (await import('../../js/modules/registry.js')).default;
+const PermsMod = (await import('../../js/modules/permissions.js')).default;
+check('the registry and the permissions do not recurse into each other', (() => {
+    // The permission check asks the registry who is calling, and the grants
+    // live in the registry: reading both must not loop.
+    RegMod.keys('HKLM');
+    RegMod.values('HKCU');
+    PermsMod.getGrants('notepad');
+    PermsMod.isGranted('notepad', 'filesystem');
+    return true;
+})());
+check('the registry knows its hives', RegMod.hives().length === 5 && RegMod.hives()[0].short === 'HKLM');
+check('a registry path is parsed Windows style', (() => {
+    const parsed = RegMod.parsePath('HKLM\\Software\\Windows 12');
+    return parsed && parsed.hive === 'HKEY_LOCAL_MACHINE' && parsed.parts.join('/') === 'Software/Windows 12';
+})());
+check('the registry is case insensitive', (() => {
+    RegMod.createKey('HKLM\\CaseTest');
+    RegMod.set('HKLM\\casetest', 'Value', 'REG_SZ', 'x');
+    return RegMod.get('HKLM\\CASETEST', 'Value') !== null;
+})());
+
 console.log('[catalogs]');
 const AppLoaderMod = await import('../../js/modules/appLoader.js');
 await AppLoaderMod.default.init();
