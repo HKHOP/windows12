@@ -4,6 +4,21 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.3.4] - 2026-10-21
+
+### Fixed
+- **The Microsoft Store did not know which apps were installed.** Two faults worked together:
+  - a per-user app registration was written under `HKU\<uid>` but read back with the `<uid>` segment still in the path, so the key could never be found again. The registration was written and then silently lost, and the catalog - which is built from the registry - did not know the app was there.
+  - the registration was written through the permission-checked writers. An app that installs another app could therefore block the registration by not holding the `registry` permission. The registration is the registry's own bookkeeping and is now written unchecked.
+- **The Store now asks the folders on disk as well as the registry** which apps are installed, so it never shows "Get" for an app that is really there.
+
+## [15.3.3] - 2026-10-21
+
+### Fixed
+- **Windows Update never found anything, and a new system only arrived after the storage was wiped.** Two bugs worked against each other:
+  - the service worker's garbage collector removed every core version that was not the running one - including the one a *waiting* worker was unpacking. That worker installed half a core, failed, and the update never arrived. The collector now leaves the version of a worker that is installing or waiting alone.
+  - the bootstrap took a waiting worker over silently on the next page load, so a new system was applied behind the user's back and Windows Update had nothing left to report. The hand-over now belongs to the update service: it finds the update, says so, and the restart applies it.
+- **The first automatic check now runs 8 seconds after the start** instead of 45, so a new system is reported while the user is still looking at the screen.
 ## [15.3.2] - 2026-10-21
 
 ### Fixed
