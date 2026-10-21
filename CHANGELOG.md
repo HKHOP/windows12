@@ -7,16 +7,15 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 ## [15.3.0] - 2026-10-21
 
 ### Added
-- **Windows Update is a real service now.** It runs in the background (the automatic check can be turned off in Settings > Windows Update) and it looks for two kinds of updates: the operating system itself and the installed apps.
+- **Windows Update is a real service now.** It runs in the background (the automatic check can be turned off in Settings) and it looks for two kinds of updates: the operating system itself and the installed apps.
   - checking never interrupts: the service thinks for a moment, and when it finds something it starts downloading right away - the progress shows below the "Check for updates" button, the way Windows 11 shows it.
   - when everything is on disk, a notification offers the restart. Nothing is installed behind your back.
-- **A Windows Update app** (Start menu > All apps, or Settings > Windows Update > Open Windows Update): the status card, the check button with the progress below it, the list of the available updates, and an **Update history** sub-page with everything that was installed.
+- **The Windows Update page in Settings was rebuilt**: a status card with the state of the machine, the check button with the progress below it, the list of the available updates (the operating system and every app), and an **Update history** sub-page with everything that was installed.
 - **The update screen at boot.** A downloaded update is applied at the next start: the desktop is replaced by a Windows-style screen that says "Getting devices ready", then "Working on updates" with a percentage and a "Do not turn off your computer" warning, then "Restarting".
 - **The update history** is kept in the registry, Windows style, under `HKLM\Software\Windows 12\Updates`.
 
 ### Changed
 - **The bootstrap installs the operating system once.** The "A new version of Windows 12 is ready" prompt is gone: the update service takes the new system over silently and the restart applies it. The bootstrap only installs the system when its files are not on disk (the first start, or after the system files were deleted).
-- **Windows Update is an app** (`js/apps/windowsUpdate`) instead of a module that nothing could open.
 
 ## [15.2.2] - 2026-10-21
 

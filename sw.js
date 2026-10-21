@@ -41,10 +41,10 @@ const SHELL_FILES = ['./', './index.html', './manifest.json', './favicon.svg', '
 
 // >>> w12:core
 const CORE_VERSION = '15.3.0';
-const CORE_HASH = '654d7d913f6191cc';
+const CORE_HASH = 'ac62876a10ece789';
 const CORE_PACKAGE = './w12-core.pkg';
-const CORE_FILE_COUNT = 179;
-const CORE_BYTES = 1767599;
+const CORE_FILE_COUNT = 176;
+const CORE_BYTES = 1765161;
 // <<< w12:core
 
 // >>> w12:apps-dist
@@ -103,7 +103,6 @@ const APP_DIST = {
     "voiceRecorder": "store",
     "vscode": "store",
     "weather": "store",
-    "windowsUpdate": "builtin",
     "words": "store",
 };
 // <<< w12:apps-dist
