@@ -140,9 +140,11 @@ function emitRegistry(manifests) {
 }
 
 function replaceBlock(text, start, end, body) {
-    const re = new RegExp(`(${start}\\n)[\\s\\S]*?(\\n${end})`);
+    // Tolerate both line endings: git may check the file out with CRLF.
+    const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`(${esc(start)}\\r?\\n)[\\s\\S]*?(\\r?\\n${esc(end)})`);
     if (!re.test(text)) fail(`sw.js: could not find generated block ${start}`);
-    return text.replace(re, `$1${body}$2`);
+    return text.replace(re, (_m, head, tail) => head + body + tail);
 }
 
 // The service worker only needs the distribution map: the OS core itself is

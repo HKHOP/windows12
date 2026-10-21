@@ -1,19 +1,22 @@
-feat: the registry becomes the OS's settings store
+perf: the registry no longer re-enters its own permission check
 
-The registry was the install index and an app sandbox; now the OS keeps
-its own state in it too, Windows-style, instead of a handful of separate
-JSON files:
+Reading a registry key asked the permission check whether the calling app
+may touch it, and the permission grants now live in the registry - so
+reading the grants asked the registry, which asked for the grants, and the
+two asked each other until the stack gave out. Every read cost about
+300ms, which is why the Registry Editor froze for a second on every click.
 
-- HKCU\Software\Windows 12\Shell      the current profile's settings
-- HKLM\SYSTEM\CurrentControlSet\Control\Video  the device's display settings
-- HKCU\Software\Windows 12\Permissions\<uuid>  the per-app permission grants
-- HKCR\<ext>                          the default app for a file type
+- a finished migration is marked BEFORE it runs, and the marker is written
+  without the permission check, so a migration can never re-enter itself
+- only an app that is actually on the stack counts as the caller: a call
+  from the shell's own modules is the shell's business, whatever app
+  happens to be focused (otherwise a focused app could block the OS's own
+  registry writes)
+- the registry reads its own bookkeeping (the app registrations) and the
+  grants through unchecked readers
 
-HKCU is really per profile now: two people signed in at the same time have
-their own hives, their own settings and their own grants, and the Registry
-Editor shows exactly that.
+Measured in the browser: a click in the Registry Editor went from 3190ms
+to 4.4ms, and 50 registry reads from 5.9s to 0.6ms.
 
-The old files are migrated into the registry once (the markers live in the
-registry itself) and are not written any more: the per-user config.json,
-the device's display/settings.json, the permissions/grants.json and the
-fileAssociations/defaults.json.
+Also: the build scripts now accept either line endings, since git may check
+sw.js out with CRLF.

@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.1.2] - 2026-10-21
+
+### Fixed
+- **The Registry Editor froze for a second on every click.** The registry read the permission grants to know whether an app may touch a key, and the grants live in the registry - so reading them asked the registry, which asked for the grants, and each asked the other until the stack gave out. Every read cost about 300ms. The registry now marks a finished migration before it runs it (so the migration cannot re-enter itself), and only counts an app as the caller when the app is actually on the stack.
+
 ## [15.1.1] - 2026-10-21
 
 ### Fixed

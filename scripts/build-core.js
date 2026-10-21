@@ -216,7 +216,8 @@ function buildZip(files) {
 // --- service worker block ---------------------------------------------------
 
 function replaceBlock(text, start, end, body) {
-    const re = new RegExp(`(${escapeRe(start)}\\n)[\\s\\S]*?(\\n${escapeRe(end)})`);
+    // Tolerate both line endings: git may check the file out with CRLF.
+    const re = new RegExp(`(${escapeRe(start)}\\r?\\n)[\\s\\S]*?(\\r?\\n${escapeRe(end)})`);
     if (!re.test(text)) {
         console.error(`build-core: sw.js is missing the ${start} ... ${end} block`);
         process.exit(1);

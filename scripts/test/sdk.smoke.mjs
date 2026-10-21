@@ -310,6 +310,14 @@ check('the registry and the permissions do not recurse into each other', (() => 
     PermsMod.isGranted('notepad', 'filesystem');
     return true;
 })());
+check('registry reads stay fast', (() => {
+    // A read that re-entered the permission check used to take ~300ms each
+    // (the check read the grants, which read the registry, which checked
+    // again). 50 reads must be near-instant.
+    const t0 = Date.now();
+    for (let i = 0; i < 50; i++) RegMod.keys('HKLM');
+    return (Date.now() - t0) < 500;
+})());
 check('the registry knows its hives', RegMod.hives().length === 5 && RegMod.hives()[0].short === 'HKLM');
 check('a registry path is parsed Windows style', (() => {
     const parsed = RegMod.parsePath('HKLM\\Software\\Windows 12');

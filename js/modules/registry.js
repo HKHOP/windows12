@@ -153,22 +153,20 @@ const Registry = (() => {
     // The app that is calling, if any. The app's code is served from
     // '/js/apps/<folder>/…', so the stack tells us the folder, and the
     // registry tells us which app lives there.
+    //
+    // Only the stack counts: a call from the shell's own modules is the
+    // shell's business, whatever app happens to be focused. (The filesystem
+    // guard uses the focused app as a fallback; here that would let an app
+    // block the OS's own registry writes.)
     function callerApp() {
         try {
             const stack = new Error().stack || '';
             const m = stack.match(/js[\/\\]apps[\/\\]([^"')\s]+)[\/\\]/);
-            if (m) {
-                const folder = folderFromUrl('/js/apps/' + m[1] + '/');
-                if (folder && folder.length) {
-                    const id = appIdForFolder(folder);
-                    if (id) return id;
-                    return folder[folder.length - 1];
-                }
-            }
-        } catch (e) { /* no stack */ }
-        try {
-            const g = window._FSGuard;
-            return (g && g.getActiveApp && g.getActiveApp()) || null;
+            if (!m) return null;
+            const folder = folderFromUrl('/js/apps/' + m[1] + '/');
+            if (!folder || !folder.length) return null;
+            const id = appIdForFolder(folder);
+            return id || folder[folder.length - 1];
         } catch (e) {
             return null;
         }
@@ -399,14 +397,16 @@ const Registry = (() => {
         return true;
     }
 
-    function set(path, name, kind, data) {
+    // Writes a value without the permission check. For the registry's own
+    // bookkeeping (the migration markers), which must not depend on a check
+    // that reads the registry.
+    function rawSet(path, name, kind, data) {
         const parsed = parsePath(path);
         if (!parsed) return false;
-        if (!allowed(path, true)) return false;
-        const type = KINDS[kind] ? kind : 'REG_SZ';
         const node = ensureNode(parsed, true);
         if (!node) return false;
         if (!node.values) node.values = {};
+        const type = KINDS[kind] ? kind : 'REG_SZ';
         node.values[name || DEFAULT_VALUE] = {
             kind: type,
             data: normalizeData(type, data),
@@ -415,6 +415,14 @@ const Registry = (() => {
         node.modified = Date.now();
         write();
         return true;
+    }
+
+    // Writes a value, creating the key if needed.
+    function set(path, name, kind, data) {
+        const parsed = parsePath(path);
+        if (!parsed) return false;
+        if (!allowed(path, true)) return false;
+        return rawSet(path, name, kind, data);
     }
 
     function normalizeData(kind, data) {
@@ -677,9 +685,13 @@ const Registry = (() => {
     // the registry remembers what it has already moved.
     function migrateOnce(marker, fn) {
         const path = 'HKLM\\SOFTWARE\\Windows 12\\Migrations';
-        if (get(path, marker)) return false;
+        if (rawGetString(path, marker, '')) return false;
+        // The marker is written BEFORE the migration runs, and without the
+        // permission check: every registry write asks the permission check,
+        // and the check reads the grants - which would run this migration
+        // again, and again, and again.
+        rawSet(path, marker, 'REG_DWORD', 1);
         try { fn(); } catch (e) { /* the migration is best effort */ }
-        set(path, marker, 'REG_DWORD', 1);
         return true;
     }
 
