@@ -4,6 +4,10 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.2.1] - 2026-10-21
+
+### Changed
+- **The browser smoke tests are no longer part of the agent workflow** (AGENTS.md): the OS is tested by hand, so the agents report what still needs a manual look instead of driving a headless browser.
 ## [15.2.0] - 2026-10-21
 
 ### Added

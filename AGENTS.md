@@ -11,7 +11,7 @@ A web-based OS simulation built with vanilla HTML, CSS, and JavaScript modules. 
 3. **Never hand-edit generated files.** `js/apps/registry.js`, the `>>> w12:*` blocks in `sw.js`, `w12-core.pkg` and `packages/*.w12pkg` are generated. Edit sources, then rerun the builder.
 4. **Freeze app identity.** Never change an existing app's `id`, `uuid`, or manifest `entry` path; install records, file associations and settings are keyed by them. Adding/removing an app folder also requires `node scripts/build-registry.js`.
 5. **Release every change.** Every commit gets a new CHANGELOG.md version entry (never modify older entries), using only **Added**, **Removed**, **Changed**, **Fixed**. Bump `version.json`, run `node scripts/update-version.js` to refresh the `?v=` cache-busters in `index.html`, and commit code first, then the changelog/version sync, then push.
-6. **Verify before committing.** Run `node scripts/test/sdk.smoke.mjs`, `node scripts/test/boot.smoke.mjs` and `node scripts/test/update.smoke.mjs` (all must pass) and `node --check` on modified JS. Run `node scripts/build-registry.js` and confirm it produces no unexpected diff. UI changes must also be checked at a narrow/mobile viewport (see *Scaling & overlay positioning* below).
+6. **Verify before committing.** Run `node scripts/test/sdk.smoke.mjs` (no browser needed) and `node --check` on modified JS. Run `node scripts/build-registry.js` and confirm it produces no unexpected diff. **Do not run the browser smoke tests** (`scripts/test/boot.smoke.mjs`, `scripts/test/update.smoke.mjs`) or any other headless-browser script — the user tests the OS by hand and reports back, and browser runs are slow and unwanted. Say plainly in the handover what still needs a manual check (a narrow/mobile viewport, see *Scaling & overlay positioning* below), instead of testing it yourself.
 7. **No dead code or debug output.** Remove unused imports/files, `console.log`/`debugger`, commented-out experiments and temporary artifacts before finishing. No native `alert()`/`confirm()`/`prompt()` — the single exception is the bootstrap's "refresh to start" prompt in `index.html`, which runs before the OS (and therefore the `Popup` API) exists.
 8. **Use the OS APIs, not raw DOM hacks.** Restore/focus/minimize through `WindowManager` (`focusWindow`, `setMinimized`, `closeWindow`, `isMinimized`, `isFocused`) — never reveal a window by writing `element.style.display` (it bypasses session and virtual-desktop visibility). Use `ContextMenu.show(clientX, clientY, items)` for menus; do not build your own coordinate-positioned menus.
 9. **Clean up what you bind.** Register global/document listeners once, not inside render loops. Per-window timers and listeners must be released when `window-closed` fires. Any Promise-based dialog must settle when its window is closed externally (`window-closed`), or callers hang.
@@ -32,9 +32,9 @@ the operating system itself. Run them from the repository root:
 | `node scripts/build-core.js` | writes `w12-core.pkg` — the OS core bundle the browser downloads |
 | `node scripts/build-packages.js` | writes `packages/<id>.w12pkg` — the store apps' archives |
 | `node scripts/update-version.js` | syncs the `?v=` cache-busters in `index.html` with `CHANGELOG.md` |
-| `node scripts/test/sdk.smoke.mjs` | the SDK suite (no browser needed) |
-| `node scripts/test/boot.smoke.mjs` | a real browser: install → restart → boot → launch an app → boot again offline |
-| `node scripts/test/update.smoke.mjs` | a real browser: the install/update prompts appear exactly when they should |
+| `node scripts/test/sdk.smoke.mjs` | the SDK suite (no browser needed) — **run this** |
+| `node scripts/test/boot.smoke.mjs` | a real browser: install → restart → boot → launch an app → boot again offline — **not run automatically** |
+| `node scripts/test/update.smoke.mjs` | a real browser: the install/update prompts appear exactly when they should — **not run automatically** |
 
 ### The registry
 
@@ -282,8 +282,8 @@ Rules:
 1. Any change under `js/apps/<id>/` has a semver bump in that app's `manifest.json`.
 2. `node scripts/build-registry.js` **and** `node scripts/build-core.js` were run (the core bundle is what the browser actually runs); changed store apps had `node scripts/build-packages.js` run (only those packages committed).
 3. No dead code, unused imports, `console.log`/`debugger` or temporary files remain.
-4. `node scripts/test/sdk.smoke.mjs`, `node scripts/test/boot.smoke.mjs` and `node scripts/test/update.smoke.mjs` pass, and `node --check` is clean on modified JS.
-5. UI/overlay changes were checked at desktop size **and** a narrow/mobile viewport.
+4. `node scripts/test/sdk.smoke.mjs` passes, and `node --check` is clean on modified JS. The browser smoke tests are **not** run (the user tests by hand).
+5. UI/overlay changes are **handed over** for a manual check at desktop size **and** a narrow/mobile viewport, not tested with a headless browser.
 
 **Releasing:**
 
