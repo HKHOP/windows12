@@ -40,11 +40,11 @@ const CACHE_NAME = 'w12-shell-v1';
 const SHELL_FILES = ['./', './index.html', './manifest.json', './favicon.svg', './js/apps/registry.js'];
 
 // >>> w12:core
-const CORE_VERSION = '15.3.2';
-const CORE_HASH = '4b934a865a32a089';
+const CORE_VERSION = '15.3.4';
+const CORE_HASH = '8fda7dd29c2f95b9';
 const CORE_PACKAGE = './w12-core.pkg';
-const CORE_FILE_COUNT = 176;
-const CORE_BYTES = 1765974;
+const CORE_FILE_COUNT = 177;
+const CORE_BYTES = 1812832;
 // <<< w12:core
 
 // >>> w12:apps-dist
@@ -314,6 +314,14 @@ async function installCore() {
 // pulled out from under itself. Versions the virtual filesystem still points
 // at are kept as well â€” the \Windows mirror references them by name.
 async function gcCoreVersions() {
+    // A newer system is on its way. Its core belongs to the worker that is
+    // installing or waiting for it, and that worker owns a different
+    // version directory: deleting it would break that install (the worker
+    // would unpack half a core and fail), and the update would never
+    // arrive.
+    const reg = self.registration;
+    if (reg && (reg.waiting || reg.installing)) return;
+
     const names = await opfsListDir(splitPath(CORE_DIR));
     const keep = new Set([CORE_VERSION]);
     try {

@@ -1597,19 +1597,22 @@ const Settings = (() => {
         const sub = ready ? (state.message || 'The updates are on disk. Restart to finish installing them.')
             : working ? (state.message || 'Please wait…')
             : state.status === 'error' ? (state.message || 'Check your connection and try again.')
-            : hasUpdate ? (state.osVersion
+            : state.osPending ? (state.osVersion
                 ? `Version ${state.osVersion} is ready to install`
-                : `${state.apps.length} app update${state.apps.length === 1 ? '' : 's'} ready to install`)
+                : 'A new version of Windows 12 is ready to install')
+            : hasUpdate ? (state.osVersion
+                ? `Version ${state.osVersion} is available`
+                : `${state.apps.length} app update${state.apps.length === 1 ? '' : 's'} available`)
             : `You're up to date. Last checked ${updateTimeAgo(state.lastCheck)}.`;
 
         const updateRows = [];
-        if (state.osVersion) {
+        if (state.osPending || state.osVersion) {
             updateRows.push(`<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 0;border-top:1px solid var(--window-border);">
                 <div style="display:flex;align-items:center;gap:12px;min-width:0;">
                     <span style="width:26px;height:26px;display:inline-flex;flex-shrink:0;">${UIIcons.setting('update', 22)}</span>
                     <span style="font-size:13px;">Operating system update</span>
                 </div>
-                <span style="font-size:12px;color:var(--accent-color);white-space:nowrap;">${state.osCurrent || ''} → ${state.osVersion}</span>
+                <span style="font-size:12px;color:var(--accent-color);white-space:nowrap;">${state.osVersion ? (state.osCurrent ? state.osCurrent + ' → ' : '') + state.osVersion : 'new version'}</span>
             </div>`);
         }
         for (const app of state.apps) {

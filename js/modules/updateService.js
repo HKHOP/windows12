@@ -27,7 +27,7 @@ import FileSystem from './fileSystem.js';
 
 const UpdateService = (() => {
     const AUTO_CHECK_MS = 30 * 60 * 1000;
-    const FIRST_CHECK_MS = 45 * 1000;
+    const FIRST_CHECK_MS = 8 * 1000;
     const PENDING_DIR = ['system', 'programs data', 'updates'];
     const PENDING_FILE = 'pending.json';
     const HISTORY_KEY = 'HKLM\\Software\\Windows 12\\Updates';
@@ -42,6 +42,8 @@ const UpdateService = (() => {
         // The operating system update that is waiting for a restart.
         osVersion: '',
         osCurrent: '',
+        // True when a new operating system is on disk and waiting.
+        osPending: false,
         // The app updates that were found: { id, name, version, installedVersion }.
         apps: [],
         error: null,
@@ -201,13 +203,13 @@ const UpdateService = (() => {
         }
         if (!worker || worker.state === 'redundant') return null;
 
-        const info = await workerMessage(worker, 'core-status', 15000);
-        if (!info || !info.ok || !info.version) return null;
-
         const current = await currentCoreVersion();
+        const info = await workerMessage(worker, 'core-status', 15000);
+        const version = (info && info.ok && info.version) ? info.version : '';
         // A worker that only brings a fresher app catalog is not an update.
-        if (!current || info.version === current) return null;
-        return { version: info.version, current, worker };
+        if (version && current && version === current) return null;
+        if (!version && !current) return null;
+        return { version, current, worker };
     }
 
     // The installed apps that have a newer version in the catalog.
@@ -335,7 +337,9 @@ const UpdateService = (() => {
         }
 
         writePending({
-            os: os ? os.version : null,
+            // 'pending' stands for a new system whose version the worker
+            // could not report: what matters is that it is on disk.
+            os: os ? (os.version || 'pending') : null,
             osCurrent: os ? os.current : '',
             apps: pendingApps,
             createdAt: Date.now()
@@ -346,7 +350,8 @@ const UpdateService = (() => {
             message: 'Restart to finish installing',
             progress: 1,
             osVersion: os ? os.version : '',
-            osCurrent: os ? os.current : ''
+            osCurrent: os ? os.current : '',
+            osPending: !!os
         });
 
         recordHistory({
@@ -443,6 +448,7 @@ const UpdateService = (() => {
             setState({
                 osCurrent: current,
                 osVersion: os ? os.version : '',
+                osPending: !!os,
                 apps,
                 lastCheck: Date.now()
             });

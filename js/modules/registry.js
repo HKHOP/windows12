@@ -197,25 +197,6 @@ const Registry = (() => {
 
     // ---- reading ----
 
-    // The node a path points at. HKCU resolves to the current profile's hive.
-    function nodeFor(parsed, userId) {
-        const s = read();
-        const uid = userId || currentUserId();
-        if (parsed.hive === 'HKEY_CURRENT_USER') {
-            if (!s.profiles[uid]) return null;
-            return s.profiles[uid].HKEY_CURRENT_USER || null;
-        }
-        if (parsed.hive === 'HKEY_USERS') {
-            // HKU\<uid> is the user's own hive.
-            if (parsed.parts.length && parsed.parts[0].toLowerCase() === uid.toLowerCase()) {
-                if (!s.profiles[uid]) return null;
-                return s.profiles[uid].HKEY_CURRENT_USER || null;
-            }
-            return s.hives.HKEY_USERS || null;
-        }
-        return s.hives[parsed.hive] || null;
-    }
-
     // Windows' registry is case insensitive: a key is found whatever case it
     // is written in, and the casing it was created with is kept.
     function findSubkey(node, name) {
@@ -229,9 +210,25 @@ const Registry = (() => {
     }
 
     function findNode(parsed, userId) {
-        let node = nodeFor(parsed, userId);
+        const s = read();
+        const uid = userId || currentUserId();
+        let node;
+        let parts = parsed.parts;
+        if (parsed.hive === 'HKEY_CURRENT_USER') {
+            node = (s.profiles[uid] || {}).HKEY_CURRENT_USER || null;
+        } else if (parsed.hive === 'HKEY_USERS' && parts.length
+            && parts[0].toLowerCase() === uid.toLowerCase()) {
+            // HKU\<uid> IS the user's own hive: it is their
+            // HKEY_CURRENT_USER, and the uid is not part of the path.
+            // (ensureNode strips it too - the two must agree, or a key
+            // written under HKU\<uid> could never be read back.)
+            node = (s.profiles[uid] || {}).HKEY_CURRENT_USER || null;
+            parts = parts.slice(1);
+        } else {
+            node = s.hives[parsed.hive] || null;
+        }
         if (!node) return null;
-        for (const part of parsed.parts) {
+        for (const part of parts) {
             if (!node || !node.subkeys) return null;
             const key = findSubkey(node, part);
             if (!key) return null;
@@ -586,6 +583,11 @@ const Registry = (() => {
 
     // Records an app in the registry: this is what makes an app findable, no
     // matter which folder it lives in.
+    //
+    // The registration is the registry's own bookkeeping, so it is written
+    // through the UNCHECKED writers: an app that installs another app must
+    // not be able to block the registration (and with it the catalog) by
+    // not holding the 'registry' permission.
     function registerApp(id, info) {
         if (!id) return false;
         const key = appKey(id, info && info.user);
@@ -600,18 +602,20 @@ const Registry = (() => {
 
         // Only write what actually changed, so a rescan does not rewrite the
         // registry on every boot.
-        const existing = get(key, 'Path');
+        const existing = rawGetString(key, 'Path', '');
         let changed = !existing;
         if (existing) {
             for (const name of Object.keys(wanted)) {
-                if (getString(key, name, '') !== wanted[name]) { changed = true; break; }
+                if (rawGetString(key, name, '') !== wanted[name]) { changed = true; break; }
             }
         }
         if (!changed) return true;
 
-        if (!createKey(key)) return false;
+        const parsed = parsePath(key);
+        if (!parsed || !parsed.parts.length) return false;
+        if (!ensureNode(parsed, true)) return false;
         for (const name of Object.keys(wanted)) {
-            set(key, name, 'REG_SZ', wanted[name]);
+            rawSet(key, name, 'REG_SZ', wanted[name]);
         }
         return true;
     }

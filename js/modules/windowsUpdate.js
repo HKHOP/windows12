@@ -21,7 +21,7 @@ const WindowsUpdate = (() => {
 
     function isUpdateAvailable() {
         const state = UpdateService.getState();
-        return !!state.osVersion || state.apps.length > 0 || state.status === 'ready';
+        return !!state.osPending || !!state.osVersion || state.apps.length > 0 || state.status === 'ready';
     }
 
     // Checks for updates and starts downloading what it finds. Returns true

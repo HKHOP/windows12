@@ -28,8 +28,20 @@ const AppStore = (() => {
         storeApps = AppLoader.getStoreApps().map(m => m.id);
     }
 
+    // Which apps are installed. The catalog (registry) is one source, but
+    // the folders on disk are the truth: an app is installed when its folder
+    // is there. Both are merged, so the Store never shows "Get" for an app
+    // that is really installed.
     function getInstalled() {
-        return AppSystem.getInstalledApps();
+        AppLoader.refreshInstalled();
+        const ids = new Set(AppSystem.getInstalledApps());
+        try {
+            Packages.rescan();
+            for (const rec of Packages.getInstalled()) {
+                if (rec && rec.id) ids.add(rec.id);
+            }
+        } catch (e) { /* the packages are not ready yet */ }
+        return [...ids];
     }
 
     // Services are uninstall-only: installable, but never launchable, so no

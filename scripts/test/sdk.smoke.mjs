@@ -10,6 +10,7 @@
 
 const failures = [];
 let passed = 0;
+import fs from 'node:fs';
 
 function check(name, cond, extra) {
     if (cond) {
@@ -461,6 +462,51 @@ check('machine-wide keys stay out of the per-user config file', (() => {
     return cfg.scaling === undefined && cfg.displayResolution === undefined;
 })());
 
+check('an app registration survives a write and a read back', (() => {
+    // The registration is what makes an installed app findable. It must be
+    // readable again afterwards - including for a per-user install, whose
+    // key lives under HKU\<uid>.
+    const before = RegistryMod.registeredApps().length;
+    RegistryMod.registerApp('smokeRegisteredApp', {
+        path: 'Program Files\\smokeRegisteredApp',
+        version: '1.0.0',
+        name: 'Smoke Registered App',
+        scope: 'system'
+    });
+    const list = RegistryMod.registeredApps();
+    const found = list.find(r => r.id === 'smokeRegisteredApp');
+    if (!found) return false;
+    if (found.version !== '1.0.0') return false;
+    if (found.path !== 'Program Files\\smokeRegisteredApp') return false;
+    RegistryMod.unregisterApp('smokeRegisteredApp');
+    return RegistryMod.registeredApps().length === before;
+})());
+check('a per-user registration is readable under HKU', (() => {
+    RegistryMod.registerApp('smokeUserApp', {
+        path: 'AppData\\Programs\\smokeUserApp',
+        version: '2.0.0',
+        name: 'Smoke User App',
+        scope: 'user',
+        user: 'default'
+    });
+    const found = RegistryMod.registeredApps().find(r => r.id === 'smokeUserApp');
+    RegistryMod.unregisterApp('smokeUserApp');
+    return !!found && found.version === '2.0.0' && found.scope === 'user';
+})());
+check('the catalog knows an app the registry registered', (() => {
+    RegistryMod.registerApp('smokeCatalogApp', {
+        path: 'Program Files\\smokeCatalogApp',
+        version: '1.0.0',
+        name: 'Smoke Catalog App',
+        scope: 'system'
+    });
+    AppLoaderMod.default.refreshInstalled();
+    const installed = AppLoaderMod.default.getInstalledIds();
+    const ok = installed.includes('smokeCatalogApp');
+    RegistryMod.unregisterApp('smokeCatalogApp');
+    AppLoaderMod.default.refreshInstalled();
+    return ok && !AppLoaderMod.default.getInstalledIds().includes('smokeCatalogApp');
+})());
 console.log('[windows update]');
 const UpdateMod = (await import('../../js/modules/updateService.js')).default;
 check('the update service starts idle', UpdateMod.getState().status === 'idle');
@@ -487,6 +533,19 @@ check('the automatic check can be turned off', (() => {
     }
 })());
 check('no update is pending on a fresh install', UpdateMod.readPending() === null);
+check('the worker never deletes the core of a worker that is on its way', (() => {
+    // The garbage collector removes superseded core versions. It must never
+    // touch the version a waiting worker owns: the worker would install half
+    // a core, fail, and the update would never arrive.
+    const src = fs.readFileSync(new URL('../../sw.js', import.meta.url), 'utf8');
+    const gc = src.slice(src.indexOf('async function gcCoreVersions'));
+    return /reg\.(waiting|installing)/.test(gc.slice(0, 500));
+})());
+check('the bootstrap leaves a waiting worker to Windows Update', (() => {
+    // Only the update service may take a waiting worker over.
+    const src = fs.readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
+    return !/skip-waiting/.test(src);
+})());
 
 console.log('[clipboard honesty]');
 check('readText without browser API → UNSUPPORTED',

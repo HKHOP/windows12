@@ -401,7 +401,8 @@ const AppLoader = (() => {
         getModule, isLoaded, ensureLoaded, ensureLoadedById, launch, launchById,
         manifestForFolder, fileUrl, folderFor,
         isInstalled, getInstalledIds, isLaunchable,
-        isService, canRunBackground
+        isService, canRunBackground,
+        refreshInstalled
     };
 })();
 

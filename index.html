@@ -405,17 +405,11 @@
             var pending = await askPendingUpdate();
 
             // A newer service worker may be waiting: Windows Update already
-            // downloaded a new operating system and it is on disk. Taking it
-            // over is a restart, not a question - the update service is the
-            // one that talks to the user about it.
-            if (registration.waiting && !pending) {
-                setStatus('Starting Windows 12…');
-                try { registration.waiting.postMessage({ type: 'skip-waiting' }); } catch (e) { /* it will be taken over later */ }
-                await waitForController(10000);
-                location.reload();
-                return;
-            }
-
+            // downloaded a new operating system and it is on disk. The
+            // bootstrap does NOT take it over - that is the update service's
+            // job (it tells the user, and the restart applies the update).
+            // Taking it over here would apply the update behind the user's
+            // back, and Windows Update would never have anything to say.
             if (!status || !status.ok) {
                 // Nothing on disk: this is the first start, or the system
                 // files were deleted. Install the operating system.
