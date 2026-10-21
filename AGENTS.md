@@ -213,7 +213,17 @@ browser  ──import /js/main.js──▶ sw.js (fetch)  ──read──▶─
 - `js/modules/appLoader.js` - App catalog + **lazy** module loader: metadata from the registry + installed package manifests; `ensureLoaded`/`launch` are async (`import()` on first launch), `getModule` is sync (loaded-or-null)
 - `js/modules/networkStatus.js` - Device connectivity (`navigator.onLine` + `online`/`offline` events): paints the tray Wi-Fi indicator, opens the network flyout, and exposes `isOnline()` / `onChange(cb)` / `ensureOnline(feature)` / `showError(feature)` (also `window._NetworkStatus`) so online-only features fail with a clean connection error
 - `js/modules/tray.js` - App system-tray icons: notification-area icons registered by background-capable apps (click / double-click / right-click, context menu, tooltip, live icon + badge), scoped per session; public surface is the SDK `Tray` namespace (`app.tray`, see `js/sdk/tray.js`); also `window._Tray`
+- `js/modules/updateService.js` - **Windows Update**: the background service that checks for updates (the operating system and the installed apps), downloads them in the background, applies them at the next start and keeps the history in the registry (`HKLM\Software\Windows 12\Updates`). The window is **Settings > Windows Update**; `js/modules/windowsUpdate.js` is the small facade both use.
 - `sw.js` - Service worker (registered by the `index.html` bootstrap, never by `js/main.js`): downloads and unpacks the core bundle into OPFS, serves the OS core and installed packages out of OPFS, keeps the tiny shell cached for offline reloads
+
+### Windows Update
+
+The update service is the only place that updates the operating system, and it never interrupts:
+
+- **The check** compares the running core with the newest one (a new service worker carries a new core and unpacks it into OPFS by itself) and the installed apps with the published catalog. It runs in the background (`autoCheckUpdates` in the per-user config) and on demand from Settings.
+- **The download** happens right away, without a popup: the core by the new worker, the app packages by the service (they are kept in `/system/programs data/updates/` until the restart). The progress is reported through the `w12:update-state` event.
+- **The restart** is the user's: a notification offers it, and the next start shows the update screen (`index.html`) while the service installs the packages and hands over to the new worker.
+- The bootstrap only installs the operating system when its files are **not** on disk. A newer worker is taken over silently - never with a prompt.
 
 ### Apps (folder-based — see APP_DEVELOPMENT_GUIDE.md)
 - Each app lives in `js/apps/<id>/` with `manifest.json` (id, uuid, name, version, distribution, associations, store info), `main.js` (wired entry), `scripts/` (extra modules), `assets/` (static files incl. `icon.svg`)

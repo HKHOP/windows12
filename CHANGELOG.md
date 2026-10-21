@@ -4,6 +4,10 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.3.1] - 2026-10-21
+
+### Changed
+- **AGENTS.md describes the new update service**: how the check, the download, the restart and the history fit together.
 ## [15.3.0] - 2026-10-21
 
 ### Added
