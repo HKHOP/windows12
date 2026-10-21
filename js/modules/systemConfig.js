@@ -258,7 +258,10 @@ const SystemConfig = (() => {
         touchKeyboardMode: null,
         cursorTheme: 'default',
         cursorSize: 'normal',
-        cursorStyle: 'modern'
+        cursorStyle: 'modern',
+        // Windows Update checks for updates in the background. The user can
+        // turn it off in Settings > Windows Update.
+        autoCheckUpdates: true
     };
 
     let config = { ...defaults };

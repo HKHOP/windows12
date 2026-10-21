@@ -40,11 +40,11 @@ const CACHE_NAME = 'w12-shell-v1';
 const SHELL_FILES = ['./', './index.html', './manifest.json', './favicon.svg', './js/apps/registry.js'];
 
 // >>> w12:core
-const CORE_VERSION = '15.2.2';
-const CORE_HASH = '79561cd2a288a6e4';
+const CORE_VERSION = '15.3.0';
+const CORE_HASH = '654d7d913f6191cc';
 const CORE_PACKAGE = './w12-core.pkg';
-const CORE_FILE_COUNT = 175;
-const CORE_BYTES = 1758275;
+const CORE_FILE_COUNT = 179;
+const CORE_BYTES = 1767599;
 // <<< w12:core
 
 // >>> w12:apps-dist
@@ -103,6 +103,7 @@ const APP_DIST = {
     "voiceRecorder": "store",
     "vscode": "store",
     "weather": "store",
+    "windowsUpdate": "builtin",
     "words": "store",
 };
 // <<< w12:apps-dist
@@ -753,6 +754,28 @@ self.addEventListener('message', event => {
                 });
             } catch (e) {
                 reply({ type: 'core-status', __id: data.__id, ok: false, error: String((e && e.message) || e) });
+            }
+        })());
+        return;
+    }
+
+    if (data.type === 'pending-update') {
+        // The update service keeps a downloaded update in the virtual
+        // filesystem until the machine restarts. The bootstrap asks for it
+        // before the shell loads, so it can show the update screen.
+        event.waitUntil((async () => {
+            try {
+                const tree = await readTree();
+                const node = tree
+                    ? resolveNode(tree, ['system', 'programs data', 'updates', 'pending.json'])
+                    : null;
+                let pending = null;
+                if (node && node.type === 'file' && node.content) {
+                    try { pending = JSON.parse(node.content); } catch (e) { pending = null; }
+                }
+                reply({ type: 'pending-update', __id: data.__id, ok: true, pending });
+            } catch (e) {
+                reply({ type: 'pending-update', __id: data.__id, ok: false, error: String((e && e.message) || e) });
             }
         })());
         return;

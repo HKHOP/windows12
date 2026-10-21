@@ -444,6 +444,33 @@ check('machine-wide keys stay out of the per-user config file', (() => {
     return cfg.scaling === undefined && cfg.displayResolution === undefined;
 })());
 
+console.log('[windows update]');
+const UpdateMod = (await import('../../js/modules/updateService.js')).default;
+check('the update service starts idle', UpdateMod.getState().status === 'idle');
+check('the update state is well formed', (() => {
+    const s = UpdateMod.getState();
+    return typeof s.message === 'string' && typeof s.progress === 'number' && Array.isArray(s.apps);
+})());
+check('the update history starts empty', Array.isArray(UpdateMod.history()));
+check('an update is written to the history', (() => {
+    UpdateMod.recordHistory({ title: 'Smoke update', version: '1.2.3', type: 'os', status: 'installed' });
+    const list = UpdateMod.history();
+    return list.length > 0 && list[0].title === 'Smoke update' && list[0].version === '1.2.3';
+})());
+check('the history entry carries a date', !!UpdateMod.history()[0].date);
+check('the automatic check can be turned off', (() => {
+    const before = UpdateMod.autoCheckEnabled();
+    try {
+        UpdateMod.setAutoCheck(!before);
+        const flipped = UpdateMod.autoCheckEnabled() === !before;
+        UpdateMod.setAutoCheck(before);
+        return flipped && UpdateMod.autoCheckEnabled() === before;
+    } catch (e) {
+        return false;
+    }
+})());
+check('no update is pending on a fresh install', UpdateMod.readPending() === null);
+
 console.log('[clipboard honesty]');
 check('readText without browser API → UNSUPPORTED',
     await (async () => { try { await SDK.Clipboard.readText(); return false; } catch (e) { return e.code === 'UNSUPPORTED'; } })());

@@ -34,6 +34,7 @@ import Tray from './modules/tray.js';
 import Shortcuts from './modules/shortcuts.js';
 import Sounds from './modules/sounds.js';
 import CoreStore from './modules/coreStore.js';
+import UpdateService from './modules/updateService.js';
 
 // Filesystem access policy: app code may always touch its own AppData,
 // anything else requires the 'filesystem' permission (see fsGuard.js).
@@ -112,6 +113,14 @@ export async function boot() {
     if (desktop) desktop.style.opacity = '0';
     if (taskbar) taskbar.style.opacity = '0';
     if (wallpaper) wallpaper.style.opacity = '0';
+
+    // Windows Update: the update service runs in the background (the user
+    // can turn the automatic check off in Settings). A update that was
+    // downloaded earlier is applied right here, before anyone signs in.
+    UpdateService.init();
+    try {
+        if (UpdateService.readPending()) UpdateService.applyPending();
+    } catch (e) { /* the update is applied on the next start */ }
 
     // Boot animation → user picker → sign-in → profile load → desktop.
     LoginScreen.bootSequence({ onSignIn: (id) => Sessions.signIn(id) });

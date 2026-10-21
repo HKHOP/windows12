@@ -9,6 +9,7 @@ import AppSystem from '../../modules/appSystem.js';
 import AppLoader from '../../modules/appLoader.js';
 import { AppMetadata, Taskbar } from '../../modules/taskbar.js';
 import WindowsUpdate from '../../modules/windowsUpdate.js';
+import UpdateService from '../../modules/updateService.js';
 import Touch from '../../modules/touch.js';
 import VirtualKeyboard from '../../modules/virtualKeyboard.js';
 import Cursor from '../../modules/cursor.js';
@@ -1518,37 +1519,78 @@ const Settings = (() => {
     }
 
     function renderUpdate(el) {
+        const state = UpdateService.getState();
+        const working = state.status === 'checking' || state.status === 'downloading' || state.status === 'applying';
+        const ready = state.status === 'ready';
         const hasUpdate = WindowsUpdate.isUpdateAvailable();
         const currentVersion = WindowsUpdate.getCurrentVersion();
-        const latestVersion = WindowsUpdate.getLatestVersion();
+        const autoCheck = UpdateService.autoCheckEnabled();
+
+        const headline = ready ? 'Restart required'
+            : working ? (state.status === 'checking' ? 'Checking for updates' : 'Downloading updates')
+            : hasUpdate ? 'Update available'
+            : 'You\'re up to date';
+        const sub = ready ? (state.message || 'Updates are ready to install.')
+            : working ? (state.message || 'Please wait…')
+            : hasUpdate ? (state.osVersion ? `Version ${state.osVersion} is available` : 'App updates are available')
+            : `Current version: ${currentVersion || '—'}`;
 
         el.innerHTML = `
             <h2 style="font-size:28px;font-weight:600;margin-bottom:24px;">Windows Update</h2>
-            <div style="background:${hasUpdate ? 'rgba(255,152,0,0.15)' : 'rgba(0,150,0,0.15)'};border:1px solid ${hasUpdate ? 'rgba(255,152,0,0.3)' : 'rgba(0,150,0,0.3)'};border-radius:8px;padding:16px;display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-                <span style="width:26px;height:26px;display:inline-flex;flex-shrink:0;">${hasUpdate ? UIIcons.action('arrowUp', 26) : UIIcons.action('check', 26)}</span>
+            <div style="background:${hasUpdate || ready ? 'rgba(255,152,0,0.15)' : 'rgba(0,150,0,0.15)'};border:1px solid ${hasUpdate || ready ? 'rgba(255,152,0,0.3)' : 'rgba(0,150,0,0.3)'};border-radius:8px;padding:16px;display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                <span style="width:26px;height:26px;display:inline-flex;flex-shrink:0;">${hasUpdate || ready ? UIIcons.action('arrowUp', 26) : UIIcons.action('check', 26)}</span>
                 <div>
-                    <div style="font-weight:500;">${hasUpdate ? 'Update available' : 'You\'re up to date'}</div>
-                    <div style="font-size:13px;color:#888;">${hasUpdate ? `Version ${latestVersion} is available` : `Current version: ${currentVersion}`}</div>
+                    <div style="font-weight:500;">${headline}</div>
+                    <div style="font-size:13px;color:#888;">${sub}</div>
                 </div>
             </div>
-            ${hasUpdate ? `
-                <button class="settings-update-refresh" style="width:100%;padding:12px;background:#0078D4;border:none;border-radius:6px;color:white;cursor:pointer;font-size:14px;font-weight:500;margin-bottom:16px;">Refresh to Update</button>
+            ${working ? `
+                <div class="settings-update-progress" style="margin-bottom:16px;">
+                    <div style="height:4px;border-radius:2px;background:rgba(255,255,255,0.15);overflow:hidden;">
+                        <div style="height:100%;width:${Math.round((state.progress || 0) * 100)}%;background:var(--accent-color);transition:width 0.3s ease-out;"></div>
+                    </div>
+                    <div style="font-size:12px;color:#888;margin-top:8px;">${state.message || ''} ${Math.round((state.progress || 0) * 100)}%</div>
+                </div>
             ` : ''}
-            <button class="settings-update-check" style="width:100%;padding:12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:var(--text-primary);cursor:pointer;font-size:14px;">Check for updates</button>
-            <div style="margin-top:16px;font-size:12px;color:#888;">Last checked: ${new Date().toLocaleString()}</div>
+            <button class="settings-update-check" style="width:100%;padding:12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:var(--text-primary);cursor:pointer;font-size:14px;" ${working ? 'disabled' : ''}>
+                ${working ? 'Working…' : 'Check for updates'}
+            </button>
+            ${ready ? `
+                <button class="settings-update-refresh" style="width:100%;padding:12px;background:#0078D4;border:none;border-radius:6px;color:white;cursor:pointer;font-size:14px;font-weight:500;margin-top:12px;">Restart now</button>
+            ` : ''}
+            <button class="settings-update-open" style="width:100%;padding:12px;background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:var(--text-primary);cursor:pointer;font-size:14px;margin-top:12px;">Open Windows Update</button>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:20px;padding:14px 16px;background:rgba(255,255,255,0.04);border-radius:8px;">
+                <div>
+                    <div style="font-weight:500;font-size:13px;">Check for updates automatically</div>
+                    <div style="font-size:12px;color:#888;margin-top:2px;">Windows Update looks for new versions in the background.</div>
+                </div>
+                <input type="checkbox" class="settings-update-auto" ${autoCheck ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--accent-color);cursor:pointer;flex-shrink:0;">
+            </div>
+            <div style="margin-top:16px;font-size:12px;color:#888;">Last checked: ${state.lastCheck ? new Date(state.lastCheck).toLocaleString() : 'never'}</div>
         `;
 
         el.querySelector('.settings-update-check').addEventListener('click', async () => {
             const btn = el.querySelector('.settings-update-check');
-            btn.textContent = 'Checking...';
+            btn.textContent = 'Checking…';
             btn.disabled = true;
-            await WindowsUpdate.checkForUpdates(false);
+            await UpdateService.check({ manual: true });
             renderUpdate(el);
         });
 
-        if (hasUpdate) {
-            el.querySelector('.settings-update-refresh').addEventListener('click', () => {
-                location.reload();
+        const refresh = el.querySelector('.settings-update-refresh');
+        if (refresh) {
+            refresh.addEventListener('click', () => UpdateService.restartNow());
+        }
+
+        const open = el.querySelector('.settings-update-open');
+        if (open) {
+            open.addEventListener('click', () => WindowsUpdate.launch());
+        }
+
+        const auto = el.querySelector('.settings-update-auto');
+        if (auto) {
+            auto.addEventListener('change', () => {
+                UpdateService.setAutoCheck(!!auto.checked);
             });
         }
     }

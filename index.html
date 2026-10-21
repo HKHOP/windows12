@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Windows 12">
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=15.2.2">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=15.3.0">
     <link rel="apple-touch-icon" href="favicon.svg">
     <title>Windows 12</title>
     <style>
@@ -43,6 +43,78 @@
         #boot-status .hint {
             display: block;
             margin-top: 10px;
+            font-size: 13px;
+            opacity: 0.6;
+        }
+
+        /* ---- the update screen ----
+           A downloaded update is applied when the machine restarts. The boot
+           shows this screen instead of the desktop, the way Windows 11 does.
+           It lives outside <body>, so the shell's zoom never touches it. */
+        #w12-update-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483647;
+            background: #0b0b0f;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        }
+        #w12-update-screen .w12-update-inner {
+            text-align: center;
+            max-width: 420px;
+            padding: 24px;
+        }
+        #w12-update-screen .w12-update-logo {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #w12-update-screen .w12-update-logo svg {
+            width: 72px;
+            height: 72px;
+            fill: #fff;
+        }
+        #w12-update-screen .w12-update-title {
+            font-size: 26px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        #w12-update-screen .w12-update-sub {
+            font-size: 15px;
+            opacity: 0.75;
+            margin-bottom: 28px;
+            min-height: 20px;
+        }
+        #w12-update-screen .w12-update-bar {
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.18);
+            overflow: hidden;
+        }
+        #w12-update-screen .w12-update-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 2px;
+            background: #0078D4;
+            transition: width 0.4s ease-out;
+        }
+        #w12-update-screen .w12-update-percent {
+            margin-top: 12px;
+            font-size: 13px;
+            opacity: 0.7;
+        }
+        #w12-update-screen .w12-update-warning {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 40px;
+            text-align: center;
             font-size: 13px;
             opacity: 0.6;
         }
@@ -181,6 +253,64 @@
             return true;
         }
 
+        // --- the update screen ---
+        // A downloaded update is applied at the next start. The bootstrap
+        // shows this screen while the update service finishes the job, and
+        // the page reloads into the new operating system.
+
+        var updateScreen = null;
+
+        function showUpdateScreen() {
+            if (updateScreen) return updateScreen;
+            var screen = document.createElement('div');
+            screen.id = 'w12-update-screen';
+            screen.innerHTML = ''
+                + '<div class="w12-update-inner">'
+                + '  <div class="w12-update-logo"><svg viewBox="0 0 20 20"><rect x="1" y="1" width="8.5" height="8.5" rx="1.5"/><rect x="10.5" y="1" width="8.5" height="8.5" rx="1.5"/><rect x="1" y="10.5" width="8.5" height="8.5" rx="1.5"/><rect x="10.5" y="10.5" width="8.5" height="8.5" rx="1.5"/></svg></div>'
+                + '  <div class="w12-update-title">Getting devices ready</div>'
+                + '  <div class="w12-update-sub"></div>'
+                + '  <div class="w12-update-bar"><div class="w12-update-fill"></div></div>'
+                + '  <div class="w12-update-percent">0%</div>'
+                + '</div>'
+                + '<div class="w12-update-warning">Do not turn off your computer</div>';
+            document.documentElement.appendChild(screen);
+            updateScreen = screen;
+            return screen;
+        }
+
+        function setUpdateStage(title, sub, percent) {
+            if (!updateScreen) return;
+            var t = updateScreen.querySelector('.w12-update-title');
+            var s = updateScreen.querySelector('.w12-update-sub');
+            var f = updateScreen.querySelector('.w12-update-fill');
+            var p = updateScreen.querySelector('.w12-update-percent');
+            if (t) t.textContent = title;
+            if (s) s.textContent = sub || '';
+            var ratio = Math.max(0, Math.min(1, percent || 0));
+            if (f) f.style.width = Math.round(ratio * 100) + '%';
+            if (p) p.textContent = Math.round(ratio * 100) + '%';
+        }
+
+        // The update service reports its progress through this event.
+        window.addEventListener('w12:update-state', function (event) {
+            var detail = (event && event.detail) || {};
+            if (!updateScreen) return;
+            if (detail.status === 'applying' || detail.status === 'downloading') {
+                setUpdateStage('Working on updates', detail.message || '', detail.progress);
+            } else if (detail.status === 'restarting') {
+                setUpdateStage('Restarting', '', 1);
+                setTimeout(function () { location.reload(); }, 1200);
+            }
+        });
+
+        async function askPendingUpdate() {
+            try {
+                var res = await workerMessage('pending-update', 10000);
+                if (res && res.ok && res.pending) return res.pending;
+            } catch (e) { /* no pending update */ }
+            return null;
+        }
+
         // --- boot ----------------------------------------------------------
 
         function loadStyles(list, version) {
@@ -196,8 +326,15 @@
             }));
         }
 
-        async function startShell() {
+        async function startShell(knownPending) {
             setStatus('Starting Windows 12…');
+            // A downloaded update is applied at this start: the screen takes
+            // over while the update service finishes the job.
+            var pending = knownPending || await askPendingUpdate();
+            if (pending) {
+                showUpdateScreen();
+                setUpdateStage('Getting devices ready', '', 0.05);
+            }
             var manifestResponse = await fetch('./core-manifest.json', { cache: 'no-store' });
             if (!manifestResponse.ok) throw new Error('core-manifest-missing');
             var manifest = await manifestResponse.json();
@@ -263,38 +400,25 @@
             // other worker installed something.
             var status = await workerMessage('core-status', 20000);
 
-            // A newer service worker is waiting. It only matters to the user
-            // when it carries a different OS version — a worker that merely
-            // brings a fresher app catalog is taken over silently.
-            if (registration.waiting) {
-                var waiting = null;
-                try {
-                    waiting = await workerMessage('core-status', 10000, registration.waiting);
-                } catch (e) { waiting = null; }
-                var waitingVersion = waiting && waiting.ok ? waiting.version : null;
-                var runningVersion = status && status.ok ? status.version : null;
-                var isOsUpdate = !!(waitingVersion && runningVersion && waitingVersion !== runningVersion);
-                if (isOsUpdate) {
-                    var update = confirm('A new version of Windows 12 is ready.\n\nRefresh now to install it?');
-                    if (update) {
-                        var changed = new Promise(function (resolve) {
-                            navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true });
-                        });
-                        registration.waiting.postMessage({ type: 'skip-waiting' });
-                        await Promise.race([
-                            changed,
-                            new Promise(function (resolve) { setTimeout(resolve, 5000); })
-                        ]);
-                        location.reload();
-                        return;
-                    }
-                } else {
-                    // Same OS, new worker: take it over quietly, no restart.
-                    registration.waiting.postMessage({ type: 'skip-waiting' });
-                }
+            // A downloaded update is applied at this start: the screen takes
+            // over while the update service finishes the job.
+            var pending = await askPendingUpdate();
+
+            // A newer service worker may be waiting: Windows Update already
+            // downloaded a new operating system and it is on disk. Taking it
+            // over is a restart, not a question - the update service is the
+            // one that talks to the user about it.
+            if (registration.waiting && !pending) {
+                setStatus('Starting Windows 12…');
+                try { registration.waiting.postMessage({ type: 'skip-waiting' }); } catch (e) { /* it will be taken over later */ }
+                await waitForController(10000);
+                location.reload();
+                return;
             }
 
             if (!status || !status.ok) {
+                // Nothing on disk: this is the first start, or the system
+                // files were deleted. Install the operating system.
                 setStatus('Downloading Windows 12…');
                 var ready = await workerMessage('ensure-core', 300000);
                 if (!ready || !ready.ok) {
@@ -313,7 +437,7 @@
                 return;
             }
 
-            await startShell();
+            await startShell(pending);
         }
 
         function promptRestart() {
