@@ -4,6 +4,10 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.2.2] - 2026-10-21
+
+### Fixed
+- **An installed app got no Start Menu shortcut.** The package service told the shortcut layer which folder the app landed in, but the shortcut layer did not pass it on - and the app catalog does not know the app yet at that moment (it is refreshed right after). The shortcut had no target, so nothing was written and the app never showed up in the Start menu's app list (only after the next sign-in, when the Start Menu folder is seeded again). The folder is passed on now, and the catalog is refreshed after the app is registered.
 ## [15.2.1] - 2026-10-21
 
 ### Changed

@@ -397,6 +397,29 @@ check('signOut ends one session and leaves the other', SessionsMod.isSignedIn(ad
 check('signOut ran the close hook', sessionLog[sessionLog.length - 1] === `close:${adminAcc.id}`);
 SessionsMod.reset();
 
+console.log('[shortcuts on install]');
+const ShortcutsMod = (await import('../../js/modules/shortcuts.js')).default;
+const lnkApp = { id: 'smokeLnkApp', name: 'Smoke Lnk App', uuid: 'uuid-smoke-lnk', version: '1.0.0', entry: 'main.js' };
+// What the package service does after an app lands on disk.
+ShortcutsMod.onAppInstalled('smokeLnkApp', lnkApp, {
+    folder: ['Program Files', 'smokeLnkApp'],
+    userId: 'default'
+});
+const startDir = ShortcutsMod.startMenuDir('default');
+const startNames = (FSMod.default.getChildren(startDir) || []).map(c => c.name);
+check('an installed app gets a Start Menu shortcut', startNames.includes('Smoke Lnk App.lnk'), startNames.join(','));
+check('the desktop and the taskbar stay clean (they are opt-in)',
+    (FSMod.default.getChildren(ShortcutsMod.desktopDir('default')) || []).length === 0
+    && (FSMod.default.getChildren(ShortcutsMod.taskbarDir('default')) || []).length === 0);
+const lnkData = ShortcutsMod.readSync([...startDir, 'Smoke Lnk App.lnk']);
+check('the shortcut points at the app folder',
+    !!lnkData && Array.isArray(lnkData.target) && lnkData.target.join('/') === 'Program Files/smokeLnkApp');
+check('the shortcut knows which app it belongs to', ShortcutsMod.appIdForShortcut(lnkData) === 'smokeLnkApp');
+check('uninstalling takes the shortcut away', (() => {
+    ShortcutsMod.removeAppShortcuts('smokeLnkApp', 'default');
+    return !(FSMod.default.getChildren(startDir) || []).some(c => c.name === 'Smoke Lnk App.lnk');
+})());
+
 console.log('[machine-wide display settings]');
 const SysCfg = (await import('../../js/modules/systemConfig.js')).default;
 SysCfg.load();

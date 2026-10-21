@@ -1384,6 +1384,12 @@ const Shortcuts = (() => {
                 selection,
                 create: shouldCreate[dest],
                 source: { kind: 'installer', appId },
+                // The folder the app was just installed into. It has to be
+                // passed on: the catalog does not know the app yet (it is
+                // refreshed a moment later), so the shortcut layer cannot
+                // look it up on its own - and a shortcut without a target is
+                // no shortcut at all.
+                folder: options.folder,
                 userId: options.userId
             });
         }

@@ -770,9 +770,6 @@ const Packages = (() => {
             writeSession();
             notifyTreeChanged();
             report(1, 'Done');
-            window.dispatchEvent(new CustomEvent('apps-changed', {
-                detail: { installed: man.id, updated: !!rec }
-            }));
             // The app is registered in the registry, which is what makes it
             // findable no matter which folder it was installed into.
             try {
@@ -784,6 +781,11 @@ const Packages = (() => {
                     user: selection.scope === 'user' ? uid : null
                 });
             } catch (e) { /* the registry is optional */ }
+            // The catalog is rebuilt from the registry, so this goes out AFTER
+            // the registration: the app has to be findable by id from here on.
+            window.dispatchEvent(new CustomEvent('apps-changed', {
+                detail: { installed: man.id, updated: !!rec }
+            }));
             try {
                 const shortcuts = window._Shortcuts;
                 if (shortcuts) {
