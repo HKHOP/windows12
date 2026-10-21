@@ -4,6 +4,15 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.2.0] - 2026-10-21
+
+### Added
+- **A shell entrance animation.** The sign-in no longer blinks out: the login screen drifts toward the desktop as it fades, the taskbar slides in from its edge with an ease-out, the taskbar icons fade in one by one, and the desktop icons fade in from the corner they are stacked in. It plays once, when the shell first appears.
+
+### Fixed
+- **Touchpad mode could not scroll.** A two-finger swipe sent a synthetic wheel event, and an untrusted event never scrolls anything - the browser only scrolls from real input. The OS now scrolls the container under the virtual cursor itself (and leaves the scroll alone when an app handled the wheel).
+- **The touch circle vanished over buttons, text fields and most apps.** It was skipped for those targets, so it never appeared over the start menu buttons or an app UI. It is pure feedback, so it now shows everywhere.
+- **The search box wrote its text under the magnifier.** The global text-field rule in main.css outranked the search panel's own rule and won the padding, which pushed the text behind the icon.
 ## [15.1.2] - 2026-10-21
 
 ### Fixed

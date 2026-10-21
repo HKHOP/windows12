@@ -189,6 +189,8 @@ const IframePointer = (() => {
         }
     }
 
+    // Dispatches the event and returns it, so callers can tell whether an
+    // app handled it (defaultPrevented).
     function dispatchOn(route, type, opts) {
         opts = opts || {};
         if (route.kind === 'document') {
@@ -211,7 +213,7 @@ const IframePointer = (() => {
             try {
                 target.dispatchEvent(ev);
             } catch (e) {}
-            return target;
+            return ev;
         }
         if (route.kind === 'outer') {
             if (!route.target) return null;
@@ -229,7 +231,7 @@ const IframePointer = (() => {
             try {
                 route.target.dispatchEvent(ev);
             } catch (e) {}
-            return route.target;
+            return ev;
         }
         return null;
     }
@@ -239,8 +241,8 @@ const IframePointer = (() => {
     function dispatch(type, x, y, opts) {
         opts = { ...(opts || {}), outerX: (opts && opts.outerX != null) ? opts.outerX : x, outerY: (opts && opts.outerY != null) ? opts.outerY : y };
         const route = routePoint(x, y);
-        const target = dispatchOn(route, type, opts);
-        return { route, target };
+        const event = dispatchOn(route, type, opts);
+        return { route, target: (event && event.target) || null, event };
     }
 
     function focusTarget(info) {

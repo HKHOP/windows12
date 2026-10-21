@@ -60,6 +60,9 @@ const DesktopIcons = (() => {
         render();
         setupMarquee();
         setupKeyboard();
+        // The shell entrance (see loginScreen.js): the desktop icons fade in
+        // one by one, starting at the corner.
+        window.addEventListener('shell-entering', playEntrance);
         // Self-heal the grid when the viewport changes (resize, zoom,
         // resolution/scale switches): re-snap, clamp and de-overlap icons.
         window.addEventListener('resize', () => {
@@ -84,6 +87,29 @@ const DesktopIcons = (() => {
         positions = {};
         loadPositions();
         render();
+    }
+
+    // ---- Shell entrance -------------------------------------------------
+    // The desktop icons fade in one by one, starting at the corner. It plays
+    // once, when the shell appears for the first time.
+    let entrancePlayed = false;
+
+    function playEntrance() {
+        if (entrancePlayed) return;
+        entrancePlayed = true;
+        if (!container) return;
+        const icons = container.querySelectorAll('.desktop-icon');
+        if (!icons.length) return;
+        icons.forEach((el, i) => {
+            el.style.setProperty('--enter-i', String(i));
+            el.classList.add('desktop-icon-entering');
+        });
+        setTimeout(() => {
+            icons.forEach(el => {
+                el.classList.remove('desktop-icon-entering');
+                el.style.removeProperty('--enter-i');
+            });
+        }, 1600);
     }
 
     // ---------- Multi-select helpers ----------

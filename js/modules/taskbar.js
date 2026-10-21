@@ -155,6 +155,41 @@ const Taskbar = (() => {
             loadPinnedEntries();
             renderTaskbarButtons();
         });
+        // The login screen hands over to the desktop (see loginScreen.js).
+        window.addEventListener('shell-entering', playEntrance);
+    }
+
+    // ---- Shell entrance -------------------------------------------------
+    // The taskbar slides in from its edge and its icons fade in one by one.
+    // It plays once, when the shell appears for the first time.
+    let entrancePlayed = false;
+    let entranceTimer = null;
+
+    function playEntrance() {
+        if (entrancePlayed) return;
+        entrancePlayed = true;
+        if (entranceTimer) clearTimeout(entranceTimer);
+        // The login screen is still fading out at this point; animating now
+        // would play the slide behind it.
+        entranceTimer = setTimeout(() => {
+            const bar = document.getElementById('taskbar');
+            if (!bar) return;
+            const icons = bar.querySelectorAll(
+                '#taskbar-center > .taskbar-btn, #taskbar-tray .taskbar-btn, #tray-icons > *, #clock'
+            );
+            bar.classList.add('taskbar-entering');
+            icons.forEach((el, i) => {
+                el.style.setProperty('--enter-i', String(i));
+                el.classList.add('taskbar-icon-entering');
+            });
+            setTimeout(() => {
+                bar.classList.remove('taskbar-entering');
+                icons.forEach(el => {
+                    el.classList.remove('taskbar-icon-entering');
+                    el.style.removeProperty('--enter-i');
+                });
+            }, 1600);
+        }, 180);
     }
 
     // Per-user pins live as files in the TaskBar shell folder. The previous

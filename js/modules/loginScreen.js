@@ -197,6 +197,12 @@ const LoginScreen = (() => {
         if (desktop) { desktop.style.transition = 'opacity 0.5s ease-out'; desktop.style.opacity = '1'; }
         if (taskbar) { taskbar.style.transition = 'opacity 0.5s ease-out'; taskbar.style.opacity = '1'; }
         if (wallpaper) { wallpaper.style.transition = 'opacity 0.5s ease-out'; wallpaper.style.opacity = '1'; }
+        // The shell entrance: the taskbar slides in and its icons fade in one
+        // by one (see taskbar.js). It plays once, whatever brings the
+        // desktop back (sign-in, switch user).
+        try {
+            window.dispatchEvent(new CustomEvent('shell-entering'));
+        } catch (e) { /* no shell yet */ }
     }
 
     // Full boot sequence: boot screen fade → login screen → profile load.

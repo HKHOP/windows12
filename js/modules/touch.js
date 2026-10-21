@@ -260,16 +260,65 @@ const Touch = (() => {
     // iframes (local HTML previews, same-origin sites) so the page inside
     // receives real mousedown/mouseup/click/wheel/etc. Returns the element
     // that received the event (possibly inside a frame).
+    // A synthesized wheel event scrolls nothing on its own: untrusted events
+    // never trigger the browser's default scrolling. The OS scrolls the
+    // container under the virtual cursor itself, the way a real wheel does.
+    function scrollableAncestor(el, win, preferVertical) {
+        let fallback = null;
+        let node = el;
+        let depth = 0;
+        while (node && node.nodeType === 1 && depth < 50) {
+            let style = null;
+            try { style = win.getComputedStyle(node); } catch (e) { style = null; }
+            if (style) {
+                const oy = style.overflowY;
+                const ox = style.overflowX;
+                const canY = (oy === 'auto' || oy === 'scroll' || oy === 'overlay')
+                    && node.scrollHeight > node.clientHeight + 1;
+                const canX = (ox === 'auto' || ox === 'scroll' || ox === 'overlay')
+                    && node.scrollWidth > node.clientWidth + 1;
+                if (preferVertical && canY) return node;
+                if (!preferVertical && canX) return node;
+                if ((canY || canX) && !fallback) fallback = node;
+            }
+            node = node.parentElement;
+            depth++;
+        }
+        return fallback;
+    }
+
+    function applyWheelScroll(route, deltaX, deltaY) {
+        if (!deltaX && !deltaY) return;
+        try {
+            const win = route.kind === 'document' ? route.win : window;
+            const doc = route.kind === 'document' ? route.doc : document;
+            const vertical = Math.abs(deltaY) >= Math.abs(deltaX);
+            let node = null;
+            if (route.target) node = scrollableAncestor(route.target, win, vertical);
+            if (!node) node = doc.scrollingElement || doc.documentElement || doc.body;
+            if (!node) return;
+            if (deltaY) node.scrollTop += deltaY;
+            if (deltaX) node.scrollLeft += deltaX;
+        } catch (e) { /* nothing to scroll */ }
+    }
+
     function dispatchAtCursor(type, button, extra) {
         const buttons = type === 'mouseup' ? 0 : (button === 2 ? 2 : 1);
         const resolvedButtons = extra && typeof extra.buttons === 'number' ? extra.buttons : buttons;
         if (type === 'wheel') {
+            const deltaX = (extra && extra.deltaX) || 0;
+            const deltaY = (extra && extra.deltaY) || 0;
             const res = IframePointer.dispatch('wheel', cursorX, cursorY, {
                 button: button || 0,
                 buttons: resolvedButtons,
-                deltaX: (extra && extra.deltaX) || 0,
-                deltaY: (extra && extra.deltaY) || 0
+                deltaX,
+                deltaY
             });
+            // An app that handled the wheel itself (and said so by calling
+            // preventDefault) owns the scroll.
+            if (!res.event || !res.event.defaultPrevented) {
+                applyWheelScroll(res.route, deltaX, deltaY);
+            }
             return res.target;
         }
         if (type === 'contextmenu') {
@@ -635,13 +684,18 @@ const Touch = (() => {
 
         if (!target) return;
 
+        // The touch circle is pure feedback (pointer-events: none), so it is
+        // shown over EVERYTHING - buttons, text fields and canvases included.
+        // It used to be skipped for them, which made the circle disappear over
+        // the start menu buttons and over most apps.
+        showIndicator(x, y);
+
         if (target.closest('input, textarea, select, button, [contenteditable], canvas')) {
+            // Native handling: the browser clicks the control itself.
             return;
         }
 
         touchData = { x, y, target, longPressTriggered: false, moved: false };
-
-        showIndicator(x, y);
 
         // File Explorer renders its own touch UX (selection checkboxes,
         // long-press multi-select, full Cut/Copy/Paste context menus): the
@@ -732,7 +786,12 @@ const Touch = (() => {
             else swallowTouch(e);
             return;
         }
-        if (!touchData) return;
+        if (!touchData) {
+            // A touch that never became a drag (buttons, text fields, ...):
+            // the circle still has to go away.
+            if (indicator && indicator.style.display !== 'none') pulseIndicator();
+            return;
+        }
 
         if (touchData.timer) {
             clearTimeout(touchData.timer);
@@ -768,7 +827,10 @@ const Touch = (() => {
             if (e) swallowTouch(e);
             return;
         }
-        if (!touchData) return;
+        if (!touchData) {
+            hideIndicator();
+            return;
+        }
         if (touchData.timer) clearTimeout(touchData.timer);
         hideIndicator();
         touchData = null;

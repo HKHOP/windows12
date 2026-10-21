@@ -112,8 +112,13 @@ html[data-taskbar="right"] #search-panel.closing {
     gap: 10px;
 }
 
-.search-input {
+/* The magnifier sits INSIDE the field, so the text has to start behind it.
+   The selector is specific on purpose: the global `input[type="text"]` rule
+   in main.css outranks a single class and would win the padding, which
+   pushed the text under the icon. */
+#search-panel .search-input {
     flex: 1;
+    width: 100%;
     background: rgba(255, 255, 255, 0.07);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
@@ -124,11 +129,11 @@ html[data-taskbar="right"] #search-panel.closing {
     transition: border-color 0.15s;
 }
 
-.search-input:focus {
+#search-panel .search-input:focus {
     border-color: var(--accent-color);
 }
 
-.search-input::placeholder {
+#search-panel .search-input::placeholder {
     color: var(--text-secondary);
 }
 

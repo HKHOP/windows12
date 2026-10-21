@@ -134,6 +134,18 @@ html[data-taskbar="right"] #desktop {
     outline-offset: -1px;
 }
 
+/* Shell entrance: the desktop icons fade in one by one, starting at the
+   corner they are stacked in. */
+@keyframes desktopIconIn {
+    from { opacity: 0; transform: translate(-12px, -12px) scale(0.85); }
+    to { opacity: 1; transform: translate(0, 0) scale(1); }
+}
+
+.desktop-icon-entering {
+    animation: desktopIconIn 0.45s ease-out both;
+    animation-delay: calc(var(--enter-i, 0) * 60ms + 150ms);
+}
+
 .hidden {
     display: none !important;
 }
@@ -256,11 +268,15 @@ html[data-taskbar="right"] #desktop {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: opacity 0.6s ease-out;
+    transform-origin: center center;
+    transition: opacity 0.55s ease-out, transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* The sign-in hands over to the desktop: the login screen drifts toward the
+   shell as it fades, instead of just blinking out. */
 #login-screen.fade-out {
     opacity: 0;
+    transform: scale(1.06);
     pointer-events: none;
 }
 
