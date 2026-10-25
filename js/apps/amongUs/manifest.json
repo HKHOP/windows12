@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "amongUs",
+  "uuid": "889d6980-abec-46cf-834b-64ecd06e908e",
+  "name": "Among Us",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Innersloth",
+    "category": "Games",
+    "rating": 4.7,
+    "reviews": 18420,
+    "description": "Among Us in the browser. Crewmates do tasks, impostors sabotage and the whole lobby argues in the chat — find the killer before the vote turns on you.",
+    "features": [
+      "Crewmate and impostor roles",
+      "Tasks, sabotage, vents and emergency meetings",
+      "Online lobbies with chat",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #0a1020, #e63946)",
+        "text": "Find the Impostor"
+      },
+      {
+        "bg": "linear-gradient(135deg, #e63946, #0a1020)",
+        "text": "Emergency Meeting"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "9+"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "manifestVersion": 1,
+  "id": "dudeStop",
+  "uuid": "60c3757e-68b3-499f-afed-9e7cab6857a2",
+  "name": "Dude, Stop",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Team HalfBeard",
+    "category": "Games",
+    "rating": 4.7,
+    "reviews": 2140,
+    "description": "A comedy puzzle game about doing exactly what the narrator asks — and then doing the opposite. Break the instructions, break the world, and see how far the game lets you push it.",
+    "features": [
+      "Narrator-driven comedy puzzles built around breaking rules",
+      "Point-and-click interactions with a mischievous sandbox",
+      "Runs in the browser — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #2a1a08, #f0c040)",
+        "text": "Do the Opposite"
+      },
+      {
+        "bg": "linear-gradient(135deg, #f0c040, #2a1a08)",
+        "text": "Break the Rules"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "13+"
+  }
+}

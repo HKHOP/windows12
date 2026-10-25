@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "oneshotWme",
+  "uuid": "9e15b7e0-6a3e-45f5-a9f4-6750ad5e2f4c",
+  "name": "OneShot: World Machine Edition",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Future Cat",
+    "category": "Games",
+    "rating": 4.9,
+    "reviews": 2760,
+    "description": "OneShot: World Machine Edition in the browser. Guide Niko through a dying world, solve its puzzles and talk to the game itself — a story-driven adventure that knows you're there.",
+    "features": [
+      "Story-driven puzzle adventure",
+      "Arrow keys / WASD to move, Z or Enter to interact",
+      "The World Machine Edition content",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #15121a, #e8b04b)",
+        "text": "Niko's Journey"
+      },
+      {
+        "bg": "linear-gradient(135deg, #e8b04b, #15121a)",
+        "text": "World Machine"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "9+"
+  }
+}

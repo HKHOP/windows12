@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "nfsMostWanted",
+  "uuid": "f291ea02-e449-4556-a5be-773c515c04cb",
+  "name": "NFS: Most Wanted",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Electronic Arts",
+    "category": "Games",
+    "rating": 4.6,
+    "reviews": 3820,
+    "description": "Need for Speed: Most Wanted, running in the browser through a WebAssembly port. Tear through Rockport, outrun the police and climb the Blacklist — no install, just drive.",
+    "features": [
+      "Rockport open city with police chases",
+      "Blacklist races, milestones and bounty",
+      "Keyboard controls: WASD / arrows to drive, Space to brake",
+      "Embedded fan port — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #1b2a3a, #d4a017)",
+        "text": "Rockport"
+      },
+      {
+        "bg": "linear-gradient(135deg, #d4a017, #1b2a3a)",
+        "text": "Outrun the Police"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "13+"
+  }
+}

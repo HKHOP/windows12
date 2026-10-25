@@ -1,0 +1,38 @@
+{
+  "manifestVersion": 1,
+  "id": "nfsUnderground2",
+  "uuid": "1cc31494-ba80-41f8-bd26-ce1cf379811d",
+  "name": "NFS: Underground 2",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Electronic Arts",
+    "category": "Games",
+    "rating": 4.7,
+    "reviews": 5210,
+    "description": "The PS2 version of Need for Speed: Underground 2, running in the browser. Tune your ride, rule the streets of Bayview and take on the URL — a gamepad is required.",
+    "features": [
+      "The full PS2 game running in the window",
+      "Gamepad required — there is no keyboard mapping",
+      "Career mode, tuning and open-city racing",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #0a1017, #00b0e2)",
+        "text": "Bayview Nights"
+      },
+      {
+        "bg": "linear-gradient(135deg, #00b0e2, #0a1017)",
+        "text": "Tune & Race"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "13+"
+  }
+}

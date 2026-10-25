@@ -1,0 +1,38 @@
+{
+  "manifestVersion": 1,
+  "id": "peak",
+  "uuid": "ef6324c6-e98d-4901-ad6f-54d1e00d8647",
+  "name": "PEAK",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Aggro Crab",
+    "category": "Games",
+    "rating": 4.8,
+    "reviews": 4380,
+    "description": "PEAK in the browser. Climb with friends, manage stamina and don't look down — the mountain is the whole game and it wants you off it.",
+    "features": [
+      "Co-op mountain climbing with stamina and injury",
+      "WASD to climb, Shift to sprint, E to grab",
+      "Runs in the browser — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #7d466f, #f2c14e)",
+        "text": "Climb"
+      },
+      {
+        "bg": "linear-gradient(135deg, #f2c14e, #7d466f)",
+        "text": "Don't Look Down"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "13+"
+  }
+}

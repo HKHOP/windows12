@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "lethalCompany",
+  "uuid": "30ad9647-92e9-4b24-9be5-7e2541a619fd",
+  "name": "Lethal Company",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Zeekerss",
+    "category": "Games",
+    "rating": 4.8,
+    "reviews": 11240,
+    "description": "Lethal Company in the browser. Land on a moon, loot the facility and get back to the ship before dark — the quota doesn't care whether you make it.",
+    "features": [
+      "Scrap runs on hostile moons with a quota to meet",
+      "First-person movement, scanning and proximity chat",
+      "WASD + mouse, E to interact, Q to scan",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #1c0606, #c0392b)",
+        "text": "Scrap Run"
+      },
+      {
+        "bg": "linear-gradient(135deg, #c0392b, #1c0606)",
+        "text": "Meet the Quota"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "13+"
+  }
+}

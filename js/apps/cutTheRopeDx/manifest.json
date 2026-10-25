@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "cutTheRopeDx",
+  "uuid": "dee224e5-e875-4bf3-8f8b-5e81e9fc71d4",
+  "name": "Cut the Rope: DX",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "ZeptoLab",
+    "category": "Games",
+    "rating": 4.8,
+    "reviews": 6420,
+    "description": "The candy-feeding puzzle classic, rebuilt for the browser as Cut the Rope: DX with the full level set. Slice ropes, pop bubbles and time your cuts to land the candy in Om Nom's mouth.",
+    "features": [
+      "Classic rope-slicing physics puzzles",
+      "Full Cut the Rope DX level set with stars to collect",
+      "Mouse or touch swipes to cut ropes",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #ff7a9c, #8f2d4f)",
+        "text": "Om Nom's Candy"
+      },
+      {
+        "bg": "linear-gradient(135deg, #8f2d4f, #ff7a9c)",
+        "text": "Slice the Ropes"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "3+"
+  }
+}

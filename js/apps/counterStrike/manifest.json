@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "counterStrike",
+  "uuid": "d1c11cba-d92f-419a-9f4b-382706531658",
+  "name": "Counter-Strike",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Valve",
+    "category": "Games",
+    "rating": 4.7,
+    "reviews": 7610,
+    "description": "Counter-Strike 1.6 as a browser port (Global Strike). Pick a side, buy your kit and take the bomb site — the classic round-based shooter without Steam or an install.",
+    "features": [
+      "Classic CS 1.6 maps, weapons and round rules",
+      "Bots and offline play",
+      "WASD + mouse, click to lock the pointer and fire",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #1b1b1b, #d4a017)",
+        "text": "Dust II"
+      },
+      {
+        "bg": "linear-gradient(135deg, #d4a017, #1b1b1b)",
+        "text": "Round Win"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "13+"
+  }
+}

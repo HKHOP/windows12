@@ -40,8 +40,8 @@ const CACHE_NAME = 'w12-shell-v1';
 const SHELL_FILES = ['./', './index.html', './manifest.json', './favicon.svg', './js/apps/registry.js'];
 
 // >>> w12:core
-const CORE_VERSION = '15.4.0';
-const CORE_HASH = '3b5f4865c6662726';
+const CORE_VERSION = '15.5.0';
+const CORE_HASH = '34e9a9e6a04bd1f7';
 const CORE_PACKAGE = './w12-core.pkg';
 const CORE_FILE_COUNT = 177;
 const CORE_BYTES = 1812832;
@@ -49,6 +49,7 @@ const CORE_BYTES = 1812832;
 
 // >>> w12:apps-dist
 const APP_DIST = {
+    "amongUs": "store",
     "angryBirds": "store",
     "apexDrive": "store",
     "appStore": "builtin",
@@ -60,28 +61,38 @@ const APP_DIST = {
     "chess": "store",
     "clock": "builtin",
     "copilotButBetter": "store",
+    "counterStrike": "store",
     "csSurf": "store",
+    "cutTheRopeDx": "store",
     "devScope": "store",
     "diablo": "store",
     "discord": "store",
     "doom": "store",
+    "dudeStop": "store",
     "engine3d": "store",
     "export": "store",
     "fileExplorer": "builtin",
     "game2048": "store",
+    "gta3": "store",
     "halfLife": "store",
     "happyWheels": "store",
+    "lethalCompany": "store",
     "markdownStudio": "store",
     "mediaPlayer": "builtin",
     "minecraft": "store",
     "minecraftJava": "store",
+    "minecraftWeb": "store",
     "minesweeper": "store",
     "motoX3M": "store",
     "musicSpark": "store",
+    "nfsMostWanted": "store",
+    "nfsUnderground2": "store",
     "notepad": "builtin",
+    "oneshotWme": "store",
     "packageInstaller": "builtin",
     "paint": "builtin",
     "passwordVault": "store",
+    "peak": "store",
     "photos": "builtin",
     "pomodoro": "store",
     "powershell": "builtin",

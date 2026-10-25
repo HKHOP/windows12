@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "gta3",
+  "uuid": "cd98fe2b-f01b-4f81-90e8-fcc1ff938ac0",
+  "name": "GTA III",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Rockstar Games",
+    "category": "Games",
+    "rating": 4.8,
+    "reviews": 15230,
+    "description": "Grand Theft Auto III running in the browser. Liberty City, a stolen car and a debt to settle — the open-world original, playable without a download.",
+    "features": [
+      "Liberty City open world with missions and side jobs",
+      "Drive, shoot and explore with WASD + mouse",
+      "Full story campaign",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #000000, #f5c518)",
+        "text": "Liberty City"
+      },
+      {
+        "bg": "linear-gradient(135deg, #f5c518, #000000)",
+        "text": "Grand Theft Auto III"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "17+"
+  }
+}

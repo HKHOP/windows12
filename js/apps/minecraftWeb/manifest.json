@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "minecraftWeb",
+  "uuid": "dca2cc37-c1dc-409d-930b-0e5b08589fee",
+  "name": "Minecraft Web Client",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Mojang Studios",
+    "category": "Games",
+    "rating": 4.8,
+    "reviews": 9430,
+    "description": "A Minecraft client that runs entirely in the browser tab. Load a world, mine, craft and build with a modern client — no launcher and no Java install.",
+    "features": [
+      "Browser-native Minecraft client",
+      "Single-player worlds with mining, crafting and building",
+      "WASD + mouse with pointer lock, scroll to pick blocks",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #2d6a4f, #0b1d12)",
+        "text": "Build Anything"
+      },
+      {
+        "bg": "linear-gradient(135deg, #0b1d12, #2d6a4f)",
+        "text": "Browser Client"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "7+"
+  }
+}
