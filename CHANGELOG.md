@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.4.0] - 2026-10-25
+
+### Added
+- **Seven games in the Microsoft Store**, each an embedded client with its own iframe window and a Reload / Open in Browser toolbar: **Half-Life**, **Angry Birds Online**, **CS Surf**, **Diablo**, **DOOM**, **Happy Wheels** and **Skate 3**.
+- **Every game ships the site's own icon.** The Store and Start menu use the favicon fetched from the game's page (the Internet Archive item artwork for the three archived titles), so each tile shows the game's real mark.
+
 ## [15.3.4] - 2026-10-21
 
 ### Fixed
