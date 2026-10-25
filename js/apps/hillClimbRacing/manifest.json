@@ -3,7 +3,7 @@
   "id": "hillClimbRacing",
   "uuid": "f3f25a38-7238-4069-b8ed-bc3095eb833f",
   "name": "Hill Climb Racing",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],

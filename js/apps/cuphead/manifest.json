@@ -3,7 +3,7 @@
   "id": "cuphead",
   "uuid": "fc8c5681-c77b-4649-a61a-33f3027091b4",
   "name": "Cuphead",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],

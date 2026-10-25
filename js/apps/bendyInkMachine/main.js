@@ -1,6 +1,7 @@
 // Bendy and the Ink Machine — embedded browser client.
 import WindowManager from '../../modules/windowManager.js';
 import AppIcons from '../../modules/appIcons.js';
+import GameFullscreen from '../../modules/gameFullscreen.js';
 
 const BendyInkMachine = (() => {
     const APP_ID = 'bendyInkMachine';
@@ -12,10 +13,11 @@ const BendyInkMachine = (() => {
         return `
         <div class="arc-root" style="position:absolute;inset:0;display:flex;flex-direction:column;min-height:0;background:#000;color:#fff;">
             <div style="flex:none;display:flex;align-items:center;gap:8px;padding:5px 10px;background:#141419;font-size:11px;color:#9a9aa5;">
-                <span>${HINT}</span>
+                <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${HINT}</span>
                 <span style="flex:1"></span>
-                <button class="arc-reload" style="background:rgba(255,255,255,.08);border:none;color:#fff;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:11px;">Reload</button>
-                <button class="arc-open" style="background:rgba(255,255,255,.08);border:none;color:#fff;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:11px;">Open in Browser</button>
+                <button class="arc-fullscreen" style="background:rgba(255,255,255,.08);border:none;color:#fff;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:11px;white-space:nowrap;flex:none;">Fullscreen</button>
+                <button class="arc-reload" style="background:rgba(255,255,255,.08);border:none;color:#fff;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:11px;white-space:nowrap;flex:none;">Reload</button>
+                <button class="arc-open" style="background:rgba(255,255,255,.08);border:none;color:#fff;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:11px;white-space:nowrap;flex:none;">Open in Browser</button>
             </div>
             <iframe class="arc-frame" title="Bendy and the Ink Machine" tabindex="0" src="${GAME_URL}"
                 allow="autoplay; fullscreen; gamepad; keyboard-lock; pointer-lock; clipboard-write; screen-wake-lock"
@@ -27,6 +29,7 @@ const BendyInkMachine = (() => {
     function launch() {
         const win = WindowManager.createWindow(APP_ID, "Bendy and the Ink Machine", AppIcons.get(APP_ID), getContent(), { width: 1024, height: 680, minWidth: 560, minHeight: 420 });
         const el = win.element;
+        GameFullscreen.attach({ win, button: el.querySelector('.arc-fullscreen') });
         const frame = el.querySelector('.arc-frame');
         const capture = () => {
             try { frame.contentWindow.focus(); } catch (e) { /* cross-origin */ }

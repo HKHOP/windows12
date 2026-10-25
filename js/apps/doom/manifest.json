@@ -3,11 +3,13 @@
   "id": "doom",
   "uuid": "815bace3-6e11-40b1-adb4-52cd4c1253ea",
   "name": "DOOM",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
-  "permissions": ["network"],
+  "permissions": [
+    "network"
+  ],
   "store": {
     "developer": "id Software",
     "category": "Games",
@@ -22,8 +24,14 @@
       "Reload and Open-in-Browser toolbar if the frame is blocked"
     ],
     "screenshots": [
-      { "bg": "linear-gradient(135deg, #180705, #e25822)", "text": "Knee-Deep in the Dead" },
-      { "bg": "linear-gradient(135deg, #e25822, #180705)", "text": "Rip and Tear" }
+      {
+        "bg": "linear-gradient(135deg, #180705, #e25822)",
+        "text": "Knee-Deep in the Dead"
+      },
+      {
+        "bg": "linear-gradient(135deg, #e25822, #180705)",
+        "text": "Rip and Tear"
+      }
     ],
     "size": "0.1 MB",
     "ageRating": "13+"

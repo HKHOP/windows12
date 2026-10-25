@@ -3,7 +3,7 @@
   "id": "bendyInkMachine",
   "uuid": "aa1d81b5-4940-4e0e-aa67-489e04ed3eb7",
   "name": "Bendy and the Ink Machine",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],

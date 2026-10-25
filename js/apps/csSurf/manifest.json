@@ -3,11 +3,13 @@
   "id": "csSurf",
   "uuid": "a3c8d9c0-fb9c-4a5c-8b36-ad625d16597f",
   "name": "CS Surf",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
-  "permissions": ["network"],
+  "permissions": [
+    "network"
+  ],
   "store": {
     "developer": "surfd.net",
     "category": "Games",
@@ -22,8 +24,14 @@
       "Reload and Open-in-Browser toolbar if the frame is blocked"
     ],
     "screenshots": [
-      { "bg": "linear-gradient(135deg, #0f2027, #a5d8db)", "text": "Ride the Ramp" },
-      { "bg": "linear-gradient(135deg, #a5d8db, #0f2027)", "text": "Keep Your Speed" }
+      {
+        "bg": "linear-gradient(135deg, #0f2027, #a5d8db)",
+        "text": "Ride the Ramp"
+      },
+      {
+        "bg": "linear-gradient(135deg, #a5d8db, #0f2027)",
+        "text": "Keep Your Speed"
+      }
     ],
     "size": "0.1 MB",
     "ageRating": "13+"

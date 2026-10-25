@@ -3,7 +3,7 @@
   "id": "toasterBall",
   "uuid": "0fcb7584-5172-4494-a10e-bf94149a8947",
   "name": "Toaster Ball",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],

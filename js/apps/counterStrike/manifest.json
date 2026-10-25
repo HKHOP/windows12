@@ -3,7 +3,7 @@
   "id": "counterStrike",
   "uuid": "d1c11cba-d92f-419a-9f4b-382706531658",
   "name": "Counter-Strike",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],

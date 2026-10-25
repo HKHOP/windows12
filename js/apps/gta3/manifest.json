@@ -3,7 +3,7 @@
   "id": "gta3",
   "uuid": "cd98fe2b-f01b-4f81-90e8-fcc1ff938ac0",
   "name": "GTA III",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],

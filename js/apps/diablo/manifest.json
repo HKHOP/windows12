@@ -3,11 +3,13 @@
   "id": "diablo",
   "uuid": "c9bb0bc3-8eb3-4208-9780-16eb8a234d52",
   "name": "Diablo",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
-  "permissions": ["network"],
+  "permissions": [
+    "network"
+  ],
   "store": {
     "developer": "Blizzard Entertainment",
     "category": "Games",
@@ -22,8 +24,14 @@
       "Reload and Open-in-Browser toolbar if the frame is blocked"
     ],
     "screenshots": [
-      { "bg": "linear-gradient(135deg, #0b0708, #a11d1d)", "text": "Tristram Cathedral" },
-      { "bg": "linear-gradient(135deg, #a11d1d, #0b0708)", "text": "Deeper Still" }
+      {
+        "bg": "linear-gradient(135deg, #0b0708, #a11d1d)",
+        "text": "Tristram Cathedral"
+      },
+      {
+        "bg": "linear-gradient(135deg, #a11d1d, #0b0708)",
+        "text": "Deeper Still"
+      }
     ],
     "size": "0.1 MB",
     "ageRating": "13+"

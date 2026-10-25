@@ -3,11 +3,13 @@
   "id": "skate3",
   "uuid": "590bb8cd-7c92-48b0-b31b-54e4410da381",
   "name": "Skate 3",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
-  "permissions": ["network"],
+  "permissions": [
+    "network"
+  ],
   "store": {
     "developer": "aaddpp",
     "category": "Games",
@@ -22,8 +24,14 @@
       "Reload and Open-in-Browser toolbar if the frame is blocked"
     ],
     "screenshots": [
-      { "bg": "linear-gradient(135deg, #030d15, #3fc1ff)", "text": "Drop In" },
-      { "bg": "linear-gradient(135deg, #3fc1ff, #030d15)", "text": "Land the Line" }
+      {
+        "bg": "linear-gradient(135deg, #030d15, #3fc1ff)",
+        "text": "Drop In"
+      },
+      {
+        "bg": "linear-gradient(135deg, #3fc1ff, #030d15)",
+        "text": "Land the Line"
+      }
     ],
     "size": "0.1 MB",
     "ageRating": "7+"

@@ -3,7 +3,7 @@
   "id": "crashoutCrew",
   "uuid": "9ccadf1d-aa6f-4ba2-b1e6-23f4408ad790",
   "name": "Crashout Crew",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],

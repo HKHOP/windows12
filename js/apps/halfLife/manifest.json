@@ -3,11 +3,13 @@
   "id": "halfLife",
   "uuid": "6921acc7-3d54-42f6-be04-960a460c1c2f",
   "name": "Half-Life",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
-  "permissions": ["network"],
+  "permissions": [
+    "network"
+  ],
   "store": {
     "developer": "Valve",
     "category": "Games",
@@ -22,8 +24,14 @@
       "Reload and Open-in-Browser toolbar if the frame is blocked"
     ],
     "screenshots": [
-      { "bg": "linear-gradient(135deg, #1c1c1e, #f97316)", "text": "Black Mesa" },
-      { "bg": "linear-gradient(135deg, #f97316, #1c1c1e)", "text": "Resonance Cascade" }
+      {
+        "bg": "linear-gradient(135deg, #1c1c1e, #f97316)",
+        "text": "Black Mesa"
+      },
+      {
+        "bg": "linear-gradient(135deg, #f97316, #1c1c1e)",
+        "text": "Resonance Cascade"
+      }
     ],
     "size": "0.1 MB",
     "ageRating": "13+"

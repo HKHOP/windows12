@@ -3,7 +3,7 @@
   "id": "granny3",
   "uuid": "8314787b-487c-4d38-a748-e206846c019e",
   "name": "Granny 3",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],

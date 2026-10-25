@@ -3,7 +3,7 @@
   "id": "amongUs",
   "uuid": "889d6980-abec-46cf-834b-64ecd06e908e",
   "name": "Among Us",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],

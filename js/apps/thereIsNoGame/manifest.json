@@ -3,7 +3,7 @@
   "id": "thereIsNoGame",
   "uuid": "a8dfb0e7-b2a0-4792-94ad-f859976c601b",
   "name": "There Is No Game: Wrong Dimension",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],

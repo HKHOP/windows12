@@ -3,7 +3,7 @@
   "id": "cutTheRopeDx",
   "uuid": "dee224e5-e875-4bf3-8f8b-5e81e9fc71d4",
   "name": "Cut the Rope: DX",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],

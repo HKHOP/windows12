@@ -3,11 +3,13 @@
   "id": "angryBirds",
   "uuid": "36d632e8-f5c0-4b14-b19c-6736cfdcc4c7",
   "name": "Angry Birds Online",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
-  "permissions": ["network"],
+  "permissions": [
+    "network"
+  ],
   "store": {
     "developer": "Rovio Entertainment",
     "category": "Games",
@@ -22,8 +24,14 @@
       "Reload and Open-in-Browser toolbar if the frame is blocked"
     ],
     "screenshots": [
-      { "bg": "linear-gradient(135deg, #7cc4e8, #f2c94c)", "text": "Slingshot Time" },
-      { "bg": "linear-gradient(135deg, #f2c94c, #7cc4e8)", "text": "Bring Down the Fort" }
+      {
+        "bg": "linear-gradient(135deg, #7cc4e8, #f2c94c)",
+        "text": "Slingshot Time"
+      },
+      {
+        "bg": "linear-gradient(135deg, #f2c94c, #7cc4e8)",
+        "text": "Bring Down the Fort"
+      }
     ],
     "size": "0.1 MB",
     "ageRating": "7+"

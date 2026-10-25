@@ -3,11 +3,13 @@
   "id": "happyWheels",
   "uuid": "32bad5a0-df7d-402d-829f-347f984fb29b",
   "name": "Happy Wheels",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
-  "permissions": ["network"],
+  "permissions": [
+    "network"
+  ],
   "store": {
     "developer": "Totaljerkface",
     "category": "Games",
@@ -22,8 +24,14 @@
       "Reload and Open-in-Browser toolbar if the frame is blocked"
     ],
     "screenshots": [
-      { "bg": "linear-gradient(135deg, #141a2a, #f97316)", "text": "Wheelchair Run" },
-      { "bg": "linear-gradient(135deg, #f97316, #141a2a)", "text": "Reach the Finish" }
+      {
+        "bg": "linear-gradient(135deg, #141a2a, #f97316)",
+        "text": "Wheelchair Run"
+      },
+      {
+        "bg": "linear-gradient(135deg, #f97316, #141a2a)",
+        "text": "Reach the Finish"
+      }
     ],
     "size": "0.1 MB",
     "ageRating": "13+"

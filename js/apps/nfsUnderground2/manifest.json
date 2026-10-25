@@ -3,7 +3,7 @@
   "id": "nfsUnderground2",
   "uuid": "1cc31494-ba80-41f8-bd26-ce1cf379811d",
   "name": "NFS: Underground 2",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],

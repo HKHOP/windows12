@@ -3,7 +3,7 @@
   "id": "baldisBirthday",
   "uuid": "c3abd9a5-99e7-4a9f-957b-58c99dae1114",
   "name": "Baldi's Basics: Birthday Bash",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],

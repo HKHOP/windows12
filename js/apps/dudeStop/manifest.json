@@ -3,7 +3,7 @@
   "id": "dudeStop",
   "uuid": "60c3757e-68b3-499f-afed-9e7cab6857a2",
   "name": "Dude, Stop",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],

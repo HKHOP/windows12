@@ -3,7 +3,7 @@
   "id": "minecraftWeb",
   "uuid": "dca2cc37-c1dc-409d-930b-0e5b08589fee",
   "name": "Minecraft Web Client",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
