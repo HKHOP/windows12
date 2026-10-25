@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.6.0] - 2026-10-25
+
+### Added
+- **Nine more games in the Microsoft Store**, each an embedded client with its own iframe window and the Reload / Open in Browser toolbar: **Brotato**, **Baldi's Basics: Birthday Bash**, **Bendy and the Ink Machine**, **Cuphead**, **Granny 3**, **Hill Climb Racing**, **Crashout Crew**, **Toaster Ball** (local multiplayer) and **There Is No Game: Wrong Dimension**.
+- **Each tile uses the key art wasm.rip publishes for the port** — the host ships no per-game favicon — so every game gets its own icon.
+
 ## [15.5.0] - 2026-10-25
 
 ### Added
