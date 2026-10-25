@@ -11,6 +11,7 @@ import AppIcons from './appIcons.js';
 import Users from './users.js';
 import LockScreen from './lockScreen.js';
 import FileAssociations from './fileAssociations.js';
+import DesktopIcons from './desktopIcons.js';
 
 const StartMenu = (() => {
     let pinnedApps = [];
@@ -106,6 +107,8 @@ const StartMenu = (() => {
         window.addEventListener('shortcuts-changed', () => {
             if (currentView === 'allApps') showAllApps();
         });
+        // An app dropped on the desktop closes Start, the way Windows does.
+        window.addEventListener('app-shortcut-created', () => hide());
     }
 
     function ensureDir(path) {
@@ -416,6 +419,9 @@ const StartMenu = (() => {
         }
 
         el.innerHTML = `${icon}<span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(entry.name)}</span>`;
+        // Only an app entry can become a shortcut; a shortcut pointing at an
+        // app folder resolves to that app too.
+        makeAppDraggable(el, entry.appId);
         el.addEventListener('mouseenter', () => el.style.background = 'var(--hover-bg)');
         el.addEventListener('mouseleave', () => el.style.background = 'transparent');
         el.addEventListener('click', () => launchEntry(entry));
@@ -425,6 +431,24 @@ const StartMenu = (() => {
             showEntryMenu(e, entry);
         });
         container.appendChild(el);
+    }
+
+    // An app dragged out of Start becomes a desktop shortcut: this marks the
+    // entry as the drag source, and desktopIcons.js owns the drop target. The
+    // context menus offer the same thing for touch, where HTML drag and drop
+    // does not exist.
+    function makeAppDraggable(el, appId) {
+        if (!appId) return;
+        el.draggable = true;
+        el.addEventListener('dragstart', (e) => {
+            if (!e.dataTransfer) { e.preventDefault(); return; }
+            e.dataTransfer.setData('application/x-w12-app', appId);
+            e.dataTransfer.effectAllowed = 'copy';
+        });
+    }
+
+    function createDesktopShortcut(appId) {
+        try { DesktopIcons.createAppShortcut(appId); } catch { /* noop */ }
     }
 
     function launchEntry(entry) {
@@ -468,6 +492,7 @@ const StartMenu = (() => {
             items.push(taskbarPinned
                 ? { label: 'Unpin from taskbar', icon: UIIcons.action('unpin'), action: () => Taskbar.unpinApp(entry.appId) }
                 : { label: 'Pin to taskbar', icon: UIIcons.action('pin'), action: () => Taskbar.pinApp(entry.appId) });
+            items.push({ label: 'Create shortcut on desktop', icon: UIIcons.action('shortcut'), action: () => createDesktopShortcut(entry.appId) });
         } else if (entry.kind === 'item') {
             items.push({ label: 'Pin to taskbar', icon: UIIcons.action('pin'), action: () => Taskbar.pinEntry(entry.path, { name: entry.name, appId: entry.appId }) });
         }
@@ -529,6 +554,7 @@ const StartMenu = (() => {
                 <div class="app-icon">${meta.icon}</div>
                 <span class="app-name">${meta.name}</span>
             `;
+            makeAppDraggable(el, appId);
             el.addEventListener('click', () => {
                 hide();
                 UserActivity.trackAppOpen(appId);
@@ -552,6 +578,7 @@ const StartMenu = (() => {
                         hide();
                         launchApp(appId);
                     }},
+                    { label: 'Create shortcut on desktop', icon: UIIcons.action('shortcut'), action: () => createDesktopShortcut(appId) },
                     ...(isUserApp ? [
                         'separator',
                         { label: 'Uninstall', icon: UIIcons.action('uninstall'), action: () => AppSystem.uninstallApp(appId) }

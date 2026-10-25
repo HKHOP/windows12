@@ -77,6 +77,7 @@ const DesktopIcons = (() => {
         window.addEventListener('shortcuts-changed', () => {
             try { render(); } catch (e) { /* noop */ }
         });
+        setupAppDrop();
     }
 
     // Foreground session changed: swap in this profile's Desktop folder,
@@ -305,6 +306,71 @@ const DesktopIcons = (() => {
             document.addEventListener('mousemove', onMove);
             document.addEventListener('mouseup', onUp);
         });
+    }
+
+    // ---------- App shortcuts dragged out of Start ----------
+    // The Start menu tags a dragged app with this type (startMenu.js); the
+    // desktop is its only drop target, so a drag released anywhere else — or
+    // over an open window — is ignored and creates nothing.
+    const APP_DRAG_TYPE = 'application/x-w12-app';
+
+    // A drag that carries an app id. Only `types` is readable while a drag is
+    // in flight (the payload itself is protected until the drop), so the
+    // dragover gate checks the type and the drop reads the id.
+    function hasAppDrag(e) {
+        const dt = e.dataTransfer;
+        return !!dt && Array.from(dt.types || []).includes(APP_DRAG_TYPE);
+    }
+
+    function droppedAppId(e) {
+        try { return String(e.dataTransfer.getData(APP_DRAG_TYPE) || ''); } catch { return ''; }
+    }
+
+    function overWindow(e) {
+        return !!(e.target && e.target.closest && e.target.closest('.app-window'));
+    }
+
+    function setupAppDrop() {
+        container.addEventListener('dragover', (e) => {
+            if (!hasAppDrag(e) || overWindow(e)) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        });
+        container.addEventListener('drop', (e) => {
+            if (!hasAppDrag(e) || overWindow(e)) return;
+            e.preventDefault();
+            const appId = droppedAppId(e);
+            if (!appId) return;
+            createAppShortcut(appId, toDesktopPoint(e.clientX, e.clientY));
+        });
+    }
+
+    // Puts an app's shortcut on the desktop. This is the same `.lnk` the
+    // installer writes, marked as the user's own: it is never mistaken for a
+    // managed (installer-owned) shortcut, and dragging the same app twice
+    // makes a second one, like Windows. `point` is the drop position in
+    // desktop coordinates — the icon lands there, or in the next free cell
+    // when that cell is taken; without a point it takes the first free slot.
+    function createAppShortcut(appId, point) {
+        const path = Shortcuts.createAppShortcut(appId, 'desktop', {
+            create: true,
+            source: { kind: 'user', appId }
+        });
+        if (!path) {
+            Notifications.info('Desktop shortcut', 'This app cannot be placed on the desktop.', { appId: 'system' });
+            return null;
+        }
+        if (point && isFinite(point.x) && isFinite(point.y)) {
+            const cell = posToCell(point.x - ICON_W / 2, point.y - ICON_H / 2);
+            const target = clampCell(cell.col, cell.row, getGridMetrics());
+            positions[path[path.length - 1]] = cellToPos(target.col, target.row);
+            savePositions();
+        }
+        render();
+        try {
+            window.dispatchEvent(new CustomEvent('app-shortcut-created', { detail: { appId, path } }));
+        } catch { /* noop */ }
+        return path;
     }
 
     const loadPositions = asShell(function loadPositions() {
@@ -1063,7 +1129,7 @@ const DesktopIcons = (() => {
         render();
     }
 
-    return { init, activate, render, createNewFolder, createNewFile, clearSelection, selectAll, getSelected, isSelected, deleteSelected, openSelected };
+    return { init, activate, render, createNewFolder, createNewFile, createAppShortcut, clearSelection, selectAll, getSelected, isSelected, deleteSelected, openSelected };
 })();
 
 export default DesktopIcons;

@@ -440,6 +440,26 @@ check('uninstalling takes the shortcut away', (() => {
     ShortcutsMod.removeAppShortcuts('smokeLnkApp', 'default');
     return !(FSMod.default.getChildren(startDir) || []).some(c => c.name === 'Smoke Lnk App.lnk');
 })());
+// What dragging an app out of Start onto the desktop does
+// (desktopIcons.createAppShortcut): a user-owned shortcut there, and a
+// second drop makes a second one instead of colliding with the first.
+const dropShortcut = () => ShortcutsMod.createAppShortcut('smokeLnkApp', 'desktop', {
+    create: true,
+    manifest: lnkApp,
+    folder: ['Program Files', 'smokeLnkApp'],
+    source: { kind: 'user', appId: 'smokeLnkApp' }
+});
+const deskLnk = dropShortcut();
+check('an app dropped on the desktop becomes a shortcut there', !!deskLnk
+    && deskLnk.slice(0, -1).join('/') === ShortcutsMod.desktopDir('default').join('/')
+    && ShortcutsMod.appIdForShortcut(ShortcutsMod.readSync(deskLnk)) === 'smokeLnkApp',
+    deskLnk ? deskLnk.join('/') : 'not created');
+const deskLnk2 = dropShortcut();
+check('dropping the same app again adds a second shortcut', !!deskLnk2
+    && deskLnk2[deskLnk2.length - 1] === 'Smoke Lnk App (2).lnk',
+    deskLnk2 ? deskLnk2[deskLnk2.length - 1] : 'not created');
+[deskLnk, deskLnk2].filter(Boolean).forEach(p => ShortcutsMod.deleteShortcut(p));
+FSMod.default.emptyRecycleBin();
 
 console.log('[machine-wide display settings]');
 const SysCfg = (await import('../../js/modules/systemConfig.js')).default;

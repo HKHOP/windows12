@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.9.0] - 2026-10-25
+
+### Added
+- **Drag-and-drop Start menu shortcuts**: You can now drag any app item or pinned app from the Start menu and drop it onto the desktop to create a desktop shortcut.
+- **Touch context menu shortcut support**: "Create shortcut on desktop" added to app context menus in the Start menu for touch users.
+
 ## [15.8.0] - 2026-10-25
 
 ### Added
