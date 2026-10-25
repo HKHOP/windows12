@@ -992,30 +992,10 @@ const Settings = (() => {
     }
 
     async function performFactoryReset() {
-        // Reset FileSystem to default tree
-        FileSystem.resetToDefault();
-
-        // 2. Reset Users to single default admin
-        await Users.factoryReset();
-
-        // 3. Reset SystemConfig to defaults (full reset, not keeping username)
-        SystemConfig.factoryReset();
-
-        // 4. Clear all installed packages (store apps)
-        try { Packages.clearAll(); } catch (e) { /* noop */ }
-
-        // 5. Clear localStorage leftovers from the pre-OPFS era
-        try { localStorage.clear(); } catch (e) { /* noop */ }
-
-        // 6. Drop OPFS blob files too (the fresh tree has no references, but
-        // the old bytes would otherwise survive the "factory reset").
-        try {
-            const OpfsClient = (await import('../../modules/opfsClient.js')).default;
-            await OpfsClient.removeEntry('w12/blobs', true);
-        } catch (e) { /* legacy backend or no blobs */ }
-
-        // Force persist the reset state
-        await FileSystem.flushAsync();
+        // One implementation, shared with the storage-loss recovery in
+        // js/main.js: packages + registry + filesystem + users + settings.
+        const FactoryReset = (await import('../../modules/factoryReset.js')).default;
+        await FactoryReset.wipe();
     }
 
     function renderSoundCustomization(el) {

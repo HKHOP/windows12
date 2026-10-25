@@ -325,9 +325,14 @@ const FileExplorer = (() => {
         contentEl.innerHTML = '';
 
         if (rows.length === 0) {
+            // A denied folder and an empty one both list nothing, so say which
+            // one it is instead of claiming an OS zone is empty.
+            const denied = !searchMode && !FileSystem.canRead(path);
             contentEl.innerHTML = searchMode
                 ? `<div style="width:100%;text-align:center;padding:60px 20px;color:var(--text-secondary);font-size:14px;">No results for "${query.replace(/&/g, '&amp;').replace(/</g, '&lt;')}" in this folder</div>`
-                : '<div style="width:100%;text-align:center;padding:60px 20px;color:var(--text-secondary);font-size:14px;">This folder is empty</div>';
+                : denied
+                    ? `<div style="width:100%;text-align:center;padding:60px 20px;color:var(--text-secondary);font-size:14px;">You don't have permission to view this folder.<br><span style="font-size:12px;opacity:0.75;">It belongs to the operating system, and this app may not read it.</span></div>`
+                    : '<div style="width:100%;text-align:center;padding:60px 20px;color:var(--text-secondary);font-size:14px;">This folder is empty</div>';
             countEl.textContent = searchMode ? '0 results' : '0 items';
             renderPreview(win, wstate);
             return;
@@ -1336,9 +1341,17 @@ const FileExplorer = (() => {
         WindowManager.createWindow('properties', entry.name, UIIcons.action('properties', 16), content, { width: 420, height: 320 });
     }
 
+    // Opens a file in the built-in text viewer. The bytes may live in a blob
+    // (everything in \Windows is a blob reference), so the text is resolved
+    // asynchronously instead of through the synchronous readFile().
     function openFileWithNotepad(itemPath) {
-        const content = FileSystem.readFile(itemPath);
-        if (content === null) return;
+        FileSystem.readTextFile(itemPath).then((content) => {
+            if (content === null) return;
+            showNotepadWindow(itemPath, content);
+        });
+    }
+
+    function showNotepadWindow(itemPath, content) {
         const name = itemPath[itemPath.length - 1];
         UserActivity.trackFileOpen(itemPath, name);
 

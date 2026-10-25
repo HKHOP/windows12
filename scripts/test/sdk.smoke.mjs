@@ -123,9 +123,12 @@ globalThis.Worker = class FakeOpfsWorker {
             } else if (op === 'removeEntry') { opfsFiles.delete(args[0]); value = true; }
             else if (op === 'stat') {
                 const v = opfsFiles.get(args[0]);
+                // A Blob value (a core file or an app package) reports its
+                // real byte size; strings report their length.
+                const size = typeof v === 'string' ? v.length : (v && typeof v.size === 'number' ? v.size : 0);
                 value = v == null
                     ? { exists: false }
-                    : { exists: true, size: String(v).length, lastModified: Date.now() };
+                    : { exists: true, size, lastModified: Date.now() };
             } else throw new Error('unknown-op:' + op);
         } catch (e) {
             ok = false;
@@ -921,6 +924,55 @@ check('app.tray is bound to the app id', (() => {
     bound.tray.removeAll();
     return ok;
 })());
+
+console.log('[factory reset + OS zones]');
+const GuardMod = (await import('../../js/modules/fsGuard.js')).default;
+check('the OS\'s own apps may read the OS zones', (() => {
+    GuardMod.setActiveApp('fileExplorer');
+    const bin = GuardMod.check(['/', 'system', '$Recycle.Bin']) === true;
+    const registry = GuardMod.check(['/', 'system', 'registry']) === true;
+    return bin && registry;
+})());
+check('a downloaded app may not read them', (() => {
+    GuardMod.setActiveApp('discord');
+    const denied = GuardMod.check(['/', 'system', '$Recycle.Bin']) === false
+        && GuardMod.check(['/', 'system', 'users']) === false;
+    return denied;
+})());
+check('nobody writes them through the filesystem', (() => {
+    GuardMod.setActiveApp('fileExplorer');
+    const byBuiltin = GuardMod.checkWrite(['/', 'system', 'registry', 'registry.json']) === false;
+    GuardMod.setActiveApp('discord');
+    const byStore = GuardMod.checkWrite(['/', 'system', '$Recycle.Bin', 'x']) === false;
+    GuardMod.setActiveApp(null);
+    return byBuiltin && byStore;
+})());
+check('registry.factoryReset clears every hive and profile', (() => {
+    RegMod.set('HKLM\\Software\\Windows 12\\Apps\\smokeApp', 'Path', 'REG_SZ', 'x');
+    RegMod.set('HKCR\\.smoke', '(Default)', 'REG_SZ', 'smokeApp');
+    const had = RegMod.keys('HKLM\\Software\\Windows 12\\Apps').length > 0;
+    RegMod.factoryReset();
+    return had && RegMod.keys('HKLM\\Software\\Windows 12\\Apps').length === 0
+        && RegMod.keys('HKCR').length === 0 && RegMod.registeredApps().length === 0;
+})());
+const blobTextOk = await (async () => {
+    const FS = FSMod.default;
+    const dir = ['/', 'users', 'default', 'Documents'];
+    const path = [...dir, 'blob-smoke.txt'];
+    await FS.writeFileBlob(dir, 'blob-smoke.txt', new Blob(['blob-backed']), 'txt');
+    const isBlob = FS.isBlobFile(path) && FS.readFile(path) === null;
+    const text = await FS.readTextFile(path);
+    FS.permanentDelete(path);
+    return isBlob && text === 'blob-backed';
+})();
+check('file text resolves through blob references', blobTextOk);
+const storageLossOk = await (async () => {
+    const FS = FSMod.default;
+    opfsFiles.clear();
+    await FS.flushAsync();
+    return FS.hasStorageLost() === true && opfsFiles.has('w12/fs.json');
+})();
+check('a cleared OPFS store is detected instead of resurrected', storageLossOk);
 
 console.log('\n----------------------------------------');
 console.log(`passed ${passed}, failed ${failures.length}`);

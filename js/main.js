@@ -75,6 +75,7 @@ FileSystem.setWriteChecker(FSGuard.checkWrite);
 // module from the service worker (the OS core lives in OPFS). DOMContentLoaded
 // has already fired by then, so the boot sequence is an explicit entry point
 // rather than an event listener.
+let storageResetInProgress = false;
 export async function boot() {
     window.SystemConfig = SystemConfig;
 
@@ -89,6 +90,21 @@ export async function boot() {
     // sign-in (see bootShell / activateSession below), the way Windows loads
     // a profile only once you pick it.
     await FileSystem.init();
+
+    // Browser storage can be cleared under a running OS (DevTools → delete
+    // everything in OPFS, or "clear site data" from the browser settings).
+    // The filesystem notices that its snapshot vanished and refuses to write
+    // the old session back; the machine then starts over from the factory
+    // defaults — accounts, registry and settings included — instead of just
+    // losing the files.
+    window.addEventListener('fs-storage-lost', () => {
+        if (storageResetInProgress) return;
+        storageResetInProgress = true;
+        import('./modules/factoryReset.js')
+            .then((mod) => mod.default.wipe())
+            .catch(() => { /* the fresh in-memory tree still stands */ })
+            .then(() => { window.location.reload(); });
+    });
     Users.loadAccounts();
 
     // Mirror the installed OS core (OPFS) into \Windows so the operating

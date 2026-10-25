@@ -15,8 +15,17 @@
 // OS modules that write shared state while an app happens to be focused
 // wrap their writes in asShell() so they are not attributed to the app.
 //
-// Zones under /system (per-user OS data, permission grants, recycle bin)
-// are OS-only: app access there is denied without a prompt.
+// Zones under /system (accounts, permission grants, the registry store, the
+// recycle bin) belong to the operating system:
+//
+//   * store apps may not read them at all — they hold the account store, the
+//     grants and the machine settings, and no download is entitled to them,
+//   * the OS's own (builtin) apps may read them, so File Explorer can show
+//     \system, the recycle bin and the registry file exactly like the real
+//     thing does,
+//   * nobody writes them through the filesystem — not even an elevated app.
+//     The owning modules write them as shell-owned work (FSGuard.asShell),
+//     which is where the registry, grants and accounts actually live.
 import Permissions from './permissions.js';
 import FileSystem from './fileSystem.js';
 import Registry from './registry.js';
@@ -38,7 +47,6 @@ const FSGuard = (() => {
         'system/config.json',
         'system/desktop-layout.json'
     ];
-
     // Paths that live outside any app's own data and that only an
     // administrator may modify. Reads stay allowed (File Explorer can browse
     // them); writes raise a UAC prompt and, once granted, are allowed for the
@@ -102,6 +110,20 @@ const FSGuard = (() => {
 
     function isApp(appId) {
         try { return !!Permissions.manifestOf(appId); } catch { return false; }
+    }
+
+    // The operating system's own apps (File Explorer, Regedit, ...). They ship
+    // inside the core bundle, so they are part of the machine and may browse
+    // the OS zones read-only.
+    function isBuiltinApp(appId) {
+        try { return Permissions.isBuiltin(appId); } catch { return false; }
+    }
+
+    function isOsOnly(target) {
+        for (const zone of OS_ONLY_PREFIXES) {
+            if (isUnder(target, zone)) return true;
+        }
+        return false;
     }
 
     function pathStr(path) {
@@ -177,9 +199,10 @@ const FSGuard = (() => {
         const target = pathStr(path);
         if (!target) return true; // root-level listing
 
-        for (const zone of OS_ONLY_PREFIXES) {
-            if (isUnder(target, zone)) return false; // OS-only, no prompt
-        }
+        // OS zones: the OS's own apps may look (File Explorer browses them),
+        // a downloaded app may not.
+        if (isOsOnly(target)) return isBuiltinApp(appId);
+
         for (const root of ownRoots(appId)) {
             if (isUnder(target, root)) return true;
         }
@@ -244,6 +267,15 @@ const FSGuard = (() => {
 
         const appId = currentApp();
         if (!appId || !isApp(appId)) return true;
+
+        // OS zones are written by their owning modules as shell-owned work,
+        // never through an app's filesystem access (no elevation offered:
+        // a downloaded app has no business editing the account store or the
+        // registry file, and a builtin app writes them through the modules).
+        if (isOsOnly(target)) {
+            try { window.dispatchEvent(new CustomEvent('fs-write-protected', { detail: { appId, path: target } })); } catch { /* noop */ }
+            return false;
+        }
 
         if (!check(path)) return false;
 

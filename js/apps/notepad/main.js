@@ -41,7 +41,10 @@ const Notepad = (() => {
 
     function launch(filePath, fileName) {
         const title = fileName ? `${fileName} - Notepad` : 'Untitled - Notepad';
-        const existingContent = filePath ? (FileSystem.readFile(filePath) || '') : '';
+        // Text may be inline or a blob (\Windows and builtin app folders are
+        // blob references); the blob is read asynchronously below.
+        const blobBacked = !!filePath && FileSystem.isBlobFile(filePath);
+        const existingContent = filePath && !blobBacked ? (FileSystem.readFile(filePath) || '') : '';
 
         const win = WindowManager.createWindow('notepad', title, icon, getContent(), { width: 650, height: 450 });
         const textarea = win.element.querySelector('.notepad-textarea');
@@ -52,6 +55,14 @@ const Notepad = (() => {
 
         textarea.value = existingContent;
         updateStatus(textarea, status);
+
+        if (blobBacked) {
+            FileSystem.readTextFile(filePath).then(text => {
+                if (text === null || textarea.value !== '') return; // user already typing
+                textarea.value = text;
+                updateStatus(textarea, status);
+            });
+        }
 
         let wordWrap = false;
         let zoomLevel = 100;
@@ -302,13 +313,14 @@ const Notepad = (() => {
             icon: '📄',
             action: () => {
                 const path = Users.home(['Documents', name]);
-                const content = FileSystem.readFile(path) || '';
-                textarea.value = content;
-                titleEl.textContent = `${name} - Notepad`;
-                // Remember the real path, otherwise Ctrl+S wrote the opened
-                // file's content back over the previously saved document.
-                if (setFilePath) setFilePath(path);
-                updateStatus(textarea, win.element.querySelector('.notepad-status'));
+                FileSystem.readTextFile(path).then(content => {
+                    textarea.value = content || '';
+                    titleEl.textContent = `${name} - Notepad`;
+                    // Remember the real path, otherwise Ctrl+S wrote the opened
+                    // file's content back over the previously saved document.
+                    if (setFilePath) setFilePath(path);
+                    updateStatus(textarea, win.element.querySelector('.notepad-status'));
+                });
             }
         }));
 

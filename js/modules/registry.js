@@ -712,8 +712,28 @@ const Registry = (() => {
         read();
     }
 
+    // Factory reset: forget every hive and every profile, and drop the store
+    // file. Clearing only the file would not be enough — the whole store is
+    // held in memory, so the next write (SystemConfig's defaults, the package
+    // scan, ...) would put the old machine back on disk. The OS rebuilds what
+    // a fresh one needs as it boots: app registrations from the package scan,
+    // shell defaults from SystemConfig, file types from FileAssociations, the
+    // display settings from their defaults, the migration markers as their
+    // migrations run again.
+    function factoryReset() {
+        store = emptyStore();
+        loaded = true;
+        registeredCache = null;
+        asShell(() => {
+            try {
+                if (FileSystem.itemExists(REG_FILE)) FileSystem.permanentDelete(REG_FILE);
+            } catch (e) { /* in-memory reset still stands */ }
+        });
+        return true;
+    }
+
     return {
-        init, refresh, hives: () => HIVES.map(h => ({ ...h })), kinds: () => ({ ...KINDS }),
+        init, refresh, factoryReset, hives: () => HIVES.map(h => ({ ...h })), kinds: () => ({ ...KINDS }),
         parsePath, formatPath, displayPath, DEFAULT_VALUE,
         keyInfo, keys, values, get, getString, getObject, setObject,
         // Unchecked readers, for the OS's own bookkeeping (the registry reads

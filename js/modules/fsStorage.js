@@ -46,6 +46,13 @@ const opfsBackend = {
     id: 'opfs',
     limited: false,
 
+    // Whether the snapshot is known to exist on disk. Once it does, every
+    // save first checks that it is still there: a snapshot that vanished
+    // means the browser storage was cleared under the running OS, and
+    // rewriting it would resurrect the data the user just deleted. The save
+    // then reports 'lost' and FileSystem starts over from the defaults.
+    treeKnown: false,
+
     async loadTree() {
         let text;
         try {
@@ -54,7 +61,9 @@ const opfsBackend = {
             return null;
         }
         try {
-            return JSON.parse(text);
+            const tree = JSON.parse(text);
+            this.treeKnown = true;
+            return tree;
         } catch (e) {
             return null;
         }
@@ -62,7 +71,15 @@ const opfsBackend = {
 
     async saveTree(tree) {
         try {
+            if (this.treeKnown) {
+                const probe = await OpfsClient.stat(TREE_PATH);
+                if (probe && probe.exists === false) {
+                    this.treeKnown = false;
+                    return 'lost';
+                }
+            }
             await OpfsClient.writeFile(TREE_PATH, JSON.stringify(tree));
+            this.treeKnown = true;
             return true;
         } catch (e) {
             console.error('FileSystem: OPFS save failed:', e && e.message);

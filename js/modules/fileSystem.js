@@ -117,7 +117,30 @@ const FileSystem = (() => {
     // whether the bytes reached disk. Use flushAsync() when you can await.
     function persistTree() {
         if (!backend) return Promise.resolve(false);
-        return Promise.resolve(backend.saveTree(root)).catch(() => false);
+        return Promise.resolve(backend.saveTree(root)).then((result) => {
+            if (result === 'lost') handleStorageLost();
+            return result === true;
+        }).catch(() => false);
+    }
+
+    // The snapshot file disappeared from browser storage while the OS was
+    // running - the user cleared the site data / "deleted everything in
+    // OPFS". Writing the in-memory tree back would resurrect exactly what
+    // they deleted, so the OS starts over instead: the tree is reset, the
+    // shell is told (js/main.js runs the factory reset and reloads), and a
+    // fresh snapshot is written from the defaults.
+    let storageLost = false;
+    function handleStorageLost() {
+        if (storageLost) return;
+        storageLost = true;
+        root = getDefaultFS();
+        persistTree(); // treeKnown is false now: write the fresh snapshot
+        try {
+            window.dispatchEvent(new CustomEvent('fs-storage-lost'));
+        } catch (e) { /* listener env without window */ }
+    }
+    function hasStorageLost() {
+        return storageLost;
     }
 
     function save(immediate = false) {
@@ -340,6 +363,20 @@ const FileSystem = (() => {
         return blob;
     }
 
+    // The text of a file, wherever its bytes live. Everything in the
+    // read-only \Windows mirror (and every builtin app folder) is stored as a
+    // blob reference, so plain readFile() returns null for it; readers that
+    // open arbitrary files must use this. Resolves null when the file does
+    // not exist or its bytes are gone.
+    async function readTextFile(path) {
+        const node = getNode(path);
+        if (!node || node.type !== 'file') return null;
+        if (!node.blobRef) return node.content ?? null;
+        const blob = await readFileBlob(path);
+        if (!blob) return null;
+        try { return await blob.text(); } catch (e) { return null; }
+    }
+
     function writeFile(path, content) {
         const node = getNode(path);
         if (!node || node.type !== 'file') return false;
@@ -529,14 +566,16 @@ const FileSystem = (() => {
         return allowed(path) && writeAllowed(path);
     }
 
-    return { setAccessChecker, setWriteChecker, init, save, flush, flushAsync, backendId, serializedSize, storageInfo, resetToDefault, isReadOnly,
+    return { setAccessChecker, setWriteChecker, init, save, flush, flushAsync, backendId, serializedSize, storageInfo, resetToDefault, isReadOnly, hasStorageLost,
         // Guarded public surface: every path-reaching operation consults the
         // access checker first. Internal implementations above stay unguarded
         // so shell internals (recycle bin bookkeeping, migrations) can't be
         // blocked by their own guard.
+        canRead: (p) => allowed(p),
         getNode: (p) => allowed(p) ? getNode(p) : null,
         getChildren: (p) => allowed(p) ? getChildren(p) : [],
         readFile: (p) => allowed(p) ? readFile(p) : null,
+        readTextFile: async (p) => allowed(p) ? readTextFile(p) : null,
         writeFile: (p, c) => canWrite(p) ? writeFile(p, c) : false,
         createFile: (p, n, c, e) => canWrite([...p, n]) ? createFile(p, n, c, e) : false,
         createFolder: (p, n) => canWrite([...p, n]) ? createFolder(p, n) : false,
