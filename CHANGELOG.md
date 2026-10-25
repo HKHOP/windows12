@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.5.0] - 2026-10-25
+
+### Added
+- **Eleven more games in the Microsoft Store**, each an embedded client with its own iframe window and the Reload / Open in Browser toolbar: **Cut the Rope: DX**, **NFS: Most Wanted**, **NFS: Underground 2** (gamepad required), **Minecraft Web Client**, **Dude, Stop**, **Counter-Strike**, **Lethal Company**, **GTA III**, **Among Us**, **PEAK** and **OneShot: World Machine Edition**.
+- **Every tile uses the game site's own artwork**: the favicon (or touch icon) published by the game's page, and wasm.rip's key art for its ports, since that host ships no per-game favicon.
+
 ## [15.4.0] - 2026-10-25
 
 ### Added
