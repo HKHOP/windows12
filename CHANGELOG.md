@@ -4,6 +4,16 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.7.0] - 2026-10-25
+
+### Added
+- **A Fullscreen button on every embedded game** — all 27 Store games that run in an iframe (**Half-Life**, **Angry Birds**, **CS Surf**, **Diablo**, **DOOM**, **Happy Wheels**, **Skate 3**, **Cut the Rope: DX**, **NFS: Most Wanted**, **NFS: Underground 2**, **Minecraft Web**, **Dude, Stop**, **Counter-Strike**, **Lethal Company**, **GTA III**, **Among Us**, **PEAK**, **OneShot: WME**, **Brotato**, **Baldi's Birthday Bash**, **Bendy and the Ink Machine**, **Cuphead**, **Granny 3**, **Hill Climb Racing**, **Crashout Crew**, **Toaster Ball** and **There Is No Game: Wrong Dimension**) now carry a Fullscreen button in their toolbar, next to Reload and Open in Browser.
+- **`F11` toggles fullscreen**, `Esc` leaves it, and on a phone the **Back gesture** leaves fullscreen instead of closing or navigating the OS away.
+- **`js/modules/gameFullscreen.js`**, one shared controller for every game window: real browser fullscreen of the window element (taskbar and other windows covered), with the window maximized instead when the browser refuses or does not support fullscreen (iOS Safari).
+
+### Changed
+- **The game toolbar no longer squeezes out the button labels.** The control hint now truncates with an ellipsis on narrow windows, so Fullscreen, Reload and Open in Browser stay readable at any window width.
+
 ## [15.6.0] - 2026-10-25
 
 ### Added
