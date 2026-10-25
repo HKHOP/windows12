@@ -1,0 +1,31 @@
+{
+  "manifestVersion": 1,
+  "id": "doom",
+  "uuid": "815bace3-6e11-40b1-adb4-52cd4c1253ea",
+  "name": "DOOM",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": ["network"],
+  "store": {
+    "developer": "id Software",
+    "category": "Games",
+    "rating": 4.9,
+    "reviews": 21430,
+    "description": "The 1993 demon-slaying classic, running in the browser through the Internet Archive's DOS emulator. Rip through the Phobos base with a pistol, a shotgun and a chainsaw until the walls stop moving.",
+    "features": [
+      "The original shareware campaign, episode 1",
+      "WASD / arrows to move, Ctrl to fire, Space to open doors",
+      "Runs in the Internet Archive's DOS emulator",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      { "bg": "linear-gradient(135deg, #180705, #e25822)", "text": "Knee-Deep in the Dead" },
+      { "bg": "linear-gradient(135deg, #e25822, #180705)", "text": "Rip and Tear" }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "13+"
+  }
+}

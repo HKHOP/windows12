@@ -1,0 +1,31 @@
+{
+  "manifestVersion": 1,
+  "id": "angryBirds",
+  "uuid": "36d632e8-f5c0-4b14-b19c-6736cfdcc4c7",
+  "name": "Angry Birds Online",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": ["network"],
+  "store": {
+    "developer": "Rovio Entertainment",
+    "category": "Games",
+    "rating": 4.6,
+    "reviews": 8214,
+    "description": "The original bird-flinging puzzler, playable straight from the Internet Archive. Pull back the slingshot, read the tower and knock every pig out with the right angle and the right bird.",
+    "features": [
+      "Classic slingshot physics: aim, pull, release",
+      "Dozens of levels of pig-fort demolition",
+      "Playable in the browser via the Internet Archive's emulator",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      { "bg": "linear-gradient(135deg, #7cc4e8, #f2c94c)", "text": "Slingshot Time" },
+      { "bg": "linear-gradient(135deg, #f2c94c, #7cc4e8)", "text": "Bring Down the Fort" }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "7+"
+  }
+}

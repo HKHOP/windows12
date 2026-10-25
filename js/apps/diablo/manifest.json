@@ -1,0 +1,31 @@
+{
+  "manifestVersion": 1,
+  "id": "diablo",
+  "uuid": "c9bb0bc3-8eb3-4208-9780-16eb8a234d52",
+  "name": "Diablo",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": ["network"],
+  "store": {
+    "developer": "Blizzard Entertainment",
+    "category": "Games",
+    "rating": 4.8,
+    "reviews": 5620,
+    "description": "The 1996 gothic action RPG, ported to the browser. Pick a warrior, rogue or sorcerer and descend through the cathedral beneath Tristram, clearing the labyrinth one floor at a time.",
+    "features": [
+      "Three classes with their own stats and play styles",
+      "Procedurally generated cathedral floors, loot and monsters",
+      "Point-and-click combat and inventory management",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      { "bg": "linear-gradient(135deg, #0b0708, #a11d1d)", "text": "Tristram Cathedral" },
+      { "bg": "linear-gradient(135deg, #a11d1d, #0b0708)", "text": "Deeper Still" }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "13+"
+  }
+}

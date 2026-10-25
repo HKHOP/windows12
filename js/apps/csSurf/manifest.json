@@ -1,0 +1,31 @@
+{
+  "manifestVersion": 1,
+  "id": "csSurf",
+  "uuid": "a3c8d9c0-fb9c-4a5c-8b36-ad625d16597f",
+  "name": "CS Surf",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": ["network"],
+  "store": {
+    "developer": "surfd.net",
+    "category": "Games",
+    "rating": 4.7,
+    "reviews": 4310,
+    "description": "Counter-Strike surf in the browser. Ride ramps, chain air-strafes and keep your speed across custom surf maps — no download, no server browser, just jump in and surf.",
+    "features": [
+      "Classic CS surf movement: air-strafe, ramp glide, speed control",
+      "Custom surf maps with ramps, gaps and staged routes",
+      "Runs entirely in the window — no Steam, no download",
+      "Embedded client — no account needed",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      { "bg": "linear-gradient(135deg, #0f2027, #a5d8db)", "text": "Ride the Ramp" },
+      { "bg": "linear-gradient(135deg, #a5d8db, #0f2027)", "text": "Keep Your Speed" }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "13+"
+  }
+}

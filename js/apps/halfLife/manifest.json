@@ -1,0 +1,31 @@
+{
+  "manifestVersion": 1,
+  "id": "halfLife",
+  "uuid": "6921acc7-3d54-42f6-be04-960a460c1c2f",
+  "name": "Half-Life",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": ["network"],
+  "store": {
+    "developer": "Valve",
+    "category": "Games",
+    "rating": 4.9,
+    "reviews": 12840,
+    "description": "The 1998 sci-fi shooter, running in the browser through a WebAssembly port of Xash3D. Wake up in Black Mesa, pick up a crowbar and fight through the resonance cascade to the Xen borderworld.",
+    "features": [
+      "The full single-player campaign — Black Mesa to Xen",
+      "Mouse-look via pointer lock: click the view once to capture the mouse",
+      "WASD to move, Ctrl to crouch, Space to jump, E to use",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      { "bg": "linear-gradient(135deg, #1c1c1e, #f97316)", "text": "Black Mesa" },
+      { "bg": "linear-gradient(135deg, #f97316, #1c1c1e)", "text": "Resonance Cascade" }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "13+"
+  }
+}

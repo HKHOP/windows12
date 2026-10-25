@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs><clipPath id="tile"><rect width="64" height="64" rx="14"/></clipPath></defs>
+  <g clip-path="url(#tile)">
+    <rect width="64" height="64" rx="14" fill="#0b0708"/>
+    <image x="3.000" y="3.000" width="58.000" height="58.000" preserveAspectRatio="xMidYMid meet" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAGeSURBVFhHtZUNroMwDIN3dI7GzZjCZua6TlqoFsmCtUn89efxXq9PHKFt246IeGJsVei577vONdGZH19tpulIUcP12tsCMKUzjeIZKQjezS78zBPCxjyKM1UQUwAx4QDQEEYaGQR6cj/TvwfgIhjjmYVCOHOd7wBiAs14FdXqOdQg3rUeYxZAKZ8CoB5mOp4BXBBsvgLAPdSc/jJaACVEo1UAVQrApmo+gnAAGUQKEF8tQKgpGjsIZ66mbH4LgE3cOAO4XXMwKcCVUKxUDSrzDMIBdJRsmDVWE/2tUg+GuFaOd0fO42yIcTbXukItAIqrJi7vgTHUAvAKTXKqu/mkFoDP3iQvKen5AwiFOSBwvpWq3cJckdPEOQhjDXc0DMvjapyYewBtoLebhUBeYZTJAzgQBsIT5pyrPZzch+gEwKc4k+6I3pERAP4PlACQFsMAZ34XgM2nABwEnztAzroj0nsA/r0EgEa8cobAE0B8L5YAAOEA+CIqhO7ENMBIMHKXcQSQaDrOAhgzDAz5/anJKJrGvAsAEvO/hq5SdSveQjwjeuxCALkAAAAASUVORK5CYII="/>
+  </g>
+</svg>

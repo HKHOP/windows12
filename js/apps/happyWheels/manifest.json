@@ -1,0 +1,31 @@
+{
+  "manifestVersion": 1,
+  "id": "happyWheels",
+  "uuid": "32bad5a0-df7d-402d-829f-347f984fb29b",
+  "name": "Happy Wheels",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": ["network"],
+  "store": {
+    "developer": "Totaljerkface",
+    "category": "Games",
+    "rating": 4.5,
+    "reviews": 9120,
+    "description": "The infamous physics ragdoll game. Pick a rider and a vehicle, then throw yourself down the track and try to reach the finish with as much of yourself intact as possible.",
+    "features": [
+      "Physics ragdoll carnage with vehicles and traps",
+      "Arrow keys to accelerate and lean, Space to eject",
+      "Hundreds of obstacle courses built to hurt",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      { "bg": "linear-gradient(135deg, #141a2a, #f97316)", "text": "Wheelchair Run" },
+      { "bg": "linear-gradient(135deg, #f97316, #141a2a)", "text": "Reach the Finish" }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "13+"
+  }
+}

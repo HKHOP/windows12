@@ -40,8 +40,8 @@ const CACHE_NAME = 'w12-shell-v1';
 const SHELL_FILES = ['./', './index.html', './manifest.json', './favicon.svg', './js/apps/registry.js'];
 
 // >>> w12:core
-const CORE_VERSION = '15.3.4';
-const CORE_HASH = '8fda7dd29c2f95b9';
+const CORE_VERSION = '15.4.0';
+const CORE_HASH = '3b5f4865c6662726';
 const CORE_PACKAGE = './w12-core.pkg';
 const CORE_FILE_COUNT = 177;
 const CORE_BYTES = 1812832;
@@ -49,6 +49,7 @@ const CORE_BYTES = 1812832;
 
 // >>> w12:apps-dist
 const APP_DIST = {
+    "angryBirds": "store",
     "apexDrive": "store",
     "appStore": "builtin",
     "archiver": "store",
@@ -59,12 +60,17 @@ const APP_DIST = {
     "chess": "store",
     "clock": "builtin",
     "copilotButBetter": "store",
+    "csSurf": "store",
     "devScope": "store",
+    "diablo": "store",
     "discord": "store",
+    "doom": "store",
     "engine3d": "store",
     "export": "store",
     "fileExplorer": "builtin",
     "game2048": "store",
+    "halfLife": "store",
+    "happyWheels": "store",
     "markdownStudio": "store",
     "mediaPlayer": "builtin",
     "minecraft": "store",
@@ -86,6 +92,7 @@ const APP_DIST = {
     "roblox": "store",
     "sampleApp": "store",
     "settings": "builtin",
+    "skate3": "store",
     "sledgePoint": "store",
     "slope2": "store",
     "slope3": "store",
