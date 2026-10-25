@@ -4,6 +4,22 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.8.0] - 2026-10-25
+
+### Added
+- **`js/modules/factoryReset.js`**: one reset implementation, used by Settings > System > Recovery and by the new storage-loss recovery. It clears the packages, the registry, the filesystem, the accounts and the settings in the right order (the registry and `SystemConfig` keep their own copies in memory, so resetting the tree alone was not enough).
+- **`FileSystem.readTextFile()`**: resolves a file's text wherever its bytes live, including the blob-backed files of `\Windows` and the builtin app folders.
+- **A clear message for a folder an app may not read**: File Explorer now says "You don't have permission to view this folder" instead of claiming an OS folder is empty.
+
+### Changed
+- **The OS's own apps may read the OS zones** (`\Windows` is separate and always readable): File Explorer can browse `\system`, the Recycle Bin and the registry store, while a downloaded app still cannot. Writes to those zones remain refused for everyone; their owning modules write them as shell-owned work.
+- **File Explorer and Notepad open blob-backed text files** (`\Windows` and builtin app folders) through the asynchronous path, so their contents are shown instead of an empty document.
+
+### Fixed
+- **Factory reset did not clear the registry.** The registry held the whole machine in memory, so the next write put the old hives back on disk. The reset now wipes every hive and profile explicitly and rebuilds only what a fresh machine has (app registrations, shell defaults, file types, the display configuration).
+- **Deleting everything in OPFS while the OS was running brought the data back.** The filesystem now notices that its snapshot vanished, starts over from the default tree and lets the shell run the factory reset and reload, instead of writing the old session back.
+- **The `\Windows` folder, the Recycle Bin and several `\system` folders could not be read**, and text files inside `\Windows` opened blank.
+
 ## [15.7.0] - 2026-10-25
 
 ### Added
