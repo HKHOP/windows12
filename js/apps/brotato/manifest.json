@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "brotato",
+  "uuid": "9f7f16b5-3aaf-45b7-80bb-c75da5627ff1",
+  "name": "Brotato",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Blobfish",
+    "category": "Games",
+    "rating": 4.8,
+    "reviews": 6210,
+    "description": "A top-down arena shooter roguelite where you play a potato wielding up to six weapons at once. Survive the waves, stack upgrades and build the run that finally reaches wave 20.",
+    "features": [
+      "Wave-based roguelite: survive 20 waves per run",
+      "Six weapon slots with hundreds of items and upgrades",
+      "WASD to move — your weapons fire on their own",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #2a2226, #f97316)",
+        "text": "Survive the Waves"
+      },
+      {
+        "bg": "linear-gradient(135deg, #f97316, #2a2226)",
+        "text": "Build the Run"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "9+"
+  }
+}

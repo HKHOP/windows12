@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "thereIsNoGame",
+  "uuid": "a8dfb0e7-b2a0-4792-94ad-f859976c601b",
+  "name": "There Is No Game: Wrong Dimension",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Draw Me A Pixel",
+    "category": "Games",
+    "rating": 4.9,
+    "reviews": 4560,
+    "description": "A point-and-click comedy about a game that insists it isn't one. Argue with the narrator, break the fourth wall and escape through the Wrong Dimension.",
+    "features": [
+      "Fourth-wall-breaking point-and-click puzzles",
+      "A narrator who would rather you left",
+      "Mouse to interact — click everything twice",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #2a2438, #7c3aed)",
+        "text": "There Is No Game"
+      },
+      {
+        "bg": "linear-gradient(135deg, #7c3aed, #2a2438)",
+        "text": "Wrong Dimension"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "9+"
+  }
+}

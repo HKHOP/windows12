@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "baldisBirthday",
+  "uuid": "c3abd9a5-99e7-4a9f-957b-58c99dae1114",
+  "name": "Baldi's Basics: Birthday Bash",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Basically, Games!",
+    "category": "Games",
+    "rating": 4.5,
+    "reviews": 3820,
+    "description": "The one-year birthday bash for Baldi's Basics. Collect the notebooks, survive Baldi's math quiz and dodge the rest of the school in this celebratory remix of the original.",
+    "features": [
+      "Collect notebooks while Baldi hunts you down",
+      "Run, hide and use items to slow him",
+      "WASD + mouse, Shift to run, E to use",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #f2f2f2, #1f9e3a)",
+        "text": "Birthday Bash"
+      },
+      {
+        "bg": "linear-gradient(135deg, #1f9e3a, #f2f2f2)",
+        "text": "Every Notebook"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "7+"
+  }
+}

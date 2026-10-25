@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "toasterBall",
+  "uuid": "0fcb7584-5172-4494-a10e-bf94149a8947",
+  "name": "Toaster Ball",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Les Crafteurs",
+    "category": "Games",
+    "rating": 4.7,
+    "reviews": 2180,
+    "description": "A local-multiplayer sports game where the players are toasters and the ball is bread. One button, absurd physics, and friendships on the line.",
+    "features": [
+      "One-button toaster sports, local multiplayer",
+      "Physics comedy with bread as the ball",
+      "A/D to move, W to jump, Space to launch toast",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #2a35b0, #ef4444)",
+        "text": "Toasters vs Bread"
+      },
+      {
+        "bg": "linear-gradient(135deg, #ef4444, #2a35b0)",
+        "text": "Local Multiplayer"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "7+"
+  }
+}

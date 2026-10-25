@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "granny3",
+  "uuid": "8314787b-487c-4d38-a748-e206846c019e",
+  "name": "Granny 3",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "DVloper",
+    "category": "Games",
+    "rating": 4.5,
+    "reviews": 9810,
+    "description": "Granny and Grandpa have a new house and a shorter fuse. Sneak through the rooms, find the keys and get out before the five days are up.",
+    "features": [
+      "Stealth horror across a locked house",
+      "Find keys, tools and the way out",
+      "WASD + mouse, E to interact, Ctrl to crouch",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #0b0f14, #4b5563)",
+        "text": "The New House"
+      },
+      {
+        "bg": "linear-gradient(135deg, #4b5563, #0b0f14)",
+        "text": "Five Days to Escape"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "13+"
+  }
+}

@@ -40,8 +40,8 @@ const CACHE_NAME = 'w12-shell-v1';
 const SHELL_FILES = ['./', './index.html', './manifest.json', './favicon.svg', './js/apps/registry.js'];
 
 // >>> w12:core
-const CORE_VERSION = '15.5.0';
-const CORE_HASH = '34e9a9e6a04bd1f7';
+const CORE_VERSION = '15.6.0';
+const CORE_HASH = 'd7b463f1720a29a5';
 const CORE_PACKAGE = './w12-core.pkg';
 const CORE_FILE_COUNT = 177;
 const CORE_BYTES = 1812832;
@@ -54,6 +54,9 @@ const APP_DIST = {
     "apexDrive": "store",
     "appStore": "builtin",
     "archiver": "store",
+    "baldisBirthday": "store",
+    "bendyInkMachine": "store",
+    "brotato": "store",
     "browser": "builtin",
     "calculator": "builtin",
     "calendar": "builtin",
@@ -62,7 +65,9 @@ const APP_DIST = {
     "clock": "builtin",
     "copilotButBetter": "store",
     "counterStrike": "store",
+    "crashoutCrew": "store",
     "csSurf": "store",
+    "cuphead": "store",
     "cutTheRopeDx": "store",
     "devScope": "store",
     "diablo": "store",
@@ -73,9 +78,11 @@ const APP_DIST = {
     "export": "store",
     "fileExplorer": "builtin",
     "game2048": "store",
+    "granny3": "store",
     "gta3": "store",
     "halfLife": "store",
     "happyWheels": "store",
+    "hillClimbRacing": "store",
     "lethalCompany": "store",
     "markdownStudio": "store",
     "mediaPlayer": "builtin",
@@ -115,6 +122,8 @@ const APP_DIST = {
     "taskManager": "builtin",
     "templeRun2": "store",
     "terminal": "builtin",
+    "thereIsNoGame": "store",
+    "toasterBall": "store",
     "todoTasks": "store",
     "tunnelRush": "store",
     "unitConverter": "store",

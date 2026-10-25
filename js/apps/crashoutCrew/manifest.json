@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "crashoutCrew",
+  "uuid": "9ccadf1d-aa6f-4ba2-b1e6-23f4408ad790",
+  "name": "Crashout Crew",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Aggro Crab",
+    "category": "Games",
+    "rating": 4.4,
+    "reviews": 1240,
+    "description": "A chaotic little demolition derby of toy cars and big tempers. Pick a ride, smash the arena and be the last one running.",
+    "features": [
+      "Toy-car demolition derby",
+      "Smash, ram and ragdoll the other drivers",
+      "WASD / arrows to drive, Space to boost",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #b9c3e8, #7c3aed)",
+        "text": "Pick Your Ride"
+      },
+      {
+        "bg": "linear-gradient(135deg, #7c3aed, #b9c3e8)",
+        "text": "Last One Running"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "9+"
+  }
+}

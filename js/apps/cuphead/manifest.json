@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "cuphead",
+  "uuid": "fc8c5681-c77b-4649-a61a-33f3027091b4",
+  "name": "Cuphead",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Studio MDHR",
+    "category": "Games",
+    "rating": 4.9,
+    "reviews": 12430,
+    "description": "The run-and-gun boss rush in 1930s cartoon style. Dodge, parry and shoot your way across Inkwell Isle — and don't deal with the devil.",
+    "features": [
+      "Hand-animated 1930s cartoon bosses and levels",
+      "Run-and-gun stages plus all the boss fights",
+      "Arrows / WASD to move, Z to jump, X to shoot",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #f5c518, #b91c1c)",
+        "text": "Don't Deal with the Devil"
+      },
+      {
+        "bg": "linear-gradient(135deg, #b91c1c, #f5c518)",
+        "text": "Inkwell Isle"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "9+"
+  }
+}

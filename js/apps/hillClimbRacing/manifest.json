@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "hillClimbRacing",
+  "uuid": "f3f25a38-7238-4069-b8ed-bc3095eb833f",
+  "name": "Hill Climb Racing",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Fingersoft",
+    "category": "Games",
+    "rating": 4.7,
+    "reviews": 15230,
+    "description": "The one-thumb physics racer. Balance the car over impossible hills, grab coins and try not to flip before the next checkpoint.",
+    "features": [
+      "Physics driving over endless hills",
+      "Coins, upgrades and vehicle unlocks",
+      "Arrow keys or touch: right for gas, left to brake",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #8ec5e8, #4a8f3c)",
+        "text": "Up the Hill"
+      },
+      {
+        "bg": "linear-gradient(135deg, #4a8f3c, #8ec5e8)",
+        "text": "Mind the Flip"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "3+"
+  }
+}

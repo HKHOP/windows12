@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "bendyInkMachine",
+  "uuid": "aa1d81b5-4940-4e0e-aa67-489e04ed3eb7",
+  "name": "Bendy and the Ink Machine",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Joey Drew Studios",
+    "category": "Games",
+    "rating": 4.6,
+    "reviews": 7140,
+    "description": "Descend into the old animation studio and find out what the ink is still drawing. A first-person cartoon horror story told in chapters.",
+    "features": [
+      "First-person cartoon horror across the studio",
+      "Puzzles, audio tapes and the ink demon",
+      "WASD + mouse, E to interact, Shift to sprint",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #120d06, #b8860b)",
+        "text": "Joey Drew Studios"
+      },
+      {
+        "bg": "linear-gradient(135deg, #b8860b, #120d06)",
+        "text": "The Ink Demon"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "13+"
+  }
+}
