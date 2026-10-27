@@ -25,6 +25,7 @@ import FSGuard from './modules/fsGuard.js';
 import UAC from './modules/uac.js';
 import LoginScreen from './modules/loginScreen.js';
 import IframeViewportFix from './modules/iframeViewportFix.js';
+import IframeHibernation from './modules/iframeHibernation.js';
 import Sessions from './modules/sessions.js';
 import LockScreen from './modules/lockScreen.js';
 import WindowState from './modules/windowState.js';
@@ -150,6 +151,11 @@ async function bootShell() {
     // iPhone/iPad Safari iframe letterboxing fix — must be live before the
     // first window with an iframe is created; no-op on other engines.
     IframeViewportFix.init();
+
+    // iOS Safari reloads the whole page when its renderer runs out of memory,
+    // so on Apple touch devices a hidden window releases its embedded
+    // documents instead of keeping the game engine resident. No-op elsewhere.
+    IframeHibernation.init();
 
     // Concurrent sessions: every window is tagged with the session that
     // created it, and only the foreground session's windows are visible.

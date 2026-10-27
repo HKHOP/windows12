@@ -1,4 +1,5 @@
 import WindowState from './windowState.js';
+import IframeHibernation from './iframeHibernation.js';
 
 const WindowManager = (() => {
     let windows = new Map();
@@ -91,6 +92,11 @@ const WindowManager = (() => {
         // A session/desktop switch hides the previously focused window, so
         // the newly visible desktop ended up with no active window at all.
         if (!focusedVisible && top) focusWindow(top.id);
+
+        // Embedded documents follow the same visibility: a window the OS just
+        // hid releases its iframes on Apple touch devices (iOS Safari reloads
+        // the whole page when its memory runs out - see iframeHibernation.js).
+        try { IframeHibernation.schedule(); } catch (e) { /* optional */ }
     }
 
 

@@ -933,6 +933,181 @@ check('app.tray is bound to the app id', (() => {
     return ok;
 })());
 
+console.log('[ios iframe games]');
+// iOS Safari runs the whole page in one WebContent process and silently
+// reloads the tab when that process runs out of memory — the OS appears to
+// restart in the middle of a game. A window the OS is not showing must
+// therefore stop keeping its embedded game engine resident on Apple touch
+// devices, and it must get the frame back when it is shown again.
+const hibernationOff = (await import('../../js/modules/iframeHibernation.js?ios-off')).default;
+check('a non-Apple device never hibernates frames', (() => {
+    const had = Object.prototype.hasOwnProperty.call(globalThis.navigator, 'userAgent');
+    globalThis.navigator.userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)';
+    const inert = hibernationOff.active === false && hibernationOff.init() === false;
+    if (had) delete globalThis.navigator.userAgent;
+    return inert;
+})());
+
+// Just enough fake DOM for the park/wake bookkeeping: a window with a game
+// frame sitting between two siblings.
+function iosFrameBox(visible) {
+    function place(target, child, next) {
+        child.parentElement = target;
+        child.parentNode = target;
+        child.nextSibling = next;
+        child.isConnected = true;
+    }
+    const win = {
+        nodeType: 1,
+        tagName: 'DIV',
+        isConnected: true,
+        visible,
+        getClientRects() { return this.visible ? [{}] : []; }
+    };
+    const parent = {
+        nodeType: 1,
+        tagName: 'DIV',
+        isConnected: true,
+        children: [],
+        querySelectorAll() { return this.children.filter((c) => c.tagName === 'IFRAME'); },
+        appendChild(child) { this.children.push(child); place(this, child, null); return child; },
+        insertBefore(child, next) {
+            const at = this.children.indexOf(next);
+            if (at >= 0) this.children.splice(at, 0, child);
+            else this.children.push(child);
+            place(this, child, next || null);
+            return child;
+        }
+    };
+    const sibling = (name) => ({
+        nodeType: 1, tagName: 'SPAN', isConnected: true, parentElement: parent,
+        parentNode: parent, nextSibling: null, textContent: name
+    });
+    const before = sibling('before');
+    const after = sibling('after');
+    const frame = {
+        nodeType: 1,
+        tagName: 'IFRAME',
+        isConnected: true,
+        parentElement: parent,
+        parentNode: parent,
+        nextSibling: after,
+        win,
+        style: { flex: '', width: '', height: '', minWidth: '', minHeight: '', zoom: '' },
+        clientWidth: 0,
+        clientHeight: 0,
+        closest(sel) { return sel === '.app-window' ? win : null; },
+        querySelectorAll() { return []; },
+        getAttribute() { return null; },
+        setAttribute() {},
+        removeAttribute() {},
+        remove() {
+            const p = this.parentElement;
+            if (p) {
+                const at = p.children.indexOf(this);
+                if (at >= 0) p.children.splice(at, 1);
+            }
+            this.parentElement = null;
+            this.parentNode = null;
+            this.isConnected = false;
+            return this;
+        }
+    };
+    before.nextSibling = frame;
+    parent.children.push(before, frame, after);
+    return { win, parent, frame, before, after };
+}
+
+const UA_IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
+const savedUA = globalThis.navigator.userAgent;
+const savedMutationObserver = globalThis.MutationObserver;
+const savedComputedStyle = globalThis.getComputedStyle;
+let observedCallback = null;
+globalThis.MutationObserver = class {
+    constructor(cb) { observedCallback = cb; }
+    observe() {}
+    disconnect() {}
+};
+// iframeViewportFix measures the body zoom while it re-sizes a woken frame.
+globalThis.getComputedStyle = () => ({ zoom: '1' });
+globalThis.navigator.userAgent = UA_IPHONE;
+const hibernation = (await import('../../js/modules/iframeHibernation.js?ios-live')).default;
+const hibernationEnabled = hibernation.init();
+if (savedUA === undefined) delete globalThis.navigator.userAgent;
+else globalThis.navigator.userAgent = savedUA;
+const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
+
+const hidden = iosFrameBox(false);
+observedCallback([{ addedNodes: [hidden.frame] }]);
+await tick();
+const parkedOk = hibernationEnabled === true
+    && hidden.frame.isConnected === false
+    && hidden.frame.parentElement === null
+    && hidden.parent.children.length === 2;
+
+const visible = iosFrameBox(true);
+observedCallback([{ addedNodes: [visible.frame] }]);
+await tick();
+const shownOk = visible.frame.isConnected === true
+    && visible.parent.children.indexOf(visible.frame) === 1;
+
+hidden.win.visible = true;
+hibernation.schedule();
+await tick();
+const wakeOk = hidden.frame.isConnected === true
+    && hidden.parent.children.length === 3
+    && hidden.parent.children[1] === hidden.frame
+    && hidden.frame.nextSibling === hidden.after;
+
+hidden.win.visible = false;
+hibernation.schedule();
+await tick();
+const parkedAgain = hidden.frame.isConnected === false;
+hidden.win.isConnected = false;
+hibernation.schedule();
+await tick();
+const closeOk = parkedAgain
+    && hidden.frame.isConnected === false
+    && hidden.parent.children.length === 2;
+
+if (savedMutationObserver === undefined) delete globalThis.MutationObserver;
+else globalThis.MutationObserver = savedMutationObserver;
+if (savedComputedStyle === undefined) delete globalThis.getComputedStyle;
+else globalThis.getComputedStyle = savedComputedStyle;
+
+check('frames of a hidden window are parked (detached) on iPhone', parkedOk);
+check('frames of a shown window keep running', shownOk);
+check('a restored window gets its frame back in the same slot', wakeOk);
+check('a closed window drops its parked frame', closeOk);
+check('visibility changes schedule a hibernation pass', (() => {
+    const src = fs.readFileSync(new URL('../../js/modules/windowManager.js', import.meta.url), 'utf8');
+    const at = src.indexOf('function applyVisibility');
+    return at >= 0 && /IframeHibernation\.schedule\(\)/.test(src.slice(at, at + 1500));
+})());
+check('the shell starts hibernation at boot', (() => {
+    const src = fs.readFileSync(new URL('../../js/main.js', import.meta.url), 'utf8');
+    return /IframeHibernation\.init\(\)/.test(src);
+})());
+check('the letterbox fixer never pins a non-frame', (() => {
+    const src = fs.readFileSync(new URL('../../js/modules/iframeViewportFix.js', import.meta.url), 'utf8');
+    return /tagName !== 'IFRAME'/.test(src);
+})());
+check('the shell document cannot be overscrolled into a Safari reload', (() => {
+    const src = fs.readFileSync(new URL('../../css/main.css', import.meta.url), 'utf8');
+    const at = src.indexOf('html, body {');
+    return at >= 0 && /overscroll-behavior:\s*none/.test(src.slice(at, at + 400));
+})());
+check('no embedded app can navigate the OS page away', (() => {
+    const dir = new URL('../../js/apps/', import.meta.url);
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        const main = new URL(`${entry.name}/main.js`, dir);
+        if (!fs.existsSync(main)) continue;
+        if (/allow-top-navigation/.test(fs.readFileSync(main, 'utf8'))) return false;
+    }
+    return true;
+})());
+
 console.log('[factory reset + OS zones]');
 const GuardMod = (await import('../../js/modules/fsGuard.js')).default;
 check('the OS\'s own apps may read the OS zones', (() => {

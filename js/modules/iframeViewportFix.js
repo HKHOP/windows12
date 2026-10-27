@@ -118,6 +118,11 @@ const IframeViewportFix = (() => {
     }
 
     function sync(frame) {
+        // Only real frames are pinned. The ResizeObserver also watches each
+        // frame's PARENT, so a resize tick can arrive with a plain <div> —
+        // pinning that would freeze the app's own layout (flex:none + a fixed
+        // pixel size) and the frame would stop following its window.
+        if (!frame || frame.tagName !== 'IFRAME') return;
         if (frame.getAttribute('data-framefix') === 'off') return;
         if (!frame.isConnected) return;
         refreshZoom();
@@ -158,7 +163,17 @@ const IframeViewportFix = (() => {
 
         refreshZoom();
         resizeObserver = new ResizeObserver((entries) => {
-            for (const entry of entries) sync(entry.target);
+            for (const entry of entries) {
+                const target = entry.target;
+                if (target.tagName === 'IFRAME') {
+                    sync(target);
+                } else if (target.querySelectorAll) {
+                    // A watched PARENT changed size: its frames are pinned to a
+                    // pixel box and do not follow it on their own, so they have
+                    // to be re-measured here.
+                    target.querySelectorAll('iframe').forEach(sync);
+                }
+            }
         });
 
         const root = document.body || document.documentElement;
