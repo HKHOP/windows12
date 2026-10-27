@@ -1108,6 +1108,75 @@ check('no embedded app can navigate the OS page away', (() => {
     return true;
 })());
 
+console.log('[files settings]');
+// Settings > Files: hiding a file name extension is only safe for a type the
+// OS knows (it still says so with the icon and the app that opens it). The
+// rule lives in one module so Explorer, the desktop and Start agree.
+const FileNames = (await import('../../js/modules/fileNames.js')).default;
+const UIIconsMod = (await import('../../js/modules/uiIcons.js')).default;
+
+check('the file settings have defaults', (() => {
+    const cfg = SysCfg.getAll();
+    return cfg.showFileExtensions === true && cfg.explorerStartPage === 'home'
+        && cfg.explorerSingleClick === false && cfg.explorerQuickAccess === true;
+})());
+check('extensions show by default', (() => {
+    SysCfg.set('showFileExtensions', true);
+    return FileNames.display({ name: 'report.txt', ext: 'txt', type: 'file' }) === 'report.txt';
+})());
+let configEvents = 0;
+let configKeys = null;
+const onCfg = (e) => { configEvents++; configKeys = (e.detail && e.detail.keys) || []; };
+globalThis.addEventListener('system-config-changed', onCfg);
+SysCfg.set('showFileExtensions', false);
+globalThis.removeEventListener('system-config-changed', onCfg);
+check('turning them off broadcasts the changed key',
+    configEvents === 1 && Array.isArray(configKeys) && configKeys.includes('showFileExtensions'),
+    `${configEvents}:${JSON.stringify(configKeys)}`);
+check('a known type loses its extension', (() => {
+    const e = { name: 'report.txt', ext: 'txt', type: 'file' };
+    return FileNames.display(e) === 'report' && FileNames.display('photo.PNG') === 'photo';
+})());
+check('an unknown type keeps its extension', (() => {
+    const e = { name: 'backup.7z', ext: '7z', type: 'file' };
+    return FileNames.isKnownType('7z') === false && FileNames.display(e) === 'backup.7z';
+})());
+check('folders and dotfiles keep their names', (() => {
+    const folder = { name: 'my.folder', type: 'folder' };
+    return FileNames.display(folder) === 'my.folder'
+        && FileNames.display({ name: '.config', type: 'file' }) === '.config'
+        && FileNames.display({ name: 'noext', type: 'file' }) === 'noext';
+})());
+check('a desktop shortcut loses ".lnk"', FileNames.display({ name: 'My App.lnk', ext: 'lnk', type: 'file' }) === 'My App');
+SysCfg.set('showFileExtensions', true);
+check('turning them back on restores the full name',
+    FileNames.display({ name: 'report.txt', ext: 'txt', type: 'file' }) === 'report.txt');
+
+check('Settings has a Files page wired to the four options', (() => {
+    const src = fs.readFileSync(new URL('../../js/apps/settings/main.js', import.meta.url), 'utf8');
+    return /files: \{ name: 'Files'/.test(src)
+        && /case 'files': renderFiles\(contentEl\)/.test(src)
+        && /showFileExtensions/.test(src) && /explorerQuickAccess/.test(src)
+        && /explorerSingleClick/.test(src) && /explorerStartPage/.test(src);
+})());
+check('File Explorer reads the file settings live', (() => {
+    const src = fs.readFileSync(new URL('../../js/apps/fileExplorer/main.js', import.meta.url), 'utf8');
+    return /FileNames\.display\(entry\)/.test(src)
+        && /FILES_SETTING_KEYS = \['showFileExtensions', 'explorerQuickAccess', 'explorerSingleClick'\]/.test(src)
+        && /system-config-changed/.test(src)
+        && /explorerStartPage/.test(src) && /explorerSingleClick/.test(src)
+        && /explorerQuickAccess/.test(src);
+})());
+check('the desktop and Start menu share the label rule', (() => {
+    const desk = fs.readFileSync(new URL('../../js/modules/desktopIcons.js', import.meta.url), 'utf8');
+    const start = fs.readFileSync(new URL('../../js/modules/startMenu.js', import.meta.url), 'utf8');
+    return /FileNames\.display\(entry\)/.test(desk)
+        && /system-config-changed/.test(desk)
+        && /FileNames\.display\(child\)/.test(start)
+        && /FileNames\.display\(item\.name\)/.test(start);
+})());
+check('the Files icon exists', /<svg/.test(UIIconsMod.setting('files', 20)));
+
 console.log('[factory reset + OS zones]');
 const GuardMod = (await import('../../js/modules/fsGuard.js')).default;
 check('the OS\'s own apps may read the OS zones', (() => {

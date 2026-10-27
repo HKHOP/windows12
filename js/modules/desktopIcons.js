@@ -11,6 +11,7 @@ import Scaling from './scaling.js';
 import Sounds from './sounds.js';
 import Users from './users.js';
 import Shortcuts from './shortcuts.js';
+import FileNames from './fileNames.js';
 
 
 const DesktopIcons = (() => {
@@ -76,6 +77,12 @@ const DesktopIcons = (() => {
         // File Explorer, properties) changes the icons on this desktop.
         window.addEventListener('shortcuts-changed', () => {
             try { render(); } catch (e) { /* noop */ }
+        });
+        // Settings > Files > "Show file name extensions" changes every label.
+        window.addEventListener('system-config-changed', (e) => {
+            const keys = (e && e.detail && e.detail.keys) || [];
+            if (!keys.includes('showFileExtensions')) return;
+            try { render(); } catch (e2) { /* noop */ }
         });
         setupAppDrop();
     }
@@ -517,7 +524,7 @@ const DesktopIcons = (() => {
 
             el.innerHTML = `
                 <div style="display:flex;justify-content:center;margin-bottom:4px;">${icon}</div>
-                <div style="font-size:12px;word-break:break-all;line-height:1.3;color:white;text-shadow:0 1px 4px rgba(0,0,0,0.9),0 0px 8px rgba(0,0,0,0.5);">${entry.name}</div>
+                <div style="font-size:12px;word-break:break-all;line-height:1.3;color:white;text-shadow:0 1px 4px rgba(0,0,0,0.9),0 0px 8px rgba(0,0,0,0.5);">${FileNames.display(entry)}</div>
             `;
 
             makeDraggable(el, entry.name);

@@ -12,6 +12,7 @@ import Users from './users.js';
 import LockScreen from './lockScreen.js';
 import FileAssociations from './fileAssociations.js';
 import DesktopIcons from './desktopIcons.js';
+import FileNames from './fileNames.js';
 
 const StartMenu = (() => {
     let pinnedApps = [];
@@ -353,7 +354,9 @@ const StartMenu = (() => {
                 continue;
             }
             out.push({
-                kind: 'item', type: 'file', name: child.name, path: full,
+                // `name` stays the real file name (activity tracking, opening);
+                // `label` is what the menu shows (Settings > Files).
+                kind: 'item', type: 'file', name: child.name, label: FileNames.display(child), path: full,
                 icon: UIIcons.file(child.ext, child.name, 22),
                 open: () => openFilePath(full)
             });
@@ -395,7 +398,7 @@ const StartMenu = (() => {
         el.style.cssText = 'display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:6px;cursor:pointer;transition:background 0.12s;';
         const icon = `<div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${entry.icon || ''}</div>`;
         if (entry.kind === 'group') {
-            el.innerHTML = `${icon}<span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(entry.name)}</span><span class="start-group-chevron" style="font-size:10px;color:var(--text-secondary);transition:transform 0.15s;">&#9654;</span>`;
+            el.innerHTML = `${icon}<span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(entry.label || entry.name)}</span><span class="start-group-chevron" style="font-size:10px;color:var(--text-secondary);transition:transform 0.15s;">&#9654;</span>`;
             const kids = document.createElement('div');
             kids.style.cssText = 'display:none;margin-left:14px;padding-left:8px;border-left:1px solid var(--window-border);';
             entry.children.forEach(child => renderStartEntry(kids, child));
@@ -418,7 +421,7 @@ const StartMenu = (() => {
             return;
         }
 
-        el.innerHTML = `${icon}<span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(entry.name)}</span>`;
+        el.innerHTML = `${icon}<span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(entry.label || entry.name)}</span>`;
         // Only an app entry can become a shortcut; a shortcut pointing at an
         // app folder resolves to that app too.
         makeAppDraggable(el, entry.appId);
@@ -646,7 +649,9 @@ const StartMenu = (() => {
             let icon, name, detail;
             if (item.type === 'file') {
                 icon = UserActivity.getFileIcon(item.name);
-                name = item.name;
+                // Recent files carry their real name; hide the extension the
+                // way Explorer does (Settings > Files).
+                name = FileNames.display(item.name);
                 detail = item.detail;
                 el.addEventListener('click', () => {
                     hide();

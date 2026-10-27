@@ -36,6 +36,7 @@ const Settings = (() => {
         system: { name: 'System', icon: UIIcons.setting('system', 20) },
         personalization: { name: 'Personalization', icon: UIIcons.setting('personalization', 20) },
         apps: { name: 'Apps', icon: UIIcons.setting('apps', 20) },
+        files: { name: 'Files', icon: UIIcons.setting('files', 20) },
         accounts: { name: 'Accounts', icon: UIIcons.setting('accounts', 20) },
         time: { name: 'Time & language', icon: UIIcons.setting('time', 20) },
         privacy: { name: 'Privacy & security', icon: UIIcons.setting('privacy', 20) },
@@ -182,6 +183,7 @@ const Settings = (() => {
                 case 'system': renderSystem(contentEl); break;
                 case 'personalization': renderPersonalization(contentEl); break;
                 case 'apps': renderApps(contentEl); break;
+                case 'files': renderFiles(contentEl); break;
                 case 'accounts': renderAccounts(contentEl); break;
                 case 'time': renderTime(contentEl); break;
                 case 'privacy': renderPrivacy(contentEl); break;
@@ -1271,6 +1273,83 @@ const Settings = (() => {
         `;
 
         setupTaskbarEvents(el);
+    }
+
+    // A labelled on/off switch, same markup (and CSS) as the System toggles.
+    function filesSwitch(className, checked) {
+        return `<label style="position:relative;display:inline-block;width:44px;height:24px;flex:none;">
+            <input type="checkbox" class="${className}" ${checked ? 'checked' : ''} style="opacity:0;width:0;height:0;">
+            <span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.15);border-radius:12px;transition:0.3s;"></span>
+        </label>`;
+    }
+
+    function filesOptionRow(title, desc, control) {
+        return `<div style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 16px;background:rgba(255,255,255,0.04);border-radius:8px;">
+            <div style="min-width:0;">
+                <div style="font-size:14px;">${title}</div>
+                <div style="font-size:12px;color:#888;margin-top:2px;">${desc}</div>
+            </div>
+            ${control}
+        </div>`;
+    }
+
+    function renderFiles(el) {
+        const config = SystemConfig.getAll();
+        const singleClick = config.explorerSingleClick === true;
+        const startPage = config.explorerStartPage === 'thisPC' ? 'thisPC' : 'home';
+
+        el.innerHTML = `
+            <h2 style="font-size:28px;font-weight:600;margin-bottom:8px;">Files</h2>
+            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;">How File Explorer shows and opens items. These settings belong to your profile and apply to windows that are already open.</div>
+
+            <div style="font-size:13px;font-weight:600;margin:0 0 10px 2px;">File Explorer</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                ${filesOptionRow(
+                    'Show file name extensions',
+                    'Known file types are shown without their extension, as in Windows. Types this PC cannot open always keep theirs.',
+                    filesSwitch('show-extensions-toggle', config.showFileExtensions !== false)
+                )}
+                ${filesOptionRow(
+                    'Show Quick access',
+                    'Pinned folders at the top of the sidebar.',
+                    filesSwitch('quick-access-toggle', config.explorerQuickAccess !== false)
+                )}
+                ${filesOptionRow(
+                    'Click items as follows',
+                    'Single-click opens an item like a web link. Ctrl or Shift still selects several items.',
+                    `<select class="click-mode-select" style="font-size:13px;">
+                        <option value="double" ${singleClick ? '' : 'selected'}>Double-click to open</option>
+                        <option value="single" ${singleClick ? 'selected' : ''}>Single-click to open (web style)</option>
+                    </select>`
+                )}
+                ${filesOptionRow(
+                    'Open File Explorer to',
+                    'The folder File Explorer starts in.',
+                    `<select class="start-page-select" style="font-size:13px;">
+                        <option value="home" ${startPage === 'home' ? 'selected' : ''}>Home</option>
+                        <option value="thisPC" ${startPage === 'thisPC' ? 'selected' : ''}>This PC</option>
+                    </select>`
+                )}
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:14px;">A file always keeps its real name: sorting, opening and renaming use the full name.</div>
+        `;
+
+        const extensions = el.querySelector('.show-extensions-toggle');
+        if (extensions) {
+            extensions.addEventListener('change', () => SystemConfig.set('showFileExtensions', extensions.checked));
+        }
+        const quickAccess = el.querySelector('.quick-access-toggle');
+        if (quickAccess) {
+            quickAccess.addEventListener('change', () => SystemConfig.set('explorerQuickAccess', quickAccess.checked));
+        }
+        const clickSelect = el.querySelector('.click-mode-select');
+        if (clickSelect) {
+            clickSelect.addEventListener('change', () => SystemConfig.set('explorerSingleClick', clickSelect.value === 'single'));
+        }
+        const startSelect = el.querySelector('.start-page-select');
+        if (startSelect) {
+            startSelect.addEventListener('change', () => SystemConfig.set('explorerStartPage', startSelect.value));
+        }
     }
 
     function renderApps(el) {

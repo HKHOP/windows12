@@ -258,7 +258,13 @@ const SystemConfig = (() => {
         touchKeyboardMode: null,
         cursorTheme: 'default',
         cursorSize: 'normal',
-        cursorStyle: 'modern'
+        cursorStyle: 'modern',
+        // Files (Settings > Files). File Explorer reads these live; see
+        // js/modules/fileNames.js for the extension rule.
+        showFileExtensions: true,
+        explorerStartPage: 'home',
+        explorerSingleClick: false,
+        explorerQuickAccess: true
     };
 
     let config = { ...defaults };
@@ -461,6 +467,7 @@ const SystemConfig = (() => {
         save();
         apply();
         syncToFilesystem();
+        fireConfigChanged([key]);
     }
 
     function setMultiple(obj) {
@@ -479,12 +486,14 @@ const SystemConfig = (() => {
             apply();
             syncToFilesystem();
             renameAccountTo(name);
+            fireConfigChanged(Object.keys(rest));
             return;
         }
         Object.assign(config, rest);
         save();
         apply();
         syncToFilesystem();
+        fireConfigChanged(Object.keys(rest));
     }
 
     // Route a display-name change through the account record (source of
@@ -515,6 +524,7 @@ const SystemConfig = (() => {
         save();
         apply();
         syncToFilesystem();
+        fireConfigChanged(Object.keys(defaults));
     }
 
     // Factory reset: reset ALL config including userName
@@ -523,6 +533,16 @@ const SystemConfig = (() => {
         save();
         apply();
         syncToFilesystem();
+        fireConfigChanged(Object.keys(defaults));
+    }
+
+    // Additive broadcast: an open app can follow a setting it renders (file
+    // labels, the sidebar, click behaviour) without competing for the shell's
+    // single-slot onChange callback. Detail: { keys } — what changed.
+    function fireConfigChanged(keys) {
+        try {
+            window.dispatchEvent(new CustomEvent('system-config-changed', { detail: { keys: keys || [] } }));
+        } catch { /* no window (tests) */ }
     }
 
     function apply() {
@@ -775,13 +795,15 @@ const SystemConfig = (() => {
     // writer; the user-facing path is Settings, which raises UAC first.
     function setGlobals(patch) {
         let touched = false;
+        const keys = [];
         GLOBAL_KEYS.forEach(k => {
-            if (Object.hasOwn(patch, k)) { globalConfig[k] = patch[k]; touched = true; }
+            if (Object.hasOwn(patch, k)) { globalConfig[k] = patch[k]; touched = true; keys.push(k); }
         });
         if (!touched) return false;
         persistGlobal();
         apply();
         notifyScaling('scaling');
+        fireConfigChanged(keys);
         return true;
     }
 

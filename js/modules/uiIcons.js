@@ -67,6 +67,7 @@ const UIIcons = (() => {
         privacy: (s) => wrap(`<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" ${stroke()}/><path d="M9.5 12l2 2 3.5-4" ${stroke()}/>`, s),
         update: (s) => actions.restart(s),
         about: (s) => actions.info(s),
+        files: (s) => wrap(`<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" ${stroke()}/><path d="M7 15l3-3 2.5 2.5L17 10" ${stroke()} stroke-width="1.6"/>`, s),
         recovery: (s) => wrap(`<path d="M12 4v6M12 10l-3 3M12 10l3 3" ${stroke()} stroke-width="1.8" stroke-linecap="round"/><path d="M4 12a8 8 0 0 1 16 0" ${stroke()} stroke-width="1.6"/><path d="M20 12a8 8 0 0 1-16 0" ${stroke()} stroke-width="1.6"/>`, s),
         display: (s) => actions.display(s),
         sound: (s) => wrap(`<path d="M4 10v4h4l5 4V6l-5 4H4z" ${stroke()}/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11" ${stroke()}/>`, s),

@@ -16,6 +16,7 @@ import Zip from '../../modules/zip.js';
 import Users from '../../modules/users.js';
 import Notifications from '../../modules/notifications.js';
 import Shortcuts from '../../modules/shortcuts.js';
+import FileNames from '../../modules/fileNames.js';
 
 
 const FileExplorer = (() => {
@@ -29,9 +30,13 @@ const FileExplorer = (() => {
         (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0)
     );
     const LONG_PRESS_SELECT_MS = 550;
-    // Touch taps open items; debounce so a double-tap can't also open the
-    // first item of the view the first tap just navigated into.
-    let lastTouchOpenAt = 0;
+    // Settings > Files keys that change how the listing is drawn or clicked.
+    // A change redraws every open window (see the listener below).
+    const FILES_SETTING_KEYS = ['showFileExtensions', 'explorerQuickAccess', 'explorerSingleClick'];
+    // Touch taps and web-style single clicks open items; debounce so a
+    // double-tap/double-click can't also open the first item of the view the
+    // first click just navigated into.
+    let lastAutoOpenAt = 0;
 
     const VIEW_PATH = () => Users.appData('fileExplorer', ['view.json']);
     const view = { sortBy: 'name', sortDir: 'asc', groupBy: 'none' };
@@ -109,6 +114,30 @@ const FileExplorer = (() => {
             rec.win.element.style.display = 'flex';
         }
         WindowManager.focusWindow(rec.win.id);
+    }
+
+    // Settings > Files changes how the listing is drawn, so every open window
+    // redraws its current folder instead of waiting for the next navigation.
+    window.addEventListener('system-config-changed', (e) => {
+        const keys = (e && e.detail && e.detail.keys) || [];
+        if (!keys.some(k => FILES_SETTING_KEYS.includes(k))) return;
+        pruneClosedWindows();
+        openWindows.forEach((rec) => {
+            try { redrawWindow(rec); } catch (err) { /* window is going away */ }
+        });
+    });
+
+    function redrawWindow(rec) {
+        const { win, state } = rec;
+        const tab = activeTab(state);
+        if (!tab) return;
+        // The sidebar's Quick access block is one of the settings, so rebuild
+        // it before the listing.
+        renderSidebar(win, state);
+        // Same rule as switching tabs: a tab with no current folder is
+        // showing This PC, which has to be rebuilt rather than navigated to.
+        if (tab.currentPath) navigate(win, tab.currentPath, false, state);
+        else showThisPC(win, state);
     }
 
     // Tabs: each window owns window-level state (tabs, active tab, clipboard,
@@ -361,7 +390,7 @@ const FileExplorer = (() => {
                 : '';
             item.innerHTML = `
                 <div style="display:flex;justify-content:center;margin-bottom:4px;">${isDir ? (appManifest ? AppIcons.forFolder(fullPath, appManifest) : getFolderIcon(entry.name)) : ((entry.ext || '').toLowerCase() === 'lnk' ? Shortcuts.iconForPath(fullPath, 36) : getFileIcon(entry.ext, entry.name))}</div>
-                <div class="fe-label" style="font-size:12px;word-break:break-all;line-height:1.3;">${entry.name}</div>
+                <div class="fe-label" style="font-size:12px;word-break:break-all;line-height:1.3;">${FileNames.display(entry)}</div>
                 ${relDir}
             `;
 
@@ -440,8 +469,19 @@ const FileExplorer = (() => {
                     // Touch: a single tap opens (folder navigates, file
                     // launches) — the expected mobile file-manager behavior.
                     const now = Date.now();
-                    if (now - lastTouchOpenAt < 400) return;
-                    lastTouchOpenAt = now;
+                    if (now - lastAutoOpenAt < 400) return;
+                    lastAutoOpenAt = now;
+                    openEntry();
+                    return;
+                }
+                // Settings > Files > "Click items as follows: single-click":
+                // a plain click opens, Windows web style. Ctrl/Shift/⌘ still
+                // select, and right-click always selects.
+                if (!e.ctrlKey && !e.metaKey && !e.shiftKey
+                    && SystemConfig.get('explorerSingleClick') === true) {
+                    const now = Date.now();
+                    if (now - lastAutoOpenAt < 400) return;
+                    lastAutoOpenAt = now;
                     openEntry();
                     return;
                 }
@@ -454,6 +494,9 @@ const FileExplorer = (() => {
                 // Touch already opens on the first tap; ignore the synthesized
                 // second tap so it can't act on the freshly navigated view.
                 if (IS_TOUCH_UI) return;
+                // Web-style single click already opened this item: the second
+                // click of the same gesture must not open it again.
+                if (Date.now() - lastAutoOpenAt < 400) return;
                 openEntry();
             });
 
@@ -2015,7 +2058,9 @@ const FileExplorer = (() => {
         const sidebar = win.element.querySelector('.fe-sidebar');
         if (!sidebar) return;
         const pins = loadQA();
-        const qaHtml = `
+        // Settings > Files > "Show Quick access": the pinned-folder block.
+        const showQuickAccess = SystemConfig.get('explorerQuickAccess') !== false;
+        const qaHtml = !showQuickAccess ? '' : `
             <div style="font-size:11px;font-weight:600;color:var(--text-secondary);padding:4px 10px;">Quick access</div>
             ${pins.length === 0
                 ? '<div style="font-size:11px;color:var(--text-secondary);padding:2px 10px 6px;">Right-click a folder → Pin to Quick access</div>'
@@ -2120,11 +2165,15 @@ const FileExplorer = (() => {
             }
         });
 
-        const initialPath = options.path && FileSystem.isFolder(options.path)
-            ? options.path
-            : Users.home();
+        // Settings > Files > "Open File Explorer to" picks the first view; an
+        // explicit path from a caller (double-clicked folder, shortcut) wins.
+        const requestedPath = options.path && FileSystem.isFolder(options.path) ? options.path : null;
+        const openToThisPC = !requestedPath && SystemConfig.get('explorerStartPage') === 'thisPC';
         renderSidebar(win, wstate);
-        addTab(win, wstate, initialPath);
+        addTab(win, wstate, requestedPath || Users.home());
+        // This PC is a rendered view, not a folder: addTab opens the home
+        // folder, then the drive view replaces it (history stays at home).
+        if (openToThisPC) showThisPC(win, wstate);
 
         win.element.querySelector('.fe-back').addEventListener('click', () => {
             const tab = activeTab(wstate);
