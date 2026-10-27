@@ -1156,7 +1156,14 @@ const FileExplorer = (() => {
                 tab.selected.add(newName);
             }
             itemEl.dataset.name = newName;
-            labelEl.textContent = newName;
+            // Re-label with the same rule as a fresh render: with extensions
+            // hidden, the row must not flash the full new name.
+            const newDot = newName.lastIndexOf('.');
+            labelEl.textContent = FileNames.display({
+                name: newName,
+                type: itemEl.dataset.type,
+                ext: newDot > 0 ? newName.slice(newDot + 1).toLowerCase() : ''
+            });
             refreshIfDesktop(itemPath);
             refreshIfDesktop([...parentPath, newName]);
             Shortcuts.notifyChanged();
