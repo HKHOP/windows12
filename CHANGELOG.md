@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.10.0] - 2026-10-27
+
+### Changed
+- **Fullscreen windows hide their title bar.** A window taken fullscreen through the Fullscreen API (`app.window.setFullscreen`, a game's Fullscreen button or F11) now fills the screen with its content only: the title bar and its Minimize, Maximize and Close controls are gone, and the resize edges no longer grab. Leaving fullscreen (Esc, F11 or `exitFullscreen`) brings the title bar back.
+
 ## [15.9.0] - 2026-10-25
 
 ### Added
