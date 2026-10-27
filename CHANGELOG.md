@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.13.1] - 2026-10-27
+
+### Fixed
+- **Renaming a file showed its extension again for a moment.** With *Show file name extensions* off, the row redrew straight after the rename and printed the full new name (`.txt` included) until the next navigation. It now goes through the same label rule as the rest of the listing.
+
 ## [15.13.0] - 2026-10-27
 
 ### Added
