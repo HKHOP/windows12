@@ -4,6 +4,16 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.12.0] - 2026-10-27
+
+### Changed
+- **A hidden window releases its embedded page on iPhone and iPad.** Minimizing a game — or leaving it on another virtual desktop or in a background session — now detaches its iframe, which throws the game engine away instead of keeping it in memory. Showing the window again puts the frame back in the same place and reloads it, the way a discarded mobile browser tab does. Desktop and Android are untouched: their games keep running while hidden.
+
+### Fixed
+- **iOS Safari restarted the whole OS in the middle of a game.** iPhone/iPad run the page in a single WebContent process with a hard memory ceiling; past it iOS kills that process and silently reloads the tab, so the OS came back at the boot screen. Games left resident in hidden windows were the main cause and now release their engine (see above).
+- **A swipe inside an embedded game could reload the page through Safari's pull-to-refresh.** The shell document now refuses overscroll (`overscroll-behavior: none`), so a touch drag that reaches it can no longer be turned into a page reload.
+- **The iPad iframe letterbox fix froze an app's layout.** Its ResizeObserver re-pinned a frame's parent element as if it were the frame itself (`flex: none` plus a fixed pixel size), so a game toolbar stopped following its window; a resize tick now re-measures the parent's frames instead.
+
 ## [15.11.0] - 2026-10-27
 
 ### Removed
