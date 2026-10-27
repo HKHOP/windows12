@@ -4,6 +4,15 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.13.0] - 2026-10-27
+
+### Added
+- **A Files category in Settings.** *Show file name extensions*, *Show Quick access*, *Click items as follows* (single-click / double-click) and *Open File Explorer to* (Home / This PC). The choices belong to the profile, and windows that are already open follow them immediately.
+- **File names can hide their extensions the way Windows does.** With the option off, a file whose type the OS knows (`report.txt`, a `My App.lnk` shortcut) is listed as `report` / `My App` in File Explorer, on the desktop and in Start; a type nothing can open (`backup.7z`) keeps its extension, and folders and dot-files are never stripped. Sorting, opening and renaming still use the real name, and renaming selects the base name only.
+
+### Changed
+- **`js/modules/fileNames.js`** owns that label rule, so File Explorer, the desktop and the Start menu cannot disagree about the name of the same file. `SystemConfig` now broadcasts `system-config-changed` (with the changed keys) so an open view redraws instead of waiting for the next navigation.
+
 ## [15.12.0] - 2026-10-27
 
 ### Changed
