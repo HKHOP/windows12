@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.14.2] - 2026-10-27
+
+### Fixed
+- **Photos threw an error instead of opening a camera picture.** The viewer asked the filesystem for blob bytes through the SDK's `readBlob()`, but Photos runs on the internal module, where the reader is called `readFileBlob()`; clicking a photo taken with Camera (or saved by Photo Studio) failed with *FileSystem.readBlob is not a function* and nothing appeared. Both the grid thumbnails and the viewer now use the right name — the new smoke-test assertion rejects the SDK spelling in this app, so the mix-up cannot return unnoticed.
+
 ## [15.14.1] - 2026-10-27
 
 ### Fixed
