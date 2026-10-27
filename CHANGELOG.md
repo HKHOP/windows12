@@ -4,6 +4,15 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.11.0] - 2026-10-27
+
+### Removed
+- **The Windows Update service.** `js/modules/updateService.js`, `js/modules/windowsUpdate.js` and the `w12:update-state` event are gone, together with the `autoCheckUpdates` setting, the `pending-update` worker message, the boot-time update screen and the update-history sub-page. Store apps still update by hand from the Microsoft Store.
+
+### Changed
+- **Windows 12 now updates itself on refresh.** `index.html` checks the origin for a new service worker on every start, activates the waiting one and reloads into its core — no prompt, no notification, no restart button. A first start installs the core and restarts itself the same way.
+- **Settings > Windows Update is a status page.** It always says *You're up to date*, explains that a refresh applies updates and shows the running core version. Settings > About and the SDK's `System.info()` now read that version from `CoreStore`.
+
 ## [15.10.0] - 2026-10-27
 
 ### Changed
