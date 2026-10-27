@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.14.1] - 2026-10-27
+
+### Fixed
+- **Camera ignored the resolution it asked for, and the camera picker did nothing.** The stream constraints were passed to `app.media.camera()` at the top level, where the SDK's own `video: true` default overrode them, so the browser always opened the default camera at its default size. The constraints now sit under `video`, so a 1920×1080 request and the device picker both take effect.
+
 ## [15.14.0] - 2026-10-27
 
 ### Added
