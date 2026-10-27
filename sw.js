@@ -41,7 +41,7 @@ const SHELL_FILES = ['./', './index.html', './manifest.json', './favicon.svg', '
 
 // >>> w12:core
 const CORE_VERSION = '15.14.1';
-const CORE_HASH = '219eea5a0b9b1da3';
+const CORE_HASH = 'f9e5d182466d1215';
 const CORE_PACKAGE = './w12-core.pkg';
 const CORE_FILE_COUNT = 179;
 const CORE_BYTES = 1818197;

@@ -104,7 +104,7 @@ const Photos = (() => {
         for (let i = 0; i < images.length; i++) {
             const image = images[i];
             if (image.data || !image.blobRef || image.url) continue;
-            const blob = await FileSystem.readBlob(image.path);
+            const blob = await FileSystem.readFileBlob(image.path);
             if (!blob || !win.element.isConnected) continue;
             image.url = trackUrl(URL.createObjectURL(blob));
             const frame = grid.querySelector(`.photo-item[data-id="${i}"] .photo-thumb`);
@@ -163,7 +163,7 @@ const Photos = (() => {
         const contentEl = win.element.querySelector('.window-body');
         if (!contentEl) return;
         if (!image.data && !image.url && image.blobRef) {
-            const blob = await FileSystem.readBlob(image.path);
+            const blob = await FileSystem.readFileBlob(image.path);
             if (blob) image.url = trackUrl(URL.createObjectURL(blob));
             if (!contentEl.isConnected) return;
         }

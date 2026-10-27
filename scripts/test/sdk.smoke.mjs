@@ -1291,7 +1291,10 @@ check('Notes autosaves into the app sandbox and renders markdown safely', (() =>
 })());
 check('Photos previews blob-backed images (camera and Photo Studio)', (() => {
     const src = fs.readFileSync(new URL('../../js/apps/photos/main.js', import.meta.url), 'utf8');
-    return /FileSystem\.readBlob/.test(src) && /isBlobFile/.test(src)
+    // Photos imports the internal filesystem module, whose blob reader is
+    // readFileBlob(); the SDK's readBlob() does not exist there.
+    return /FileSystem\.readFileBlob/.test(src) && /isBlobFile/.test(src)
+        && !/FileSystem\.readBlob\b/.test(src)
         && /createObjectURL/.test(src) && /revokeObjectURL/.test(src)
         && /window-closed/.test(src);
 })());
