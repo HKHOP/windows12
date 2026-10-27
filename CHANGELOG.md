@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.15.0] - 2026-10-27
+
+### Fixed
+- **A hyperlink inside the OS no longer opens a tab outside the desktop.** Every `<a href>` an app renders — the markdown preview in Notes, Copilot and Markdown Studio, links inserted by Words and cellESheet, help text such as the Copilot key links — was followed by the browser tab that hosts the OS: a `target="_blank"` link produced a host tab next to a desktop that had kept running, and a plain link navigated that tab away from Windows 12 altogether. The shell now owns hyperlink routing: a click on an http/https link is intercepted before the host browser sees it and the address is handed to the built-in Browser. An app that handles the click itself keeps control (the router respects `preventDefault`), clicks in embedded frames are untouched, and non-web schemes (`mailto:`, `tel:`, `blob:`, `data:`), in-document `#` anchors, editor caret clicks and `download` links behave exactly as before. Middle clicks are routed too, and a double click opens the address once.
+
+### Changed
+- **The routed address opens in the Browser window you already have.** A link used to need its own Browser window; it now opens as a new tab in the most recent visible Browser window (restoring it first if it was minimized), and only starts a window when none is open. `.url` shortcuts take the same path.
+
 ## [15.14.2] - 2026-10-27
 
 ### Fixed
