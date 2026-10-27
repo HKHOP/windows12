@@ -1124,6 +1124,12 @@ check('extensions show by default', (() => {
     SysCfg.set('showFileExtensions', true);
     return FileNames.display({ name: 'report.txt', ext: 'txt', type: 'file' }) === 'report.txt';
 })());
+check('a shortcut is always shown without ".lnk"', (() => {
+    const link = { name: 'My App.lnk', ext: 'lnk', type: 'file' };
+    const linkUpper = { name: 'Other.LNK', type: 'file' };
+    return SysCfg.get('showFileExtensions') === true
+        && FileNames.display(link) === 'My App' && FileNames.display(linkUpper) === 'Other';
+})());
 let configEvents = 0;
 let configKeys = null;
 const onCfg = (e) => { configEvents++; configKeys = (e.detail && e.detail.keys) || []; };

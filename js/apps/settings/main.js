@@ -1306,7 +1306,7 @@ const Settings = (() => {
             <div style="display:flex;flex-direction:column;gap:8px;">
                 ${filesOptionRow(
                     'Show file name extensions',
-                    'Known file types are shown without their extension, as in Windows. Types this PC cannot open always keep theirs.',
+                    'Known file types are shown without their extension, as in Windows. Types this PC cannot open always keep theirs, and shortcut files always hide .lnk.',
                     filesSwitch('show-extensions-toggle', config.showFileExtensions !== false)
                 )}
                 ${filesOptionRow(

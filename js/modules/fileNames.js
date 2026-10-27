@@ -56,10 +56,14 @@ const FileNames = (() => {
     // Accepts a file-system entry ({ name, ext, type }) or a bare name.
     function display(item) {
         const name = typeof item === 'string' ? item : (item && item.name) || '';
-        if (!name || showExtensions()) return name;
+        if (!name) return name;
         if (item && item.type === 'folder') return name;
         const ext = item && item.ext ? String(item.ext).toLowerCase() : extOf(name);
-        if (!ext || !isKnownType(ext)) return name;
+        if (!ext) return name;
+        // A shortcut always hides ".lnk", whatever the Explorer option says:
+        // the shortcut arrow already says what it is (Windows does the same).
+        // Renaming still shows and keeps the full name.
+        if (ext !== 'lnk' && (showExtensions() || !isKnownType(ext))) return name;
         return name.slice(0, name.length - ext.length - 1) || name;
     }
 
