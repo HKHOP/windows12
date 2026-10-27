@@ -1,0 +1,38 @@
+{
+    "manifestVersion": 1,
+    "id": "camera",
+    "uuid": "6f0b7c1e-2a4d-4c8e-9b31-5d7a0e2c9f14",
+    "name": "Camera",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "permissions": ["camera", "filesystem"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Photo & video",
+        "rating": "4.5",
+        "reviews": "3,214",
+        "description": "Take photos with your webcam and keep them in Pictures. Timer, mirror, rule-of-thirds grid and a camera picker included — the stream never leaves the page and nothing is uploaded.",
+        "features": [
+            "Live preview from any connected camera",
+            "Photo saved as a JPEG in Pictures",
+            "3-second and 10-second timers",
+            "Mirror and rule-of-thirds grid",
+            "Recent shots strip — click one to view it",
+            "Camera permission you can revoke in Settings > Apps"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #0f172a, #334155)",
+                "text": "Live preview"
+            },
+            {
+                "bg": "linear-gradient(135deg, #334155, #0ea5e9)",
+                "text": "Shots in Pictures"
+            }
+        ],
+        "size": "0.3 MB",
+        "ageRating": "3+"
+    }
+}

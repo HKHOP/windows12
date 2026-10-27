@@ -1183,6 +1183,126 @@ check('the desktop and Start menu share the label rule', (() => {
 })());
 check('the Files icon exists', /<svg/.test(UIIconsMod.setting('files', 20)));
 
+console.log('[store batch]');
+const batchIds = ['camera', 'photoStudio', 'graphingCalculator', 'snippingTool', 'solitaire', 'notes'];
+const readApp = (id, file) => fs.readFileSync(new URL(`../../js/apps/${id}/${file}`, import.meta.url), 'utf8');
+const manifestOf = (id) => JSON.parse(readApp(id, 'manifest.json'));
+const registrySrc = fs.readFileSync(new URL('../../js/apps/registry.js', import.meta.url), 'utf8');
+
+check('the six new apps are complete store packages', batchIds.every(id => {
+    const man = manifestOf(id);
+    return man.distribution === 'store' && man.entry === 'main.js'
+        && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(man.uuid)
+        && man.store && man.store.category && man.store.developer && man.store.description
+        && Array.isArray(man.store.features) && man.store.features.length > 0;
+}), batchIds.map(id => `${id}@${manifestOf(id).version}`).join(' '));
+check('each new app ships its icon and entry module', batchIds.every(id =>
+    fs.existsSync(new URL(`../../js/apps/${id}/assets/icon.svg`, import.meta.url))
+    && /^<svg/.test(readApp(id, 'assets/icon.svg').trim())
+    && readApp(id, 'main.js').includes('export default { launch')));
+check('the generated registry carries them as store apps', batchIds.every(id =>
+    new RegExp(`\\{"id":"${id}","uuid":"[0-9a-f-]+","name":"[^"]+","version":"[0-9.]+","distribution":"store"`).test(registrySrc)));
+check('every manifest uuid is unique', (() => {
+    const ids = [...registrySrc.matchAll(/"uuid":"([^"]+)"/g)].map(m => m[1]);
+    return ids.length === (registrySrc.match(/"id":"/g) || []).length && new Set(ids).size === ids.length;
+})());
+check('the new apps use no native dialogs and no debug output', batchIds.every(id => {
+    const src = readApp(id, 'main.js');
+    return !/(?<![\w.$])(alert|confirm|prompt)\s*\(/.test(src) && !/console\.(log|debug)/.test(src) && !/debugger/.test(src);
+}));
+
+check('Camera saves real JPEGs to Pictures and stops its stream', (() => {
+    const src = readApp('camera', 'main.js');
+    return /toBlob\(resolve, 'image\/jpeg'/.test(src)
+        && /Users\.home\(\['Pictures'\]\)/.test(src)
+        && /FileSystem\.writeBlob/.test(src)
+        && /stream\.getTracks\(\)\.forEach/.test(src)
+        && /window-closed/.test(src);
+})());
+check('Photo Studio keeps edits non-destructive and saves a copy', (() => {
+    const src = readApp('photoStudio', 'main.js');
+    return /function compose\(base\)/.test(src) && /applyAdjustments/.test(src)
+        && /function composeGeometry/.test(src)
+        && /FileSystem\.pickSave/.test(src) && /SystemConfig\.setWallpaperImage/.test(src)
+        && /app\.keyboard\.register\('CTRL\+S'/.test(src) && /window-closed/.test(src);
+})());
+check('Snipping Tool fails honestly when it cannot capture', (() => {
+    const src = readApp('snippingTool', 'main.js');
+    return /getDisplayMedia/.test(src)
+        && /Screen capture isn't available here/.test(src)
+        && /ClipboardItem/.test(src)
+        && /function stopStream/.test(src) && /window-closed/.test(src);
+})());
+check('Solitaire needs no filesystem grant and follows Klondike rules', (() => {
+    const src = readApp('solitaire', 'main.js');
+    const man = manifestOf('solitaire');
+    const start = src.indexOf('const SUITS');
+    const end = src.indexOf('function shuffled()');
+    const body = src.slice(start, end).replace(/export function/g, 'function');
+    const rules = new Function(`${body}; return { deck, canStackTableau, canStackFoundation };`)();
+    const cards = rules.deck();
+    const kingH = cards.find(c => c.suit === '♥' && c.rank === 13);
+    const queenH = cards.find(c => c.suit === '♥' && c.rank === 12);
+    const queenS = cards.find(c => c.suit === '♠' && c.rank === 12);
+    const aceH = cards.find(c => c.suit === '♥' && c.rank === 1);
+    const twoH = cards.find(c => c.suit === '♥' && c.rank === 2);
+    return cards.length === 52 && new Set(cards.map(c => c.id)).size === 52
+        && rules.canStackTableau(queenS, kingH) === true
+        && rules.canStackTableau(queenH, kingH) === false
+        && rules.canStackTableau(kingH, null) === true
+        && rules.canStackTableau(queenH, null) === false
+        && rules.canStackFoundation(twoH, aceH) === true
+        && rules.canStackFoundation(aceH, null) === true
+        && rules.canStackFoundation(kingH, null) === false
+        && /app\.files\.write\('stats\.json'/.test(src)
+        && (!man.permissions || man.permissions.length === 0);
+})());
+check('Graphing Calculator parses real expressions', (() => {
+    const src = readApp('graphingCalculator', 'main.js');
+    const start = src.indexOf('const CONSTANTS');
+    const end = src.indexOf('function niceStep');
+    const body = src.slice(start, end).replace(/export function/g, 'function');
+    const maths = new Function(`${body}; return { evaluate };`)();
+    const near = (a, b) => Math.abs(a - b) < 1e-9;
+    return near(maths.evaluate('2x', 4), 8)
+        && near(maths.evaluate('3(x+1)', 2), 9)
+        && near(maths.evaluate('(x+1)(x-1)', 3), 8)
+        && near(maths.evaluate('2^3^2', 0), 512)
+        && near(maths.evaluate('-2^2', 0), -4)
+        && near(maths.evaluate('sin(pi/2)', 0), 1)
+        && near(maths.evaluate('log(1000) + ln(e)', 0), 4)
+        && near(maths.evaluate('x%3', 7), 1)
+        && (() => { try { maths.evaluate('2+', 0); return false; } catch { return true; } })();
+})());
+check('Notes autosaves into the app sandbox and renders markdown safely', (() => {
+    const src = readApp('notes', 'main.js');
+    const start = src.indexOf('function escapeHtml');
+    const end = src.indexOf('function sampleBody');
+    const body = src.slice(start, end).replace(/export function/g, 'function');
+    const render = new Function(`${body}; return renderMarkdown;`)();
+    const html = render('# Title\n\n**bold** and *italic*\n\n- one\n- two\n\n`code`');
+    return /<h1>Title<\/h1>/.test(html)
+        && /<strong>bold<\/strong>/.test(html) && /<em>italic<\/em>/.test(html)
+        && /<ul><li>one<\/li><li>two<\/li><\/ul>/.test(html)
+        && /<code>code<\/code>/.test(html)
+        && render('<script>alert(1)</script>').includes('&lt;script&gt;')
+        && /app\.files\.write\('notes\.json'/.test(src)
+        && /const SAVE_DELAY = /.test(src) && /window-closed/.test(src);
+})());
+check('Photos previews blob-backed images (camera and Photo Studio)', (() => {
+    const src = fs.readFileSync(new URL('../../js/apps/photos/main.js', import.meta.url), 'utf8');
+    return /FileSystem\.readBlob/.test(src) && /isBlobFile/.test(src)
+        && /createObjectURL/.test(src) && /revokeObjectURL/.test(src)
+        && /window-closed/.test(src);
+})());
+check('the Store folds category capitalisation into one chip', (() => {
+    const src = fs.readFileSync(new URL('../../js/apps/appStore/main.js', import.meta.url), 'utf8');
+    return /function categoryKey/.test(src)
+        && /const seen = new Map\(\)/.test(src)
+        && /inCategory\(id, filter\)/.test(src)
+        && /inCategory\(id, c\)/.test(src);
+})());
+
 console.log('[factory reset + OS zones]');
 const GuardMod = (await import('../../js/modules/fsGuard.js')).default;
 check('the OS\'s own apps may read the OS zones', (() => {

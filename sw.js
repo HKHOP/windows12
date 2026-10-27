@@ -41,10 +41,10 @@ const SHELL_FILES = ['./', './index.html', './manifest.json', './favicon.svg', '
 
 // >>> w12:core
 const CORE_VERSION = '15.13.2';
-const CORE_HASH = 'caf2bd91b6f3525a';
+const CORE_HASH = 'e123975c0746c3d8';
 const CORE_PACKAGE = './w12-core.pkg';
 const CORE_FILE_COUNT = 179;
-const CORE_BYTES = 1817284;
+const CORE_BYTES = 1818197;
 // <<< w12:core
 
 // >>> w12:apps-dist
@@ -60,6 +60,7 @@ const APP_DIST = {
     "browser": "builtin",
     "calculator": "builtin",
     "calendar": "builtin",
+    "camera": "store",
     "cellESheet": "store",
     "chess": "store",
     "clock": "builtin",
@@ -79,6 +80,7 @@ const APP_DIST = {
     "fileExplorer": "builtin",
     "game2048": "store",
     "granny3": "store",
+    "graphingCalculator": "store",
     "gta3": "store",
     "halfLife": "store",
     "happyWheels": "store",
@@ -95,11 +97,13 @@ const APP_DIST = {
     "nfsMostWanted": "store",
     "nfsUnderground2": "store",
     "notepad": "builtin",
+    "notes": "store",
     "oneshotWme": "store",
     "packageInstaller": "builtin",
     "paint": "builtin",
     "passwordVault": "store",
     "peak": "store",
+    "photoStudio": "store",
     "photos": "builtin",
     "pomodoro": "store",
     "powershell": "builtin",
@@ -115,7 +119,9 @@ const APP_DIST = {
     "slope2": "store",
     "slope3": "store",
     "slopeGame": "store",
+    "snippingTool": "store",
     "solarSpacer": "store",
+    "solitaire": "store",
     "stickmanHook": "store",
     "stickyNotes": "store",
     "subwaySurfers": "store",

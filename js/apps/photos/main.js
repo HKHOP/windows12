@@ -11,15 +11,46 @@ const Photos = (() => {
 
     const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'];
 
+    // Object URLs handed to the grid and the viewer. They live as long as a
+    // Photos window does and are revoked when it closes.
+    const urls = new Set();
+
+    function trackUrl(url) {
+        urls.add(url);
+        return url;
+    }
+
+    function revokeUrls() {
+        urls.forEach(url => {
+            try { URL.revokeObjectURL(url); } catch { /* already gone */ }
+        });
+        urls.clear();
+    }
+
+    window.addEventListener('window-closed', (e) => {
+        if (e.detail && e.detail.appId === 'photos') revokeUrls();
+    });
+
+    // Camera, Photo Studio and Paint all coexist: Paint stores data URLs,
+    // the camera writes real blobs. Both are shown here.
     function scanImages(path = Users.home(['Pictures'])) {
         const images = [];
         const items = FileSystem.getChildren(path);
         for (const item of items) {
             if (item.type === 'folder') {
                 images.push(...scanImages([...path, item.name]));
-            } else if (item.type === 'file' && IMAGE_EXTS.includes(item.ext.toLowerCase())) {
-                const data = FileSystem.readFile([...path, item.name]);
-                images.push({ name: item.name, path: [...path, item.name], ext: item.ext.toLowerCase(), size: item.size, data });
+            } else if (item.type === 'file' && IMAGE_EXTS.includes(String(item.ext).toLowerCase())) {
+                const full = [...path, item.name];
+                const blobRef = item.blobRef || (FileSystem.isBlobFile(full) ? 'blob' : null);
+                images.push({
+                    name: item.name,
+                    path: full,
+                    ext: String(item.ext).toLowerCase(),
+                    size: item.size,
+                    data: blobRef ? null : FileSystem.readFile(full),
+                    blobRef,
+                    url: null
+                });
             }
         }
         return images;
@@ -41,13 +72,13 @@ const Photos = (() => {
     function getContent(images) {
         if (images.length === 0) return `<div style="height:100%;overflow-y:auto;">${getEmptyState()}</div>`;
 
-        const thumbs = images.map(img => `
-            <div class="photo-item" data-name="${img.name}" style="min-width:0;cursor:pointer;border-radius:6px;overflow:hidden;transition:transform 0.15s,box-shadow 0.15s;" 
+        const thumbs = images.map((img, i) => `
+            <div class="photo-item" data-id="${i}" style="min-width:0;cursor:pointer;border-radius:6px;overflow:hidden;transition:transform 0.15s,box-shadow 0.15s;" 
                  onmouseenter="this.style.transform='scale(1.03)';this.style.boxShadow='0 4px 16px rgba(0,0,0,0.3)'"
                  onmouseleave="this.style.transform='scale(1)';this.style.boxShadow='none'">
-                <div style="aspect-ratio:1;overflow:hidden;background:#1a1a1a;display:flex;align-items:center;justify-content:center;">
-                    ${img.data ? `<img src="${img.data}" style="width:100%;height:100%;object-fit:cover;" alt="${img.name}">` : 
-                        `<span style="color:#666;font-size:12px;">No preview</span>`}
+                <div class="photo-thumb" style="aspect-ratio:1;overflow:hidden;background:#1a1a1a;display:flex;align-items:center;justify-content:center;">
+                    ${img.data ? `<img src="${img.data}" style="width:100%;height:100%;object-fit:cover;" alt="${img.name}">` :
+                        `<span style="color:#666;font-size:11px;">Loading…</span>`}
                 </div>
                 <div style="font-size:11px;color:#aaa;padding:4px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${img.name}</div>
             </div>`).join('');
@@ -65,6 +96,24 @@ const Photos = (() => {
             </div>`;
     }
 
+    // Blob-backed images (camera, Photo Studio) load their bytes lazily, so
+    // the window appears instantly and the thumbnails fill in.
+    async function hydrate(images, win) {
+        const grid = win.element.querySelector('.photo-grid');
+        if (!grid) return;
+        for (let i = 0; i < images.length; i++) {
+            const image = images[i];
+            if (image.data || !image.blobRef || image.url) continue;
+            const blob = await FileSystem.readBlob(image.path);
+            if (!blob || !win.element.isConnected) continue;
+            image.url = trackUrl(URL.createObjectURL(blob));
+            const frame = grid.querySelector(`.photo-item[data-id="${i}"] .photo-thumb`);
+            if (frame) {
+                frame.innerHTML = `<img src="${image.url}" style="width:100%;height:100%;object-fit:cover;" alt="${image.name}">`;
+            }
+        }
+    }
+
     function launch(filePath) {
         let images;
         let startInView = false;
@@ -73,8 +122,16 @@ const Photos = (() => {
             const name = filePath[filePath.length - 1];
             const ext = name.split('.').pop().toLowerCase();
             if (IMAGE_EXTS.includes(ext)) {
-                const data = FileSystem.readFile(filePath);
-                images = [{ name, path: filePath, ext, size: 0, data }];
+                const blobRef = FileSystem.isBlobFile(filePath) ? 'blob' : null;
+                images = [{
+                    name,
+                    path: filePath,
+                    ext,
+                    size: 0,
+                    data: blobRef ? null : FileSystem.readFile(filePath),
+                    blobRef,
+                    url: null
+                }];
                 startInView = true;
             } else {
                 images = scanImages();
@@ -85,22 +142,32 @@ const Photos = (() => {
 
         const win = WindowManager.createWindow('photos', 'Photos', icon, getContent(images), { width: 700, height: 480 });
 
-        if (startInView && images.length > 0) {
-            openViewer(win, images[0]);
-        }
-
         win.element.querySelector('.photo-grid')?.addEventListener('click', (e) => {
             const item = e.target.closest('.photo-item');
             if (!item) return;
-            const name = item.dataset.name;
-            const image = images.find(img => img.name === name);
+            const image = images[Number(item.dataset.id)];
             if (!image) return;
             openViewer(win, image);
         });
+
+        if (startInView && images.length > 0) {
+            hydrate(images, win).then(() => {
+                if (win.element.isConnected) openViewer(win, images[0]);
+            });
+        } else {
+            hydrate(images, win);
+        }
     }
 
-    function openViewer(win, image) {
+    async function openViewer(win, image) {
         const contentEl = win.element.querySelector('.window-body');
+        if (!contentEl) return;
+        if (!image.data && !image.url && image.blobRef) {
+            const blob = await FileSystem.readBlob(image.path);
+            if (blob) image.url = trackUrl(URL.createObjectURL(blob));
+            if (!contentEl.isConnected) return;
+        }
+        const src = image.url || image.data;
         const viewerHTML = `
             <div class="photo-viewer" style="position:absolute;inset:0;background:rgba(0,0,0,0.95);display:flex;flex-direction:column;z-index:10;">
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
@@ -111,8 +178,8 @@ const Photos = (() => {
                     </div>
                 </div>
                 <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:20px;overflow:hidden;">
-                    ${image.data ? 
-                        `<img src="${image.data}" style="max-width:100%;max-height:100%;object-fit:contain;" alt="${image.name}">` :
+                    ${src ?
+                        `<img src="${src}" style="max-width:100%;max-height:100%;object-fit:contain;" alt="${image.name}">` :
                         `<div style="color:#666;font-size:14px;">No preview available</div>`
                     }
                 </div>
@@ -120,10 +187,9 @@ const Photos = (() => {
             </div>`;
 
         contentEl.insertAdjacentHTML('beforeend', viewerHTML);
-        contentEl.querySelector('.photo-viewer-close').addEventListener('click', () => {
-            contentEl.querySelector('.photo-viewer')?.remove();
-        });
-        contentEl.querySelector('.photo-viewer-wallpaper').addEventListener('click', () => {
+        const viewer = contentEl.lastElementChild;
+        viewer.querySelector('.photo-viewer-close').addEventListener('click', () => viewer.remove());
+        viewer.querySelector('.photo-viewer-wallpaper').addEventListener('click', () => {
             if (!SystemConfig.setWallpaperImage(image.path)) {
                 Popup.warn('Cannot use image', `"${image.name}" is not a supported image file.`);
                 return;

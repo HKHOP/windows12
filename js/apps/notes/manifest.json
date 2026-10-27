@@ -1,0 +1,39 @@
+{
+    "manifestVersion": 1,
+    "id": "notes",
+    "uuid": "f1d8b6a3-2c47-4e90-b5d1-8a6f3e2c7b40",
+    "name": "Notes",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "permissions": ["filesystem"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Productivity",
+        "rating": "4.6",
+        "reviews": "1,364",
+        "description": "Notebooks, sections and pages with markdown formatting and autosave. Search every note at once, preview the formatted page and export a Markdown copy.",
+        "features": [
+            "Notebooks, sections and pages",
+            "Autosave while you type",
+            "Markdown-lite preview: headings, lists, quotes, code and links",
+            "Search across every notebook at once",
+            "Rename by double-clicking a notebook or section",
+            "Export a page as a .md file",
+            "Notes are stored per profile in this app's own folder"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #1e1b4b, #2563eb)",
+                "text": "Notebooks and pages"
+            },
+            {
+                "bg": "linear-gradient(135deg, #2563eb, #0f766e)",
+                "text": "Markdown preview"
+            }
+        ],
+        "size": "0.3 MB",
+        "ageRating": "3+"
+    }
+}

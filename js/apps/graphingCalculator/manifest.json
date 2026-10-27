@@ -1,0 +1,39 @@
+{
+    "manifestVersion": 1,
+    "id": "graphingCalculator",
+    "uuid": "b6c1d0a8-3f27-4e59-9c14-2d8a7f5b6e03",
+    "name": "Graphing Calculator",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "permissions": ["filesystem"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Education",
+        "rating": "4.7",
+        "reviews": "945",
+        "description": "Type an equation and see the curve. Plot several functions at once, pan and zoom, trace values, find roots and save the graph as a picture.",
+        "features": [
+            "Plot y = f(x) for several functions at once",
+            "sin, cos, tan, sqrt, log, ln, abs, powers and constants",
+            "Implicit multiplication — 2x, 3(x+1), (x+1)(x-1) all work",
+            "Drag to pan, scroll to zoom, double-click to reset",
+            "Hover to trace every visible function at once",
+            "Automatic roots (x-intercepts) in the current view",
+            "Save the graph as a PNG"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #0f172a, #0ea5e9)",
+                "text": "Plot"
+            },
+            {
+                "bg": "linear-gradient(135deg, #0ea5e9, #7c3aed)",
+                "text": "Trace and roots"
+            }
+        ],
+        "size": "0.3 MB",
+        "ageRating": "3+"
+    }
+}

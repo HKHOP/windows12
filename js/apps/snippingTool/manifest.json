@@ -1,0 +1,38 @@
+{
+    "manifestVersion": 1,
+    "id": "snippingTool",
+    "uuid": "c2a7e5f4-9b18-4d63-8a02-7e5f1c93b4d6",
+    "name": "Snipping Tool",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "permissions": ["filesystem", "clipboard"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Utilities",
+        "rating": "4.5",
+        "reviews": "2,106",
+        "description": "Capture your screen, keep just the region you need, mark it up with a pen, highlighter, box or arrow, then save it to Pictures or copy it to the clipboard.",
+        "features": [
+            "Screen, window or tab capture through the browser's own picker",
+            "Drag a box to keep exactly the region you want",
+            "Pen, highlighter, rectangle and arrow marks",
+            "Undo and clear",
+            "Save as PNG in Pictures, or copy the image to the clipboard",
+            "Desktop browsers only — the app explains itself on iOS"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #0f172a, #f43f5e)",
+                "text": "Select a region"
+            },
+            {
+                "bg": "linear-gradient(135deg, #f43f5e, #0ea5e9)",
+                "text": "Mark it up"
+            }
+        ],
+        "size": "0.2 MB",
+        "ageRating": "3+"
+    }
+}

@@ -1,0 +1,39 @@
+{
+    "manifestVersion": 1,
+    "id": "photoStudio",
+    "uuid": "3d9f6b42-71c8-4a5e-8f2d-b14c7e60a938",
+    "name": "Photo Studio",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "permissions": ["filesystem"],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Photo & video",
+        "rating": "4.6",
+        "reviews": "1,872",
+        "description": "Crop, straighten and colour-grade a photo, then save a copy. Edits are non-destructive until you save, and any result can become your desktop background.",
+        "features": [
+            "Rotate, flip and crop with one-step undo",
+            "Brightness, contrast and saturation sliders",
+            "Mono, warm, cool and fade looks",
+            "Live preview — the saved file matches what you see",
+            "Save a copy as PNG or JPEG",
+            "Set the result as your desktop background",
+            "Open with Ctrl+O, save with Ctrl+S, or drop an image on the window"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #1e1b4b, #7c3aed)",
+                "text": "Adjust"
+            },
+            {
+                "bg": "linear-gradient(135deg, #7c3aed, #0ea5e9)",
+                "text": "Crop and save"
+            }
+        ],
+        "size": "0.4 MB",
+        "ageRating": "3+"
+    }
+}

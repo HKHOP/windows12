@@ -118,13 +118,28 @@ const AppStore = (() => {
         return ratingOf(b) - ratingOf(a);
     }
 
+    // Manifests have drifted on capitalisation ("Developer tools" vs
+    // "Developer Tools"); folding on case keeps one chip per category.
+    function categoryKey(value) {
+        return String(value || 'Other').toLowerCase();
+    }
+
+    function categoryOf(id) {
+        return appDetails[id]?.category || 'Other';
+    }
+
+    function inCategory(id, filter) {
+        return categoryKey(categoryOf(id)) === categoryKey(filter);
+    }
+
     function nonGameCategories() {
-        const cats = [];
+        const seen = new Map();
         appIds().forEach(id => {
-            const c = appDetails[id]?.category || 'Other';
-            if (!cats.includes(c)) cats.push(c);
+            const label = categoryOf(id);
+            const key = categoryKey(label);
+            if (!seen.has(key)) seen.set(key, label);
         });
-        return cats.sort();
+        return [...seen.values()].sort();
     }
 
     function featuredId(ids) {
@@ -297,7 +312,7 @@ const AppStore = (() => {
                         <div style="font-size:12px;color:#eee;">${games.length} item${games.length !== 1 ? 's' : ''}</div>
                     </div>
                     ${cats.map((c, i) => {
-                        const count = apps.filter(id => (appDetails[id]?.category || 'Other') === c).length;
+                        const count = apps.filter(id => inCategory(id, c)).length;
                         return `<div class="store-cat-tile" data-cat="${c.replace(/"/g, '&quot;')}" style="background:linear-gradient(135deg,${catColors[i % catColors.length]},#1e1e1e);border-radius:10px;padding:18px;cursor:pointer;border:1px solid #333;">
                             <div style="font-size:15px;font-weight:600;">${c}</div>
                             <div style="font-size:12px;color:#ccc;">${count} app${count !== 1 ? 's' : ''}</div>
@@ -311,7 +326,7 @@ const AppStore = (() => {
     function getAppsContent(filter = 'All') {
         const cats = nonGameCategories();
         let ids = appIds().sort(byRating);
-        if (filter !== 'All') ids = ids.filter(id => (appDetails[id]?.category || 'Other') === filter);
+        if (filter !== 'All') ids = ids.filter(id => inCategory(id, filter));
         return `
             <div>
                 <h2 style="font-size:24px;font-weight:700;margin:0 0 4px 0;">Apps</h2>

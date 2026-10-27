@@ -1,0 +1,37 @@
+{
+    "manifestVersion": 1,
+    "id": "solitaire",
+    "uuid": "a4e9c7d2-5b63-4f18-9e2a-6c0d8b3f1a75",
+    "name": "Solitaire",
+    "version": "1.0.0",
+    "distribution": "store",
+    "entry": "main.js",
+    "associations": [],
+    "store": {
+        "developer": "Windows 12",
+        "category": "Games",
+        "rating": "4.8",
+        "reviews": "6,430",
+        "description": "Classic Klondike solitaire: drag a card or a whole run, tap to send it where it fits, undo as far back as you like and auto-finish a solved game.",
+        "features": [
+            "Klondike with draw one or draw three",
+            "Drag a card or a run, or tap it to auto-place",
+            "Unlimited undo",
+            "Auto-finish when the game is solved",
+            "Timer, move counter and win statistics",
+            "Touch and mouse both work"
+        ],
+        "screenshots": [
+            {
+                "bg": "linear-gradient(135deg, #064e3b, #0f766e)",
+                "text": "The deal"
+            },
+            {
+                "bg": "linear-gradient(135deg, #0f766e, #1d4ed8)",
+                "text": "Foundations"
+            }
+        ],
+        "size": "0.2 MB",
+        "ageRating": "3+"
+    }
+}
