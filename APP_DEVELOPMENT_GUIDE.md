@@ -857,7 +857,7 @@ const MyMarkdown = (() => {
 | `AppIcons.get(id)` | Returns SVG string for an app |
 | `AppIcons.getAll()` | Returns all icon mappings |
 
-Known IDs: `fileExplorer`, `settings`, `notepad`, `calendar`, `taskManager`, `photos`, `calculator`, `clock`, `paint`, `browser`, `appStore`, `terminal`, `sampleApp`, `vscode`, `export`, `windowsUpdate`, `words`
+Known IDs: `fileExplorer`, `settings`, `notepad`, `calendar`, `taskManager`, `photos`, `calculator`, `clock`, `paint`, `browser`, `appStore`, `terminal`, `sampleApp`, `vscode`, `export`, `words`
 
 ---
 

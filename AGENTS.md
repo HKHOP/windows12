@@ -12,7 +12,7 @@ A web-based OS simulation built with vanilla HTML, CSS, and JavaScript modules. 
 4. **Freeze app identity.** Never change an existing app's `id`, `uuid`, or manifest `entry` path; install records, file associations and settings are keyed by them. Adding/removing an app folder also requires `node scripts/build-registry.js`.
 5. **Release every change.** Every commit gets a new CHANGELOG.md version entry (never modify older entries), using only **Added**, **Removed**, **Changed**, **Fixed**. Bump `version.json`, run `node scripts/update-version.js` to refresh the `?v=` cache-busters in `index.html`, and commit code first, then the changelog/version sync, then push.
 6. **Verify before committing.** Run `node scripts/test/sdk.smoke.mjs` (no browser needed) and `node --check` on modified JS. Run `node scripts/build-registry.js` and confirm it produces no unexpected diff. **Do not run the browser smoke tests** (`scripts/test/boot.smoke.mjs`, `scripts/test/update.smoke.mjs`) or any other headless-browser script — the user tests the OS by hand and reports back, and browser runs are slow and unwanted. Say plainly in the handover what still needs a manual check (a narrow/mobile viewport, see *Scaling & overlay positioning* below), instead of testing it yourself.
-7. **No dead code or debug output.** Remove unused imports/files, `console.log`/`debugger`, commented-out experiments and temporary artifacts before finishing. No native `alert()`/`confirm()`/`prompt()` — the single exception is the bootstrap's "refresh to start" prompt in `index.html`, which runs before the OS (and therefore the `Popup` API) exists.
+7. **No dead code or debug output.** Remove unused imports/files, `console.log`/`debugger`, commented-out experiments and temporary artifacts before finishing. No native `alert()`/`confirm()`/`prompt()` — not even in the bootstrap, which updates the core and reloads without asking.
 8. **Use the OS APIs, not raw DOM hacks.** Restore/focus/minimize through `WindowManager` (`focusWindow`, `setMinimized`, `closeWindow`, `isMinimized`, `isFocused`) — never reveal a window by writing `element.style.display` (it bypasses session and virtual-desktop visibility). Use `ContextMenu.show(clientX, clientY, items)` for menus; do not build your own coordinate-positioned menus.
 9. **Clean up what you bind.** Register global/document listeners once, not inside render loops. Per-window timers and listeners must be released when `window-closed` fires. Any Promise-based dialog must settle when its window is closed externally (`window-closed`), or callers hang.
 10. **Respect multi-user and persistence rules.** Never assume a single profile; use `Users.homeFor/appDataFor/userDataFor(id, …)` in code that can outlive a session switch. Persistent data goes through `FileSystem`/the SDK, never `localStorage`.
@@ -34,7 +34,7 @@ the operating system itself. Run them from the repository root:
 | `node scripts/update-version.js` | syncs the `?v=` cache-busters in `index.html` with `CHANGELOG.md` |
 | `node scripts/test/sdk.smoke.mjs` | the SDK suite (no browser needed) — **run this** |
 | `node scripts/test/boot.smoke.mjs` | a real browser: install → restart → boot → launch an app → boot again offline — **not run automatically** |
-| `node scripts/test/update.smoke.mjs` | a real browser: the install/update prompts appear exactly when they should — **not run automatically** |
+| `node scripts/test/update.smoke.mjs` | a real browser: a refresh installs a new core silently, with no dialogs — **not run automatically** |
 
 ### The registry
 
@@ -145,14 +145,12 @@ browser  ──import /js/main.js──▶ sw.js (fetch)  ──read──▶─
   - `w12/session.json` — the foreground profile id
   - There is **no shared "current core" pointer**. Each worker owns its own
     version directory and asks only about itself: a shared pointer made a
-    waiting worker look like it had replaced the running core, which produced
-    a bogus "download complete, refresh to start" prompt.
+    waiting worker look like it had replaced the running core.
 - **`index.html` is the bootstrap, not the shell.** It paints a black screen
-  with a white status line, registers the service worker, waits for the core
-  to be installed, asks for a refresh (native `confirm` — the OS and its
-  `Popup` API do not exist yet) and, after the reload, fetches `shell.html`
-  from OPFS, injects it, loads the stylesheets and `import()`s
-  `js/main.js`, which exports `boot()`.
+  with a white status line, registers the service worker, installs the core
+  on a first start, applies a waiting worker on every refresh and reloads
+  into it, then fetches `shell.html` from OPFS, injects it, loads the
+  stylesheets and `import()`s `js/main.js`, which exports `boot()`.
 - **`shell.html`** holds the desktop markup that used to live in `index.html`.
 - **The service worker is an OPFS file server, not a cache.** It answers
   `/js/…`, `/css/…`, `/assets/…`, `/shell.html` and `/core-manifest.json`
@@ -169,16 +167,16 @@ browser  ──import /js/main.js──▶ sw.js (fetch)  ──read──▶─
   use) and is deliberately **excluded** from `w12-core.pkg`: an app update
   must never ship a new operating system.
 - **Updates** work like this: a changed `sw.js` is a changed service worker
-  script, so the browser installs it, it downloads the new core, and the
-  bootstrap offers the restart that activates it. Core versions are
+  script. The browser installs it and it downloads the new core by itself,
+  then **waits** — a running session is never swapped out from under the
+  user. **Refreshing the page is the update check**: the bootstrap calls
+  `registration.update()`, finds the waiting worker, tells it to skip waiting
+  and reloads into its core. Nothing prompts, nothing asks. Core versions are
   per-directory (`w12/core/<version>/`), so an old worker never serves a
   half-updated OS.
-- **The prompt rules** (enforced by `scripts/test/update.smoke.mjs`):
-  - *"Windows 12 has been downloaded and installed. Refresh to start?"* appears
-    **only** when the core was just installed — never on an ordinary reload.
-  - *"A new version of Windows 12 is ready"* appears **only** when the
-    waiting worker carries a different core version. A worker that merely
-    brings a fresher app catalog is taken over silently.
+- **There is no Windows Update service.** Windows Update is a status page in
+  Settings that always says *You're up to date*; the bootstrapper is the only
+  updater. Store apps are updated by hand from the Store.
 - **The OS core is mirrored into the virtual filesystem** under `\Windows`
   (`js/modules/coreStore.js`): the entries hold no bytes, only pointers to
   the files on disk, so File Explorer shows the operating system's own files
@@ -213,17 +211,27 @@ browser  ──import /js/main.js──▶ sw.js (fetch)  ──read──▶─
 - `js/modules/appLoader.js` - App catalog + **lazy** module loader: metadata from the registry + installed package manifests; `ensureLoaded`/`launch` are async (`import()` on first launch), `getModule` is sync (loaded-or-null)
 - `js/modules/networkStatus.js` - Device connectivity (`navigator.onLine` + `online`/`offline` events): paints the tray Wi-Fi indicator, opens the network flyout, and exposes `isOnline()` / `onChange(cb)` / `ensureOnline(feature)` / `showError(feature)` (also `window._NetworkStatus`) so online-only features fail with a clean connection error
 - `js/modules/tray.js` - App system-tray icons: notification-area icons registered by background-capable apps (click / double-click / right-click, context menu, tooltip, live icon + badge), scoped per session; public surface is the SDK `Tray` namespace (`app.tray`, see `js/sdk/tray.js`); also `window._Tray`
-- `js/modules/updateService.js` - **Windows Update**: the background service that checks for updates (the operating system and the installed apps), downloads them in the background, applies them at the next start and keeps the history in the registry (`HKLM\Software\Windows 12\Updates`). The window is **Settings > Windows Update**; `js/modules/windowsUpdate.js` is the small facade both use.
 - `sw.js` - Service worker (registered by the `index.html` bootstrap, never by `js/main.js`): downloads and unpacks the core bundle into OPFS, serves the OS core and installed packages out of OPFS, keeps the tiny shell cached for offline reloads
 
-### Windows Update
+### Windows Update (retired)
 
-The update service is the only place that updates the operating system, and it never interrupts:
+The update service is gone (`updateService.js`, `windowsUpdate.js` and the
+`w12:update-state` event are removed). Updating is the bootstrap's job and it
+happens on a page refresh:
 
-- **The check** compares the running core with the newest one (a new service worker carries a new core and unpacks it into OPFS by itself) and the installed apps with the published catalog. It runs in the background (`autoCheckUpdates` in the per-user config) and on demand from Settings.
-- **The download** happens right away, without a popup: the core by the new worker, the app packages by the service (they are kept in `/system/programs data/updates/` until the restart). The progress is reported through the `w12:update-state` event.
-- **The restart** is the user's: a notification offers it, and the next start shows the update screen (`index.html`) while the service installs the packages and hands over to the new worker.
-- The bootstrap only installs the operating system when its files are **not** on disk. A newer worker is taken over silently - never with a prompt.
+- **The check is the refresh.** `index.html` calls `registration.update()` on
+  every start, so a changed `sw.js` is found immediately instead of on a
+  30-minute timer.
+- **The new worker installs its core and waits.** The bootstrap activates it
+  by posting `skip-waiting`, waits for `controllerchange` and reloads into
+  the new core. There is no prompt and no notification; the black boot screen
+  is all the user sees.
+- **A first start needs no prompt either.** The bootstrap installs the core,
+  reloads once and boots.
+- **Settings > Windows Update is a static page** that always says *You're up
+  to date* and shows the running version (`CoreStore.version()`). Do not add
+  checks, downloads, restart buttons or history there. Store apps update
+  from the Store by hand.
 
 ### Apps (folder-based — see APP_DEVELOPMENT_GUIDE.md)
 - Each app lives in `js/apps/<id>/` with `manifest.json` (id, uuid, name, version, distribution, associations, store info), `main.js` (wired entry), `scripts/` (extra modules), `assets/` (static files incl. `icon.svg`)
@@ -255,9 +263,9 @@ The update service is the only place that updates the operating system, and it n
 - **Filesystem permission is enforced** (`js/modules/fsGuard.js`): apps freely access their own AppData folders; anything outside requires the manifest `filesystem` permission, or a runtime consent dialog for apps that don't declare it. Reads use `FSGuard.check` (injected via `FileSystem.setAccessChecker`); **mutations** additionally use `FSGuard.checkWrite` (injected via `FileSystem.setWriteChecker`), which is identical except that writes inside `/Program Files` require a per-app session elevation (a UAC prompt; reads stay allowed so File Explorer can browse) and writes inside `\Windows` are always refused. OS modules must wrap their FS access in `window._FSGuard.asShell(fn)` so shell writes aren't attributed to the focused app (the guard is a synchronous inc/dec, so wrap each *synchronous* FS call individually, not a whole async function); shell-context writes skip the elevation gate. Accessing `/system/users/**`, `system/programs data/permissions/**`, `system/programs data/display/**` or the recycle bin from app code is denied.
 - **App modules must not call `AppLoader`/`AppRegistry`/`AppMetadata`/`Packages`/`Users` user-dependent paths at module scope** (top-level). The registry <-> app import cycle leaves those bindings uninitialized during evaluation — only call them inside functions like `launch()`. This includes `Users.home()`/`Users.appData()` (current user isn't resolved until boot): store them as lazy functions (`const DATA_PATH = () => Users.appData(APP_ID)`).
 - **After changing an app**, bump its version, then run `node scripts/build-registry.js` and `node scripts/build-core.js`; for a changed store app also run `node scripts/build-packages.js` (rebuild only that package). Run `node scripts/build-registry.js` after adding/removing any app folder, and `node scripts/build-core.js` after **any** change to the core (`js/modules/`, `js/sdk/`, `js/workers/`, `css/`, `assets/`, `shell.html`, `js/main.js`, `js/apps/registry.js`, a builtin app) — otherwise the browser keeps running the code in the previous bundle.
-- **Never use native `alert()`, `confirm()`, or `prompt()`** — the one exception is the bootstrap's "refresh to start" prompt in `index.html`, which runs before the OS exists. Inside the OS, always use the Popup API (`js/modules/popup.js`). All methods return Promises — use `.then()` or `await`. Available methods: `Popup.info()`, `Popup.warn()`, `Popup.error()`, `Popup.confirm()`, `Popup.pick()`, `Popup.textbox()`, `Popup.forum()`, `Popup.custom()`. Import it with `import Popup from '../modules/popup.js';`
+- **Never use native `alert()`, `confirm()`, or `prompt()`** — not even in `index.html`, which updates and reloads without asking. Inside the OS, always use the Popup API (`js/modules/popup.js`). All methods return Promises — use `.then()` or `await`. Available methods: `Popup.info()`, `Popup.warn()`, `Popup.error()`, `Popup.confirm()`, `Popup.pick()`, `Popup.textbox()`, `Popup.forum()`, `Popup.custom()`. Import it with `import Popup from '../modules/popup.js';`
 - **For non-modal toasts use the Notifications API** (`js/modules/notifications.js`): `Notifications.info()`, `Notifications.action()` (buttons + `onAction`), `Notifications.forum()` (fields + `onSubmit`). Flags: `sticky`, `critical`, `silent`, `tag`. Methods return the id immediately; outcomes arrive via `onAction`/`onSubmit`/`onDismiss(reason)`. Import it with `import Notifications from '../modules/notifications.js';`
-- **The OS must work offline.** The whole OS is on disk in OPFS: the service worker serves the core and the installed packages from there, so the OS boots and runs with no network at all — even if the host is down. Only genuinely-online features are affected: the Store's package downloads, `CHANGELOG.md` (Windows Update), cross-origin `fetch`es (Weather, Copilot, peer pairing) and remote iframes (Browser). Check connectivity with `import NetworkStatus from '../modules/networkStatus.js'` (`isOnline()`, `onChange(cb)`, `ensureOnline(feature)` → clean Popup + `false`, or `showError(feature)`) and fail with a readable connection error instead of hanging or crashing. The tray Wi-Fi indicator reflects `navigator.onLine` automatically.
+- **The OS must work offline.** The whole OS is on disk in OPFS: the service worker serves the core and the installed packages from there, so the OS boots and runs with no network at all — even if the host is down. Only genuinely-online features are affected: the Store's package downloads, `CHANGELOG.md` (Settings > About), cross-origin `fetch`es (Weather, Copilot, peer pairing) and remote iframes (Browser). A refresh while offline keeps the installed core (the update check fails silently). Check connectivity with `import NetworkStatus from '../modules/networkStatus.js'` (`isOnline()`, `onChange(cb)`, `ensureOnline(feature)` → clean Popup + `false`, or `showError(feature)`) and fail with a readable connection error instead of hanging or crashing. The tray Wi-Fi indicator reflects `navigator.onLine` automatically.
 
 ## Scaling & overlay positioning (mobile-critical)
 

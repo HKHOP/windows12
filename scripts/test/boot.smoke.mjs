@@ -7,7 +7,7 @@
 // protocol and checks that:
 //
 //   1. the bootstrap installs the OS core into OPFS,
-//   2. it asks for the refresh and survives the reload,
+//   2. it restarts itself into the new core without asking,
 //   3. the shell boots and the OS core shows up as a read-only \Windows tree.
 //
 // Zero dependencies: Node's built-in WebSocket talks to the DevTools protocol.

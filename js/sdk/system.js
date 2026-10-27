@@ -2,7 +2,7 @@
 //
 // Read-only OS facts plus the two user-visible appearance settings. Window
 // metrics, scaling and taskbar internals stay internal.
-import WindowsUpdate from '../modules/windowsUpdate.js';
+import CoreStore from '../modules/coreStore.js';
 import InternalConfig from '../modules/systemConfig.js';
 import { ErrorCodes, SDKError, requireString } from './errors.js';
 
@@ -13,8 +13,8 @@ import { ErrorCodes, SDKError, requireString } from './errors.js';
 function info() {
     let version = '12.0.4000';
     try {
-        version = WindowsUpdate.getCurrentVersion() || version;
-    } catch { /* version module unavailable */ }
+        version = CoreStore.version() || version;
+    } catch { /* version source unavailable */ }
     return {
         name: 'Windows 12',
         version,

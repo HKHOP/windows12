@@ -11,7 +11,6 @@ import Scaling from './modules/scaling.js';
 import Touch from './modules/touch.js';
 import DesktopIcons from './modules/desktopIcons.js';
 import AppSystem from './modules/appSystem.js';
-import WindowsUpdate from './modules/windowsUpdate.js';
 import Search from './modules/search.js';
 import Notifications from './modules/notifications.js';
 import Cursor from './modules/cursor.js';
@@ -34,7 +33,6 @@ import Tray from './modules/tray.js';
 import Shortcuts from './modules/shortcuts.js';
 import Sounds from './modules/sounds.js';
 import CoreStore from './modules/coreStore.js';
-import UpdateService from './modules/updateService.js';
 
 // Filesystem access policy: app code may always touch its own AppData,
 // anything else requires the 'filesystem' permission (see fsGuard.js).
@@ -130,14 +128,6 @@ export async function boot() {
     if (taskbar) taskbar.style.opacity = '0';
     if (wallpaper) wallpaper.style.opacity = '0';
 
-    // Windows Update: the update service runs in the background (the user
-    // can turn the automatic check off in Settings). A update that was
-    // downloaded earlier is applied right here, before anyone signs in.
-    UpdateService.init();
-    try {
-        if (UpdateService.readPending()) UpdateService.applyPending();
-    } catch (e) { /* the update is applied on the next start */ }
-
     // Boot animation → user picker → sign-in → profile load → desktop.
     LoginScreen.bootSequence({ onSignIn: (id) => Sessions.signIn(id) });
 }
@@ -177,7 +167,6 @@ async function bootShell() {
     DesktopIcons.init();
     Shortcuts.init();
     Touch.init();
-    WindowsUpdate.init();
     Search.init();
     Notifications.init();
     ClipboardManager.init();

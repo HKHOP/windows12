@@ -46,8 +46,6 @@ const AppIcons = (() => {
 
         export: `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="3" fill="#0078D4"/><path d="M12 5v10" stroke="white" stroke-width="1.8" stroke-linecap="round"/><path d="M8 9l4-4 4 4" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 17v1a1 1 0 001 1h10a1 1 0 001-1v-1" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>`,
 
-        windowsUpdate: `<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="3" fill="#0078D4"/><path d="M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5zM13 13h6v6h-6z" fill="white" fill-opacity="0.9" rx="1"/></svg>`,
-
         words: `<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="2" width="18" height="20" rx="2" fill="#3b82f6"/><path d="M7 7h10M7 11h10M7 15h7" stroke="white" stroke-width="1.6" stroke-linecap="round"/></svg>`,
 
         sledgePoint: `<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#D83B01"/><path d="M7 8h4v8H7V8zm6 3h4v5h-4v-5z" fill="white"/></svg>`,

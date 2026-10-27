@@ -8,8 +8,7 @@ import Popup from '../../modules/popup.js';
 import AppSystem from '../../modules/appSystem.js';
 import AppLoader from '../../modules/appLoader.js';
 import { AppMetadata, Taskbar } from '../../modules/taskbar.js';
-import WindowsUpdate from '../../modules/windowsUpdate.js';
-import UpdateService from '../../modules/updateService.js';
+import CoreStore from '../../modules/coreStore.js';
 import Touch from '../../modules/touch.js';
 import VirtualKeyboard from '../../modules/virtualKeyboard.js';
 import Cursor from '../../modules/cursor.js';
@@ -65,11 +64,7 @@ const Settings = (() => {
         taskbar: { name: 'Taskbar', icon: UIIcons.setting('taskbarSettings', 20) }
     };
 
-    const updateSubPages = {
-        history: { name: 'Update history', icon: UIIcons.setting('update', 20) }
-    };
-
-    const subPageSets = { system: systemSubPages, personalization: personalizationSubPages, update: updateSubPages };
+    const subPageSets = { system: systemSubPages, personalization: personalizationSubPages };
 
     function currentUserName() {
         let accName = null;
@@ -230,8 +225,6 @@ const Settings = (() => {
     function renderSubPage(el, page, subPage) {
         if (page === 'system') {
             renderSystemSubPage(el, subPage);
-        } else if (page === 'update') {
-            renderUpdateSubPage(el, subPage);
         } else {
             renderPersonalizationSubPage(el, subPage);
         }
@@ -1504,228 +1497,29 @@ const Settings = (() => {
         `;
     }
 
-    function updateStatusArt(state) {
-        // The big status picture in the corner of the card.
-        if (state.status === 'checking') {
-            return `<svg width="52" height="52" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="9.5" stroke="#0078D4" stroke-width="2" opacity="0.25"/>
-                <path d="M12 2.5a9.5 9.5 0 0 1 9.5 9.5" stroke="#0078D4" stroke-width="2" stroke-linecap="round">
-                    <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1.1s" repeatCount="indefinite"/>
-                </path>
-            </svg>`;
-        }
-        if (state.status === 'downloading' || state.status === 'applying') {
-            return `<svg width="52" height="52" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="9.5" stroke="#0078D4" stroke-width="2" opacity="0.25"/>
-                <path d="M12 2.5a9.5 9.5 0 0 1 9.5 9.5" stroke="#0078D4" stroke-width="2" stroke-linecap="round">
-                    <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1.1s" repeatCount="indefinite"/>
-                </path>
-            </svg>`;
-        }
-        if (state.status === 'ready') {
-            return `<svg width="52" height="52" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" fill="#c47f00"/>
-                <path d="M12 6.5v6.2" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
-                <circle cx="12" cy="16.4" r="1.3" fill="#fff"/>
-            </svg>`;
-        }
-        if (state.status === 'error') {
-            return `<svg width="52" height="52" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" fill="#c47f00"/>
-                <path d="M12 6.5v6.2" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
-                <circle cx="12" cy="16.4" r="1.3" fill="#fff"/>
-            </svg>`;
-        }
-        if (WindowsUpdate.isUpdateAvailable()) {
-            return `<svg width="52" height="52" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" fill="#c47f00"/>
-                <path d="M12 5.5v7.2l4.4 2.6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>`;
-        }
-        return `<svg width="52" height="52" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" fill="#0f7b0f"/>
-            <path d="M8 12.4l2.7 2.7L16 9.6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>`;
-    }
-
-    function updateTimeAgo(ts) {
-        if (!ts) return 'never';
-        const diff = Date.now() - ts;
-        if (diff < 60000) return 'just now';
-        if (diff < 3600000) return Math.floor(diff / 60000) + ' min ago';
-        if (diff < 86400000) return Math.floor(diff / 3600000) + ' h ago';
-        return new Date(ts).toLocaleDateString();
-    }
-
+    // Windows Update is a status page: the operating system updates itself in
+    // the bootstrap when the page is refreshed, so there is never anything to
+    // download, install or restart here.
     function renderUpdate(el) {
-        const state = UpdateService.getState();
-        const working = state.status === 'checking' || state.status === 'downloading' || state.status === 'applying';
-        const ready = state.status === 'ready';
-        const hasUpdate = WindowsUpdate.isUpdateAvailable();
-        const currentVersion = WindowsUpdate.getCurrentVersion();
-        const autoCheck = UpdateService.autoCheckEnabled();
-        const percent = Math.round((state.progress || 0) * 100);
-
-        const headline = ready ? 'Restart required'
-            : state.status === 'checking' ? 'Checking for updates'
-            : state.status === 'downloading' ? 'Downloading updates'
-            : state.status === 'applying' ? 'Working on updates'
-            : state.status === 'error' ? 'We couldn\'t check for updates'
-            : hasUpdate ? 'Update available'
-            : 'You\'re up to date';
-
-        const sub = ready ? (state.message || 'The updates are on disk. Restart to finish installing them.')
-            : working ? (state.message || 'Please wait…')
-            : state.status === 'error' ? (state.message || 'Check your connection and try again.')
-            : state.osPending ? (state.osVersion
-                ? `Version ${state.osVersion} is ready to install`
-                : 'A new version of Windows 12 is ready to install')
-            : hasUpdate ? (state.osVersion
-                ? `Version ${state.osVersion} is available`
-                : `${state.apps.length} app update${state.apps.length === 1 ? '' : 's'} available`)
-            : `You're up to date. Last checked ${updateTimeAgo(state.lastCheck)}.`;
-
-        const updateRows = [];
-        if (state.osPending || state.osVersion) {
-            updateRows.push(`<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 0;border-top:1px solid var(--window-border);">
-                <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-                    <span style="width:26px;height:26px;display:inline-flex;flex-shrink:0;">${UIIcons.setting('update', 22)}</span>
-                    <span style="font-size:13px;">Operating system update</span>
-                </div>
-                <span style="font-size:12px;color:var(--accent-color);white-space:nowrap;">${state.osVersion ? (state.osCurrent ? state.osCurrent + ' → ' : '') + state.osVersion : 'new version'}</span>
-            </div>`);
-        }
-        for (const app of state.apps) {
-            updateRows.push(`<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 0;border-top:1px solid var(--window-border);">
-                <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-                    <span style="width:26px;height:26px;display:inline-flex;flex-shrink:0;">${UIIcons.action('arrowUp', 22)}</span>
-                    <span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${app.name}</span>
-                </div>
-                <span style="font-size:12px;color:var(--accent-color);white-space:nowrap;">${app.installedVersion} → ${app.version}</span>
-            </div>`);
-        }
-
+        const version = CoreStore.version();
         el.innerHTML = `
             <h2 style="font-size:28px;font-weight:600;margin-bottom:22px;">Windows Update</h2>
 
-            <!-- The status card -->
             <div style="background:var(--window-header);border:1px solid var(--window-border);border-radius:10px;padding:22px 24px;display:flex;align-items:flex-start;gap:20px;">
-                <div style="width:52px;height:52px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${updateStatusArt(state)}</div>
+                <div style="width:52px;height:52px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="52" height="52" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" fill="#0f7b0f"/>
+                        <path d="M8 12.4l2.7 2.7L16 9.6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
                 <div style="flex:1;min-width:0;">
-                    <div style="font-size:19px;font-weight:600;margin-bottom:4px;">${headline}</div>
-                    <div style="font-size:13px;color:#888;line-height:1.5;">${sub}</div>
-
-                    <div style="margin-top:18px;">
-                        <button class="settings-update-check" style="min-width:200px;padding:10px 22px;background:#0078D4;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:13px;font-weight:600;" ${working ? 'disabled' : ''}>
-                            ${working ? 'Working…' : 'Check for updates'}
-                        </button>
-                        ${working ? `
-                            <div style="margin-top:16px;max-width:420px;">
-                                <div style="height:4px;border-radius:2px;background:rgba(255,255,255,0.15);overflow:hidden;">
-                                    <div style="height:100%;width:${percent}%;background:var(--accent-color);transition:width 0.35s ease-out;"></div>
-                                </div>
-                                <div style="display:flex;justify-content:space-between;font-size:12px;color:#888;margin-top:8px;">
-                                    <span>${state.message || ''}</span><span>${percent}%</span>
-                                </div>
-                            </div>
-                        ` : ''}
-                    </div>
-
-                    ${ready ? `
-                        <div style="display:flex;gap:10px;margin-top:18px;">
-                            <button class="settings-update-refresh" style="padding:10px 22px;background:#0078D4;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Restart now</button>
-                            <button class="settings-update-later" style="padding:10px 22px;background:transparent;border:1px solid var(--window-border);border-radius:6px;color:var(--text-primary);cursor:pointer;font-size:13px;">Restart later</button>
-                        </div>
-                    ` : ''}
-                </div>
-            </div>
-
-            ${updateRows.length ? `
-                <div style="margin-top:16px;background:var(--window-header);border:1px solid var(--window-border);border-radius:10px;padding:18px 24px;">
-                    <div style="font-size:14px;font-weight:600;margin-bottom:6px;">Available updates</div>
-                    <div style="font-size:12px;color:#888;">These updates are downloaded and are installed when you restart.</div>
-                    ${updateRows.join('')}
-                </div>
-            ` : ''}
-
-            <!-- More options -->
-            <div style="margin-top:16px;background:var(--window-header);border:1px solid var(--window-border);border-radius:10px;padding:6px 24px;">
-                <div class="settings-update-history-link" style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0;cursor:pointer;border-bottom:1px solid var(--window-border);">
-                    <span style="font-size:13px;">Update history</span>
-                    <span style="font-size:16px;color:#888;">&#8250;</span>
-                </div>
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:16px 0;">
-                    <div style="min-width:0;">
-                        <div style="font-size:13px;">Get the latest updates as soon as they're available</div>
-                        <div style="font-size:12px;color:#888;margin-top:3px;">Windows Update checks for new versions in the background.</div>
-                    </div>
-                    <input type="checkbox" class="settings-update-auto" ${autoCheck ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--accent-color);cursor:pointer;flex-shrink:0;margin-top:2px;">
+                    <div style="font-size:19px;font-weight:600;margin-bottom:4px;">You're up to date</div>
+                    <div style="font-size:13px;color:#888;line-height:1.5;">Windows 12 updates itself when you refresh the page. There is nothing to install right now.</div>
                 </div>
             </div>
 
             <div style="margin-top:16px;font-size:12px;color:#888;">
-                Last checked: ${state.lastCheck ? new Date(state.lastCheck).toLocaleString() : 'never'}${currentVersion ? ' · Version ' + currentVersion : ''}
-            </div>
-        `;
-
-        const checkBtn = el.querySelector('.settings-update-check');
-        if (checkBtn) {
-            checkBtn.addEventListener('click', async () => {
-                checkBtn.disabled = true;
-                checkBtn.textContent = 'Checking…';
-                await UpdateService.check({ manual: true });
-                renderUpdate(el);
-            });
-        }
-
-        const refresh = el.querySelector('.settings-update-refresh');
-        if (refresh) {
-            refresh.addEventListener('click', () => UpdateService.restartNow());
-        }
-
-        const later = el.querySelector('.settings-update-later');
-        if (later) {
-            later.addEventListener('click', () => renderUpdate(el));
-        }
-
-        const historyLink = el.querySelector('.settings-update-history-link');
-        if (historyLink) {
-            historyLink.addEventListener('click', () => {
-                currentSubPage = 'history';
-                renderPage();
-            });
-        }
-
-        const auto = el.querySelector('.settings-update-auto');
-        if (auto) {
-            auto.addEventListener('change', () => {
-                UpdateService.setAutoCheck(!!auto.checked);
-            });
-        }
-    }
-
-    // The sub-page of Windows Update: everything that was installed.
-    function renderUpdateSubPage(el, subPage) {
-        if (subPage !== 'history') { renderUpdate(el); return; }
-        const entries = WindowsUpdate.history();
-
-        const rows = entries.length
-            ? entries.map(e => `
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:14px 0;border-top:1px solid var(--window-border);">
-                    <div style="min-width:0;">
-                        <div style="font-size:13px;font-weight:500;">${e.title}</div>
-                        <div style="font-size:12px;color:#888;margin-top:3px;">${new Date(e.date).toLocaleString()}${e.details ? ' · ' + e.details : ''}</div>
-                    </div>
-                    <span style="font-size:11px;padding:3px 10px;border-radius:10px;white-space:nowrap;${e.status === 'failed'
-                        ? 'background:rgba(200,60,60,0.2);color:#ff8a8a;'
-                        : 'background:rgba(15,123,15,0.2);color:#7fd07f;'}">${e.status === 'failed' ? 'failed' : 'installed'}</span>
-                </div>`).join('')
-            : '<div style="padding:24px 0;font-size:13px;color:#888;">No updates have been installed yet.</div>';
-
-        el.innerHTML = `
-            ${subPageHeader('Update history')}
-            <div style="background:var(--window-header);border:1px solid var(--window-border);border-radius:10px;padding:6px 24px;">
-                ${rows}
+                ${version ? 'Version ' + version : 'Windows 12'}
             </div>
         `;
     }
@@ -1782,7 +1576,7 @@ const Settings = (() => {
                 el.querySelector('.about-date').textContent = match[2];
             }
         }).catch(() => {
-            const v = WindowsUpdate.getCurrentVersion() || '12.0.4000';
+            const v = CoreStore.version() || '12.0.4000';
             el.querySelector('.about-version').textContent = v;
             el.querySelector('.about-build').textContent = v.replace(/\./g, '');
             el.querySelector('.about-date').textContent = '2026-08-31';
@@ -2131,7 +1925,6 @@ const Settings = (() => {
     }
 
     let userListenerWired = false;
-    let updateListenerWired = false;
 
     function launch(options = {}) {
         if (options.page || options.subPage) {
@@ -2166,20 +1959,6 @@ const Settings = (() => {
         if (!userListenerWired) {
             userListenerWired = true;
             window.addEventListener('user-info-changed', refreshSidebarUser);
-        }
-
-        // The update service reports every change: the Windows Update page
-        // follows along (the progress bar moves while a download runs).
-        if (!updateListenerWired) {
-            updateListenerWired = true;
-            window.addEventListener('w12:update-state', () => {
-                if (!win || !win.element.isConnected) return;
-                if (currentPage !== 'update') return;
-                const content = win.element.querySelector('.settings-content');
-                if (!content) return;
-                if (currentSubPage === 'history') renderUpdateSubPage(content, 'history');
-                else renderUpdate(content);
-            });
         }
         refreshSidebarUser();
     }

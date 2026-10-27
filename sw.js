@@ -41,10 +41,10 @@ const SHELL_FILES = ['./', './index.html', './manifest.json', './favicon.svg', '
 
 // >>> w12:core
 const CORE_VERSION = '15.10.0';
-const CORE_HASH = '1ff6001b637a98ba';
+const CORE_HASH = 'fb098b4ee7cd1e8f';
 const CORE_PACKAGE = './w12-core.pkg';
-const CORE_FILE_COUNT = 179;
-const CORE_BYTES = 1819541;
+const CORE_FILE_COUNT = 177;
+const CORE_BYTES = 1809743;
 // <<< w12:core
 
 // >>> w12:apps-dist
@@ -742,8 +742,9 @@ self.addEventListener('install', event => {
         }
 
         // Take over immediately on a first install (there is no previous
-        // worker to keep the page on). On an update we stay in "waiting" so
-        // the running session is not swapped out from under the user.
+        // worker to keep the page on). On an update we stay in "waiting": the
+        // bootstrap activates us on the next refresh, so a running session is
+        // never swapped out from under the user.
         if (!self.registration.active) await self.skipWaiting();
     })());
 });
@@ -788,28 +789,6 @@ self.addEventListener('message', event => {
                 });
             } catch (e) {
                 reply({ type: 'core-status', __id: data.__id, ok: false, error: String((e && e.message) || e) });
-            }
-        })());
-        return;
-    }
-
-    if (data.type === 'pending-update') {
-        // The update service keeps a downloaded update in the virtual
-        // filesystem until the machine restarts. The bootstrap asks for it
-        // before the shell loads, so it can show the update screen.
-        event.waitUntil((async () => {
-            try {
-                const tree = await readTree();
-                const node = tree
-                    ? resolveNode(tree, ['system', 'programs data', 'updates', 'pending.json'])
-                    : null;
-                let pending = null;
-                if (node && node.type === 'file' && node.content) {
-                    try { pending = JSON.parse(node.content); } catch (e) { pending = null; }
-                }
-                reply({ type: 'pending-update', __id: data.__id, ok: true, pending });
-            } catch (e) {
-                reply({ type: 'pending-update', __id: data.__id, ok: false, error: String((e && e.message) || e) });
             }
         })());
         return;

@@ -2,15 +2,16 @@
 //
 //     node test/update.smoke.mjs
 //
-// Covers the two update rules of the OS-core architecture:
+// Covers the update rules of the OS-core architecture:
 //
-//   1. The "download complete, refresh to start" prompt must NEVER come back
-//      on an ordinary reload. It may only appear when the core was actually
-//      just installed.
-//   2. Updating a Microsoft Store app does not change the OS version, so it
+//   1. Refreshing the page is the update check: a new operating system
+//      installs itself and the bootstrap restarts into it. Nothing asks the
+//      user for anything (no native confirm).
+//   2. Ordinary reloads never show a dialog.
+//   3. Updating a Microsoft Store app does not change the OS version, so it
 //      must not update the entire operating system (no worker update, no
-//      prompt, no core re-download).
-//   3. A real OS release does prompt for the restart that installs it.
+//      core re-download).
+//   4. A real OS release runs after the next refresh.
 //
 // The test server patches sw.js and the app catalog on the fly to simulate
 // both kinds of release.
@@ -207,12 +208,14 @@ async function main() {
         const waitForShell = async (timeoutMs) => {
             const deadline = Date.now() + (timeoutMs || 60000);
             while (Date.now() < deadline) {
-                const state = await cdp.eval(`(() => ({
-                    shell: !!document.getElementById('taskbar'),
-                    fs: !!window._FileSystem,
-                    status: (document.getElementById('boot-status') || {}).textContent || ''
-                }))()`);
-                if (state.shell && state.fs) return state;
+                try {
+                    const state = await cdp.eval(`(() => ({
+                        shell: !!document.getElementById('taskbar'),
+                        fs: !!window._FileSystem,
+                        status: (document.getElementById('boot-status') || {}).textContent || ''
+                    }))()`);
+                    if (state.shell && state.fs) return state;
+                } catch (e) { /* the bootstrap is reloading the page */ }
                 await new Promise(r => setTimeout(r, 400));
             }
             return null;
@@ -223,38 +226,30 @@ async function main() {
             return waitForShell();
         };
 
-        // ---- 1. first run: the install prompt appears exactly once ----------
+        // ---- 1. first run: installs and restarts itself, no prompt ----------
         console.log('[first run]');
-        let state = await waitForShell(90000);
-        check('the OS booted', !!state, state ? state.status : 'timeout');
-        check('the "refresh to start" prompt appeared once', dialogs === 1, `dialogs=${dialogs}`);
-        check('the prompt is the install prompt',
-            /downloaded and installed/i.test(dialogTexts[0] || ''), JSON.stringify(dialogTexts[0] || ''));
+        let state = await waitForShell(120000);
+        check('the OS booted after the automatic restart', !!state, state ? state.status : 'timeout');
+        check('the first start asks nothing', dialogs === 0,
+            `dialogs=${dialogs}: ${JSON.stringify(dialogTexts)}`);
 
-        // The prompt reloads the page; wait for the second boot to finish.
-        await new Promise(r => setTimeout(r, 3000));
-        state = await waitForShell(60000);
-        check('the OS is up after the restart', !!state);
-
-        // ---- 2. ordinary reloads must never prompt again --------------------
+        // ---- 2. ordinary reloads must never prompt --------------------------
         console.log('[ordinary reloads]');
-        const before = dialogs;
         for (let i = 0; i < 3; i++) {
             const s = await reload();
             if (!s) { check(`reload ${i + 1} booted`, false); break; }
         }
-        check('no prompt on ordinary reloads', dialogs === before,
-            `dialogs went ${before} -> ${dialogs}: ${JSON.stringify(dialogTexts.slice(before))}`);
+        check('no dialog on ordinary reloads', dialogs === 0,
+            `dialogs: ${JSON.stringify(dialogTexts)}`);
 
         // ---- 3. a store app update must not update the OS -------------------
         console.log('[store app update]');
         const swBefore = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
         published.storeAppVersion = '9.9.9';
-        const beforeStore = dialogs;
         state = await reload();
         check('the OS still booted', !!state);
-        check('a store app update prompts nothing', dialogs === beforeStore,
-            `dialogs went ${beforeStore} -> ${dialogs}: ${JSON.stringify(dialogTexts.slice(beforeStore))}`);
+        check('a store app update applies without a dialog', dialogs === 0,
+            `dialogs: ${JSON.stringify(dialogTexts)}`);
         const catalogVersion = await cdp.eval(`(async () => {
             const res = await fetch('/js/apps/registry.js', { cache: 'no-store' });
             const text = await res.text();
@@ -264,23 +259,15 @@ async function main() {
         check('the new app catalog version is live', catalogVersion === '9.9.9', String(catalogVersion));
         published.storeAppVersion = null;
 
-        // ---- 4. a real OS release does prompt -------------------------------
+        // ---- 4. a real OS release applies on the next refresh ---------------
         console.log('[OS release]');
-        const beforeOs = dialogs;
         published.osVersion = '99.0.0';
-        // The browser checks for a new worker after a navigation: the first
-        // reload installs the new worker, the second one sees it waiting.
-        await reload();
-        await new Promise(r => setTimeout(r, 4000));
+        // One refresh is the update check: the new worker installs its core,
+        // the bootstrap takes it over and reloads into it.
         state = await reload();
-        check('the update prompt appeared once', dialogs === beforeOs + 1,
-            `dialogs went ${beforeOs} -> ${dialogs}: ${JSON.stringify(dialogTexts.slice(beforeOs))}`);
-        check('the prompt is the update prompt',
-            /new version of windows 12/i.test(dialogTexts[dialogs - 1] || ''),
-            JSON.stringify(dialogTexts[dialogs - 1] || ''));
-        await new Promise(r => setTimeout(r, 6000));
-        state = await waitForShell(60000);
         check('the OS booted on the new core', !!state);
+        check('the OS update applied without a dialog', dialogs === 0,
+            `dialogs: ${JSON.stringify(dialogTexts)}`);
         const coreVersion = await cdp.eval(`(async () => {
             const res = await fetch('/core-manifest.json', { cache: 'no-store' });
             const m = await res.json();
