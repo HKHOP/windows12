@@ -32,6 +32,7 @@ import WindowState from './modules/windowState.js';
 import NetworkStatus from './modules/networkStatus.js';
 import Tray from './modules/tray.js';
 import Shortcuts from './modules/shortcuts.js';
+import LinkRouter from './modules/linkRouter.js';
 import Sounds from './modules/sounds.js';
 import CoreStore from './modules/coreStore.js';
 
@@ -172,6 +173,9 @@ async function bootShell() {
     ContextMenu.init();
     DesktopIcons.init();
     Shortcuts.init();
+    // Hyperlinks inside the OS open in the built-in Browser, never in a host
+    // tab outside the desktop.
+    LinkRouter.init();
     Touch.init();
     Search.init();
     Notifications.init();

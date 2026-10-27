@@ -1305,6 +1305,39 @@ check('the Store folds category capitalisation into one chip', (() => {
         && /inCategory\(id, filter\)/.test(src)
         && /inCategory\(id, c\)/.test(src);
 })());
+check('a hyperlink inside the OS is routed to the built-in Browser', (() => {
+    const router = fs.readFileSync(new URL('../../js/modules/linkRouter.js', import.meta.url), 'utf8');
+    const host = fs.readFileSync(new URL('../../js/apps/browser/main.js', import.meta.url), 'utf8');
+    const shell = fs.readFileSync(new URL('../../js/main.js', import.meta.url), 'utf8');
+    return /closest\('a\[href\]'\)/.test(router)
+        && /event\.preventDefault\(\)/.test(router)
+        && /document\.addEventListener\('click', handle\)/.test(router)
+        && /AppLoader\.folderFor\('browser'\)/.test(router)
+        && /browser\.openUrl/.test(router)
+        && /liveWindows/.test(host) && /target\.addTab\(url\.trim\(\)\)/.test(host)
+        && /LinkRouter\.init\(\)/.test(shell);
+})());
+check('only http(s) links leave the app they were clicked in', (() => {
+    const src = fs.readFileSync(new URL('../../js/modules/linkRouter.js', import.meta.url), 'utf8');
+    const start = src.indexOf('function routableHref');
+    const end = src.indexOf('function handle');
+    const body = src.slice(start, end);
+    const route = new Function('ROUTABLE', 'document', `${body}; return routableHref;`)(
+        new Set(['http:', 'https:']), { baseURI: 'https://w12.example/' });
+    const anchor = (href, extra = {}) => ({
+        getAttribute: () => href,
+        hasAttribute: (name) => !!extra[name],
+        isContentEditable: !!extra.editable
+    });
+    return route(anchor('https://example.com')) === 'https://example.com/'
+        && route(anchor('http://example.com/a?b=1')) === 'http://example.com/a?b=1'
+        && route(anchor('/docs/page.html')) === 'https://w12.example/docs/page.html'
+        && route(anchor('mailto:someone@example.com')) === null
+        && route(anchor('javascript:alert(1)')) === null
+        && route(anchor('#section')) === null
+        && route(anchor('https://example.com/file.zip', { download: true })) === null
+        && route(anchor('https://example.com/edit', { editable: true })) === null;
+})());
 
 console.log('[factory reset + OS zones]');
 const GuardMod = (await import('../../js/modules/fsGuard.js')).default;

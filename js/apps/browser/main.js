@@ -10,6 +10,12 @@ import NetworkStatus from '../../modules/networkStatus.js';
 const Browser = (() => {
     const icon = AppIcons.get('browser');
 
+    // Windows this module is driving, by window id. A hyperlink routed in
+    // from another app opens as a TAB in the most recent visible Browser
+    // window instead of spawning one window per click. Closed windows are
+    // pruned lazily (element no longer connected).
+    const liveWindows = new Map();
+
     const QUICK_LINKS = [
         { name: 'GitHub', url: 'https://github.com', color: '#333', letter: 'G' },
         { name: 'Wikipedia', url: 'https://wikipedia.org', color: '#636466', letter: 'W' },
@@ -1011,6 +1017,7 @@ const Browser = (() => {
         renderTabs();
         showNewTab();
         if (typeof startUrl === 'string' && startUrl.trim()) navigateTo(startUrl.trim());
+        liveWindows.set(win.id, { win, addTab });
 
         // Follow touchpad mode without polling; syncPane self-removes this
         // listener once the window is gone.
@@ -1062,8 +1069,40 @@ const Browser = (() => {
         });
     }
 
+    // The most recent Browser window a routed hyperlink may reuse: still
+    // open, and on this session's active virtual desktop. A minimized one is
+    // restored; a window parked on another desktop is left alone, because a
+    // link must not land on a page the user cannot see.
+    function reusableWindow() {
+        let pick = null;
+        liveWindows.forEach((entry, id) => {
+            if (!entry.win.element.isConnected) { liveWindows.delete(id); return; }
+            const data = WindowManager._getWindow(id);
+            if (!data) return;
+            if (data.minimized) {
+                WindowManager.setMinimized(id, false);
+                if (!WindowManager.isWindowVisible(data)) {
+                    WindowManager.setMinimized(id, true);
+                    return;
+                }
+            } else if (!WindowManager.isWindowVisible(data)) {
+                return;
+            }
+            pick = entry;
+        });
+        return pick;
+    }
+
     function openUrl(url) {
-        launch(url);
+        if (typeof url !== 'string' || !url.trim()) return;
+        const target = reusableWindow();
+        if (!target) {
+            // No window to put it in: open one on the requested address.
+            launch(url.trim());
+            return;
+        }
+        WindowManager.focusWindow(target.win.id);
+        target.addTab(url.trim());
     }
 
     return { launch, openUrl };
