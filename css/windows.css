@@ -28,6 +28,31 @@
     border: none;
 }
 
+/* A window taken fullscreen through the Fullscreen API (WindowManager
+   .setFullscreen) fills the screen edge to edge and drops its title bar, so
+   only the app content is visible. Leaving fullscreen (Esc, F11 or
+   exitFullscreen) matches no more and brings the header back. */
+.app-window:fullscreen {
+    border-radius: 0;
+    border: none;
+}
+
+.app-window:fullscreen .window-header,
+.app-window:fullscreen .resize-handle {
+    display: none;
+}
+
+/* Safari only exposes the prefixed form of the pseudo-class. */
+.app-window:-webkit-full-screen {
+    border-radius: 0;
+    border: none;
+}
+
+.app-window:-webkit-full-screen .window-header,
+.app-window:-webkit-full-screen .resize-handle {
+    display: none;
+}
+
 .window-header {
     display: flex;
     align-items: center;

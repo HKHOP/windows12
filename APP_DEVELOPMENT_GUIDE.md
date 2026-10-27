@@ -1567,7 +1567,7 @@ Every sound routes through a master gain tracking the Settings master volume; th
 ```js
 app.window.onMinimizeState((appId, id, minimized) => { if (minimized) pauseLoop(); });
 app.window.onClosed((appId, id) => shutdownEngine());
-app.window.setFullscreen(id);       // true browser fullscreen, user gesture required
+app.window.setFullscreen(id);       // true browser fullscreen (title bar hidden), user gesture required
 ```
 
 `onClosed` fires after the window is gone — cancel your `requestAnimationFrame` loop there. Use `app.lifecycle.onClose` (vetoable) to save first.

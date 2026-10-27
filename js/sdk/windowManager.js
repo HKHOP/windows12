@@ -427,7 +427,8 @@ function fsElementFor(w) {
 
 /**
  * Take a window truly fullscreen (browser fullscreen of its element — the
- * taskbar and other windows are covered). Must run in a user gesture.
+ * taskbar, the other windows and the window's own title bar are hidden, so
+ * only the app content fills the screen). Must run in a user gesture.
  * @param {string} id
  * @returns {Promise<boolean>} true once fullscreen; false when the window does not exist
  * @throws {SDKError} UNSUPPORTED when the browser refuses/blocks fullscreen
