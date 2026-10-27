@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.13.2] - 2026-10-27
+
+### Changed
+- **Shortcut files always hide ".lnk".** A shortcut is shown by its name — on the desktop, in File Explorer and in the Start menu — whatever *Show file name extensions* is set to, the way Windows does it: the shortcut arrow already says what the file is. Renaming still shows the full name (and keeps `.lnk` if you leave it off).
+
 ## [15.13.1] - 2026-10-27
 
 ### Fixed
