@@ -4,6 +4,20 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.14.0] - 2026-10-27
+
+### Added
+- **Camera.** A Store app that takes stills from any connected webcam and writes them into `Pictures` as real JPEG files, with a 3- or 10-second timer, a mirror flip for selfies, a rule-of-thirds grid and a picker when more than one camera is attached. The stream is gated by the OS `camera` permission (revoke it in Settings > Apps), stops the moment the window closes and never leaves the page — nothing is uploaded.
+- **Photo Studio.** Crop, rotate, flip and colour-grade a picture with brightness, contrast and saturation plus Mono, Warm, Cool and Fade looks. Edits are recomposed from the original pixels on every change, so *Reset edits* always restores the file; *Save a copy* writes a PNG or JPEG and *Set as desktop background* keeps the result. Opens from a drag-and-drop, `Ctrl+O` or the file's *Open with* entry.
+- **Graphing Calculator.** Type `sin(x)` or `x^2/4 - 2` and see the curve. It plots several functions at once, with real expression parsing (no `eval`) including implicit multiplication (`2x`, `3(x+1)`, `(x+1)(x-1)`), the usual trig/log/power functions and `pi`/`e`; drag to pan, scroll to zoom, hover to trace every visible function, read the x-intercepts it finds in view, and save the graph as a PNG.
+- **Snipping Tool.** Capture the screen, keep just the region you drag a box over, then mark it with a pen, highlighter, rectangle or arrow, undo or clear, and save a PNG or copy it to the clipboard. Capture goes through the browser's own share picker and stops immediately after the frame is grabbed; on iOS, where `getDisplayMedia` does not exist, the app says so instead of pretending.
+- **Solitaire.** Klondike dealt on the real rules, with draw one or draw three, dragging a card or a whole run, tap-to-auto-place, unlimited undo, auto-finish once the game is solved, and a timer, move counter and win statistics that are per profile.
+- **Notes.** Notebooks, sections and pages with autosave while you type, a markdown preview (headings, lists, quotes, fenced code, bold/italic/strike, links), search across every notebook at once, renaming by double-clicking, and *Export* to a `.md` file. Notes are kept in the app's own per-profile folder.
+
+### Changed
+- **Photos shows camera and Photo Studio pictures.** The viewer now reads blob-backed images instead of assuming every picture is a data URL: a photo taken by Camera opens from `Pictures`, and *Set as desktop background* works on it. Thumbnails load lazily and their object URLs are released when the window closes.
+- **One category chip per Store category.** Manifests had drifted on capitalisation ("Developer tools" next to "Developer Tools"), so the Store listed the same category twice and each chip showed only its own spelling's apps; matching is now case-folded, so every app in a category shares one chip.
+
 ## [15.13.2] - 2026-10-27
 
 ### Changed
