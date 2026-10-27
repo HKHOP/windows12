@@ -13,6 +13,10 @@ function revoke(url) {
     try { URL.revokeObjectURL(url); } catch { /* already gone */ }
 }
 
+function escapeHtml(text) {
+    return String(text).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+}
+
 function pad(n) {
     return String(n).padStart(2, '0');
 }
@@ -138,7 +142,7 @@ function launch() {
                 ? stream.getVideoTracks()[0].getSettings().deviceId
                 : null;
             deviceSel.innerHTML = cams.map((d, i) =>
-                `<option value="${d.deviceId}" ${d.deviceId === active ? 'selected' : ''}>${d.label || `Camera ${i + 1}`}</option>`
+                `<option value="${d.deviceId}" ${d.deviceId === active ? 'selected' : ''}>${escapeHtml(d.label || `Camera ${i + 1}`)}</option>`
             ).join('');
             deviceSel.style.display = '';
         } catch { /* labels are a nicety */ }
@@ -163,7 +167,9 @@ function launch() {
         stop();
         setMessage('<div style="font-size:13px;color:#cfcfd6;">Starting camera…</div>');
         try {
-            stream = await app.media.camera(constraints || { width: { ideal: 1920 }, height: { ideal: 1080 } });
+            // app.media.camera() spreads these over its `video: true`
+            // default, so the constraints have to sit under `video`.
+            stream = await app.media.camera(constraints || { video: { width: { ideal: 1920 }, height: { ideal: 1080 } } });
             if (closed) { stop(); return; }
             video.srcObject = stream;
             try { await video.play(); } catch { /* autoplay is muted */ }
@@ -314,7 +320,7 @@ function launch() {
     deviceSel.addEventListener('change', () => {
         const id = deviceSel.value;
         if (!id) return;
-        start({ deviceId: { exact: id }, width: { ideal: 1920 }, height: { ideal: 1080 } });
+        start({ video: { deviceId: { exact: id }, width: { ideal: 1920 }, height: { ideal: 1080 } } });
     });
 
     const onClosed = (e) => {

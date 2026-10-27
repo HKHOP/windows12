@@ -3,7 +3,7 @@
     "id": "camera",
     "uuid": "6f0b7c1e-2a4d-4c8e-9b31-5d7a0e2c9f14",
     "name": "Camera",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "distribution": "store",
     "entry": "main.js",
     "associations": [],
