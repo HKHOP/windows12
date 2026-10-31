@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "papersPlease",
+  "uuid": "6c5fbedb-0092-4b3d-8181-2667bdc16b31",
+  "name": "Papers, Please",
+  "version": "1.1.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Lucas Pope",
+    "category": "Games",
+    "rating": 4.8,
+    "reviews": 8200,
+    "description": "Papers, Please in the browser. Inspect documents at the border of Arstotzka — decide who gets in, catch forgers and smugglers, and keep your family alive on a meagre salary.",
+    "features": [
+      "Full border-inspection gameplay with documents and rules",
+      "Spot discrepancies, stamp passports, search bodies",
+      "Branching days and multiple endings",
+      "Runs in the browser — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #1b2a16, #6b7f3a)",
+        "text": "Glory to Arstotzka"
+      },
+      {
+        "bg": "linear-gradient(135deg, #6b7f3a, #1b2a16)",
+        "text": "Papers, Please"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "13+"
+  }
+}

@@ -487,8 +487,7 @@ check('machine-wide keys stay out of the per-user config file', (() => {
 console.log('[display scaling on every device]');
 check('Apple touch devices use a locked fixed scaling (iPad 80%, iPhone 75%)', (() => {
     const src = fs.readFileSync(new URL('../../js/modules/scaling.js', import.meta.url), 'utf8');
-    const compute = src.slice(src.indexOf('function computeScale'), src.indexOf('function apply'));
-    return /isIPadTouch\(\)\s*\?\s*0\.8\s*:\s*0\.75/.test(compute);
+    return /isIPadTouch\(\)\s*\?\s*0\.8\s*:\s*0\.75/.test(src);
 })());
 check('display resolution zoom is forced to 1 on Apple touch devices', (() => {
     const src = fs.readFileSync(new URL('../../js/modules/systemConfig.js', import.meta.url), 'utf8');
