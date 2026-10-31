@@ -484,6 +484,33 @@ check('machine-wide keys stay out of the per-user config file', (() => {
     const cfg = JSON.parse(FSMod.default.readFile(UsersMod.default.userData(['config.json'])) || '{}');
     return cfg.scaling === undefined && cfg.displayResolution === undefined;
 })());
+console.log('[display scaling on every device]');
+check('the scaling control is honoured on Apple touch devices', (() => {
+    // iOS/iPadOS used to ignore every scale mode (the shell was pinned to
+    // zoom 1 for an iframe workaround), so changing the setting appeared to
+    // work while the UI never changed. Only the adaptive 'auto' mode keeps
+    // the 1:1 desktop there; explicit percentages must reach the body zoom.
+    const src = fs.readFileSync(new URL('../../js/modules/scaling.js', import.meta.url), 'utf8');
+    const compute = src.slice(src.indexOf('function computeScale'), src.indexOf('function apply'));
+    const beforeAuto = compute.slice(0, compute.indexOf("if (mode === 'auto')"));
+    return /const mode = getMode\(\);/.test(compute)
+        && !/_isAppleTouch/.test(beforeAuto)
+        && /pct \/ 100/.test(compute);
+})());
+check('display resolution zoom is not forced off on Apple touch devices', (() => {
+    // --res-scale drives the same body zoom; the old Apple guard returned
+    // before computing it, so the resolution control did nothing there.
+    const src = fs.readFileSync(new URL('../../js/modules/systemConfig.js', import.meta.url), 'utf8');
+    const fn = src.slice(src.indexOf('function applyResolution'), src.indexOf('function isGlobalKey'));
+    return /--res-scale/.test(fn) && !/_isAppleTouch/.test(fn);
+})());
+check('iframes are not counter-zoomed under the shell scale', (() => {
+    // The counter-zoom (zoom: 1/Z on a Z-times box) overshot the frame in
+    // WebKit. WebKit now propagates the parent zoom, so the frame keeps its
+    // allotted box and the engine scales it like Chromium/Firefox do.
+    const src = fs.readFileSync(new URL('../../js/modules/iframeViewportFix.js', import.meta.url), 'utf8');
+    return !/\bs\.zoom\s*=/.test(src) && !/\bbodyZoom\b/.test(src);
+})());
 
 check('an app registration survives a write and a read back', (() => {
     // The registration is what makes an installed app findable. It must be

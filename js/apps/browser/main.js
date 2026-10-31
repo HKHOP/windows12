@@ -379,9 +379,9 @@ const Browser = (() => {
         function applyZoom(tab) {
             if (!tab || !tab.iframeEl) return;
             // On iPhone/iPad the viewport fix owns the frame's pixel sizing
-            // (body-zoom compensation — see iframeViewportFix). There we only
-            // drive the visual transform: rescale() lays the inner viewport
-            // out `zoom` times larger and this transform scales it back.
+            // (pixel-box resync — see iframeViewportFix). There we only drive
+            // the visual transform: rescale() lays the inner viewport out
+            // `zoom` times larger and this transform scales it back.
             if (IframeViewportFix.active) {
                 const z = Math.abs(tab.zoom - 1) < 0.001 ? 1 : tab.zoom;
                 tab.iframeEl.style.transform = z !== 1 ? `scale(${z})` : '';

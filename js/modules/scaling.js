@@ -28,21 +28,21 @@ const Scaling = (() => {
     }
 
     function computeScale() {
-        // iPhone/iPad Safari only: body zoom mis-sizes iframe inner viewports
-        // (embedded pages render letterboxed or oversized — see
-        // iframeViewportFix.js), so the whole shell must render at zoom 1.
-        // The desktop is designed at 1920x1080 but lays out acceptably at
-        // 1:1 on iPad-size screens; Settings scale modes are ignored here.
-        if (window._isAppleTouch) return 1;
         const mode = getMode();
         if (mode === 'auto') {
+            // iPhone/iPad default to the 1:1 desktop: the shell is responsive
+            // (percent/flex layout), so a 1:1 shell is already usable there,
+            // while the adaptive factor would shrink a phone to 45% of an
+            // already-small screen. Explicit percentages below still apply on
+            // Apple touch devices — the scaling control works everywhere.
+            if (window._isAppleTouch) return 1;
             return computeAdaptiveScale();
         }
         const pct = parseInt(mode, 10);
         if (!isNaN(pct)) {
             return Math.max(FIXED_MIN, Math.min(FIXED_MAX, pct / 100));
         }
-        return computeAdaptiveScale();
+        return window._isAppleTouch ? 1 : computeAdaptiveScale();
     }
 
     function apply() {

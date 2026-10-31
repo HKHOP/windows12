@@ -1,31 +1,30 @@
-// iOS / iPadOS Safari iframe letterboxing workaround (zoom compensation).
+// iOS / iPadOS Safari iframe sizing workaround.
 //
-// Symptom: on iPhone/iPad Safari every iframe renders its page small in the
-// top-left with big white gaps at the right and bottom. Desktop and Android
-// are unaffected.
+// Two WebKit quirks meet here; only the first one is still worked around.
 //
-// Root cause: the shell scales its whole UI with `body { zoom: calc(...) }`
-// (css/main.css). WebKit's `zoom` shrinks an iframe's INNER document
-// viewport by the accumulated zoom factor while the element box keeps its
-// CSS size — the embedded page lays out at visual-pixel dimensions instead
-// of layout pixels, so it only fills `zoom` of the frame and the rest shows
-// the page background. Percentage/flex CSS on the iframe can't fix this
-// because the units themselves are wrong; neither can width/height
-// attributes (they get multiplied by the same zoom).
+// 1. An iframe's inner document viewport was sized from its layout box but
+//    stopped tracking CSS-driven resizes afterwards (flex tracking, window
+//    drag-resize, maximize, tab switching). Every embedded page ended up
+//    letterboxed with white gaps at the right and bottom. Re-asserting the
+//    frame's pixel box (CSS width/height plus the width/height ATTRIBUTES,
+//    which is what forces WebKit to relayout the inner viewport) from its
+//    real allotted box fixes that; this module does it on every size change.
 //
-// Fix: for every iframe on Apple touch devices, cancel the body zoom INSIDE
-// the frame subtree — set `zoom: 1/Z` directly on the iframe (Z = body zoom)
-// and pin its box to `allottedSize * Z` device pixels. The element's layout
-// box comes out exactly as before (so flex containers and siblings are
-// untouched), the visual size is unchanged, and the inner document is laid
-// out in a coordinate system with a net zoom of 1 — the one case every
-// WebKit code path sizes correctly. With net zoom 1 the inner viewport, the
-// element box and the rendered pixels are all the same number.
+// 2. `body { zoom }` — how the shell scales — used to be ignored by an
+//    iframe, so a scaled shell showed embedded pages at the wrong size. The
+//    shell counter-zoomed each frame (zoom: 1/Z on a Z-times box), but that
+//    overshot the frame in WebKit, so the shell briefly rendered at zoom 1 on
+//    Apple touch devices instead. WebKit now propagates the parent frame's
+//    zoom (webkit.org/b/301148, fixed 2025-10) the way Chromium and Firefox
+//    already did, so the shell scales normally there and NO counter-zoom is
+//    applied: a zoomed frame lays its document out at its own CSS box size
+//    and the engine renders it at the accumulated zoom.
 //
 // Everything is self-correcting: sizes are re-derived from the frame's own
-// allotted box (measured with the compensation temporarily removed) on every
-// ResizeObserver tick, so window drag-resize, maximize, tab switching and
-// orientation changes all resync. Desktop/Android never run this module.
+// allotted box (measured with this module's inline sizing temporarily
+// removed) on every ResizeObserver tick, so window drag-resize, maximize, tab
+// switching and orientation changes all resync. Desktop/Android never run
+// this module.
 
 const IframeViewportFix = (() => {
     const isAppleTouch = (() => {
@@ -49,27 +48,11 @@ const IframeViewportFix = (() => {
     const userScale = new WeakMap();   // frame -> extra page-zoom factor (browser app)
     const tracked = new WeakSet();
     let resizeObserver = null;
-    let bodyZoom = 1;
 
-    // Exported for scaling.js / systemConfig.js: they must skip all body-zoom
-    // scaling on Apple touch devices (set at module-evaluation time, before
-    // boot applies any scaling).
+    // Also exported as window._isAppleTouch for the rest of the shell
+    // (iframe hibernation is Apple-touch only). Set at module-evaluation
+    // time, before boot applies the shell's scaling.
     if (isAppleTouch) window._isAppleTouch = true;
-
-    function probeZoom() {
-        const probe = document.createElement('div');
-        probe.style.cssText = 'position:absolute;top:0;left:0;width:100px;height:100px;visibility:hidden;pointer-events:none;';
-        document.body.appendChild(probe);
-        const visual = probe.getBoundingClientRect().width;
-        probe.remove();
-        return visual > 0 ? visual / 100 : 1;
-    }
-
-    function refreshZoom() {
-        let z = parseFloat(getComputedStyle(document.body).zoom);
-        if (!isFinite(z) || z <= 0) z = probeZoom();
-        if (isFinite(z) && z > 0) bodyZoom = z;
-    }
 
     function snapshot(frame) {
         let o = originals.get(frame);
@@ -98,20 +81,20 @@ const IframeViewportFix = (() => {
         // ResizeObserver tick fires again once they get a real box.
         if (!w || !h) return;
 
-        // 2. Re-pin with zoom compensation. `scale` is an extra page-zoom
-        //    factor an app may have requested (Browser app zoom levels).
+        // 2. Re-pin to the allotted box. `scale` is an extra page-zoom factor
+        //    an app may have requested (Browser app zoom levels): the inner
+        //    viewport is laid out `scale` times larger and the app scales it
+        //    back with transform. No zoom counter-zoom is applied here — the
+        //    shell's body zoom is propagated into the frame by WebKit itself.
         const scale = userScale.get(frame) || 1;
-        const pw = Math.round(w * bodyZoom * scale);
-        const ph = Math.round(h * bodyZoom * scale);
+        const pw = Math.round(w * scale);
+        const ph = Math.round(h * scale);
         const s = frame.style;
         s.flex = 'none';
         s.width = pw + 'px';
         s.height = ph + 'px';
         s.minWidth = '0';
         s.minHeight = '0';
-        // Own-zoom cancels the body zoom (and only the body zoom) so the
-        // frame subtree lays out at net zoom 1.
-        s.zoom = bodyZoom !== 1 ? String(1 / bodyZoom) : '';
         frame.setAttribute('width', pw);
         frame.setAttribute('height', ph);
         o.setAttrs = true;
@@ -125,7 +108,6 @@ const IframeViewportFix = (() => {
         if (!frame || frame.tagName !== 'IFRAME') return;
         if (frame.getAttribute('data-framefix') === 'off') return;
         if (!frame.isConnected) return;
-        refreshZoom();
         pin(frame);
     }
 
@@ -161,7 +143,6 @@ const IframeViewportFix = (() => {
     function init() {
         if (!isAppleTouch) return false;
 
-        refreshZoom();
         resizeObserver = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 const target = entry.target;
@@ -190,7 +171,7 @@ const IframeViewportFix = (() => {
         mo.observe(root, { childList: true, subtree: true });
 
         // Rotation, Safari toolbar collapse and Settings scaling changes all
-        // alter the body zoom; resync everything (rAF-debounced).
+        // re-render the frames; resync everything (rAF-debounced).
         const resyncAll = () => requestAnimationFrame(() => {
             document.querySelectorAll('iframe').forEach(sync);
         });
