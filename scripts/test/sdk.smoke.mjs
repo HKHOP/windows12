@@ -545,6 +545,17 @@ check('the bootstrap applies a waiting worker on every start', (() => {
     const src = fs.readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
     return /registration\.waiting/.test(src) && /skip-waiting/.test(src);
 })());
+check('a controlled boot skips the slow serviceWorker.register wait', (() => {
+    // iOS/iPadOS Safari can stall register()/ready even when the page is
+    // already controlled. "Preparing" must do no service-worker lookup at all
+    // in that case; the registration is found later, for the update check.
+    const src = fs.readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
+    const preparing = src.slice(src.indexOf("setStatus('Preparing…')"), src.indexOf("setStatus('Starting the system…')"));
+    const updates = src.slice(src.indexOf("setStatus('Checking for updates…')"));
+    return /if \(!navigator\.serviceWorker\.controller\)/.test(preparing)
+        && !/getRegistration/.test(preparing)
+        && /getRegistration/.test(updates);
+})());
 check('the bootstrap never asks for a refresh', (() => {
     const src = fs.readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
     return !/\bconfirm\s*\(/.test(src);

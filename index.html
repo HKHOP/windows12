@@ -115,15 +115,20 @@
             });
         }
 
-        function waitForWorker(worker) {
+        function waitForWorker(worker, timeoutMs) {
             if (!worker) return Promise.resolve(null);
             if (worker.state === 'activated' || worker.state === 'installed' || worker.state === 'redundant') {
                 return Promise.resolve(worker);
             }
             return new Promise(function (resolve) {
+                var timer = timeoutMs ? setTimeout(function () {
+                    worker.removeEventListener('statechange', onState);
+                    resolve(worker);
+                }, timeoutMs) : null;
                 function onState() {
                     if (worker.state === 'activated' || worker.state === 'installed' || worker.state === 'redundant') {
                         worker.removeEventListener('statechange', onState);
+                        if (timer) clearTimeout(timer);
                         resolve(worker);
                     }
                 }
@@ -278,12 +283,24 @@
             });
 
             setStatus('Preparing…');
-            var registration = await navigator.serviceWorker.register('./sw.js', { scope: './' });
-            if (registration.installing) await waitForWorker(registration.installing);
-            await Promise.race([
-                navigator.serviceWorker.ready,
-                new Promise(function (resolve) { setTimeout(resolve, 120000); })
-            ]);
+
+            // iOS/iPadOS Safari can stall serviceWorker.register() and
+            // serviceWorker.ready for a long time on an ordinary reload, even
+            // though this page is already controlled and the core is on disk.
+            // A controlled page can ask that worker for its core immediately,
+            // so skip the register → ready wait entirely; the update check
+            // below is still the real refresh check, and it looks the
+            // registration up after the banner has moved on. A first install
+            // (no controller) keeps the full install sequence.
+            var registration = null;
+            if (!navigator.serviceWorker.controller) {
+                registration = await navigator.serviceWorker.register('./sw.js', { scope: './' });
+                if (registration.installing) await waitForWorker(registration.installing);
+                await Promise.race([
+                    navigator.serviceWorker.ready,
+                    new Promise(function (resolve) { setTimeout(resolve, 120000); })
+                ]);
+            }
             setStatus('Starting the system…');
             if (!await waitForController(15000)) {
                 fail('Windows 12 could not be downloaded.',
@@ -298,11 +315,21 @@
             // only ever applies here, at boot.
             setStatus('Checking for updates…');
             try {
-                await registration.update();
-                if (registration.installing) await waitForWorker(registration.installing);
+                if (!registration) registration = await navigator.serviceWorker.getRegistration('./');
+                if (registration) {
+                    // Do not let a slow network (or Safari's worker bookkeeping)
+                    // hold the boot screen forever: if the check cannot finish
+                    // in time, start the core that is already installed and let
+                    // the next refresh apply the update.
+                    await Promise.race([
+                        registration.update(),
+                        new Promise(function (resolve) { setTimeout(resolve, 10000); })
+                    ]);
+                    if (registration.installing) await waitForWorker(registration.installing, 15000);
+                }
             } catch (e) { /* offline: keep the installed system */ }
 
-            if (registration.waiting) {
+            if (registration && registration.waiting) {
                 setStatus('Applying updates…');
                 if (await activateWaiting(registration)) {
                     location.reload();
