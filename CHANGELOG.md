@@ -4,6 +4,14 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.15.9] - 2026-10-31
+
+### Added
+- **Web apps in the Microsoft Store.** Added 42 popular iframe-based web apps as store apps: WhatsApp, Facebook, Instagram, X (Twitter), Telegram, LinkedIn, Snapchat, Pinterest, Tumblr, Gmail, Google Drive, Google Docs, Google Calendar, Outlook, Notion, Trello, Slack, Microsoft Teams, Evernote, Dropbox, YouTube, Netflix, Spotify, Twitch, Hulu, Disney+, Amazon, eBay, AliExpress, GitHub, Stack Overflow, Wikipedia, Google Maps, ChatGPT, Reddit, Medium, Zoom, Google Meet, Google Translate, Canva, Figma and Duolingo. Each is a thin iframe wrapper around the real service and ships with the site's own icon.
+
+### Changed
+- **Embedding notice.** Removed the persistent "Open in Browser" bar/button from Discord and the new web apps. Each now shows a one-time platform-aware popup (iOS cannot display X-Frame/CSP-blocked embeds; Android needs an extension-capable browser; desktop should install the Browser app's helper extension) and never shows it again.
+
 ## [15.15.8] - 2026-10-31
 
 ### Added
