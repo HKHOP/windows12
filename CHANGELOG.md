@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.15.11] - 2026-10-31
+
+### Added
+- **More Store apps.** Added 38 more web apps: OneDrive, Google Photos, Box, MEGA, iCloud, Proton Mail, Yahoo Mail, Microsoft Copilot, Claude, Google Gemini, Perplexity, Hugging Chat, SoundCloud, Deezer, Apple Music, Pandora, Vimeo, Dailymotion, Steam, itch.io, Xbox Cloud Gaming, GeForce NOW, PayPal, Coinbase, TradingView, Booking.com, Airbnb, Khan Academy, Coursera, Udemy, Quizlet, GitLab, Replit, CodePen, Miro, Adobe Express, Strava and MyFitnessPal.
+
 ## [15.15.10] - 2026-10-31
 
 ### Changed
