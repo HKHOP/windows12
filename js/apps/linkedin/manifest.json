@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "linkedin",
+  "uuid": "305e74fd-445d-4fda-9179-17f3dae6d7e9",
+  "name": "LinkedIn",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "LinkedIn",
+    "category": "Social",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "LinkedIn web client for Windows 12. Use your real LinkedIn account in an embedded window.",
+    "features": [
+      "Real LinkedIn web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#0A66C2",
+        "text": "LinkedIn web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "LinkedIn in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

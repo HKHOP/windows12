@@ -1,0 +1,41 @@
+{
+  "manifestVersion": 1,
+  "id": "snapchat",
+  "uuid": "87900ee8-8e5b-4b0f-b071-da95cb0c667c",
+  "name": "Snapchat Web",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network",
+    "microphone",
+    "camera"
+  ],
+  "store": {
+    "developer": "Snap Inc.",
+    "category": "Social",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "Snapchat Web web client for Windows 12. Use your real Snapchat Web account in an embedded window.",
+    "features": [
+      "Real Snapchat Web web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#FFFC00",
+        "text": "Snapchat Web web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Snapchat Web in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

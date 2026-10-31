@@ -1,0 +1,41 @@
+{
+  "manifestVersion": 1,
+  "id": "teams",
+  "uuid": "2cb4463f-1bc6-449f-bffc-594b2cf7d823",
+  "name": "Microsoft Teams",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network",
+    "microphone",
+    "camera"
+  ],
+  "store": {
+    "developer": "Microsoft",
+    "category": "Productivity",
+    "rating": 4.6,
+    "reviews": 1385,
+    "description": "Microsoft Teams web client for Windows 12. Use your real Microsoft Teams account in an embedded window.",
+    "features": [
+      "Real Microsoft Teams web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#464EB8",
+        "text": "Microsoft Teams web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Microsoft Teams in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "tumblr",
+  "uuid": "125b1fe6-4daa-4671-966a-7e855826bc00",
+  "name": "Tumblr",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Tumblr",
+    "category": "Social",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "Tumblr web client for Windows 12. Use your real Tumblr account in an embedded window.",
+    "features": [
+      "Real Tumblr web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#35465C",
+        "text": "Tumblr web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Tumblr in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

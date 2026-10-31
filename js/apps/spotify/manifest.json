@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "spotify",
+  "uuid": "531dadb3-a915-433a-918b-85251f307518",
+  "name": "Spotify Web",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Spotify",
+    "category": "Entertainment",
+    "rating": 4.3,
+    "reviews": 1459,
+    "description": "Spotify Web web client for Windows 12. Use your real Spotify Web account in an embedded window.",
+    "features": [
+      "Real Spotify Web web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#1DB954",
+        "text": "Spotify Web web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Spotify Web in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "evernote",
+  "uuid": "77efa7e8-f2fd-44ef-9835-5c371644272e",
+  "name": "Evernote",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Evernote",
+    "category": "Productivity",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "Evernote web client for Windows 12. Use your real Evernote account in an embedded window.",
+    "features": [
+      "Real Evernote web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#00A82D",
+        "text": "Evernote web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Evernote in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

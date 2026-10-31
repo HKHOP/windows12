@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "googleCalendar",
+  "uuid": "1207f131-1df9-4b17-8b78-fadedecd7ee7",
+  "name": "Google Calendar",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Google",
+    "category": "Productivity",
+    "rating": 4.3,
+    "reviews": 1718,
+    "description": "Google Calendar web client for Windows 12. Use your real Google Calendar account in an embedded window.",
+    "features": [
+      "Real Google Calendar web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#4285F4",
+        "text": "Google Calendar web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Google Calendar in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

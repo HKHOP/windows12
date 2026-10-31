@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "youtube",
+  "uuid": "4536f22d-3105-4083-a63f-59b2519e0dbf",
+  "name": "YouTube",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Google",
+    "category": "Entertainment",
+    "rating": 4.3,
+    "reviews": 1459,
+    "description": "YouTube web client for Windows 12. Use your real YouTube account in an embedded window.",
+    "features": [
+      "Real YouTube web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#FF0000",
+        "text": "YouTube web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "YouTube in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

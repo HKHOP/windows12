@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "notion",
+  "uuid": "c8a17b43-20a4-4724-8431-3aef088b59da",
+  "name": "Notion",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Notion Labs",
+    "category": "Productivity",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "Notion web client for Windows 12. Use your real Notion account in an embedded window.",
+    "features": [
+      "Real Notion web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#000000",
+        "text": "Notion web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Notion in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

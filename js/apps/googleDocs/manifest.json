@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "googleDocs",
+  "uuid": "86970fb0-c453-4fc6-a1c2-ad5a3b3fdb77",
+  "name": "Google Docs",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Google",
+    "category": "Productivity",
+    "rating": 4.5,
+    "reviews": 1570,
+    "description": "Google Docs web client for Windows 12. Use your real Google Docs account in an embedded window.",
+    "features": [
+      "Real Google Docs web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#4285F4",
+        "text": "Google Docs web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Google Docs in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

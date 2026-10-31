@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "medium",
+  "uuid": "5abb088d-671e-431a-b3df-ed8376b0aeb6",
+  "name": "Medium",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Medium",
+    "category": "News & Magazines",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "Medium web client for Windows 12. Use your real Medium account in an embedded window.",
+    "features": [
+      "Real Medium web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#000000",
+        "text": "Medium web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Medium in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

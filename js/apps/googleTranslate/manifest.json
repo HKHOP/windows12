@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "googleTranslate",
+  "uuid": "9d7da32a-87cf-46a4-9522-dafa2265226e",
+  "name": "Google Translate",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Google",
+    "category": "Productivity",
+    "rating": 4.4,
+    "reviews": 1755,
+    "description": "Google Translate web client for Windows 12. Use your real Google Translate account in an embedded window.",
+    "features": [
+      "Real Google Translate web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#4285F4",
+        "text": "Google Translate web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Google Translate in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

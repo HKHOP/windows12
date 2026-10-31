@@ -3,7 +3,7 @@
   "id": "discord",
   "uuid": "3b064e73-6aef-4f41-9180-784cefdc8fff",
   "name": "Discord",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],

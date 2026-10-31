@@ -1,0 +1,41 @@
+{
+  "manifestVersion": 1,
+  "id": "zoom",
+  "uuid": "fe1962e4-0c65-4b9f-89c1-70e87ca6b2d2",
+  "name": "Zoom Web",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network",
+    "microphone",
+    "camera"
+  ],
+  "store": {
+    "developer": "Zoom",
+    "category": "Communication",
+    "rating": 4.6,
+    "reviews": 1348,
+    "description": "Zoom Web web client for Windows 12. Use your real Zoom Web account in an embedded window.",
+    "features": [
+      "Real Zoom Web web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#2D8CFF",
+        "text": "Zoom Web web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Zoom Web in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

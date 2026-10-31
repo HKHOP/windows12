@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "stackOverflow",
+  "uuid": "3d04d874-aba7-4da8-8608-eb34786a9724",
+  "name": "Stack Overflow",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Stack Overflow",
+    "category": "Developer Tools",
+    "rating": 4.7,
+    "reviews": 1681,
+    "description": "Stack Overflow web client for Windows 12. Use your real Stack Overflow account in an embedded window.",
+    "features": [
+      "Real Stack Overflow web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#F48024",
+        "text": "Stack Overflow web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Stack Overflow in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

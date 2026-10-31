@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "twitter",
+  "uuid": "e8082edc-3ce0-44dc-adbf-5dc1935ee8d1",
+  "name": "X (Twitter)",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "X Corp.",
+    "category": "Social",
+    "rating": 4.3,
+    "reviews": 1459,
+    "description": "X (Twitter) web client for Windows 12. Use your real X (Twitter) account in an embedded window.",
+    "features": [
+      "Real X (Twitter) web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#000000",
+        "text": "X (Twitter) web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "X (Twitter) in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

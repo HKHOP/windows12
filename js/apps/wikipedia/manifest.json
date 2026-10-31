@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "wikipedia",
+  "uuid": "8a96d5fb-b938-4f1a-b9a5-12b1eec05999",
+  "name": "Wikipedia",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Wikimedia",
+    "category": "Reference",
+    "rating": 4.4,
+    "reviews": 1533,
+    "description": "Wikipedia web client for Windows 12. Use your real Wikipedia account in an embedded window.",
+    "features": [
+      "Real Wikipedia web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#000000",
+        "text": "Wikipedia web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Wikipedia in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

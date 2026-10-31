@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "googleMaps",
+  "uuid": "ebc195d9-43d4-473f-9e79-5c594497b30c",
+  "name": "Google Maps",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Google",
+    "category": "Reference",
+    "rating": 4.5,
+    "reviews": 1570,
+    "description": "Google Maps web client for Windows 12. Use your real Google Maps account in an embedded window.",
+    "features": [
+      "Real Google Maps web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#34A853",
+        "text": "Google Maps web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Google Maps in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

@@ -1,0 +1,41 @@
+{
+  "manifestVersion": 1,
+  "id": "telegram",
+  "uuid": "9c69a5a7-d72e-453f-8ed2-06349cf3ab4c",
+  "name": "Telegram Web",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network",
+    "microphone",
+    "camera"
+  ],
+  "store": {
+    "developer": "Telegram",
+    "category": "Social",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "Telegram Web web client for Windows 12. Use your real Telegram Web account in an embedded window.",
+    "features": [
+      "Real Telegram Web web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#26A5E4",
+        "text": "Telegram Web web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Telegram Web in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

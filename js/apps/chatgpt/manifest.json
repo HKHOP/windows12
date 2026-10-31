@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "chatgpt",
+  "uuid": "49ab5ea7-6319-4caa-af48-4a37dc7be42a",
+  "name": "ChatGPT",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "OpenAI",
+    "category": "Productivity",
+    "rating": 4.3,
+    "reviews": 1459,
+    "description": "ChatGPT web client for Windows 12. Use your real ChatGPT account in an embedded window.",
+    "features": [
+      "Real ChatGPT web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#10A37F",
+        "text": "ChatGPT web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "ChatGPT in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

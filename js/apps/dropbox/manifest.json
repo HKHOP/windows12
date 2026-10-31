@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "dropbox",
+  "uuid": "94999cdb-152f-4631-a273-d17465695be0",
+  "name": "Dropbox",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Dropbox",
+    "category": "Productivity",
+    "rating": 4.3,
+    "reviews": 1459,
+    "description": "Dropbox web client for Windows 12. Use your real Dropbox account in an embedded window.",
+    "features": [
+      "Real Dropbox web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#0061FF",
+        "text": "Dropbox web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Dropbox in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "amazon",
+  "uuid": "cb166568-e39b-4200-8ce7-4a30b5bc3e9b",
+  "name": "Amazon",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Amazon",
+    "category": "Shopping",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "Amazon web client for Windows 12. Use your real Amazon account in an embedded window.",
+    "features": [
+      "Real Amazon web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#FF9900",
+        "text": "Amazon web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Amazon in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

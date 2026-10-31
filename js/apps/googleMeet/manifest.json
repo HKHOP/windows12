@@ -1,0 +1,41 @@
+{
+  "manifestVersion": 1,
+  "id": "googleMeet",
+  "uuid": "388b631f-bb88-46ef-9917-b9d9a036bbf0",
+  "name": "Google Meet",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network",
+    "microphone",
+    "camera"
+  ],
+  "store": {
+    "developer": "Google",
+    "category": "Communication",
+    "rating": 4.5,
+    "reviews": 1570,
+    "description": "Google Meet web client for Windows 12. Use your real Google Meet account in an embedded window.",
+    "features": [
+      "Real Google Meet web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#00897B",
+        "text": "Google Meet web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Google Meet in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

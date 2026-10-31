@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "hulu",
+  "uuid": "cfd96558-947f-4400-a821-d9c63781a41c",
+  "name": "Hulu",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Disney",
+    "category": "Entertainment",
+    "rating": 4.6,
+    "reviews": 1348,
+    "description": "Hulu web client for Windows 12. Use your real Hulu account in an embedded window.",
+    "features": [
+      "Real Hulu web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#1CE783",
+        "text": "Hulu web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Hulu in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

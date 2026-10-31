@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "twitch",
+  "uuid": "924a57f6-e077-45d6-b6b8-37c9c3e40530",
+  "name": "Twitch",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Twitch",
+    "category": "Entertainment",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "Twitch web client for Windows 12. Use your real Twitch account in an embedded window.",
+    "features": [
+      "Real Twitch web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#9146FF",
+        "text": "Twitch web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Twitch in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "outlook",
+  "uuid": "c3ea7a2c-1297-4f5e-b207-404be7dd32a3",
+  "name": "Outlook",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Microsoft",
+    "category": "Productivity",
+    "rating": 4.3,
+    "reviews": 1459,
+    "description": "Outlook web client for Windows 12. Use your real Outlook account in an embedded window.",
+    "features": [
+      "Real Outlook web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#0078D4",
+        "text": "Outlook web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Outlook in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

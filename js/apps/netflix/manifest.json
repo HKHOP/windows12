@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "netflix",
+  "uuid": "53c2aa10-57d6-404a-a587-24217c91edfb",
+  "name": "Netflix",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Netflix",
+    "category": "Entertainment",
+    "rating": 4.3,
+    "reviews": 1459,
+    "description": "Netflix web client for Windows 12. Use your real Netflix account in an embedded window.",
+    "features": [
+      "Real Netflix web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#E50914",
+        "text": "Netflix web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Netflix in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

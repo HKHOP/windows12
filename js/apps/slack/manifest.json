@@ -1,0 +1,40 @@
+{
+  "manifestVersion": 1,
+  "id": "slack",
+  "uuid": "f0b85717-8f44-4632-bba8-052680f883fa",
+  "name": "Slack",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network",
+    "microphone"
+  ],
+  "store": {
+    "developer": "Salesforce",
+    "category": "Productivity",
+    "rating": 4.6,
+    "reviews": 1385,
+    "description": "Slack web client for Windows 12. Use your real Slack account in an embedded window.",
+    "features": [
+      "Real Slack web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#4A154B",
+        "text": "Slack web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Slack in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

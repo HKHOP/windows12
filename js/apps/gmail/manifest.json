@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "gmail",
+  "uuid": "a22fe5ec-c190-41b3-aa11-d1f553015495",
+  "name": "Gmail",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Google",
+    "category": "Productivity",
+    "rating": 4.6,
+    "reviews": 1385,
+    "description": "Gmail web client for Windows 12. Use your real Gmail account in an embedded window.",
+    "features": [
+      "Real Gmail web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#EA4335",
+        "text": "Gmail web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Gmail in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

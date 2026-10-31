@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "facebook",
+  "uuid": "6f6221e1-8815-4794-889e-50247c5978bd",
+  "name": "Facebook",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Meta",
+    "category": "Social",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "Facebook web client for Windows 12. Use your real Facebook account in an embedded window.",
+    "features": [
+      "Real Facebook web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#1877F2",
+        "text": "Facebook web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Facebook in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

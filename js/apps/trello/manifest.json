@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "trello",
+  "uuid": "3c3a08ec-e9c3-4204-8b13-e6bf8d4e25c4",
+  "name": "Trello",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Atlassian",
+    "category": "Productivity",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "Trello web client for Windows 12. Use your real Trello account in an embedded window.",
+    "features": [
+      "Real Trello web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#0052CC",
+        "text": "Trello web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Trello in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

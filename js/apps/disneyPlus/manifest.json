@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "disneyPlus",
+  "uuid": "a2addb01-7d72-4d8a-8208-710e18bfb192",
+  "name": "Disney+",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Disney",
+    "category": "Entertainment",
+    "rating": 4.5,
+    "reviews": 1570,
+    "description": "Disney+ web client for Windows 12. Use your real Disney+ account in an embedded window.",
+    "features": [
+      "Real Disney+ web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#113CCF",
+        "text": "Disney+ web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Disney+ in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

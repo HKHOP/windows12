@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "pinterest",
+  "uuid": "0f4c23d8-0728-4bbc-9884-895d9ad5e8db",
+  "name": "Pinterest",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Pinterest",
+    "category": "Social",
+    "rating": 4.4,
+    "reviews": 1533,
+    "description": "Pinterest web client for Windows 12. Use your real Pinterest account in an embedded window.",
+    "features": [
+      "Real Pinterest web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#E60023",
+        "text": "Pinterest web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Pinterest in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

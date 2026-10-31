@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "instagram",
+  "uuid": "92847002-d806-4f58-bbe8-e953851e3903",
+  "name": "Instagram",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Meta",
+    "category": "Social",
+    "rating": 4.4,
+    "reviews": 1533,
+    "description": "Instagram web client for Windows 12. Use your real Instagram account in an embedded window.",
+    "features": [
+      "Real Instagram web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#E1306C",
+        "text": "Instagram web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Instagram in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "github",
+  "uuid": "41d51b25-78de-4fd9-b4cd-d21642aff467",
+  "name": "GitHub",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "GitHub",
+    "category": "Developer Tools",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "GitHub web client for Windows 12. Use your real GitHub account in an embedded window.",
+    "features": [
+      "Real GitHub web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#181717",
+        "text": "GitHub web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "GitHub in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

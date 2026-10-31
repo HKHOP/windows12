@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "canva",
+  "uuid": "9bd37587-b3f8-4a51-864d-75358316c4bc",
+  "name": "Canva",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Canva",
+    "category": "Design",
+    "rating": 4.6,
+    "reviews": 1385,
+    "description": "Canva web client for Windows 12. Use your real Canva account in an embedded window.",
+    "features": [
+      "Real Canva web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#00C4CC",
+        "text": "Canva web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Canva in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

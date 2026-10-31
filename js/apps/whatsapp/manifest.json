@@ -1,0 +1,41 @@
+{
+  "manifestVersion": 1,
+  "id": "whatsapp",
+  "uuid": "d0236fb7-f1ce-4023-9280-627293997bae",
+  "name": "WhatsApp Web",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network",
+    "microphone",
+    "camera"
+  ],
+  "store": {
+    "developer": "WhatsApp Inc.",
+    "category": "Social",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "WhatsApp Web web client for Windows 12. Use your real WhatsApp Web account in an embedded window.",
+    "features": [
+      "Real WhatsApp Web web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#25D366",
+        "text": "WhatsApp Web web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "WhatsApp Web in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "duolingo",
+  "uuid": "bc714148-f4ba-4c07-9d7c-83fcb389d7bd",
+  "name": "Duolingo",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Duolingo",
+    "category": "Education",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "Duolingo web client for Windows 12. Use your real Duolingo account in an embedded window.",
+    "features": [
+      "Real Duolingo web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#58CC02",
+        "text": "Duolingo web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Duolingo in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "figma",
+  "uuid": "ed5036ba-5418-4e56-a091-aaffb0aa1d37",
+  "name": "Figma",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Figma",
+    "category": "Design",
+    "rating": 4.6,
+    "reviews": 1385,
+    "description": "Figma web client for Windows 12. Use your real Figma account in an embedded window.",
+    "features": [
+      "Real Figma web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#A259FF",
+        "text": "Figma web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Figma in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "ebay",
+  "uuid": "406dcea2-4ee6-46f5-9159-f72ba0efd49f",
+  "name": "eBay",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "eBay",
+    "category": "Shopping",
+    "rating": 4.6,
+    "reviews": 1348,
+    "description": "eBay web client for Windows 12. Use your real eBay account in an embedded window.",
+    "features": [
+      "Real eBay web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#E53238",
+        "text": "eBay web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "eBay in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}
