@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.15.8] - 2026-10-31
+
+### Added
+- **Papers, Please.** A new Microsoft Store game embedding the Papers, Please browser port, with its own window toolbar (Fullscreen, Reload, Open in Browser).
+
 ## [15.15.7] - 2026-10-31
 
 ### Changed
