@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.15.6] - 2026-10-31
+
+### Changed
+- **Apple touch devices use a locked fixed display scale** (iPad 80%, iPhone 75%). Following the scaling reverted in 15.15.5: the typical adaptive minimum was 45% which made the whole shell unreadably small (tiny text) on phones, and the 1:1 case is too dense for many users. So instead of either extreme, the shell now scales to a fixed per-device-class default that cannot be changed (the Settings control is disabled there), avoiding the Safari iframe whitespace issue while keeping UI legible. The control still works everywhere else (desktop, Android).
+
 ## [15.15.5] - 2026-10-31
 
 ### Fixed
