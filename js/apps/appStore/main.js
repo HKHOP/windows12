@@ -142,9 +142,22 @@ const AppStore = (() => {
         return [...seen.values()].sort();
     }
 
-    function featuredId(ids) {
+    function featuredId(ids, rotate) {
         if (!ids.length) return null;
-        return [...ids].sort(byRating)[0];
+        const sorted = [...ids].sort(byRating);
+        if (!rotate || sorted.length < 2) return sorted[0];
+        const day = new Date().toISOString().slice(0, 10);
+        let seed = 0;
+        for (let i = 0; i < day.length; i++) seed = (seed * 31 + day.charCodeAt(i)) >>> 0;
+        const pool = sorted.slice(0, Math.min(6, sorted.length));
+        return pool[seed % pool.length];
+    }
+
+    function byReviews(a, b) {
+        const ra = parseFloat(appDetails[a]?.reviews) || 0;
+        const rb = parseFloat(appDetails[b]?.reviews) || 0;
+        if (rb !== ra) return rb - ra;
+        return byRating(a, b);
     }
 
     function appIconHtml(appId, size = 48) {
@@ -296,14 +309,29 @@ const AppStore = (() => {
     function getHomeContent() {
         const apps = appIds().sort(byRating);
         const games = gameIds().sort(byRating);
-        const featured = featuredId(storeApps);
+        const trending = appIds().sort(byReviews);
+        const featured = featuredId(storeApps, true);
         const cats = nonGameCategories();
         const catColors = ['#0078D4', '#107C10', '#8E24AA', '#E65100', '#00838F', '#5C6BC0', '#C2185B'];
 
+        const newAppIds = [
+            'whatsapp', 'facebook', 'instagram', 'twitter', 'telegram', 'snapchat', 'pinterest', 'tumblr',
+            'gmail', 'googleDrive', 'googleDocs', 'googleCalendar', 'outlook', 'notion', 'trello', 'slack',
+            'teams', 'evernote', 'dropbox', 'chatgpt', 'googleTranslate',
+            'youtube', 'netflix', 'spotify', 'twitch', 'hulu', 'disneyPlus',
+            'amazon', 'ebay', 'aliexpress', 'github', 'stackOverflow', 'wikipedia', 'googleMaps', 'reddit',
+            'medium', 'zoom', 'googleMeet', 'canva', 'figma', 'duolingo'
+        ].filter(id => storeApps.includes(id));
+
+        const pickedCategories = cats.slice(0, 5);
+
         return `
-            ${featured ? heroHtml(featured, 'Featured') : ''}
-            ${rowHtml('Popular Apps', apps.slice(0, 8))}
-            ${rowHtml('Popular Games', games.slice(0, 8))}
+            ${featured ? heroHtml(featured, "Today's pick") : ''}
+            ${rowHtml('New & noteworthy', newAppIds.slice(0, 10))}
+            ${rowHtml('Trending apps', trending.slice(0, 10))}
+            ${rowHtml('Popular apps', apps.slice(0, 10))}
+            ${rowHtml('Popular games', games.slice(0, 10))}
+            ${pickedCategories.map((c, i) => rowHtml(c, apps.filter(id => inCategory(id, c)).slice(0, 10))).join('')}
             <div>
                 <h3 style="font-size:16px;font-weight:600;color:white;margin:0 0 12px 0;">Browse by category</h3>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">
