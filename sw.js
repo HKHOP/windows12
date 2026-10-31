@@ -40,8 +40,8 @@ const CACHE_NAME = 'w12-shell-v1';
 const SHELL_FILES = ['./', './index.html', './manifest.json', './favicon.svg', './js/apps/registry.js'];
 
 // >>> w12:core
-const CORE_VERSION = '15.15.1';
-const CORE_HASH = '68612307a6258669';
+const CORE_VERSION = '15.15.2';
+const CORE_HASH = '3e534cd00a1e794d';
 const CORE_PACKAGE = './w12-core.pkg';
 const CORE_FILE_COUNT = 180;
 const CORE_BYTES = 1820311;

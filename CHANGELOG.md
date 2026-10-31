@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.15.2] - 2026-10-31
+
+### Fixed
+- **The boot screen stayed on "Preparing…" for a long time on iPhone and iPad.** iOS/iPadOS Safari can keep `serviceWorker.register()` and `serviceWorker.ready` pending for a long time on an ordinary reload, even when the page is already controlled and the core is on disk. The bootstrap now starts straight from the controlling worker and only looks the registration up for the update check, so "Preparing…" no longer waits on that Safari stall.
+
 ## [15.15.1] - 2026-10-31
 
 ### Added
