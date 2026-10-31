@@ -432,6 +432,10 @@ const SystemConfig = (() => {
 
     function applyResolution() {
         const root = document.documentElement;
+        if (window._isAppleTouch) {
+            root.style.setProperty('--res-scale', '1');
+            return;
+        }
         const target = getCurrentResolution();
 
         if (target.width === nativeWidth && target.height === nativeHeight) {

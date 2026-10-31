@@ -485,24 +485,15 @@ check('machine-wide keys stay out of the per-user config file', (() => {
     return cfg.scaling === undefined && cfg.displayResolution === undefined;
 })());
 console.log('[display scaling on every device]');
-check('the scaling control is honoured on Apple touch devices', (() => {
-    // iOS/iPadOS used to ignore every scale mode (the shell was pinned to
-    // zoom 1 for an iframe workaround), so changing the setting appeared to
-    // work while the UI never changed. Only the adaptive 'auto' mode keeps
-    // the 1:1 desktop there; explicit percentages must reach the body zoom.
+check('Apple touch devices keep the shell at zoom 1 (iframe workaround)', (() => {
     const src = fs.readFileSync(new URL('../../js/modules/scaling.js', import.meta.url), 'utf8');
     const compute = src.slice(src.indexOf('function computeScale'), src.indexOf('function apply'));
-    const beforeAuto = compute.slice(0, compute.indexOf("if (mode === 'auto')"));
-    return /const mode = getMode\(\);/.test(compute)
-        && !/_isAppleTouch/.test(beforeAuto)
-        && /pct \/ 100/.test(compute);
+    return /if \(window\._isAppleTouch\) return 1;/.test(compute);
 })());
-check('display resolution zoom is not forced off on Apple touch devices', (() => {
-    // --res-scale drives the same body zoom; the old Apple guard returned
-    // before computing it, so the resolution control did nothing there.
+check('display resolution zoom is forced to 1 on Apple touch devices', (() => {
     const src = fs.readFileSync(new URL('../../js/modules/systemConfig.js', import.meta.url), 'utf8');
     const fn = src.slice(src.indexOf('function applyResolution'), src.indexOf('function isGlobalKey'));
-    return /--res-scale/.test(fn) && !/_isAppleTouch/.test(fn);
+    return /--res-scale/.test(fn) && /_isAppleTouch/.test(fn);
 })());
 check('iframes are not counter-zoomed under the shell scale', (() => {
     // The counter-zoom (zoom: 1/Z on a Z-times box) overshot the frame in
