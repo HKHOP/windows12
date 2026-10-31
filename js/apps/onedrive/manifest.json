@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "onedrive",
+  "uuid": "aac2bd2c-7821-4dea-b828-61eba0a298ee",
+  "name": "OneDrive",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Microsoft",
+    "category": "Cloud Storage",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "OneDrive web client for Windows 12. Use your real OneDrive account in an embedded window.",
+    "features": [
+      "Real OneDrive web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#0078D4",
+        "text": "OneDrive web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "OneDrive in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

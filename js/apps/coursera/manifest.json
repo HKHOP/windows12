@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "coursera",
+  "uuid": "1d690667-f6a2-4623-9bfe-da5c21d26bb3",
+  "name": "Coursera",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Coursera",
+    "category": "Education",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "Coursera web client for Windows 12. Use your real Coursera account in an embedded window.",
+    "features": [
+      "Real Coursera web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#0056D2",
+        "text": "Coursera web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Coursera in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

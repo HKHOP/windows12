@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "mega",
+  "uuid": "6e90761d-0c03-4faa-ab02-e58484125ba9",
+  "name": "MEGA",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "MEGA",
+    "category": "Cloud Storage",
+    "rating": 4.6,
+    "reviews": 1348,
+    "description": "MEGA web client for Windows 12. Use your real MEGA account in an embedded window.",
+    "features": [
+      "Real MEGA web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#D9272E",
+        "text": "MEGA web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "MEGA in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

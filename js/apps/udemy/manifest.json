@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "udemy",
+  "uuid": "57b2349d-9bbf-4b18-a103-983530fa9609",
+  "name": "Udemy",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Udemy",
+    "category": "Education",
+    "rating": 4.6,
+    "reviews": 1385,
+    "description": "Udemy web client for Windows 12. Use your real Udemy account in an embedded window.",
+    "features": [
+      "Real Udemy web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#A435F0",
+        "text": "Udemy web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Udemy in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

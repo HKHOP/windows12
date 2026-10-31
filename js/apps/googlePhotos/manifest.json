@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "googlePhotos",
+  "uuid": "b49d2c49-7bfe-4621-99b2-55c918553867",
+  "name": "Google Photos",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Google",
+    "category": "Cloud Storage",
+    "rating": 4.6,
+    "reviews": 1644,
+    "description": "Google Photos web client for Windows 12. Use your real Google Photos account in an embedded window.",
+    "features": [
+      "Real Google Photos web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#EA4335",
+        "text": "Google Photos web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Google Photos in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

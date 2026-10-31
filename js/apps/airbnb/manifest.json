@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "airbnb",
+  "uuid": "acc4d4e9-d266-4c57-9029-f11bef707c07",
+  "name": "Airbnb",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Airbnb",
+    "category": "Travel",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "Airbnb web client for Windows 12. Use your real Airbnb account in an embedded window.",
+    "features": [
+      "Real Airbnb web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#FF5A5F",
+        "text": "Airbnb web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Airbnb in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

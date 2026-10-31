@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "coinbase",
+  "uuid": "4cf75da7-a46c-4e2f-a5c6-b372bcbd7cf0",
+  "name": "Coinbase",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Coinbase",
+    "category": "Finance",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "Coinbase web client for Windows 12. Use your real Coinbase account in an embedded window.",
+    "features": [
+      "Real Coinbase web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#0052FF",
+        "text": "Coinbase web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Coinbase in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

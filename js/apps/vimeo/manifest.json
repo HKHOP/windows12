@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "vimeo",
+  "uuid": "6b1a4ff0-3743-42b1-b7db-996bf18eece3",
+  "name": "Vimeo",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Vimeo",
+    "category": "Entertainment",
+    "rating": 4.6,
+    "reviews": 1385,
+    "description": "Vimeo web client for Windows 12. Use your real Vimeo account in an embedded window.",
+    "features": [
+      "Real Vimeo web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#1AB7EA",
+        "text": "Vimeo web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Vimeo in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

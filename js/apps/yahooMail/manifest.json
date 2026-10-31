@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "yahooMail",
+  "uuid": "19c45d52-9703-4a00-8257-322af454dd91",
+  "name": "Yahoo Mail",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Yahoo",
+    "category": "Email",
+    "rating": 4.4,
+    "reviews": 1533,
+    "description": "Yahoo Mail web client for Windows 12. Use your real Yahoo Mail account in an embedded window.",
+    "features": [
+      "Real Yahoo Mail web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#6001D2",
+        "text": "Yahoo Mail web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Yahoo Mail in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "khanacademy",
+  "uuid": "74ae8fda-ea69-463b-a881-2e835513dabc",
+  "name": "Khan Academy",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Khan Academy",
+    "category": "Education",
+    "rating": 4.6,
+    "reviews": 1607,
+    "description": "Khan Academy web client for Windows 12. Use your real Khan Academy account in an embedded window.",
+    "features": [
+      "Real Khan Academy web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#14BF96",
+        "text": "Khan Academy web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Khan Academy in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

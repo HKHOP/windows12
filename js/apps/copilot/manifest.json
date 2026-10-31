@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "copilot",
+  "uuid": "97ce9c6c-42c1-4369-b628-156165a18600",
+  "name": "Microsoft Copilot",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Microsoft",
+    "category": "AI",
+    "rating": 4.3,
+    "reviews": 1459,
+    "description": "Microsoft Copilot web client for Windows 12. Use your real Microsoft Copilot account in an embedded window.",
+    "features": [
+      "Real Microsoft Copilot web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#00A67E",
+        "text": "Microsoft Copilot web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Microsoft Copilot in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "perplexity",
+  "uuid": "2d719887-5cec-4f59-89ed-64e498a4ccad",
+  "name": "Perplexity",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Perplexity",
+    "category": "AI",
+    "rating": 4.5,
+    "reviews": 1570,
+    "description": "Perplexity web client for Windows 12. Use your real Perplexity account in an embedded window.",
+    "features": [
+      "Real Perplexity web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#20808D",
+        "text": "Perplexity web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Perplexity in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

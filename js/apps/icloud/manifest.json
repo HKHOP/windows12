@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "icloud",
+  "uuid": "4d7eea6d-69f0-40e1-a142-e68a68c50a10",
+  "name": "iCloud",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Apple",
+    "category": "Cloud Storage",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "iCloud web client for Windows 12. Use your real iCloud account in an embedded window.",
+    "features": [
+      "Real iCloud web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#3693F3",
+        "text": "iCloud web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "iCloud in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

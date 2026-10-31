@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "myfitnesspal",
+  "uuid": "e46dd621-d1aa-4cb9-9375-82a6602a328f",
+  "name": "MyFitnessPal",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "MyFitnessPal",
+    "category": "Health & Fitness",
+    "rating": 4.6,
+    "reviews": 1644,
+    "description": "MyFitnessPal web client for Windows 12. Use your real MyFitnessPal account in an embedded window.",
+    "features": [
+      "Real MyFitnessPal web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#0072CE",
+        "text": "MyFitnessPal web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "MyFitnessPal in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

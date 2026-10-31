@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "gemini",
+  "uuid": "65e03123-f2d4-4c85-8b7f-d5a2ffcb638e",
+  "name": "Google Gemini",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Google",
+    "category": "AI",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "Google Gemini web client for Windows 12. Use your real Google Gemini account in an embedded window.",
+    "features": [
+      "Real Google Gemini web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#4285F4",
+        "text": "Google Gemini web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Google Gemini in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

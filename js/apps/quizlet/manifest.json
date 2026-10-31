@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "quizlet",
+  "uuid": "6126a1f6-4715-4816-95c1-cc8f7db25590",
+  "name": "Quizlet",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Quizlet",
+    "category": "Education",
+    "rating": 4.3,
+    "reviews": 1459,
+    "description": "Quizlet web client for Windows 12. Use your real Quizlet account in an embedded window.",
+    "features": [
+      "Real Quizlet web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#4255FF",
+        "text": "Quizlet web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Quizlet in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

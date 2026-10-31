@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "xboxcloud",
+  "uuid": "f80b0f47-5c39-4ac8-8b15-99cde731ce62",
+  "name": "Xbox Cloud Gaming",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Microsoft",
+    "category": "Gaming",
+    "rating": 4.4,
+    "reviews": 1533,
+    "description": "Xbox Cloud Gaming web client for Windows 12. Use your real Xbox Cloud Gaming account in an embedded window.",
+    "features": [
+      "Real Xbox Cloud Gaming web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#107C10",
+        "text": "Xbox Cloud Gaming web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Xbox Cloud Gaming in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

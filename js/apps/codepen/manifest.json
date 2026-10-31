@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "codepen",
+  "uuid": "3c72607b-0bf4-4de2-aee5-e7bd01478428",
+  "name": "CodePen",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "CodePen",
+    "category": "Developer Tools",
+    "rating": 4.3,
+    "reviews": 1459,
+    "description": "CodePen web client for Windows 12. Use your real CodePen account in an embedded window.",
+    "features": [
+      "Real CodePen web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#0E0E0E",
+        "text": "CodePen web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "CodePen in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

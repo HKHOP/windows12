@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "geforceNow",
+  "uuid": "418bd9b0-be31-4b2e-a4e4-bfb5174659fc",
+  "name": "GeForce NOW",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "NVIDIA",
+    "category": "Gaming",
+    "rating": 4.5,
+    "reviews": 1570,
+    "description": "GeForce NOW web client for Windows 12. Use your real GeForce NOW account in an embedded window.",
+    "features": [
+      "Real GeForce NOW web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#76B900",
+        "text": "GeForce NOW web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "GeForce NOW in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

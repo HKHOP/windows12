@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "claude",
+  "uuid": "d146e5d4-b317-469b-8160-d612afbcefcb",
+  "name": "Claude",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Anthropic",
+    "category": "AI",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "Claude web client for Windows 12. Use your real Claude account in an embedded window.",
+    "features": [
+      "Real Claude web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#D97736",
+        "text": "Claude web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Claude in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

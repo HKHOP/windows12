@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "soundcloud",
+  "uuid": "bba4c54a-4cc1-461a-9bb8-4b28c586e647",
+  "name": "SoundCloud",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "SoundCloud",
+    "category": "Entertainment",
+    "rating": 4.5,
+    "reviews": 1570,
+    "description": "SoundCloud web client for Windows 12. Use your real SoundCloud account in an embedded window.",
+    "features": [
+      "Real SoundCloud web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#FF5500",
+        "text": "SoundCloud web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "SoundCloud in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

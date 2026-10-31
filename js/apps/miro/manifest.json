@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "miro",
+  "uuid": "f12d67bd-c05d-4c22-a135-0f9ddcb8f086",
+  "name": "Miro",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Miro",
+    "category": "Productivity",
+    "rating": 4.6,
+    "reviews": 1348,
+    "description": "Miro web client for Windows 12. Use your real Miro account in an embedded window.",
+    "features": [
+      "Real Miro web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#FFD02F",
+        "text": "Miro web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Miro in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

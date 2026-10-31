@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "huggingChat",
+  "uuid": "6016eac3-21af-49be-97a0-ee08192f1c88",
+  "name": "Hugging Chat",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Hugging Face",
+    "category": "AI",
+    "rating": 4.6,
+    "reviews": 1607,
+    "description": "Hugging Chat web client for Windows 12. Use your real Hugging Chat account in an embedded window.",
+    "features": [
+      "Real Hugging Chat web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#FFD21E",
+        "text": "Hugging Chat web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Hugging Chat in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "pandora",
+  "uuid": "b3532ecb-5dfa-4fe1-bd95-4db18fa4a1bc",
+  "name": "Pandora",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Pandora Media",
+    "category": "Entertainment",
+    "rating": 4.3,
+    "reviews": 1459,
+    "description": "Pandora web client for Windows 12. Use your real Pandora account in an embedded window.",
+    "features": [
+      "Real Pandora web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#00529B",
+        "text": "Pandora web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Pandora in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

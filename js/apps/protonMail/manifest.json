@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "protonMail",
+  "uuid": "194e4230-bc20-4bd8-946a-106257b25432",
+  "name": "Proton Mail",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Proton",
+    "category": "Email",
+    "rating": 4.5,
+    "reviews": 1570,
+    "description": "Proton Mail web client for Windows 12. Use your real Proton Mail account in an embedded window.",
+    "features": [
+      "Real Proton Mail web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#6D4AFF",
+        "text": "Proton Mail web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Proton Mail in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

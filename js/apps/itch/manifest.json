@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "itch",
+  "uuid": "13dbf721-cd98-4c4a-a1c5-a34e765402c1",
+  "name": "itch.io",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "itch corp",
+    "category": "Gaming",
+    "rating": 4.6,
+    "reviews": 1348,
+    "description": "itch.io web client for Windows 12. Use your real itch.io account in an embedded window.",
+    "features": [
+      "Real itch.io web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#FA5C5C",
+        "text": "itch.io web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "itch.io in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

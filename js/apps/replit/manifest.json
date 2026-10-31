@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "replit",
+  "uuid": "8e26742e-9d6e-462d-ba46-494fe7f4e61e",
+  "name": "Replit",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Replit",
+    "category": "Developer Tools",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "Replit web client for Windows 12. Use your real Replit account in an embedded window.",
+    "features": [
+      "Real Replit web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#F26207",
+        "text": "Replit web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Replit in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

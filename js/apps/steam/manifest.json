@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "steam",
+  "uuid": "c32be06d-106e-4429-832e-48a04fdc1a4b",
+  "name": "Steam",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Valve",
+    "category": "Gaming",
+    "rating": 4.6,
+    "reviews": 1385,
+    "description": "Steam web client for Windows 12. Use your real Steam account in an embedded window.",
+    "features": [
+      "Real Steam web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#1B2838",
+        "text": "Steam web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Steam in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

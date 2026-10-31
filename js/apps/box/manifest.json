@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "box",
+  "uuid": "a8554331-6423-4ab9-9d25-7f75b8631306",
+  "name": "Box",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Box",
+    "category": "Cloud Storage",
+    "rating": 4.5,
+    "reviews": 1311,
+    "description": "Box web client for Windows 12. Use your real Box account in an embedded window.",
+    "features": [
+      "Real Box web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#0061D5",
+        "text": "Box web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Box in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "applemusic",
+  "uuid": "97d2dedc-53c1-4ff6-833d-222febf1415d",
+  "name": "Apple Music",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Apple",
+    "category": "Entertainment",
+    "rating": 4.5,
+    "reviews": 1570,
+    "description": "Apple Music web client for Windows 12. Use your real Apple Music account in an embedded window.",
+    "features": [
+      "Real Apple Music web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#FB2D4B",
+        "text": "Apple Music web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Apple Music in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

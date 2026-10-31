@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "paypal",
+  "uuid": "660ca7c4-883c-4e34-b7c1-2dd2bf022860",
+  "name": "PayPal",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "PayPal",
+    "category": "Finance",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "PayPal web client for Windows 12. Use your real PayPal account in an embedded window.",
+    "features": [
+      "Real PayPal web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#00457C",
+        "text": "PayPal web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "PayPal in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

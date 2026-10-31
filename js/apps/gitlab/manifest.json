@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "gitlab",
+  "uuid": "bd3fcc54-3cc9-4b8c-8762-22b7a5f3a2c5",
+  "name": "GitLab",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "GitLab Inc.",
+    "category": "Developer Tools",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "GitLab web client for Windows 12. Use your real GitLab account in an embedded window.",
+    "features": [
+      "Real GitLab web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#FC6D26",
+        "text": "GitLab web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "GitLab in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

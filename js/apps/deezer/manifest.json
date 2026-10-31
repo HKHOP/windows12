@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "deezer",
+  "uuid": "612ffd4a-759b-46b9-bcd9-35cae753b824",
+  "name": "Deezer",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Deezer",
+    "category": "Entertainment",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "Deezer web client for Windows 12. Use your real Deezer account in an embedded window.",
+    "features": [
+      "Real Deezer web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#A238FF",
+        "text": "Deezer web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Deezer in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

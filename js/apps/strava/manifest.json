@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "strava",
+  "uuid": "37ab4cf7-2ef9-416d-88d1-8deb898f3979",
+  "name": "Strava",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Strava",
+    "category": "Health & Fitness",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "Strava web client for Windows 12. Use your real Strava account in an embedded window.",
+    "features": [
+      "Real Strava web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#FC4C02",
+        "text": "Strava web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Strava in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}
