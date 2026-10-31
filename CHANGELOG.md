@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.15.1] - 2026-10-31
+
+### Added
+- **Jad AI.** A new Store app wrapping the Jad AI website as an embedded window.
+
 ## [15.15.0] - 2026-10-27
 
 ### Fixed
