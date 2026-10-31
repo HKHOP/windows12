@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.15.10] - 2026-10-31
+
+### Changed
+- **Microsoft Store home page.** Reworked the Home view with a rotating daily featured pick, new "New & noteworthy", "Trending apps", category rows and refreshed popular rows, so the storefront no longer shows the same apps every time.
+
 ## [15.15.9] - 2026-10-31
 
 ### Added
