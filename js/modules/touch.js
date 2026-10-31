@@ -848,7 +848,9 @@ const Touch = (() => {
 
     function init() {
         ensureCursor();
-        refreshTouchpad(false);
+        SystemConfig.onChange(() => {
+            try { refreshTouchpad(false); } catch (e) { /* ignore */ }
+        });
         // Capture phase: in touchpad mode we must swallow finger-position
         // events before they reach app (target-phase) handlers.
         document.addEventListener('touchstart', handleTouchStart, { passive: false, capture: true });
