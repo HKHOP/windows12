@@ -40,11 +40,11 @@ const CACHE_NAME = 'w12-shell-v1';
 const SHELL_FILES = ['./', './index.html', './manifest.json', './favicon.svg', './js/apps/registry.js'];
 
 // >>> w12:core
-const CORE_VERSION = '15.15.0';
-const CORE_HASH = 'e1a2fbcff7e193a3';
+const CORE_VERSION = '15.15.1';
+const CORE_HASH = '68612307a6258669';
 const CORE_PACKAGE = './w12-core.pkg';
 const CORE_FILE_COUNT = 180;
-const CORE_BYTES = 1820312;
+const CORE_BYTES = 1820311;
 // <<< w12:core
 
 // >>> w12:apps-dist
@@ -85,6 +85,7 @@ const APP_DIST = {
     "halfLife": "store",
     "happyWheels": "store",
     "hillClimbRacing": "store",
+    "jadAi": "store",
     "lethalCompany": "store",
     "markdownStudio": "store",
     "mediaPlayer": "builtin",

@@ -1,0 +1,30 @@
+{
+  "manifestVersion": 1,
+  "id": "jadAi",
+  "uuid": "749ec449-d219-4b30-9902-459aef933ea2",
+  "name": "Jad AI",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": ["network"],
+  "icon": "assets/icon.svg",
+  "store": {
+    "developer": "Jad AI",
+    "category": "Productivity",
+    "rating": 4.8,
+    "reviews": 0,
+    "description": "Jad AI is an AI assistant.",
+    "features": [
+      "AI chat"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #6366f1, #0ea5e9)",
+        "text": "Jad AI"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  }
+}
