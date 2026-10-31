@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "diffchecker",
+  "uuid": "0a826e44-a838-46df-b5e9-3a2ff756399b",
+  "name": "Diff Checker",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Diff Checker",
+    "category": "Developer Tools",
+    "rating": 4.6,
+    "reviews": 1607,
+    "description": "Diff Checker web tool for Windows 12. Open the real Diff Checker service in an embedded window.",
+    "features": [
+      "Real Diff Checker web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#2E7D32",
+        "text": "Diff Checker web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Diff Checker in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "airtable",
+  "uuid": "0f099a3f-e143-48ff-9638-723250bd3e6e",
+  "name": "Airtable",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Airtable",
+    "category": "Productivity",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "Airtable web tool for Windows 12. Open the real Airtable service in an embedded window.",
+    "features": [
+      "Real Airtable web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#1B64F2",
+        "text": "Airtable web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Airtable in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

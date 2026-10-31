@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "regex101",
+  "uuid": "8744ffa2-1c20-475e-af66-8234362fce47",
+  "name": "regex101",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "regex101",
+    "category": "Developer Tools",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "regex101 web tool for Windows 12. Open the real regex101 service in an embedded window.",
+    "features": [
+      "Real regex101 web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#663399",
+        "text": "regex101 web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "regex101 in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

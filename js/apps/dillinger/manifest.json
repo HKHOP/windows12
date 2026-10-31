@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "dillinger",
+  "uuid": "2b4bfe59-63f5-4b0d-a99b-0c0b61c828f3",
+  "name": "Dillinger",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Dillinger",
+    "category": "Productivity",
+    "rating": 4.4,
+    "reviews": 1533,
+    "description": "Dillinger web tool for Windows 12. Open the real Dillinger service in an embedded window.",
+    "features": [
+      "Real Dillinger web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#3C873A",
+        "text": "Dillinger web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Dillinger in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

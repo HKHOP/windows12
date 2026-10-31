@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "ilovepdf",
+  "uuid": "a1c8c719-113d-44e6-8ae9-53b492d6b79e",
+  "name": "iLovePDF",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "iLovePDF",
+    "category": "Productivity",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "iLovePDF web tool for Windows 12. Open the real iLovePDF service in an embedded window.",
+    "features": [
+      "Real iLovePDF web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#E53935",
+        "text": "iLovePDF web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "iLovePDF in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

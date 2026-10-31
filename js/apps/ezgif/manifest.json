@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "ezgif",
+  "uuid": "1fa738c8-9e81-4648-8f36-d79066c03955",
+  "name": "EZGIF",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "EZGIF",
+    "category": "Tools & Utilities",
+    "rating": 4.6,
+    "reviews": 1385,
+    "description": "EZGIF web tool for Windows 12. Open the real EZGIF service in an embedded window.",
+    "features": [
+      "Real EZGIF web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#4D4D4D",
+        "text": "EZGIF web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "EZGIF in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

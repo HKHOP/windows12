@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "base64decode",
+  "uuid": "6598dfba-de23-4987-91b1-f92f429b5523",
+  "name": "Base64 Decode/Encode",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "base64decode.org",
+    "category": "Tools & Utilities",
+    "rating": 4.6,
+    "reviews": 1644,
+    "description": "Base64 Decode/Encode web tool for Windows 12. Open the real Base64 Decode/Encode service in an embedded window.",
+    "features": [
+      "Real Base64 Decode/Encode web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#0EA5E9",
+        "text": "Base64 Decode/Encode web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Base64 Decode/Encode in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "pixlr",
+  "uuid": "a51feb09-9e5d-4569-b10d-38b999f53e45",
+  "name": "Pixlr",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Pixlr",
+    "category": "Design & Creativity",
+    "rating": 4.6,
+    "reviews": 1385,
+    "description": "Pixlr web tool for Windows 12. Open the real Pixlr service in an embedded window.",
+    "features": [
+      "Real Pixlr web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#00AEEF",
+        "text": "Pixlr web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Pixlr in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

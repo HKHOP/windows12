@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "jwtio",
+  "uuid": "a74c975a-435e-4ade-b63d-7ea9ca8aacc3",
+  "name": "JWT.io",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Auth0",
+    "category": "Developer Tools",
+    "rating": 4.6,
+    "reviews": 1385,
+    "description": "JWT.io web tool for Windows 12. Open the real JWT.io service in an embedded window.",
+    "features": [
+      "Real JWT.io web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#D63AFF",
+        "text": "JWT.io web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "JWT.io in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

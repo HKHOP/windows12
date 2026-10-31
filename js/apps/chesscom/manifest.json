@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "chesscom",
+  "uuid": "21f34091-02c7-464c-bc60-a5d7b4292b23",
+  "name": "Chess.com",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Chess.com",
+    "category": "Games",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "Chess.com web tool for Windows 12. Open the real Chess.com service in an embedded window.",
+    "features": [
+      "Real Chess.com web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#7FA650",
+        "text": "Chess.com web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Chess.com in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

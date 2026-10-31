@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "onlinenotepad",
+  "uuid": "9a128ba1-34cb-4190-b52a-6f0bc12b23b2",
+  "name": "Online Notepad",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "RapidTables",
+    "category": "Tools & Utilities",
+    "rating": 4.7,
+    "reviews": 1681,
+    "description": "Online Notepad web tool for Windows 12. Open the real Online Notepad service in an embedded window.",
+    "features": [
+      "Real Online Notepad web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#607D8B",
+        "text": "Online Notepad web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Online Notepad in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

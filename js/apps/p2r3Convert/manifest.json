@@ -1,0 +1,38 @@
+{
+  "manifestVersion": 1,
+  "id": "p2r3Convert",
+  "uuid": "517e0aa1-f468-4ce8-91b9-c7b850379204",
+  "name": "P2r3 Audio Converter",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "p2r3",
+    "category": "Tools & Utilities",
+    "rating": 4.6,
+    "reviews": 1607,
+    "description": "P2r3 Audio Converter web tool for Windows 12. Open the real P2r3 Audio Converter service in an embedded window.",
+    "features": [
+      "Real P2r3 Audio Converter web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#6366F1",
+        "text": "P2r3 Audio Converter web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "P2r3 Audio Converter in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  }
+}

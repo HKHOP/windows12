@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "jsfiddle",
+  "uuid": "8fbfd45a-bd90-4518-b309-660dae3583e0",
+  "name": "JSFiddle",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "JSFiddle",
+    "category": "Developer Tools",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "JSFiddle web tool for Windows 12. Open the real JSFiddle service in an embedded window.",
+    "features": [
+      "Real JSFiddle web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#4679BD",
+        "text": "JSFiddle web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "JSFiddle in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

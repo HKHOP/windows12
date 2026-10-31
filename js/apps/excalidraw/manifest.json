@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "excalidraw",
+  "uuid": "449e5b88-94bc-4b3c-bd1c-1737ddac9bc8",
+  "name": "Excalidraw",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Excalidraw",
+    "category": "Design & Creativity",
+    "rating": 4.5,
+    "reviews": 1570,
+    "description": "Excalidraw web tool for Windows 12. Open the real Excalidraw service in an embedded window.",
+    "features": [
+      "Real Excalidraw web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#6965DB",
+        "text": "Excalidraw web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Excalidraw in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

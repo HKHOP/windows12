@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "removebg",
+  "uuid": "129cfb44-29ed-4efa-b4b7-1103a06714a8",
+  "name": "remove.bg",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Kaleido",
+    "category": "Design & Creativity",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "remove.bg web tool for Windows 12. Open the real remove.bg service in an embedded window.",
+    "features": [
+      "Real remove.bg web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#18A0FB",
+        "text": "remove.bg web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "remove.bg in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

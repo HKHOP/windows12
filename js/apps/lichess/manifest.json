@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "lichess",
+  "uuid": "1d24c661-292f-42bf-b4be-954a47297d4c",
+  "name": "Lichess",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Lichess",
+    "category": "Games",
+    "rating": 4.3,
+    "reviews": 1459,
+    "description": "Lichess web tool for Windows 12. Open the real Lichess service in an embedded window.",
+    "features": [
+      "Real Lichess web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#FFC107",
+        "text": "Lichess web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Lichess in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

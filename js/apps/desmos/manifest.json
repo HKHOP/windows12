@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "desmos",
+  "uuid": "e9c40eb5-10a2-4802-b482-e85966d18380",
+  "name": "Desmos",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Desmos",
+    "category": "Education",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "Desmos web tool for Windows 12. Open the real Desmos service in an embedded window.",
+    "features": [
+      "Real Desmos web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#3F51B5",
+        "text": "Desmos web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Desmos in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

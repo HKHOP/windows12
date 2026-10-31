@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "epochconverter",
+  "uuid": "a02992b2-51e7-436f-9cf0-705f5391b3fe",
+  "name": "Epoch Converter",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "epochconverter",
+    "category": "Tools & Utilities",
+    "rating": 4.3,
+    "reviews": 1718,
+    "description": "Epoch Converter web tool for Windows 12. Open the real Epoch Converter service in an embedded window.",
+    "features": [
+      "Real Epoch Converter web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#1F2937",
+        "text": "Epoch Converter web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Epoch Converter in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

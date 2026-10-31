@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "tinywow",
+  "uuid": "42c47cfc-e58f-40cf-aa56-9e37c5db4209",
+  "name": "TinyWow",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "TinyWow",
+    "category": "Tools & Utilities",
+    "rating": 4.3,
+    "reviews": 1459,
+    "description": "TinyWow web tool for Windows 12. Open the real TinyWow service in an embedded window.",
+    "features": [
+      "Real TinyWow web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#7C3AED",
+        "text": "TinyWow web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "TinyWow in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

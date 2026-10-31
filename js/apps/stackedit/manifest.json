@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "stackedit",
+  "uuid": "481f2934-4f2b-4d30-8644-c3302b4ef9e1",
+  "name": "StackEdit",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "StackEdit",
+    "category": "Productivity",
+    "rating": 4.4,
+    "reviews": 1533,
+    "description": "StackEdit web tool for Windows 12. Open the real StackEdit service in an embedded window.",
+    "features": [
+      "Real StackEdit web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#42A5F5",
+        "text": "StackEdit web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "StackEdit in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

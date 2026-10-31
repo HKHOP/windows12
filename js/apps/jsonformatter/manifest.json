@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "jsonformatter",
+  "uuid": "db653d85-6a21-423e-a7d4-62eee7b08e7a",
+  "name": "JSON Formatter",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "jsonformatter.org",
+    "category": "Developer Tools",
+    "rating": 4.7,
+    "reviews": 1681,
+    "description": "JSON Formatter web tool for Windows 12. Open the real JSON Formatter service in an embedded window.",
+    "features": [
+      "Real JSON Formatter web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#F7DF1E",
+        "text": "JSON Formatter web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "JSON Formatter in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "colorpicker",
+  "uuid": "625d8d30-d790-4b65-8751-09a2141f119e",
+  "name": "HTML Color Codes",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "htmlcolorcodes",
+    "category": "Tools & Utilities",
+    "rating": 4.6,
+    "reviews": 1607,
+    "description": "HTML Color Codes web tool for Windows 12. Open the real HTML Color Codes service in an embedded window.",
+    "features": [
+      "Real HTML Color Codes web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#E91E63",
+        "text": "HTML Color Codes web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "HTML Color Codes in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

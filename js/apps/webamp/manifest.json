@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "webamp",
+  "uuid": "605ac766-b0f2-4218-a476-a46b6778af3d",
+  "name": "Webamp",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Webamp",
+    "category": "Entertainment",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "Webamp web tool for Windows 12. Open the real Webamp service in an embedded window.",
+    "features": [
+      "Real Webamp web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#3E2723",
+        "text": "Webamp web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Webamp in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

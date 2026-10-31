@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "websudoku",
+  "uuid": "e2d97afc-6e21-40b1-b2a6-c4d57fbdee84",
+  "name": "Web Sudoku",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Web Sudoku",
+    "category": "Games",
+    "rating": 4.4,
+    "reviews": 1533,
+    "description": "Web Sudoku web tool for Windows 12. Open the real Web Sudoku service in an embedded window.",
+    "features": [
+      "Real Web Sudoku web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#2196F3",
+        "text": "Web Sudoku web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Web Sudoku in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

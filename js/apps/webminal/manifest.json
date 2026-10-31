@@ -1,0 +1,38 @@
+{
+  "manifestVersion": 1,
+  "id": "webminal",
+  "uuid": "4c3fad20-3b78-41dc-9347-7abc9b720dfe",
+  "name": "Webminal",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Webminal",
+    "category": "Education",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "Webminal web tool for Windows 12. Open the real Webminal service in an embedded window.",
+    "features": [
+      "Real Webminal web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#009688",
+        "text": "Webminal web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Webminal in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "carbon",
+  "uuid": "553a5a88-1656-4d2e-b62c-de68e7a6d103",
+  "name": "Carbon",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "carbon",
+    "category": "Developer Tools",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "Carbon web tool for Windows 12. Open the real Carbon service in an embedded window.",
+    "features": [
+      "Real Carbon web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#2C3E50",
+        "text": "Carbon web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Carbon in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

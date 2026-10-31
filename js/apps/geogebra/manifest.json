@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "geogebra",
+  "uuid": "453a200f-6b1d-4097-b995-1bea80c0bfcf",
+  "name": "GeoGebra",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "GeoGebra",
+    "category": "Education",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "GeoGebra web tool for Windows 12. Open the real GeoGebra service in an embedded window.",
+    "features": [
+      "Real GeoGebra web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#9C27B0",
+        "text": "GeoGebra web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "GeoGebra in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

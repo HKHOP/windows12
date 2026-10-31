@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "convertio",
+  "uuid": "646b5e3c-6460-49e5-a78a-59a384669327",
+  "name": "Convertio",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Convertio",
+    "category": "Tools & Utilities",
+    "rating": 4.4,
+    "reviews": 1533,
+    "description": "Convertio web tool for Windows 12. Open the real Convertio service in an embedded window.",
+    "features": [
+      "Real Convertio web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#0F7BFF",
+        "text": "Convertio web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Convertio in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

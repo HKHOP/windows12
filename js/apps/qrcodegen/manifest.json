@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "qrcodegen",
+  "uuid": "f795ff15-66cb-4fe9-ba22-8ba5afc20a29",
+  "name": "QR Code Generator",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "QR Code Generator",
+    "category": "Tools & Utilities",
+    "rating": 4.4,
+    "reviews": 1533,
+    "description": "QR Code Generator web tool for Windows 12. Open the real QR Code Generator service in an embedded window.",
+    "features": [
+      "Real QR Code Generator web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#673AB7",
+        "text": "QR Code Generator web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "QR Code Generator in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

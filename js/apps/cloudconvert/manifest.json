@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "cloudconvert",
+  "uuid": "ab31f4c8-6144-4fc8-931e-543a2183f7d2",
+  "name": "CloudConvert",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "CloudConvert",
+    "category": "Tools & Utilities",
+    "rating": 4.6,
+    "reviews": 1644,
+    "description": "CloudConvert web tool for Windows 12. Open the real CloudConvert service in an embedded window.",
+    "features": [
+      "Real CloudConvert web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#1565C0",
+        "text": "CloudConvert web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "CloudConvert in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

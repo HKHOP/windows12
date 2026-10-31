@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "codesandbox",
+  "uuid": "95cd677c-70fa-4976-b055-c4ea2dc6abf5",
+  "name": "CodeSandbox",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "CodeSandbox",
+    "category": "Developer Tools",
+    "rating": 4.6,
+    "reviews": 1607,
+    "description": "CodeSandbox web tool for Windows 12. Open the real CodeSandbox service in an embedded window.",
+    "features": [
+      "Real CodeSandbox web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#0F172A",
+        "text": "CodeSandbox web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "CodeSandbox in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "drawio",
+  "uuid": "d0979a0f-e88d-4832-87de-26be077d5d3a",
+  "name": "draw.io",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "JGraph",
+    "category": "Productivity",
+    "rating": 4.7,
+    "reviews": 1422,
+    "description": "draw.io web tool for Windows 12. Open the real draw.io service in an embedded window.",
+    "features": [
+      "Real draw.io web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#F08705",
+        "text": "draw.io web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "draw.io in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}

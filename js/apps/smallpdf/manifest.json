@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "smallpdf",
+  "uuid": "2b86b28e-ad06-4e66-8588-c43687acb3f1",
+  "name": "Smallpdf",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Smallpdf",
+    "category": "Productivity",
+    "rating": 4.4,
+    "reviews": 1496,
+    "description": "Smallpdf web tool for Windows 12. Open the real Smallpdf service in an embedded window.",
+    "features": [
+      "Real Smallpdf web app",
+      "Embedded web view",
+      "Open in OS window",
+      "One-time embedding notice"
+    ],
+    "screenshots": [
+      {
+        "bg": "#E53935",
+        "text": "Smallpdf web client"
+      },
+      {
+        "bg": "#1e1e1e",
+        "text": "Smallpdf in Windows 12"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "3+"
+  },
+  "icon": "assets/icon.png"
+}
