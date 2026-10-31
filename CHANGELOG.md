@@ -4,6 +4,12 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.15.3] - 2026-10-31
+
+### Fixed
+- **Display scaling and display resolution did nothing on iPhone and iPad.** The shell pinned its zoom factor to 1 on Apple touch devices (a workaround for a WebKit iframe bug) no matter which mode was stored, so the Settings controls appeared to apply while the UI never changed. Every explicit scale mode now zooms the shell there exactly like on other devices, and the resolution picker can zoom too; only "Auto" keeps the 1:1 desktop on Apple touch, where the adaptive factor would shrink a phone to 45% of an already small screen.
+- **Embedded pages were counter-zoomed under the shell scale on Apple touch.** Each iframe was sized `Z` times larger and cancelled with `zoom: 1/Z`, which overshot the frame in WebKit. WebKit now propagates the parent frame's zoom the way Chromium and Firefox do (webkit.org/b/301148), so a frame keeps its allotted box and the browser renders it at the accumulated zoom; `iframeViewportFix` remains as the pixel-box resync it was originally.
+
 ## [15.15.2] - 2026-10-31
 
 ### Fixed
