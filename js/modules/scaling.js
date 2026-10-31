@@ -7,6 +7,7 @@ const Scaling = (() => {
     const FIXED_MAX = 2;
 
     let currentScale = 1;
+    let appleScale = 1;
     let onScaleChange = null;
 
     function isIPadTouch() {
@@ -39,15 +40,7 @@ const Scaling = (() => {
     }
 
     function computeScale() {
-        const isApple = window._isAppleTouch;
-        if (isApple) {
-            // Apple touch devices historically could not keep iframe inner
-            // viewports correct under a non-1 body zoom (Safari letterboxes).
-            // Until that WebKit glue is reliable everywhere, the shell uses a
-            // fixed scaling matched to the size class of the device so the UI is
-            // larger than the adaptive (45%) minimum but smaller than 1:1.
-            return isIPadTouch() ? 0.8 : 0.75;
-        }
+        if (window._isAppleTouch) return 1;
         const mode = getMode();
         if (mode === 'auto') {
             return computeAdaptiveScale();
@@ -61,12 +54,27 @@ const Scaling = (() => {
 
     function apply() {
         currentScale = computeScale();
-        document.documentElement.style.setProperty('--scale', currentScale);
-        if (onScaleChange) onScaleChange(currentScale);
+        // Apple touch: keep body zoom 1 to avoid Safari-distorted iframe inner
+        // viewports; apply the intended scale via a CSS transform instead so
+        // embedded pages still lay out correctly and the CSS `transform` path
+        // handles the visual scaling without changing iframe viewport units.
+        if (window._isAppleTouch) {
+            appleScale = isIPadTouch() ? 0.8 : 0.75;
+            document.documentElement.style.removeProperty('--res-scale'); // not used
+            document.documentElement.style.setProperty('--scale', currentScale);
+            document.documentElement.style.setProperty('--apple-scale', appleScale);
+            if (document.body) document.body.setAttribute('data-apple-scale', '');
+        } else {
+            appleScale = currentScale;
+            document.documentElement.style.removeProperty('--apple-scale');
+            if (document.body) document.body.removeAttribute('data-apple-scale');
+            document.documentElement.style.setProperty('--scale', currentScale);
+        }
+        if (onScaleChange) onScaleChange(getScale());
     }
 
     function getScale() {
-        return currentScale;
+        return window._isAppleTouch ? appleScale : currentScale;
     }
 
     // Effective CSS zoom applied to <body> (adaptive scale * display
@@ -77,8 +85,15 @@ const Scaling = (() => {
     function getUiZoom() {
         try {
             const z = parseFloat(getComputedStyle(document.body).zoom);
-            if (Number.isFinite(z) && z > 0) return z;
+            if (Number.isFinite(z) && z > 0 && !window._isAppleTouch) return z;
         } catch (e) { /* no DOM */ }
+        if (window._isAppleTouch) {
+            try {
+                const r = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--apple-scale')) || appleScale;
+                const res = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--res-scale')) || 1;
+                return r * res;
+            } catch (e) { return appleScale; }
+        }
         try {
             const rootStyle = getComputedStyle(document.documentElement);
             const s = parseFloat(rootStyle.getPropertyValue('--scale')) || 1;

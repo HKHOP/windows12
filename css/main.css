@@ -66,6 +66,19 @@ body {
     zoom: calc(var(--scale, 1) * var(--res-scale, 1));
 }
 
+/* Apple touch devices keep body zoom at 1 (so Safari iframe inner viewports
+   size correctly) but apply a readability scale via transform instead. The
+   transform is relative to the top-left corner and the body expands so the
+   transformed shell still fills the viewport. */
+body[data-apple-scale] {
+    zoom: 1;
+    width: calc(100% / var(--apple-scale, 1));
+    height: calc(100% / var(--apple-scale, 1));
+    transform: scale(var(--apple-scale, 1));
+    transform-origin: 0 0;
+    overflow: hidden;
+}
+
 #resolution-layer {
     position: fixed;
     top: 0;
