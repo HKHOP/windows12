@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.15.7] - 2026-10-31
+
+### Changed
+- Apple touch shell scaling is now provided by a CSS `transform: scale(...)` applied to `<body>` (iPad 80%, iPhone 75%) instead of `body { zoom }`. This keeps WebKit's iframe inner-viewport sizing at 1× (no white space) while the rest of the shell is visually scaled down. `Scaling.getUiZoom()` reports the transform scale so coordinate-dependent callers stay aligned.
+
 ## [15.15.6] - 2026-10-31
 
 ### Changed
