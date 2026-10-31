@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.15.12] - 2026-10-31
+
+### Added
+- **Niche tools round.** Added 37 web tools/utilities: P2r3 Audio Converter, CloudConvert, Convertio, Smallpdf, iLovePDF, remove.bg, Photopea, Pixlr, EZGIF, TinyWow, draw.io, Excalidraw, Dillinger, StackEdit, Airtable, Mermaid Live, regex101, JSON Formatter, JWT.io, Epoch Converter, Base64 Decode/Encode, Diff Checker, Carbon, JSFiddle, CodeSandbox, Chess.com, Lichess, Web Sudoku, GeoGebra, Desmos, WolframAlpha, Symbolab, Webminal, QR Code Generator, HTML Color Codes, Online Notepad and Webamp.
+
 ## [15.15.11] - 2026-10-31
 
 ### Added
