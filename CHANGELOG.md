@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.15.5] - 2026-10-31
+
+### Fixed
+- **Scaling on Apple touch devices reintroduced the Safari iframe white-space bug.** The WebKit bug the scaling relied on reappears on Apple hardware whenever the body zoom differs from 1, so explicit scaling/display-resolution now again resolve to a zoom factor of 1 there. Scaling still works everywhere else (desktop, Android) and the desktop is still adaptive as before.
+
 ## [15.15.4] - 2026-10-31
 
 ### Fixed
