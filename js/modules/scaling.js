@@ -9,6 +9,17 @@ const Scaling = (() => {
     let currentScale = 1;
     let onScaleChange = null;
 
+    function isIPadTouch() {
+        try {
+            const ua = navigator.userAgent;
+            if (/iPad/.test(ua)) return true;
+            if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return true;
+            return false;
+        } catch (e) {
+            return false;
+        }
+    }
+
     function computeAdaptiveScale() {
         const vw = window.innerWidth;
         const vh = window.innerHeight;
@@ -28,7 +39,15 @@ const Scaling = (() => {
     }
 
     function computeScale() {
-        if (window._isAppleTouch) return 1;
+        const isApple = window._isAppleTouch;
+        if (isApple) {
+            // Apple touch devices historically could not keep iframe inner
+            // viewports correct under a non-1 body zoom (Safari letterboxes).
+            // Until that WebKit glue is reliable everywhere, the shell uses a
+            // fixed scaling matched to the size class of the device so the UI is
+            // larger than the adaptive (45%) minimum but smaller than 1:1.
+            return isIPadTouch() ? 0.8 : 0.75;
+        }
         const mode = getMode();
         if (mode === 'auto') {
             return computeAdaptiveScale();

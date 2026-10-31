@@ -301,7 +301,7 @@ const Settings = (() => {
                     <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Applies to every user and the lock screen · requires administrator approval</div>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                         <span style="font-size:13px;">Display scaling</span>
-                        <select class="scaling-select" style="font-size:13px;">
+                        <select class="scaling-select" style="font-size:13px;" ${window._isAppleTouch ? 'disabled' : ''}>
                             <option value="auto" ${currentScaling === 'auto' ? 'selected' : ''}>Auto (Adaptive)</option>
                             <option value="50" ${currentScaling === '50' ? 'selected' : ''}>50%</option>
                             <option value="75" ${currentScaling === '75' ? 'selected' : ''}>75%</option>
@@ -312,10 +312,10 @@ const Settings = (() => {
                             <option value="200" ${currentScaling === '200' ? 'selected' : ''}>200%</option>
                         </select>
                     </div>
-                    <div class="current-scale-label" style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Current scale: ${Math.round(Scaling.getScale() * 100)}%</div>
+                    <div class="current-scale-label" style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Current scale: ${Math.round(Scaling.getScale() * 100)}%${window._isAppleTouch ? ' · fixed to the screen class' : ''}</div>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
                         <span style="font-size:13px;">Display resolution</span>
-                        <select class="resolution-select" style="font-size:13px;">
+                        <select class="resolution-select" style="font-size:13px;" ${window._isAppleTouch ? 'disabled' : ''}>
                             ${resOptionsHtml}
                         </select>
                     </div>
