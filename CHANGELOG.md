@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.15.4] - 2026-10-31
+
+### Fixed
+- **The virtual touchpad cursor stayed invisible on mobile.** `Touch.init()` read the touchpad-enabled setting before the signed-in user's config was loaded (during `bootShell`, ahead of `SystemConfig.activate()`), so it always treated it as off and never added the visible class. The cursor now subscribes to SystemConfig's config-changed callback, so it picks up the enabling state applied at sign-in and on every subsequent config change.
+
 ## [15.15.3] - 2026-10-31
 
 ### Fixed
