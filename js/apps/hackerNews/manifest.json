@@ -1,0 +1,34 @@
+{
+  "manifestVersion": 1,
+  "id": "hackerNews",
+  "uuid": "4583925f-8854-4e96-9a5a-837928517ac1",
+  "name": "Hacker News",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "Y Combinator",
+    "category": "News",
+    "rating": 4.6,
+    "reviews": 980,
+    "description": "Hacker News native client for Windows 12: top stories, new, best, ask, show, jobs, with comments.",
+    "features": [
+      "Top/new/best/ask/show/jobs feeds",
+      "Story comments",
+      "Open in browser"
+    ],
+    "screenshots": [
+      {
+        "bg": "#ff6600",
+        "text": "Hacker News feed"
+      }
+    ],
+    "size": "1 MB",
+    "ageRating": "13+"
+  },
+  "icon": "assets/icon.png"
+}

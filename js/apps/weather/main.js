@@ -1,6 +1,7 @@
-// Weather — Open-Meteo current + hourly, saved city, background alerts.
+// Weather — Open-Meteo current + hourly + daily, saved city, background alerts.
 import { createApp } from '../../sdk/index.js';
 import AppIcons from '../../modules/appIcons.js';
+import NetworkStatus from '../../modules/networkStatus.js';
 
 let bgTimer = null;
 const WMO = { 0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast', 45: 'Fog', 48: 'Icy fog', 51: 'Light drizzle', 53: 'Drizzle', 55: 'Heavy drizzle', 61: 'Light rain', 63: 'Rain', 65: 'Heavy rain', 71: 'Light snow', 73: 'Snow', 75: 'Heavy snow', 80: 'Light showers', 81: 'Showers', 82: 'Violent showers', 95: 'Thunderstorm', 96: 'Storm + hail', 99: 'Storm + hail' };
@@ -15,30 +16,35 @@ function prefs(app) {
 function savePrefs(app, p) { app.files.write('prefs.json', JSON.stringify(p)); }
 
 async function fetchWeather(lat, lon) {
-    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&hourly=temperature_2m,weather_code&forecast_days=2&timezone=auto`);
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m,apparent_temperature,precipitation&hourly=temperature_2m,weather_code,precipitation_probability&forecast_days=3&timezone=auto&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,uv_index_max`);
     if (!r.ok) throw new Error('HTTP ' + r.status);
     return r.json();
 }
 async function geocode(q) {
-    const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=en&format=json`);
+    const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=en&format=json`);
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
     return d.results || [];
+}
+
+function dayLabel(iso) {
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 function launch() {
     const app = createApp({ id: 'weather', name: 'Weather' });
     const win = app.window.create({
         title: 'Weather', icon: app.icon(),
-        content: `<div style="display:flex;flex-direction:column;height:100%;background:linear-gradient(160deg,#0c2a4d,#0ea5e9);color:#fff;font-family:'Segoe UI',sans-serif;padding:16px;box-sizing:border-box;">
+        content: `<div style="display:flex;flex-direction:column;height:100%;background:linear-gradient(160deg,#0c2a4d,#0ea5e9);color:#fff;font-family:'Segoe UI',sans-serif;padding:16px;box-sizing:border-box;overflow:auto;">
             <div style="display:flex;gap:8px;">
-                <input class="w-q" placeholder="Search city…" style="flex:1;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;">
+                <input class="w-q" placeholder="Search city..." style="flex:1;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;">
                 <button class="w-go" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:600;">Go</button>
             </div>
             <div class="w-results" style="display:flex;flex-direction:column;gap:4px;margin-top:6px;"></div>
-            <div class="w-body" style="flex:1;overflow:auto;margin-top:8px;"><div style="color:rgba(255,255,255,.8);font-size:13px;">Loading…</div></div>
+            <div class="w-body" style="flex:1;margin-top:8px;"><div style="color:rgba(255,255,255,.8);font-size:13px;">Loading...</div></div>
         </div>`,
-        width: 380, height: 540
+        width: 400, height: 660
     });
     const el = win.element;
     const q = el.querySelector('.w-q');
@@ -47,26 +53,44 @@ function launch() {
 
     async function show() {
         const p = prefs(app);
-        body.innerHTML = '<div style="color:rgba(255,255,255,.8);font-size:13px;">Loading…</div>';
+        body.innerHTML = '<div style="color:rgba(255,255,255,.8);font-size:13px;">Loading...</div>';
         try {
             const d = await fetchWeather(p.lat, p.lon);
             const c = d.current;
             const hours = d.hourly.time.slice(0, 24).map((t, i) => ({
                 t: t.slice(11, 16),
                 temp: Math.round(d.hourly.temperature_2m[i]),
-                desc: WMO[d.hourly.weather_code[i]] || '—'
+                desc: WMO[d.hourly.weather_code[i]] || '-',
+                prob: d.hourly.precipitation_probability[i]
+            }));
+            const days = (d.daily.time || []).map((t, i) => ({
+                label: dayLabel(t),
+                desc: WMO[d.daily.weather_code[i]] || '-',
+                max: Math.round(d.daily.temperature_2m_max[i]),
+                min: Math.round(d.daily.temperature_2m_min[i]),
+                rain: d.daily.precipitation_sum[i],
+                uv: d.daily.uv_index_max[i]
             }));
             body.innerHTML = `
                 <div style="font-size:15px;opacity:.85;">${escapeHtml(p.city)}</div>
                 <div style="font-size:56px;font-weight:200;line-height:1;">${Math.round(c.temperature_2m)}°</div>
-                <div style="font-size:15px;margin-bottom:4px;">${WMO[c.weather_code] || '—'}</div>
-                <div style="font-size:12px;opacity:.85;margin-bottom:12px;">Wind ${c.wind_speed_10m} km/h · Humidity ${c.relative_humidity_2m}%</div>
+                <div style="font-size:15px;margin-bottom:4px;">${WMO[c.weather_code] || '-'}</div>
+                <div style="font-size:12px;opacity:.85;margin-bottom:12px;">Feels like ${Math.round(c.apparent_temperature)}° · Wind ${c.wind_speed_10m} km/h · Humidity ${c.relative_humidity_2m}% · Precip ${c.precipitation} mm</div>
                 <div style="font-size:11px;text-transform:uppercase;opacity:.7;margin-bottom:6px;">Next 24 hours</div>
                 <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;">
                     ${hours.map(h => `<div style="flex:none;background:rgba(255,255,255,.15);border-radius:8px;padding:8px 10px;text-align:center;min-width:62px;">
                         <div style="font-size:11px;opacity:.8;">${h.t}</div>
                         <div style="font-size:15px;font-weight:600;">${h.temp}°</div>
-                        <div style="font-size:10px;opacity:.8;">${h.desc}</div>
+                        <div style="font-size:10px;opacity:.8;">${h.desc}${h.prob != null ? ' · ' + h.prob + '%' : ''}</div>
+                    </div>`).join('')}
+                </div>
+                <div style="font-size:11px;text-transform:uppercase;opacity:.7;margin:8px 0 6px;">Daily outlook</div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    ${days.map(d => `<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.12);border-radius:8px;padding:8px 10px;font-size:13px;gap:8px;">
+                        <span style="min-width:110px;">${escapeHtml(d.label)}</span>
+                        <span style="flex:1;">${escapeHtml(d.desc)}</span>
+                        <span style="font-weight:600;">${d.max}° / ${d.min}°</span>
+                        <span style="font-size:11px;opacity:.7;">rain ${d.rain} mm · UV ${d.uv}</span>
                     </div>`).join('')}
                 </div>`;
             const prev = prefs(app);
@@ -80,7 +104,7 @@ function launch() {
     async function search() {
         const term = q.value.trim();
         if (!term) return;
-        results.innerHTML = '<div style="font-size:12px;opacity:.8;">Searching…</div>';
+        results.innerHTML = '<div style="font-size:12px;opacity:.8;">Searching...</div>';
         try {
             const list = await geocode(term);
             results.innerHTML = list.length ? '' : '<div style="font-size:12px;">No cities found.</div>';
@@ -102,6 +126,7 @@ function launch() {
     show();
     app.shell.activity.trackAppOpen('weather');
 }
+
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 async function poll(app) {
@@ -115,7 +140,7 @@ async function poll(app) {
                 critical: true, actions: [{ label: 'Open', value: 'open', primary: true }],
                 onAction: () => launch()
             });
-            else app.notify.info('Weather', `${p.city}: now ${WMO[code] || '—'}, ${Math.round(d.current.temperature_2m)}° (was ${WMO[p.lastCode] || '—'}).`);
+            else app.notify.info('Weather', `${p.city}: now ${WMO[code] || '-'}, ${Math.round(d.current.temperature_2m)}° (was ${WMO[p.lastCode] || '-'})`);
         }
         p.lastCode = code; savePrefs(app, p);
     } catch { /* offline — stay quiet */ }

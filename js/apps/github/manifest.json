@@ -3,7 +3,7 @@
   "id": "github",
   "uuid": "41d51b25-78de-4fd9-b4cd-d21642aff467",
   "name": "GitHub",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -15,12 +15,11 @@
     "category": "Developer Tools",
     "rating": 4.7,
     "reviews": 1422,
-    "description": "GitHub web client for Windows 12. Use your real GitHub account in an embedded window.",
+    "description": "Native GitHub client for Windows 12 (no iframe).",
     "features": [
-      "Real GitHub web app",
-      "Embedded web view",
-      "Open in OS window",
-      "One-time embedding notice"
+      "Native UI",
+      "No iframe wrapper",
+      "Open results in browser"
     ],
     "screenshots": [
       {
@@ -35,6 +34,5 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png",
-  "iframe-app": true
+  "icon": "assets/icon.png"
 }

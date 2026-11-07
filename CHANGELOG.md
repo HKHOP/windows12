@@ -4,6 +4,18 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.15.15] - 2026-11-07
+
+### Added
+- **Tier 2 native app ports.** Replaced the iframe wrappers for `wikipedia`, `github`, `stackOverflow`, `reddit`, `googleMaps`, `googleTranslate`, `weather`, and a new `hackerNews` store app with native clients backed by their public APIs (MediaWiki, GitHub, Stack Exchange, Reddit, Nominatim/OpenStreetMap, MyMemory, Open-Meteo, Hacker News Firebase).
+
+### Changed
+- **Weather upgrades.** Current conditions now include feels-like and precipitation; added a 3-day daily outlook plus rain probability per hour.
+- **Store apps.** Rebuilt affected `.w12pkg` archives and the OS core bundle; app versions bumped to `1.1.0`.
+
+### Fixed
+- **App launch stability.** Ported apps no longer depend on iframe embedding; all run offline-aware with clean empty/error states when connectivity is unavailable.
+
 ## [15.15.14] - 2026-11-07
 
 ### Added
@@ -16,7 +28,7 @@ Each version may only use the following sections: **Added**, **Removed**, **Chan
 - **Remote Desktop relay broker fallback.** Added `wss://broker.hivemq.com:8884/mqtt` as a second fallback broker so short-code pairing has three independent servers to try before giving up.
 
 ### Changed
-- **Package Installer hidden from Start Menu.** `packageInstaller` now has `"shortcuts": {"startMenu": false}` in its manifest, so it no longer appears in All Apps — it is still launchable via file association (`.w12pkg`, `.msi`) or by double-clicking a package in File Explorer.
+- **Package Installer hidden from Start Menu.** `packageInstaller` now has `"shortcuts": {"startMenu": false}` in its manifest, so it no longer appears in All Apps ï¿½ it is still launchable via file association (`.w12pkg`, `.msi`) or by double-clicking a package in File Explorer.
 
 ## [15.15.13] - 2026-11-07
 

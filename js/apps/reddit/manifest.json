@@ -3,7 +3,7 @@
   "id": "reddit",
   "uuid": "8fbe7002-8991-47a2-80a0-510cc92e4199",
   "name": "Reddit",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -15,12 +15,11 @@
     "category": "Social",
     "rating": 4.7,
     "reviews": 1422,
-    "description": "Reddit web client for Windows 12. Use your real Reddit account in an embedded window.",
+    "description": "Native Reddit client for Windows 12 (no iframe).",
     "features": [
-      "Real Reddit web app",
-      "Embedded web view",
-      "Open in OS window",
-      "One-time embedding notice"
+      "Native UI",
+      "No iframe wrapper",
+      "Open results in browser"
     ],
     "screenshots": [
       {
@@ -35,6 +34,5 @@
     "size": "1 MB",
     "ageRating": "13+"
   },
-  "icon": "assets/icon.png",
-  "iframe-app": true
+  "icon": "assets/icon.png"
 }

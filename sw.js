@@ -40,8 +40,8 @@ const CACHE_NAME = 'w12-shell-v1';
 const SHELL_FILES = ['./', './index.html', './manifest.json', './favicon.svg', './js/apps/registry.js'];
 
 // >>> w12:core
-const CORE_VERSION = '15.15.13';
-const CORE_HASH = '4cf23bd626be3ec8';
+const CORE_VERSION = '15.15.15';
+const CORE_HASH = 'd058d3c7dee1f955';
 const CORE_PACKAGE = './w12-core.pkg';
 const CORE_FILE_COUNT = 181;
 const CORE_BYTES = 1823461;
@@ -133,6 +133,7 @@ const APP_DIST = {
     "granny3": "store",
     "graphingCalculator": "store",
     "gta3": "store",
+    "hackerNews": "store",
     "halfLife": "store",
     "happyWheels": "store",
     "hillClimbRacing": "store",
