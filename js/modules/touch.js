@@ -2,6 +2,7 @@ import SystemConfig from './systemConfig.js';
 import Cursor from './cursor.js';
 import IframePointer from './iframePointer.js';
 import UIIcons from './uiIcons.js';
+import Platform from './platform.js';
 
 const Touch = (() => {
     const LONG_PRESS_MS = 500;

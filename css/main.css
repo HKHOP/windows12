@@ -733,6 +733,37 @@ input[type="number"].vk-focused, input[type="search"].vk-focused, input[type="ur
     }
 }
 
+/* Console browsers (e.g. PlayStation 4/5 WebKit) do not always report
+   (pointer: coarse) and have no reliable mouse movement, so apply the same
+   touch-friendly hit targets when Platform marks the document. */
+html.console-touch .window-header,
+html.ps4 .window-header {
+    min-height: 44px;
+}
+
+html.console-touch .resize-handle,
+html.ps4 .resize-handle {
+    width: 16px;
+    height: 16px;
+}
+
+html.console-touch .popup-btn,
+html.ps4 .popup-btn {
+    min-height: 40px;
+    padding: 10px 20px;
+}
+
+html.console-touch .settings-nav-item,
+html.ps4 .settings-nav-item {
+    min-height: 44px;
+}
+
+html.console-touch .taskbar-btn,
+html.ps4 .taskbar-btn {
+    min-width: 44px;
+    min-height: 44px;
+}
+
 /* UAC "secure desktop": while a User Account Control prompt is open, only the
    desktop wallpaper and the prompt remain — every window, icon and the
    taskbar are hidden (visibility keeps their geometry so they return intact),

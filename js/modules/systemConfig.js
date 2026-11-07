@@ -1,5 +1,6 @@
 import Users from './users.js';
 import Registry from './registry.js';
+import Platform from './platform.js';
 
 const SystemConfig = (() => {
     // The per-user settings live in the registry, in this profile's own hive
@@ -24,11 +25,12 @@ const SystemConfig = (() => {
     }
 
 
-    // Touch devices get the on-screen keyboard out of the box (it replaces
-    // the native iOS/Android keyboard); desktops default to off but can
-    // opt in from Settings > System > Touch keyboard.
-    const HAS_TOUCH = (typeof window !== 'undefined') &&
-        (('ontouchstart' in window) || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0));
+    // Touch/console devices get the on-screen keyboard out of the box (it
+    // replaces the native iOS/Android keyboard); desktops default to off but
+    // can opt in from Settings > System > Touch keyboard. PlayStation browsers
+    // (PS4/PS5) lack reliable mouse movement and are treated as touch-like.
+    const HAS_TOUCH = Platform.isConsoleTouch || ((typeof window !== 'undefined') &&
+        (('ontouchstart' in window) || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0)));
 
     // Custom image wallpaper: stored as a virtual-FS path array so the
     // object/data URL (session-only) is rebuilt from the file on every

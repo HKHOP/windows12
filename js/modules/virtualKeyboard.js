@@ -15,6 +15,7 @@
 // API: init/show/hide/toggle/isOpen/refresh/repaint/getLayouts/getMode/isEnabled.
 import SystemConfig from './systemConfig.js';
 import Sounds from './sounds.js';
+import Platform from './platform.js';
 
 const VirtualKeyboard = (() => {
     const TRAY_ID = 'touch-kbd-tray-btn';
@@ -47,8 +48,13 @@ const VirtualKeyboard = (() => {
 
     const NO_TEXT_TYPES = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'file', 'color', 'range', 'image', 'hidden']);
 
-    const HAS_TOUCH_HW = (typeof window !== 'undefined') &&
-        (('ontouchstart' in window) || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0));
+    // Console browsers (PlayStation) are treated as touch-like for defaults
+    // but their controller delivers pointer events as 'mouse'/'pen', so the
+    // OSK must accept those — unlike real touch hardware, where only finger
+    // touches type (to ignore the virtual touchpad's synthesized mouse events).
+    const IS_CONSOLE_TOUCH = Platform.isConsoleTouch;
+    const HAS_TOUCH_HW = IS_CONSOLE_TOUCH || ((typeof window !== 'undefined') &&
+        (('ontouchstart' in window) || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0)));
 
     // Generic = full keyboard (extra Esc/Ctrl/Alt/Tab/arrows row).
     // Simple = phone-style layout without Ctrl/Alt/Tab.
@@ -61,7 +67,7 @@ const VirtualKeyboard = (() => {
         { l: '→', a: 'right', f: 1 }
     ];
 
-    // null/auto: Simple on touch hardware, Generic on desktops.
+    // null/auto: Simple on touch/console devices, Generic on desktops.
     function keyboardMode() {
         try {
             const m = SystemConfig.get('touchKeyboardMode');
@@ -75,11 +81,13 @@ const VirtualKeyboard = (() => {
         return keyboardMode() === 'generic' ? [...base, GENERIC_ROW] : base;
     }
 
-    // The keyboard is a touch instrument: on touch hardware only real finger
+    // The keyboard is a touch instrument: on real touch hardware only finger
     // touches press keys (the virtual touchpad cursor's synthesized mouse
-    // events must not type). Desktops without touch keep mouse control.
+    // events must not type). Console browsers accept any pointer (their
+    // gamepad acts as the pointer). Desktops without touch keep mouse control.
     function acceptsPointer(e) {
         if (!HAS_TOUCH_HW) return true;
+        if (IS_CONSOLE_TOUCH) return true;
         try { return e && e.pointerType === 'touch'; } catch (err) { return false; }
     }
 

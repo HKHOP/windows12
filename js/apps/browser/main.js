@@ -323,10 +323,12 @@ const Browser = (() => {
         // inside and direct finger taps remain the only way to use them.
         function isCoarsePointer() {
             try {
-                return !!window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-            } catch (e) {
-                return false;
-            }
+                if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return true;
+            } catch (e) { /* noop */ }
+            // Console browsers (PlayStation) need the touchpad pane for
+            // same-origin pages because they lack reliable mouse movement.
+            try { if (window._isConsoleTouch) return true; } catch (e) { /* noop */ }
+            return false;
         }
 
         function isSameOriginFrame(iframe) {

@@ -17,18 +17,16 @@ import Users from '../../modules/users.js';
 import Notifications from '../../modules/notifications.js';
 import Shortcuts from '../../modules/shortcuts.js';
 import FileNames from '../../modules/fileNames.js';
+import Platform from '../../modules/platform.js';
 
 
 const FileExplorer = (() => {
     const icon = AppIcons.get('fileExplorer');
 
     // Coarse-pointer / touch UI: a single tap opens items and a long-press
-    // opens the context menu (see the item handlers below).
-    const IS_TOUCH_UI = (typeof window !== 'undefined') && (
-        (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
-        ('ontouchstart' in window) ||
-        (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0)
-    );
+    // opens the context menu (see the item handlers below). Console browsers
+    // (PlayStation) lack reliable mouse movement, so treat them as touch-like.
+    const IS_TOUCH_UI = Platform.isTouchLike();
     const LONG_PRESS_SELECT_MS = 550;
     // Settings > Files keys that change how the listing is drawn or clicked.
     // A change redraws every open window (see the listener below).
