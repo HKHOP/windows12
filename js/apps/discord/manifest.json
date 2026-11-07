@@ -3,11 +3,13 @@
   "id": "discord",
   "uuid": "3b064e73-6aef-4f41-9180-784cefdc8fff",
   "name": "Discord",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
-  "permissions": ["network"],
+  "permissions": [
+    "network"
+  ],
   "store": {
     "developer": "Discord Inc.",
     "category": "Social",
@@ -32,5 +34,6 @@
     ],
     "size": "1 MB",
     "ageRating": "13+"
-  }
+  },
+  "iframe-app": true
 }

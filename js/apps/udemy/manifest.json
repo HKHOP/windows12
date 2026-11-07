@@ -3,7 +3,7 @@
   "id": "udemy",
   "uuid": "57b2349d-9bbf-4b18-a103-983530fa9609",
   "name": "Udemy",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

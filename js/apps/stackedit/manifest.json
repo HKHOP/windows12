@@ -3,7 +3,7 @@
   "id": "stackedit",
   "uuid": "481f2934-4f2b-4d30-8644-c3302b4ef9e1",
   "name": "StackEdit",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

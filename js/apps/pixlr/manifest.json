@@ -3,7 +3,7 @@
   "id": "pixlr",
   "uuid": "a51feb09-9e5d-4569-b10d-38b999f53e45",
   "name": "Pixlr",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

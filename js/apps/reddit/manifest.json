@@ -3,7 +3,7 @@
   "id": "reddit",
   "uuid": "8fbe7002-8991-47a2-80a0-510cc92e4199",
   "name": "Reddit",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "13+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

@@ -3,7 +3,7 @@
   "id": "angryBirds",
   "uuid": "36d632e8-f5c0-4b14-b19c-6736cfdcc4c7",
   "name": "Angry Birds Online",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     ],
     "size": "0.1 MB",
     "ageRating": "7+"
-  }
+  },
+  "iframe-app": true
 }

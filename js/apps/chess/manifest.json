@@ -3,11 +3,13 @@
   "id": "chess",
   "uuid": "99024fdc-a531-4249-8310-2c72d4a8807d",
   "name": "Chess",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
-  "permissions": ["network"],
+  "permissions": [
+    "network"
+  ],
   "store": {
     "developer": "Chess.com",
     "category": "Games",
@@ -21,10 +23,17 @@
       "One-click access to full Chess.com experience"
     ],
     "screenshots": [
-      { "bg": "linear-gradient(135deg, #161512, #8a6d3b)", "text": "Live chess & play" },
-      { "bg": "linear-gradient(135deg, #8a6d3b, #161512)", "text": "Daily puzzles" }
+      {
+        "bg": "linear-gradient(135deg, #161512, #8a6d3b)",
+        "text": "Live chess & play"
+      },
+      {
+        "bg": "linear-gradient(135deg, #8a6d3b, #161512)",
+        "text": "Daily puzzles"
+      }
     ],
     "size": "0.1 MB",
     "ageRating": "3+"
-  }
+  },
+  "iframe-app": true
 }

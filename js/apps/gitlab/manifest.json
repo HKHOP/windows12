@@ -3,7 +3,7 @@
   "id": "gitlab",
   "uuid": "bd3fcc54-3cc9-4b8c-8762-22b7a5f3a2c5",
   "name": "GitLab",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

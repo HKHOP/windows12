@@ -3,7 +3,7 @@
   "id": "evernote",
   "uuid": "77efa7e8-f2fd-44ef-9835-5c371644272e",
   "name": "Evernote",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

@@ -3,7 +3,7 @@
   "id": "stackOverflow",
   "uuid": "3d04d874-aba7-4da8-8608-eb34786a9724",
   "name": "Stack Overflow",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

@@ -3,7 +3,7 @@
   "id": "epochconverter",
   "uuid": "a02992b2-51e7-436f-9cf0-705f5391b3fe",
   "name": "Epoch Converter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

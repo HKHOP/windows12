@@ -3,7 +3,7 @@
   "id": "tinywow",
   "uuid": "42c47cfc-e58f-40cf-aa56-9e37c5db4209",
   "name": "TinyWow",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

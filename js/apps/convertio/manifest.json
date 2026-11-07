@@ -3,7 +3,7 @@
   "id": "convertio",
   "uuid": "646b5e3c-6460-49e5-a78a-59a384669327",
   "name": "Convertio",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

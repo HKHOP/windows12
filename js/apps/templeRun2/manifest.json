@@ -3,11 +3,13 @@
   "id": "templeRun2",
   "uuid": "23684f31-bd12-4d20-a5d9-9922d79d7a25",
   "name": "Temple Run 2",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
-  "permissions": ["network"],
+  "permissions": [
+    "network"
+  ],
   "store": {
     "developer": "SubwayOnline",
     "category": "Games",
@@ -21,10 +23,17 @@
       "Reload and Open-in-Browser toolbar if the frame is blocked"
     ],
     "screenshots": [
-      { "bg": "linear-gradient(135deg, #1c1410, #8a6d3b)", "text": "Run for your life" },
-      { "bg": "linear-gradient(135deg, #8a6d3b, #1c1410)", "text": "Escape the temple" }
+      {
+        "bg": "linear-gradient(135deg, #1c1410, #8a6d3b)",
+        "text": "Run for your life"
+      },
+      {
+        "bg": "linear-gradient(135deg, #8a6d3b, #1c1410)",
+        "text": "Escape the temple"
+      }
     ],
     "size": "0.1 MB",
     "ageRating": "9+"
-  }
+  },
+  "iframe-app": true
 }

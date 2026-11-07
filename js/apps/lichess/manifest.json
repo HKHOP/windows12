@@ -3,7 +3,7 @@
   "id": "lichess",
   "uuid": "1d24c661-292f-42bf-b4be-954a47297d4c",
   "name": "Lichess",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "13+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

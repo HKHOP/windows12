@@ -41,10 +41,10 @@ const SHELL_FILES = ['./', './index.html', './manifest.json', './favicon.svg', '
 
 // >>> w12:core
 const CORE_VERSION = '15.15.13';
-const CORE_HASH = 'fa2a58f639f17461';
+const CORE_HASH = '4cf23bd626be3ec8';
 const CORE_PACKAGE = './w12-core.pkg';
 const CORE_FILE_COUNT = 181;
-const CORE_BYTES = 1822735;
+const CORE_BYTES = 1823461;
 // <<< w12:core
 
 // >>> w12:apps-dist

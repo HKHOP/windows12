@@ -3,7 +3,7 @@
   "id": "nfsUnderground2",
   "uuid": "1cc31494-ba80-41f8-bd26-ce1cf379811d",
   "name": "NFS: Underground 2",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -34,5 +34,6 @@
     ],
     "size": "0.1 MB",
     "ageRating": "13+"
-  }
+  },
+  "iframe-app": true
 }

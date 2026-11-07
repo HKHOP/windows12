@@ -122,12 +122,15 @@ function buildZip(files) {
 
 function main() {
     fs.mkdirSync(OUT_DIR, { recursive: true });
+    const targetIds = process.argv.slice(2);
+    const targetSet = targetIds.length > 0 ? new Set(targetIds) : null;
     const ids = fs.readdirSync(APPS_DIR)
         .filter(n => fs.statSync(path.join(APPS_DIR, n)).isDirectory())
         .sort();
 
     let built = 0;
     for (const id of ids) {
+        if (targetSet && !targetSet.has(id)) continue;
         let man;
         try {
             man = JSON.parse(fs.readFileSync(path.join(APPS_DIR, id, 'manifest.json'), 'utf8'));

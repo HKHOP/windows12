@@ -3,7 +3,7 @@
   "id": "photopea",
   "uuid": "ff1deca6-f74f-4f0c-91c2-2b45dde08a86",
   "name": "Photopea",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

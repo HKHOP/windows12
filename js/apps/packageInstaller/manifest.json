@@ -3,10 +3,13 @@
     "id": "packageInstaller",
     "uuid": "a9b044cd-c27f-4e3f-81b8-49ef108926ff",
     "name": "Package Installer",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "distribution": "builtin",
     "entry": "main.js",
     "icon": "assets/icon.svg",
     "associations": ["msi", "w12pkg"],
-    "permissions": ["filesystem", "notifications"]
+    "permissions": ["filesystem", "notifications"],
+    "shortcuts": {
+        "startMenu": false
+    }
 }

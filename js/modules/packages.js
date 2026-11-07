@@ -295,7 +295,7 @@ const Packages = (() => {
                 if (!permissions.includes(perm)) permissions.push(perm);
             }
         }
-        for (const key of ['background', 'service']) {
+        for (const key of ['background', 'service', 'iframe-app']) {
             if (m[key] !== undefined && typeof m[key] !== 'boolean') {
                 throw pkgError(`The package "${key}" field must be a boolean.`, 'invalid-manifest');
             }

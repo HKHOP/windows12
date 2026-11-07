@@ -3,7 +3,7 @@
   "id": "facebook",
   "uuid": "6f6221e1-8815-4794-889e-50247c5978bd",
   "name": "Facebook",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "13+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

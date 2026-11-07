@@ -3,7 +3,7 @@
   "id": "soundcloud",
   "uuid": "bba4c54a-4cc1-461a-9bb8-4b28c586e647",
   "name": "SoundCloud",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "13+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

@@ -3,7 +3,7 @@
   "id": "aliexpress",
   "uuid": "75257502-226c-4672-8bd8-824e81f2c9a0",
   "name": "AliExpress",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "13+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

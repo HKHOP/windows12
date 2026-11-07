@@ -3,7 +3,7 @@
   "id": "myfitnesspal",
   "uuid": "e46dd621-d1aa-4cb9-9375-82a6602a328f",
   "name": "MyFitnessPal",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "13+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

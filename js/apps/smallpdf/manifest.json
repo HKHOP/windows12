@@ -3,7 +3,7 @@
   "id": "smallpdf",
   "uuid": "2b86b28e-ad06-4e66-8588-c43687acb3f1",
   "name": "Smallpdf",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

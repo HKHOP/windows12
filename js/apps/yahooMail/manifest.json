@@ -3,7 +3,7 @@
   "id": "yahooMail",
   "uuid": "19c45d52-9703-4a00-8257-322af454dd91",
   "name": "Yahoo Mail",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

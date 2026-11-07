@@ -3,7 +3,7 @@
   "id": "quizlet",
   "uuid": "6126a1f6-4715-4816-95c1-cc8f7db25590",
   "name": "Quizlet",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

@@ -3,7 +3,7 @@
   "id": "p2r3Convert",
   "uuid": "517e0aa1-f468-4ce8-91b9-c7b850379204",
   "name": "P2r3 Audio Converter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

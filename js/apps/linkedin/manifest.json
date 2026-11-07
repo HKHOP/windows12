@@ -3,7 +3,7 @@
   "id": "linkedin",
   "uuid": "305e74fd-445d-4fda-9179-17f3dae6d7e9",
   "name": "LinkedIn",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "13+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

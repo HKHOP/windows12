@@ -3,7 +3,7 @@
   "id": "copilot",
   "uuid": "97ce9c6c-42c1-4369-b628-156165a18600",
   "name": "Microsoft Copilot",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

@@ -3,7 +3,7 @@
   "id": "skate3",
   "uuid": "590bb8cd-7c92-48b0-b31b-54e4410da381",
   "name": "Skate 3",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     ],
     "size": "0.1 MB",
     "ageRating": "7+"
-  }
+  },
+  "iframe-app": true
 }

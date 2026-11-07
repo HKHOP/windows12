@@ -3,7 +3,7 @@
   "id": "adobeexpress",
   "uuid": "12b195b4-163b-4b89-b585-1be137f3d45b",
   "name": "Adobe Express",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

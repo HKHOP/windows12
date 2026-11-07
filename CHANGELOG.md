@@ -4,6 +4,20 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.15.14] - 2026-11-07
+
+### Added
+- **Iframe-app marker.** Added `"iframe-app": true` field to all 158 iframe-based store apps via the new `scripts/tag-iframe-apps.js` auto-tagger. The registry and package builder now recognise and preserve this flag.
+- **Store type badges.** The Microsoft Store now shows an **Iframe** (amber) or **Native** (grey) badge on every app card, in the hero section, and in the sidebar *App Info* panel on the detail page.
+- **Iframe restriction notice.** An amber warning box appears on the detail page of every iframe app: *"Filesystem capability for these apps is not available, plus other restrictions for iframes on this OS."*
+
+### Fixed
+- **Remote Desktop short-code relay.** The MQTT relay `WebSocket` connection now correctly passes the `'mqtt'` subprotocol string, which is required by public broker servers (emqx, HiveMQ, Mosquitto). Previously all short-code pairing attempts failed with a WebSocket handshake error; invite-code pairing was unaffected.
+- **Remote Desktop relay broker fallback.** Added `wss://broker.hivemq.com:8884/mqtt` as a second fallback broker so short-code pairing has three independent servers to try before giving up.
+
+### Changed
+- **Package Installer hidden from Start Menu.** `packageInstaller` now has `"shortcuts": {"startMenu": false}` in its manifest, so it no longer appears in All Apps — it is still launchable via file association (`.w12pkg`, `.msi`) or by double-clicking a package in File Explorer.
+
 ## [15.15.13] - 2026-11-07
 
 ### Added

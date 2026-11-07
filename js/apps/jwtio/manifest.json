@@ -3,7 +3,7 @@
   "id": "jwtio",
   "uuid": "a74c975a-435e-4ade-b63d-7ea9ca8aacc3",
   "name": "JWT.io",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

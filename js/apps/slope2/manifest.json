@@ -3,11 +3,13 @@
   "id": "slope2",
   "uuid": "9fd0bef4-e3e7-46af-8e9e-d425fc9c94bd",
   "name": "Slope 2",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
-  "permissions": ["network"],
+  "permissions": [
+    "network"
+  ],
   "store": {
     "developer": "SubwayOnline",
     "category": "Games",
@@ -21,10 +23,17 @@
       "Reload and Open-in-Browser toolbar if the frame is blocked"
     ],
     "screenshots": [
-      { "bg": "linear-gradient(135deg, #101a2e, #7aa2ff)", "text": "Steeper. Faster." },
-      { "bg": "linear-gradient(135deg, #7aa2ff, #101a2e)", "text": "Beat your best run" }
+      {
+        "bg": "linear-gradient(135deg, #101a2e, #7aa2ff)",
+        "text": "Steeper. Faster."
+      },
+      {
+        "bg": "linear-gradient(135deg, #7aa2ff, #101a2e)",
+        "text": "Beat your best run"
+      }
     ],
     "size": "0.1 MB",
     "ageRating": "7+"
-  }
+  },
+  "iframe-app": true
 }

@@ -3,7 +3,7 @@
   "id": "mermaidlive",
   "uuid": "f23052b5-7cc9-4350-b1ac-ddade569e5bb",
   "name": "Mermaid Live Editor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

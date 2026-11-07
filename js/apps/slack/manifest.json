@@ -3,7 +3,7 @@
   "id": "slack",
   "uuid": "f0b85717-8f44-4632-bba8-052680f883fa",
   "name": "Slack",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -36,5 +36,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

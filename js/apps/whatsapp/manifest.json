@@ -3,7 +3,7 @@
   "id": "whatsapp",
   "uuid": "d0236fb7-f1ce-4023-9280-627293997bae",
   "name": "WhatsApp Web",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -37,5 +37,6 @@
     "size": "1 MB",
     "ageRating": "13+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

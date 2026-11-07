@@ -57,7 +57,7 @@ function loadManifests() {
         // BackgroundApps API; "service" additionally hides it from every
         // launcher (Start/Search/taskbar) so it can only be uninstalled.
         // Services imply background capability.
-        for (const k of ['background', 'service']) {
+        for (const k of ['background', 'service', 'iframe-app']) {
             if (m[k] !== undefined && typeof m[k] !== 'boolean') fail(`js/apps/${id}/manifest.json: "${k}" must be a boolean when present`);
         }
         if (m.permissions !== undefined) {
@@ -118,6 +118,10 @@ function emitRegistry(manifests) {
             icon: m.icon
         };
         if (m.background) pub.background = true;
+        if (m['iframe-app']) {
+            pub['iframe-app'] = true;
+            pub.iframeApp = true;
+        }
         if (Array.isArray(m.permissions) && m.permissions.length > 0) {
             pub.permissions = [...new Set(m.permissions)];
             if (pub.permissions.includes('background')) pub.background = true;

@@ -3,11 +3,13 @@
   "id": "motoX3M",
   "uuid": "c6031939-a594-43a9-a2a6-5d08265850cf",
   "name": "Moto X3M",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
-  "permissions": ["network"],
+  "permissions": [
+    "network"
+  ],
   "store": {
     "developer": "Slope-Slope",
     "category": "Games",
@@ -21,10 +23,17 @@
       "Reload and Open-in-Browser toolbar if the frame is blocked"
     ],
     "screenshots": [
-      { "bg": "linear-gradient(135deg, #241206, #ff9f1c)", "text": "Stunt season" },
-      { "bg": "linear-gradient(135deg, #ff9f1c, #241206)", "text": "Stick the landing" }
+      {
+        "bg": "linear-gradient(135deg, #241206, #ff9f1c)",
+        "text": "Stunt season"
+      },
+      {
+        "bg": "linear-gradient(135deg, #ff9f1c, #241206)",
+        "text": "Stick the landing"
+      }
     ],
     "size": "0.1 MB",
     "ageRating": "7+"
-  }
+  },
+  "iframe-app": true
 }

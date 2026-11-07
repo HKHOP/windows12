@@ -3,7 +3,7 @@
   "id": "csSurf",
   "uuid": "a3c8d9c0-fb9c-4a5c-8b36-ad625d16597f",
   "name": "CS Surf",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     ],
     "size": "0.1 MB",
     "ageRating": "13+"
-  }
+  },
+  "iframe-app": true
 }

@@ -20,10 +20,28 @@ const AppStore = (() => {
 
     const starSvg = (size = 12) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="#FFC107"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8L12 2z"/></svg>`;
 
+    function isIframeApp(mOrId) {
+        if (!mOrId) return false;
+        if (typeof mOrId === 'object') {
+            return !!(mOrId['iframe-app'] || mOrId.iframeApp || mOrId.store?.['iframe-app'] || mOrId.store?.iframeApp);
+        }
+        const d = appDetails[mOrId];
+        if (d && (d['iframe-app'] !== undefined || d.iframeApp !== undefined)) {
+            return !!(d['iframe-app'] || d.iframeApp);
+        }
+        const man = AppLoader.getManifest(mOrId);
+        return !!(man && (man['iframe-app'] || man.iframeApp));
+    }
+
     function refreshCatalog() {
         appDetails = {};
         AppLoader.getStoreApps().forEach(m => {
-            appDetails[m.id] = Object.assign({ name: m.name }, m.store);
+            const iframe = isIframeApp(m);
+            appDetails[m.id] = Object.assign({
+                name: m.name,
+                'iframe-app': iframe,
+                iframeApp: iframe
+            }, m.store);
         });
         storeApps = AppLoader.getStoreApps().map(m => m.id);
     }
@@ -198,12 +216,19 @@ const AppStore = (() => {
     function appCardHtml(id) {
         const d = appDetails[id];
         if (!d) return '';
+        const iframe = isIframeApp(id);
+        const typeBadge = iframe
+            ? `<span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;background:rgba(255,185,0,0.15);color:#ffb900;border:1px solid rgba(255,185,0,0.3);flex-shrink:0;">Iframe</span>`
+            : `<span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;background:rgba(255,255,255,0.08);color:#aaa;border:1px solid rgba(255,255,255,0.12);flex-shrink:0;">Native</span>`;
         return `<div class="store-app-card" data-app="${id}" style="background:#2a2a2a;border-radius:8px;padding:16px;width:220px;display:flex;flex-direction:column;gap:12px;border:1px solid #333;cursor:pointer;transition:background 0.2s;flex-shrink:0;">
             <div style="display:flex;align-items:center;gap:12px;">
                 ${appIconHtml(id, 48)}
-                <div style="min-width:0;">
+                <div style="min-width:0;flex:1;">
                     <div style="font-weight:600;font-size:13px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${d.name}</div>
-                    <div style="font-size:11px;color:#888;">${d.category || ''}</div>
+                    <div style="font-size:11px;color:#888;display:flex;align-items:center;justify-content:space-between;gap:4px;">
+                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${d.category || ''}</span>
+                        ${typeBadge}
+                    </div>
                 </div>
             </div>
             <p style="font-size:12px;color:#aaa;line-height:1.4;margin:0;">${(d.description || '').slice(0, 80)}...</p>
@@ -228,6 +253,10 @@ const AppStore = (() => {
         const updateAvailable = hasUpdate(id);
         const storeVer = getStoreVersion(id);
         const installedVer = getInstalledVersion(id);
+        const iframe = isIframeApp(id);
+        const typeBadge = iframe
+            ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;background:rgba(255,185,0,0.2);color:#ffb900;border:1px solid rgba(255,185,0,0.35);">Iframe</span>`
+            : `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;background:rgba(255,255,255,0.1);color:#aaa;border:1px solid rgba(255,255,255,0.15);">Native</span>`;
         const versionBadge = updateAvailable && storeVer && installedVer
             ? `<span style="background:#107C10;color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">Update: ${installedVer} → ${storeVer}</span>`
             : '';
@@ -238,7 +267,7 @@ const AppStore = (() => {
                 ${eyebrow ? `<div style="font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#9ecfff;margin-bottom:8px;">${eyebrow}</div>` : ''}
                 <h1 style="font-size:40px;font-weight:700;margin:0 0 8px 0;">${d.name}</h1>
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:12px;color:#ddd;flex-wrap:wrap;">
-                    <span style="color:#9ecfff;">${d.category || ''}</span><span>•</span>${ratingHtml(id)}<span>•</span><span>Free</span>
+                    <span style="color:#9ecfff;">${d.category || ''}</span><span>•</span>${typeBadge}<span>•</span>${ratingHtml(id)}<span>•</span><span>Free</span>
                     ${versionBadge}
                 </div>
                 <p style="color:#eee;font-size:14px;max-width:480px;margin:0 0 20px 0;">${(d.description || '').slice(0, 140)}...</p>
@@ -498,6 +527,10 @@ const AppStore = (() => {
                                         <span style="font-size:12px;color:#888;">•</span>
                                         ${ratingHtml(appId)}
                                     </div>
+                                    ${isIframeApp(appId) ? `<div style="background:rgba(255,185,0,0.1);border:1px solid rgba(255,185,0,0.35);border-radius:6px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#ffb900;display:flex;gap:10px;align-items:flex-start;">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                        <span><strong>Iframe app</strong> — Filesystem capability for these apps is not available, plus other restrictions for iframes on this OS.</span>
+                                    </div>` : ''}
                                     ${isInstalled
                                         ? (isService(appId)
                                             ? uninstallBtnHtml(appId, true)
@@ -540,12 +573,22 @@ const AppStore = (() => {
                                     <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:#888;">Size</span><span style="color:#ccc;">${app.size || '—'}</span></div>
                                     <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:#888;">Age Rating</span><span style="color:#ccc;">${app.ageRating || '—'}</span></div>
                                     <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:#888;">Category</span><span style="color:#ccc;">${app.category || ''}</span></div>
+                                    <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:#888;">App Type</span><span style="font-size:11px;font-weight:600;padding:1px 7px;border-radius:3px;${isIframeApp(appId) ? 'background:rgba(255,185,0,0.15);color:#ffb900;border:1px solid rgba(255,185,0,0.3);' : 'background:rgba(255,255,255,0.08);color:#aaa;border:1px solid rgba(255,255,255,0.15);'}">${isIframeApp(appId) ? 'Iframe' : 'Native'}</span></div>
                                     ${getInstalled().includes(appId) ? `
                                     <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:#888;">Installed Version</span><span style="color:#ccc;">${getInstalledVersion(appId) || '—'}</span></div>
                                     <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:#888;">Store Version</span><span style="color:${hasUpdate(appId) ? '#107C10;font-weight:600' : '#ccc'}">${getStoreVersion(appId) || '—'}${hasUpdate(appId) ? ' (update available)' : ''}</span></div>
                                     ` : ''}
                                 </div>
                             </div>
+                            ${isIframeApp(appId) ? `<div style="background:rgba(255,185,0,0.08);border:1px solid rgba(255,185,0,0.3);border-radius:8px;padding:14px 16px;margin-bottom:20px;">
+                                <div style="display:flex;gap:10px;align-items:flex-start;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffb900" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                    <div>
+                                        <div style="font-size:12px;font-weight:600;color:#ffb900;margin-bottom:4px;">Iframe App</div>
+                                        <div style="font-size:11px;color:#cca000;line-height:1.5;">Filesystem capability for these apps is not available, plus other restrictions for iframes on this OS.</div>
+                                    </div>
+                                </div>
+                            </div>` : ''}
                             ${permissionsHtml(appId)}
                             <div style="background:#222;border-radius:8px;padding:16px;">
                                 <h3 style="font-size:13px;font-weight:600;margin-bottom:12px;">Discover more</h3>

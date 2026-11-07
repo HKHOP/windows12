@@ -3,11 +3,13 @@
   "id": "slopeGame",
   "uuid": "3a659ef5-3316-478b-9e52-69f2b3e12787",
   "name": "Slope",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
-  "permissions": ["network"],
+  "permissions": [
+    "network"
+  ],
   "store": {
     "developer": "GameZipper",
     "category": "Games",
@@ -21,10 +23,17 @@
       "Reload and Open-in-Browser toolbar if the frame is blocked"
     ],
     "screenshots": [
-      { "bg": "linear-gradient(135deg, #0e0e12, #4ecdc4)", "text": "Roll the neon abyss" },
-      { "bg": "linear-gradient(135deg, #4ecdc4, #0e0e12)", "text": "How far can you go?" }
+      {
+        "bg": "linear-gradient(135deg, #0e0e12, #4ecdc4)",
+        "text": "Roll the neon abyss"
+      },
+      {
+        "bg": "linear-gradient(135deg, #4ecdc4, #0e0e12)",
+        "text": "How far can you go?"
+      }
     ],
     "size": "0.1 MB",
     "ageRating": "7+"
-  }
+  },
+  "iframe-app": true
 }

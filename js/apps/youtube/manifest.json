@@ -3,7 +3,7 @@
   "id": "youtube",
   "uuid": "4536f22d-3105-4083-a63f-59b2519e0dbf",
   "name": "YouTube",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "13+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

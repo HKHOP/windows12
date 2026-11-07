@@ -3,11 +3,13 @@
   "id": "jadAi",
   "uuid": "749ec449-d219-4b30-9902-459aef933ea2",
   "name": "Jad AI",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
-  "permissions": ["network"],
+  "permissions": [
+    "network"
+  ],
   "icon": "assets/icon.svg",
   "store": {
     "developer": "Jad AI",
@@ -26,5 +28,6 @@
     ],
     "size": "1 MB",
     "ageRating": "3+"
-  }
+  },
+  "iframe-app": true
 }

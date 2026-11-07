@@ -3,7 +3,7 @@
   "id": "base64decode",
   "uuid": "6598dfba-de23-4987-91b1-f92f429b5523",
   "name": "Base64 Decode/Encode",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

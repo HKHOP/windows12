@@ -3,7 +3,7 @@
   "id": "diablo",
   "uuid": "c9bb0bc3-8eb3-4208-9780-16eb8a234d52",
   "name": "Diablo",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     ],
     "size": "0.1 MB",
     "ageRating": "13+"
-  }
+  },
+  "iframe-app": true
 }

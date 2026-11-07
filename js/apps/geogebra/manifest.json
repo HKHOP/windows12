@@ -3,7 +3,7 @@
   "id": "geogebra",
   "uuid": "453a200f-6b1d-4097-b995-1bea80c0bfcf",
   "name": "GeoGebra",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

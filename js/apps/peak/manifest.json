@@ -3,7 +3,7 @@
   "id": "peak",
   "uuid": "ef6324c6-e98d-4901-ad6f-54d1e00d8647",
   "name": "PEAK",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -34,5 +34,6 @@
     ],
     "size": "0.1 MB",
     "ageRating": "13+"
-  }
+  },
+  "iframe-app": true
 }

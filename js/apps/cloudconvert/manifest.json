@@ -3,7 +3,7 @@
   "id": "cloudconvert",
   "uuid": "ab31f4c8-6144-4fc8-931e-543a2183f7d2",
   "name": "CloudConvert",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

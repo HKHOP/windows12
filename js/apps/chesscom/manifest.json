@@ -3,7 +3,7 @@
   "id": "chesscom",
   "uuid": "21f34091-02c7-464c-bc60-a5d7b4292b23",
   "name": "Chess.com",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "13+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

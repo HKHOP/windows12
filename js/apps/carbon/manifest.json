@@ -3,7 +3,7 @@
   "id": "carbon",
   "uuid": "553a5a88-1656-4d2e-b62c-de68e7a6d103",
   "name": "Carbon",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

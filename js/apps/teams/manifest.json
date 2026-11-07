@@ -3,7 +3,7 @@
   "id": "teams",
   "uuid": "2cb4463f-1bc6-449f-bffc-594b2cf7d823",
   "name": "Microsoft Teams",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -37,5 +37,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

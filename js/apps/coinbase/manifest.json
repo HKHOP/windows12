@@ -3,7 +3,7 @@
   "id": "coinbase",
   "uuid": "4cf75da7-a46c-4e2f-a5c6-b372bcbd7cf0",
   "name": "Coinbase",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "13+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

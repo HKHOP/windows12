@@ -3,7 +3,7 @@
   "id": "qrcodegen",
   "uuid": "f795ff15-66cb-4fe9-ba22-8ba5afc20a29",
   "name": "QR Code Generator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

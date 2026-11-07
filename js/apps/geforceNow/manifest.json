@@ -3,7 +3,7 @@
   "id": "geforceNow",
   "uuid": "418bd9b0-be31-4b2e-a4e4-bfb5174659fc",
   "name": "GeForce NOW",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "13+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

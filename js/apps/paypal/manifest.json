@@ -3,7 +3,7 @@
   "id": "paypal",
   "uuid": "660ca7c4-883c-4e34-b7c1-2dd2bf022860",
   "name": "PayPal",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "13+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

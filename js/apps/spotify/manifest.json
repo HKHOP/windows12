@@ -3,7 +3,7 @@
   "id": "spotify",
   "uuid": "531dadb3-a915-433a-918b-85251f307518",
   "name": "Spotify Web",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "13+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

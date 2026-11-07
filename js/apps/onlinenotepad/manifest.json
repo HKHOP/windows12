@@ -3,7 +3,7 @@
   "id": "onlinenotepad",
   "uuid": "9a128ba1-34cb-4190-b52a-6f0bc12b23b2",
   "name": "Online Notepad",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

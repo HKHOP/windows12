@@ -3,7 +3,7 @@
   "id": "canva",
   "uuid": "9bd37587-b3f8-4a51-864d-75358316c4bc",
   "name": "Canva",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

@@ -3,7 +3,7 @@
   "id": "twitter",
   "uuid": "e8082edc-3ce0-44dc-adbf-5dc1935ee8d1",
   "name": "X (Twitter)",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "13+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

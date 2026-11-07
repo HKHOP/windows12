@@ -3,11 +3,13 @@
   "id": "stickmanHook",
   "uuid": "c237a124-75af-46d2-a0c9-a651c1315df6",
   "name": "Stickman Hook",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
-  "permissions": ["network"],
+  "permissions": [
+    "network"
+  ],
   "store": {
     "developer": "Slope2Unblocked",
     "category": "Games",
@@ -21,10 +23,17 @@
       "Reload and Open-in-Browser toolbar if the frame is blocked"
     ],
     "screenshots": [
-      { "bg": "linear-gradient(135deg, #0d1b12, #7cff9d)", "text": "Hook. Swing. Fly." },
-      { "bg": "linear-gradient(135deg, #7cff9d, #0d1b12)", "text": "Stick every landing" }
+      {
+        "bg": "linear-gradient(135deg, #0d1b12, #7cff9d)",
+        "text": "Hook. Swing. Fly."
+      },
+      {
+        "bg": "linear-gradient(135deg, #7cff9d, #0d1b12)",
+        "text": "Stick every landing"
+      }
     ],
     "size": "0.1 MB",
     "ageRating": "7+"
-  }
+  },
+  "iframe-app": true
 }

@@ -3,7 +3,7 @@
   "id": "telegram",
   "uuid": "9c69a5a7-d72e-453f-8ed2-06349cf3ab4c",
   "name": "Telegram Web",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -37,5 +37,6 @@
     "size": "1 MB",
     "ageRating": "13+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

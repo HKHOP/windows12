@@ -3,7 +3,7 @@
   "id": "regex101",
   "uuid": "8744ffa2-1c20-475e-af66-8234362fce47",
   "name": "regex101",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

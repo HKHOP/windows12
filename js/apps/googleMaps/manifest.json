@@ -3,7 +3,7 @@
   "id": "googleMaps",
   "uuid": "ebc195d9-43d4-473f-9e79-5c594497b30c",
   "name": "Google Maps",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

@@ -3,7 +3,7 @@
   "id": "papersPlease",
   "uuid": "6c5fbedb-0092-4b3d-8181-2667bdc16b31",
   "name": "Papers, Please",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     ],
     "size": "0.1 MB",
     "ageRating": "13+"
-  }
+  },
+  "iframe-app": true
 }

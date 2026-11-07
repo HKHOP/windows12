@@ -3,7 +3,7 @@
   "id": "webminal",
   "uuid": "4c3fad20-3b78-41dc-9347-7abc9b720dfe",
   "name": "Webminal",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -34,5 +34,6 @@
     ],
     "size": "1 MB",
     "ageRating": "3+"
-  }
+  },
+  "iframe-app": true
 }

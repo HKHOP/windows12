@@ -463,6 +463,7 @@ const SHORT_TTL_MS = 10 * 60000;
 const OFFER_WAIT_MS = 60000;
 const RENDEZVOUS_BROKERS = [
     'wss://broker.emqx.io:8084/mqtt',
+    'wss://broker.hivemq.com:8884/mqtt',
     'wss://test.mosquitto.org:8081/mqtt'
 ];
 const RELAY_WS_TIMEOUT_MS = 15000;
@@ -555,7 +556,7 @@ function mqttRelay() {
             const url = RENDEZVOUS_BROKERS[i++];
             let ws;
             try {
-                ws = new WebSocket(url);
+                ws = new WebSocket(url, 'mqtt');
             } catch {
                 tryNext();
                 return;

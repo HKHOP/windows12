@@ -3,7 +3,7 @@
   "id": "coursera",
   "uuid": "1d690667-f6a2-4623-9bfe-da5c21d26bb3",
   "name": "Coursera",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

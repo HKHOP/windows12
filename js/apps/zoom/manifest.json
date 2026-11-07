@@ -3,7 +3,7 @@
   "id": "zoom",
   "uuid": "fe1962e4-0c65-4b9f-89c1-70e87ca6b2d2",
   "name": "Zoom Web",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -37,5 +37,6 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }

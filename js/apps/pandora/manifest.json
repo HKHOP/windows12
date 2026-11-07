@@ -3,7 +3,7 @@
   "id": "pandora",
   "uuid": "b3532ecb-5dfa-4fe1-bd95-4db18fa4a1bc",
   "name": "Pandora",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -35,5 +35,6 @@
     "size": "1 MB",
     "ageRating": "13+"
   },
-  "icon": "assets/icon.png"
+  "icon": "assets/icon.png",
+  "iframe-app": true
 }
