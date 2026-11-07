@@ -4,6 +4,15 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.15.13] - 2026-11-07
+
+### Added
+- **PlayStation browser compatibility.** Added `js/modules/platform.js` to detect PlayStation 4/5 console browsers (user agents containing `PlayStation 4`/`PlayStation 5`) and treat them as direct-touch/mobile-style environments, since the PS4 WebKit pointer does not move like a desktop mouse.
+
+### Fixed
+- **PS4 direct interaction.** Console browsers now get touch-like defaults and larger hit targets (`html.console-touch`/`html.ps4`), touch-friendly File Explorer behavior (tap to open, long-press menu), and a coarse-pointer Browser touchpad pane for same-origin pages.
+- **On-screen keyboard on consoles.** The virtual keyboard defaults on for console browsers and accepts controller-delivered pointer events, so OSK keys remain usable on PlayStation.
+
 ## [15.15.12] - 2026-10-31
 
 ### Added
