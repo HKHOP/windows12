@@ -3,7 +3,7 @@
   "id": "wolfram",
   "uuid": "845058c6-6846-409b-8933-4fd4cefbc97f",
   "name": "WolframAlpha",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
@@ -15,12 +15,11 @@
     "category": "Education",
     "rating": 4.3,
     "reviews": 1459,
-    "description": "WolframAlpha web tool for Windows 12. Open the real WolframAlpha service in an embedded window.",
+    "description": "Native WolframAlpha client for Windows 12 (no iframe).",
     "features": [
-      "Real WolframAlpha web app",
-      "Embedded web view",
-      "Open in OS window",
-      "One-time embedding notice"
+      "Native UI",
+      "No iframe wrapper",
+      "Offline where possible"
     ],
     "screenshots": [
       {
@@ -35,6 +34,5 @@
     "size": "1 MB",
     "ageRating": "3+"
   },
-  "icon": "assets/icon.png",
-  "iframe-app": true
+  "icon": "assets/icon.png"
 }

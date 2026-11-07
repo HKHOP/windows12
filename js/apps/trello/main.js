@@ -1,77 +1,66 @@
-// Trello — thin iframe wrapper around the real Trello web app.
-// Rule: never call AppLoader/AppRegistry at module scope — only in launch().
-import WindowManager from '../../modules/windowManager.js';
-import AppIcons from '../../modules/appIcons.js';
-import Popup from '../../modules/popup.js';
-import FileSystem from '../../modules/fileSystem.js';
-import Users from '../../modules/users.js';
+// Trello — native offline kanban (replaces iframe wrapper).
+import { createApp } from '../../sdk/index.js';
 
 const Trello = (() => {
-    const icon = AppIcons.get('trello');
-    const APP_URL = 'https://trello.com';
-    const DATA_PATH = () => Users.appData('trello');
-    const NOTICE_PATH = [...DATA_PATH(), 'notice.json'];
+    const LISTS = ['To Do','Doing','Done'];
+    function escapeHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    function load(app){try{const raw=app.files.read('board.json');if(raw)return JSON.parse(raw);}catch{}return {lists:LISTS.map(n=>({name:n,cards:[]}))};}
+    function save(app,b){app.files.write('board.json',JSON.stringify(b));}
 
-    function ensureDataDir() {
-        try {
-            if (!FileSystem.itemExists(DATA_PATH())) {
-                FileSystem.createFolder(Users.home(['AppData']), 'trello');
+    function launch(){
+        const app=createApp({id:'trello',name:'Trello'});
+        const board=load(app);
+        const win=app.window.create({title:'Trello',icon:app.icon(),content:`
+            <div style="display:flex;flex-direction:column;height:100%;background:var(--window-bg);color:var(--text-primary);font-family:'Segoe UI',sans-serif;padding:8px;gap:8px;">
+                <div style="display:flex;gap:6px;">
+                    <input class="t-in" placeholder="New card..." style="flex:1;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);color:var(--text-primary);border-radius:6px;padding:8px 10px;font-size:13px;outline:none;">
+                    <select class="t-list" style="background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);color:var(--text-primary);border-radius:6px;padding:8px;font-size:13px;"></select>
+                    <button class="t-add" style="background:var(--accent-color);color:#fff;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;font-weight:600;">Add</button>
+                </div>
+                <div class="t-board" style="flex:1;display:flex;gap:8px;overflow:auto;align-items:flex-start;"></div>
+            </div>`,width:640,height:520});
+        const el=win.element;
+        const input=el.querySelector('.t-in');const listSel=el.querySelector('.t-list');const boardEl=el.querySelector('.t-board');
+        for(const l of board.lists){const o=document.createElement('option');o.value=l.name;o.textContent=l.name;listSel.appendChild(o);}
+
+        function render(){
+            boardEl.innerHTML='';
+            for(const list of board.lists){
+                const col=document.createElement('div');
+                col.style.cssText='flex:1;min-width:180px;background:rgba(128,128,128,0.08);border:1px solid var(--window-border);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;';
+                col.innerHTML=`<div style="font-weight:600;font-size:13px;">${escapeHtml(list.name)}</div>`;
+                list.cards.forEach((card, idx) => {
+                    const c=document.createElement('div');
+                    c.style.cssText='background:var(--window-bg);border:1px solid var(--window-border);border-radius:6px;padding:8px;font-size:13px;';
+                    c.textContent=card.text;
+                    const mv=document.createElement('select');
+                    mv.style.cssText='margin-top:4px;font-size:11px;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);color:var(--text-primary);border-radius:4px;padding:2px 4px;';
+                    for(const l2 of board.lists){const o=document.createElement('option');o.value=l2.name;o.textContent='→ '+l2.name;if(l2.name===list.name)o.selected=true;mv.appendChild(o);}
+                    mv.addEventListener('change',()=>{
+                        const target=board.lists.find(x=>x.name===mv.value);
+                        if(!target||target===list) return;
+                        list.cards.splice(idx,1);
+                        target.cards.push({text:card.text});
+                        save(app,board);render();
+                    });
+                    c.appendChild(mv);
+                    col.appendChild(c);
+                });
+                boardEl.appendChild(col);
             }
-        } catch (e) { /* storage unavailable — notice just won't persist */ }
-    }
-
-    function isNoticeDismissed() {
-        try {
-            const raw = FileSystem.readFile(NOTICE_PATH);
-            if (raw) return !!JSON.parse(raw).dismissed;
-        } catch (e) { /* fall through */ }
-        return false;
-    }
-
-    function setNoticeDismissed(v) {
-        try {
-            ensureDataDir();
-            const json = JSON.stringify({ dismissed: !!v });
-            if (FileSystem.itemExists(NOTICE_PATH)) {
-                FileSystem.writeFile(NOTICE_PATH, json);
-            } else {
-                FileSystem.createFile(DATA_PATH(), 'notice.json', json, 'json');
-            }
-        } catch (e) { /* noop */ }
-    }
-
-    function platformMessage() {
-        const ua = (typeof navigator !== 'undefined' ? (navigator.userAgent || '') : '');
-        const isIOS = /iPad|iPhone|iPod/.test(ua) || (typeof navigator !== 'undefined' && navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        const isAndroid = /Android/i.test(ua);
-        if (isIOS) {
-            return 'iOS devices cannot display embedded sites that send X-Frame-Options or CSP headers blocking embedding, so this app may stay blank. Use a desktop browser with the extension helper instead.';
         }
-        if (isAndroid) {
-            return 'Android browsers that do not support extensions cannot unblock embedded sites. Install a browser that supports extensions, then reopen its extension popup to enable embedding.';
-        }
-        return 'Some sites block embedding with X-Frame-Options or CSP headers. On desktop, install the helper extension from the Browser app (menu -> Recommended Extension) and those sites will load.';
-    }
+        // attach object refs
+        for(const list of board.lists) for(const c of list.cards) c.obj=c;
 
-    function getContent() {
-        return `
-            <div style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;min-height:0;overflow:hidden;background:#1e1e1e;">
-                <iframe title="Trello" allow="clipboard-write; autoplay; fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals" style="flex:1 1 0%;width:100%;height:100%;min-height:0;min-width:0;display:block;border:none;background:#1e1e1e;" src="${APP_URL}"></iframe>
-            </div>
-        `;
-    }
-
-    function launch() {
-        const win = WindowManager.createWindow('trello', 'Trello', icon, getContent(), {
-            width: 1000, height: 650, minWidth: 480, minHeight: 360
+        el.querySelector('.t-add').addEventListener('click',()=>{
+            const text=input.value.trim();if(!text) return;
+            const target=board.lists.find(x=>x.name===listSel.value);
+            if(target){target.cards.push({text});save(app,board);input.value='';render();}
         });
-        if (!isNoticeDismissed()) {
-            setNoticeDismissed(true);
-            try { Popup.info('Embedded site notice', platformMessage()); } catch (e) { /* noop */ }
-        }
+        input.addEventListener('keydown',e=>{if(e.key==='Enter')el.querySelector('.t-add').click();});
+        render();
+        app.shell.activity.trackAppOpen('trello');
     }
-
-    return { launch };
+    return {launch};
 })();
-
 export default Trello;

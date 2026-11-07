@@ -1,77 +1,50 @@
-// WolframAlpha — thin iframe wrapper around the real WolframAlpha web app.
-// Rule: never call AppLoader/AppRegistry at module scope — only in launch().
-import WindowManager from '../../modules/windowManager.js';
-import AppIcons from '../../modules/appIcons.js';
-import Popup from '../../modules/popup.js';
-import FileSystem from '../../modules/fileSystem.js';
-import Users from '../../modules/users.js';
+// Wolfram Alpha — native query client (uses optional API key).
+import { createApp } from '../../sdk/index.js';
+import NetworkStatus from '../../modules/networkStatus.js';
 
 const Wolfram = (() => {
-    const icon = AppIcons.get('wolfram');
-    const APP_URL = 'https://www.wolframalpha.com';
-    const DATA_PATH = () => Users.appData('wolfram');
-    const NOTICE_PATH = [...DATA_PATH(), 'notice.json'];
+    function escapeHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    function key(app){try{return app.settings.get('appid')||'';}catch{return '';}}
 
-    function ensureDataDir() {
-        try {
-            if (!FileSystem.itemExists(DATA_PATH())) {
-                FileSystem.createFolder(Users.home(['AppData']), 'wolfram');
+    function launch(){
+        const app=createApp({id:'wolfram',name:'Wolfram Alpha'});
+        const win=app.window.create({title:'Wolfram Alpha',icon:app.icon(),content:`
+            <div style="display:flex;flex-direction:column;height:100%;background:var(--window-bg);color:var(--text-primary);font-family:'Segoe UI',sans-serif;padding:10px;gap:8px;">
+                <div style="display:flex;gap:6px;">
+                    <input class="w-q" placeholder="Ask Wolfram Alpha..." style="flex:1;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);color:var(--text-primary);border-radius:6px;padding:8px 10px;font-size:13px;outline:none;">
+                    <button class="w-go" style="background:var(--accent-color);color:#fff;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;font-weight:600;">Ask</button>
+                </div>
+                <div style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--text-secondary);">
+                    <span>AppID (optional):</span>
+                    <input class="w-key" type="password" placeholder="Wolfram AppID" style="flex:1;background:rgba(128,128,128,0.12);border:1px solid rgba(128,128,128,0.3);color:var(--text-primary);border-radius:6px;padding:4px 8px;font-size:12px;outline:none;">
+                </div>
+                <div class="w-result" style="flex:1;overflow:auto;border:1px solid var(--window-border);border-radius:6px;padding:10px;font-size:13px;line-height:1.5;">Enter a query above.</div>
+            </div>`,width:460,height:520});
+        const el=win.element;
+        const q=el.querySelector('.w-q');const res=el.querySelector('.w-result');const keyInput=el.querySelector('.w-key');
+        keyInput.value=key(app);
+        keyInput.addEventListener('change',()=>{try{app.settings.set('appid',keyInput.value);}catch{}});
+
+        async function go(){
+            const term=q.value.trim();if(!term) return;
+            const k=keyInput.value.trim();
+            if(!k){
+                res.innerHTML=`<div>No API key provided.</div><div style="margin-top:8px;"><a href="https://www.wolframalpha.com/input?i=${encodeURIComponent(term)}" target="_blank" rel="noopener" style="color:var(--accent-color);">Open in Wolfram Alpha ↗</a></div>`;
+                return;
             }
-        } catch (e) { /* storage unavailable — notice just won't persist */ }
-    }
-
-    function isNoticeDismissed() {
-        try {
-            const raw = FileSystem.readFile(NOTICE_PATH);
-            if (raw) return !!JSON.parse(raw).dismissed;
-        } catch (e) { /* fall through */ }
-        return false;
-    }
-
-    function setNoticeDismissed(v) {
-        try {
-            ensureDataDir();
-            const json = JSON.stringify({ dismissed: !!v });
-            if (FileSystem.itemExists(NOTICE_PATH)) {
-                FileSystem.writeFile(NOTICE_PATH, json);
-            } else {
-                FileSystem.createFile(DATA_PATH(), 'notice.json', json, 'json');
-            }
-        } catch (e) { /* noop */ }
-    }
-
-    function platformMessage() {
-        const ua = (typeof navigator !== 'undefined' ? (navigator.userAgent || '') : '');
-        const isIOS = /iPad|iPhone|iPod/.test(ua) || (typeof navigator !== 'undefined' && navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        const isAndroid = /Android/i.test(ua);
-        if (isIOS) {
-            return 'iOS devices cannot display embedded sites that send X-Frame-Options or CSP headers blocking embedding, so this view may stay blank. Use a desktop browser with the extension helper instead.';
+            if(!NetworkStatus.isOnline()){NetworkStatus.showError('Wolfram Alpha');return;}
+            res.textContent='Querying...';
+            try{
+                const r=await fetch(`https://api.wolframalpha.com/v1/result?i=${encodeURIComponent(term)}&appid=${encodeURIComponent(k)}`);
+                const text=await r.text();
+                if(!r.ok) throw new Error(text||('HTTP '+r.status));
+                res.textContent=text||'No result.';
+            }catch(e){res.textContent='Failed: '+(e&&e.message?e.message:e);}
         }
-        if (isAndroid) {
-            return 'Android browsers that do not support extensions cannot unblock embedded sites. Install a browser that supports extensions, then reopen its extension popup to enable embedding.';
-        }
-        return 'Some sites block embedding with X-Frame-Options or CSP headers. On desktop, install the helper extension from the Browser app (menu -> Recommended Extension) and those sites will load.';
+        el.querySelector('.w-go').addEventListener('click',go);
+        q.addEventListener('keydown',e=>{if(e.key==='Enter')go();});
+        q.focus();
     }
-
-    function getContent() {
-        return `
-            <div style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;min-height:0;overflow:hidden;background:#1e1e1e;">
-                <iframe title="WolframAlpha" allow="autoplay; fullscreen; clipboard-write" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals" style="flex:1 1 0%;width:100%;height:100%;min-height:0;min-width:0;display:block;border:none;background:#1e1e1e;" src="${APP_URL}"></iframe>
-            </div>
-        `;
-    }
-
-    function launch() {
-        const win = WindowManager.createWindow('wolfram', 'WolframAlpha', icon, getContent(), {
-            width: 1000, height: 650, minWidth: 480, minHeight: 360
-        });
-        if (!isNoticeDismissed()) {
-            setNoticeDismissed(true);
-            try { Popup.info('Embedded site notice', platformMessage()); } catch (e) { /* noop */ }
-        }
-    }
-
-    return { launch };
+    return {launch};
 })();
-
 export default Wolfram;

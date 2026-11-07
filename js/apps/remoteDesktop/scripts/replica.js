@@ -117,6 +117,16 @@ export function createReplica(container, client) {
     const iconsLayer = el('div', 'rd-dicons', stage);
     const startMenu = el('div', 'rd-startmenu', stage);
     startMenu.style.display = 'none';
+    // Start menu state + element refs must exist before buildStartMenu runs
+    // (buildStartMenu assigns to these and toggleStartMenu/renderStartMenu
+    // may be invoked during the connect/render cycle).
+    const smState = { query: '', view: 'main' };
+    let smInput = null;
+    let smMain = null;
+    let smAll = null;
+    let smGrid = null;
+    let smList = null;
+    let smFooterUser = null;
     buildStartMenu(startMenu);
     const taskbar = el('div', 'rd-taskbar', stage);
     const startBtn = el('button', 'rd-startbtn', taskbar);
@@ -531,14 +541,6 @@ export function createReplica(container, client) {
 
     // Start menu state + static skeleton (mirrors the real menu: search,
     // Pinned grid, Recommended list, user footer, All-apps drawer).
-    const smState = { query: '', view: 'main' };
-    let smInput = null;
-    let smMain = null;
-    let smAll = null;
-    let smGrid = null;
-    let smList = null;
-    let smFooterUser = null;
-
     function buildStartMenu(menu) {
         const search = el('div', 'rd-sm-search', menu);
         search.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="#888" stroke="#888" stroke-width="2"><circle cx="10.5" cy="10.5" r="7"/><line x1="15.5" y1="15.5" x2="21" y2="21"/></svg>`;
