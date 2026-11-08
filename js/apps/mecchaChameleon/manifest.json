@@ -1,0 +1,40 @@
+{
+  "manifestVersion": 1,
+  "id": "mecchaChameleon",
+  "uuid": "76f1f7ae-04aa-4363-9615-aba03a236769",
+  "name": "Meccha Chameleon",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "crax (wasm.rip port)",
+    "category": "Games",
+    "rating": 4.5,
+    "reviews": 0,
+    "description": "Meccha Chameleon in the browser. A hide-and-seek party game: blend into the level and don't get caught.",
+    "features": [
+      "Hide-and-seek gameplay",
+      "Blend into the environment",
+      "Online lobbies",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #0a2010, #5fbf3f)",
+        "text": "Blend In"
+      },
+      {
+        "bg": "linear-gradient(135deg, #5fbf3f, #0a2010)",
+        "text": "Don't Get Caught"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "9+"
+  },
+  "iframe-app": true
+}

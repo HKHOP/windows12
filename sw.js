@@ -40,8 +40,8 @@ const CACHE_NAME = 'w12-shell-v1';
 const SHELL_FILES = ['./', './index.html', './manifest.json', './favicon.svg', './js/apps/registry.js'];
 
 // >>> w12:core
-const CORE_VERSION = '15.16.0';
-const CORE_HASH = 'e82e6592fe151737';
+const CORE_VERSION = '15.16.1';
+const CORE_HASH = '29bcf84c2c266bbc';
 const CORE_PACKAGE = './w12-core.pkg';
 const CORE_FILE_COUNT = 181;
 const CORE_BYTES = 1826338;
@@ -152,6 +152,7 @@ const APP_DIST = {
     "lichess": "store",
     "linkedin": "store",
     "markdownStudio": "store",
+    "mecchaChameleon": "store",
     "mediaPlayer": "builtin",
     "medium": "store",
     "mega": "store",

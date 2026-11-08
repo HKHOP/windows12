@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs><clipPath id="tile"><rect width="64" height="64" rx="14"/></clipPath></defs>
+  <g clip-path="url(#tile)">
+    <rect width="64" height="64" fill="#0a2010"/>
+    <ellipse cx="32" cy="46" rx="20" ry="10" fill="#2f7d32"/>
+    <path d="M14 40 C10 28 16 18 28 16 C40 14 50 22 52 34 C53 40 48 46 40 47 C30 48 20 46 14 40 Z" fill="#4caf50"/>
+    <circle cx="44" cy="24" r="7" fill="#4caf50"/>
+    <circle cx="46" cy="22" r="3.2" fill="#fff"/>
+    <circle cx="47" cy="22" r="1.6" fill="#0a2010"/>
+    <path d="M50 26 C54 24 56 20 54 16" stroke="#4caf50" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <path d="M14 40 C8 42 6 48 10 52" stroke="#2f7d32" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <path d="M22 46 C20 52 24 56 30 54" stroke="#2f7d32" stroke-width="3" stroke-linecap="round" fill="none"/>
+  </g>
+</svg>
