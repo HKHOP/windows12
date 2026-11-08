@@ -3,7 +3,7 @@
   "id": "mecchaChameleon",
   "uuid": "76f1f7ae-04aa-4363-9615-aba03a236769",
   "name": "Meccha Chameleon",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
