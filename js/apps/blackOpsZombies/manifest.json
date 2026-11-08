@@ -1,0 +1,40 @@
+{
+  "manifestVersion": 1,
+  "id": "blackOpsZombies",
+  "uuid": "9b4d1f9b-d713-4677-83cd-d94ffd47e846",
+  "name": "Call of Duty: Black Ops Zombies",
+  "version": "1.0.0",
+  "distribution": "store",
+  "entry": "main.js",
+  "associations": [],
+  "permissions": [
+    "network"
+  ],
+  "store": {
+    "developer": "vel.gg",
+    "category": "Games",
+    "rating": 4.6,
+    "reviews": 0,
+    "description": "Call of Duty: Black Ops zombies in your browser — Kino der Toten, Five, Der Riese, Nacht der Untoten, Verrückt, Shi No Numa, Ascension, Call of the Dead, Shangri-La and Moon.",
+    "features": [
+      "Ten classic zombies maps",
+      "Solo and co-op play",
+      "Perks, Pack-a-Punch and power-ups",
+      "Embedded client — no download, no account",
+      "Reload and Open-in-Browser toolbar if the frame is blocked"
+    ],
+    "screenshots": [
+      {
+        "bg": "linear-gradient(135deg, #1a0a0a, #7f1d1d)",
+        "text": "Kino der Toten"
+      },
+      {
+        "bg": "linear-gradient(135deg, #7f1d1d, #1a0a0a)",
+        "text": "Survive the Horde"
+      }
+    ],
+    "size": "0.1 MB",
+    "ageRating": "17+"
+  },
+  "iframe-app": true
+}
