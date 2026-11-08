@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.16.3] - 2026-11-08
+
+### Changed
+- **Call of Duty: Black Ops Zombies**: replaced the store tile icon with a new one.
+
 ## [15.16.2] - 2026-11-08
 
 ### Added
