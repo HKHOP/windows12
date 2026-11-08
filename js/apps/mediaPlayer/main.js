@@ -1052,11 +1052,21 @@ const MediaPlayer = (() => {
                 } else if (label === 'Storage info') {
                     const info = await FileSystem.storageInfo();
                     const mb = n => n == null ? 'unknown' : (n / 1048576).toFixed(1) + ' MB';
-                    await Popup.info('Storage info',
-                        `Storage backend: OPFS (origin private file system)\n` +
-                        `File index: ${mb(info.localBytes)}\n` +
-                        `Origin storage on disk: ${mb(info.usage)} of ${mb(info.quota)}\n\n` +
-                        'Files and media are stored as real files in the browser\'s private file system.');
+                    if (info.backend === 'memory') {
+                        await Popup.info('Storage info',
+                            `Storage backend: memory (Live session)\n` +
+                            `File index: ${mb(info.localBytes)}\n` +
+                            `Media in memory: ${mb(info.usage)} of ${mb(info.quota)}\n\n` +
+                            'This browser cannot save the OS on the device, so the whole system ' +
+                            'runs in memory: everything is erased when you reload the page, ' +
+                            'restart or shut down.');
+                    } else {
+                        await Popup.info('Storage info',
+                            `Storage backend: OPFS (origin private file system)\n` +
+                            `File index: ${mb(info.localBytes)}\n` +
+                            `Origin storage on disk: ${mb(info.usage)} of ${mb(info.quota)}\n\n` +
+                            'Files and media are stored as real files in the browser\'s private file system.');
+                    }
                 } else if (label === 'Clear resume data') {
                     st.resume = {}; saveState(st);
                     setStatus(s, 'Resume data cleared');

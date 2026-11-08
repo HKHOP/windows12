@@ -18,6 +18,14 @@
 // not share any state.
 const SITE_BASE = new URL('../../', import.meta.url);
 
+// A Live session (see index.html): the browser cannot host the OS in the
+// Origin Private File System, so the bootstrap serves it straight from the
+// site instead and the whole machine runs in memory. The bootstrap sets
+// window.__W12_LIVE__ before it loads js/main.js.
+export function liveMode() {
+    return typeof window !== 'undefined' && window.__W12_LIVE__ === true;
+}
+
 // The URL segment that stands for an app folder.
 export function folderSegment(folderPath) {
     const parts = (Array.isArray(folderPath) ? folderPath : [])
@@ -27,10 +35,29 @@ export function folderSegment(folderPath) {
 
 // The URL of a file inside an app folder.
 export function fileUrl(folderPath, relative) {
-    const segs = [folderSegment(folderPath)].concat(
-        String(relative || '').split('/').filter(Boolean).map(encodeURIComponent)
-    );
+    const parts = (Array.isArray(folderPath) ? folderPath : [])
+        .filter(p => p !== '/' && p !== '');
+    const rel = String(relative || '').split('/').filter(Boolean).map(encodeURIComponent);
+
+    // Live session: nothing is served out of the virtual filesystem, so a
+    // builtin app runs from the folder it shipped in (js/apps/<id>/…). The
+    // URL keeps the app depth, so the app's own relative imports still reach
+    // the shell modules at their canonical URLs.
+    if (liveMode() && parts.length === 2 && parts[0] === 'Program Files') {
+        return new URL('js/apps/' + [encodeURIComponent(parts[1])].concat(rel).join('/'), SITE_BASE).href;
+    }
+
+    const segs = [folderSegment(parts)].concat(rel);
     return new URL('js/apps/' + segs.join('/'), SITE_BASE).href;
+}
+
+// The site URL of a file that lives in the OS core, e.g.
+// 'core/<version>/js/main.js' -> <site>/js/main.js. Only the Live boot needs
+// it: it runs the core the site ships rather than a copy in OPFS.
+export function coreFileUrl(ref) {
+    const rel = String(ref || '').replace(/^core\/[^/]+\//, '');
+    const segs = rel.split('/').filter(Boolean).map(encodeURIComponent);
+    return new URL(segs.join('/'), SITE_BASE).href;
 }
 
 export default SITE_BASE;

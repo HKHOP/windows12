@@ -3,8 +3,8 @@ import FsStorage from './fsStorage.js';
 const FileSystem = (() => {
     let root = {};
     let saveTimeout = null;
-    // Persistence backend: OPFS. Chosen in init(); see fsStorage.js for the
-    // capability probe (a browser without OPFS cannot run the OS).
+    // Persistence backend: OPFS for a normal machine, memory for a Live
+    // session (see fsStorage.js). Chosen in init().
     let backend = null;
     // Access policy hook (multi-user AppData model): main.js injects
     // FSGuard.check here. Denying a call makes it return the usual
@@ -181,7 +181,8 @@ const FileSystem = (() => {
     }
 
     // Diagnostics for the storage UI: the backend's own footprint plus the
-    // real origin usage/quota (which also covers every blob store).
+    // real origin usage/quota (which also covers every blob store). A Live
+    // session has no origin bytes, so it reports the in-memory ones instead.
     async function storageInfo() {
         let base = { backend: backend ? backend.id : 'opfs', localBytes: 0 };
         try {
@@ -197,6 +198,8 @@ const FileSystem = (() => {
                 }
             }
         } catch (e) { /* noop */ }
+        if (usage == null && typeof base.usage === 'number') usage = base.usage;
+        if (quota == null && typeof base.quota === 'number') quota = base.quota;
         return { ...base, usage, quota };
     }
 

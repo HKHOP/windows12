@@ -4,8 +4,8 @@
 // synchronous API; this module owns only the *persistence* of that tree and
 // of the large ("blob") files, behind a small async interface:
 //
-//     id                       'opfs'
-//     limited                  false (OPFS is quota-based, not size-capped)
+//     id                       'opfs' | 'memory'
+//     limited                  false for OPFS, true for the Live backend
 //     loadTree()               Promise<tree|null>
 //     saveTree(tree)           Promise<boolean>
 //     putBlob(ref, blob)       Promise<boolean>
@@ -13,9 +13,16 @@
 //     delBlob(ref)             Promise<void>
 //     storageInfo()            Promise<{ backend, localBytes, usage, quota }>
 //
-// There is exactly one backend: the Origin Private File System (Chrome 86+ /
-// Firefox 111+ / Safari 15.2+). The old localStorage + IndexedDB fallback has
-// been removed — a browser without OPFS cannot run the OS.
+// There are two backends:
+//
+//   opfs    the Origin Private File System (Chrome 86+ / Firefox 111+ /
+//           Safari 15.2+) — the normal machine, everything persists.
+//   memory  a Live session: the bootstrap in index.html found that this
+//           browser cannot host the OS (no OPFS, no service worker, no
+//           DecompressionStream, or no secure context) and the user chose to
+//           run it anyway. Nothing is written to disk — the tree and the
+//           blobs live in memory and a reload, restart or shutdown starts a
+//           fresh machine, like a Live CD.
 //
 // OPFS layout (origin-private, invisible to the user):
 //
@@ -25,10 +32,11 @@
 //                          worker; the tree only *references* it, see
 //                          js/modules/coreStore.js)
 //
-// All I/O runs in a dedicated worker (see opfsClient.js / opfsWorker.js)
-// because Safari before 26 only exposes OPFS writes through
+// All OPFS I/O runs in a dedicated worker (see opfsClient.js /
+// opfsWorker.js) because Safari before 26 only exposes OPFS writes through
 // createSyncAccessHandle(), which is worker-only.
 import OpfsClient from './opfsClient.js';
+import { coreFileUrl, liveMode } from './siteBase.js';
 
 const TREE_PATH = 'w12/fs.json';
 const BLOBS_DIR = 'w12/blobs';
@@ -117,6 +125,14 @@ const opfsBackend = {
         try { await OpfsClient.removeEntry(blobPath(ref), false); } catch (e) { /* best effort */ }
     },
 
+    async readCoreText(ref) {
+        try {
+            return await OpfsClient.readText(blobPath(ref));
+        } catch (e) {
+            return null;
+        }
+    },
+
     async storageInfo() {
         let localBytes = 0;
         try {
@@ -127,10 +143,109 @@ const opfsBackend = {
     }
 };
 
-// OPFS is mandatory. The probe performs a real write/read/delete round-trip
-// in the worker, so an unusable filesystem (private browsing, blocked worker,
-// insecure context) is detected before the OS pretends to have a disk.
+// ---------------------------------------------------------------------------
+// Live (in-memory) backend
+// ---------------------------------------------------------------------------
+//
+// A Live session keeps the whole machine — tree and blobs — in memory. The
+// OS core is not copied either: core files are read from the site itself, so
+// a Live boot costs nothing but the page. There is no snapshot to load, so
+// every start is a brand-new machine with the factory tree.
+const LIVE_BLOB_LIMIT = 256 * 1024 * 1024;
+
+// Reads a core file ('core/<version>/…'): from the site in a Live session,
+// from OPFS otherwise. Returns null when the bytes are gone.
+async function readCoreBlob(ref, type) {
+    if (liveMode()) {
+        try {
+            const response = await fetch(coreFileUrl(ref), { cache: 'no-store' });
+            if (!response.ok) return null;
+            const blob = await response.blob();
+            return type && blob.type !== type ? new Blob([blob], { type }) : blob;
+        } catch (e) {
+            return null;
+        }
+    }
+    try {
+        return await OpfsClient.readFile(blobPath(ref));
+    } catch (e) {
+        return null;
+    }
+}
+
+const memoryBackend = {
+    id: 'memory',
+    limited: true,
+    treeKnown: true,
+    // ref -> Blob, and the bytes they cost (a Live session has no disk quota,
+    // so the tab's memory is the ceiling).
+    blobs: new Map(),
+    bytes: 0,
+    snapshotBytes: 0,
+
+    async loadTree() {
+        return null;
+    },
+
+    async saveTree(tree) {
+        try { this.snapshotBytes = JSON.stringify(tree).length; } catch (e) { /* keep the last size */ }
+        return true;
+    },
+
+    async putBlob(ref, blob) {
+        if (!(blob instanceof Blob)) return false;
+        if (this.bytes + blob.size > LIVE_BLOB_LIMIT) return false;
+        const existing = this.blobs.get(ref);
+        if (existing) this.bytes -= existing.size;
+        this.blobs.set(ref, blob);
+        this.bytes += blob.size;
+        return true;
+    },
+
+    async getBlob(ref, type) {
+        if (String(ref).startsWith(CORE_PREFIX)) return readCoreBlob(ref, type);
+        const blob = this.blobs.get(ref);
+        if (!blob) return null;
+        return type && blob.type !== type ? new Blob([blob], { type }) : blob;
+    },
+
+    async delBlob(ref) {
+        const blob = this.blobs.get(ref);
+        if (!blob) return;
+        this.bytes -= blob.size;
+        this.blobs.delete(ref);
+    },
+
+    async readCoreText(ref) {
+        const blob = await readCoreBlob(ref, '');
+        if (!blob) return null;
+        try { return await blob.text(); } catch (e) { return null; }
+    },
+
+    async storageInfo() {
+        return {
+            backend: 'memory',
+            localBytes: this.snapshotBytes,
+            usage: this.bytes,
+            quota: LIVE_BLOB_LIMIT
+        };
+    }
+};
+
+let selected = null;
+
+// Picks the backend. A Live boot (see index.html) always runs in memory. When
+// the page is not Live but the OPFS probe fails anyway — private browsing, a
+// blocked worker, an evicted store — the machine still starts, in memory,
+// instead of showing a black screen.
 async function select() {
+    if (selected) return selected;
+
+    if (liveMode()) {
+        selected = memoryBackend;
+        return selected;
+    }
+
     let ok = false;
     try {
         ok = await OpfsClient.probe();
@@ -138,7 +253,8 @@ async function select() {
         ok = false;
     }
     if (!ok) {
-        throw new Error('Windows 12 needs the Origin Private File System, which this browser does not provide.');
+        selected = memoryBackend;
+        return selected;
     }
 
     // Ask for durable storage so the origin isn't evicted under pressure.
@@ -146,7 +262,15 @@ async function select() {
         if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => { /* best effort */ });
     } catch (e) { /* noop */ }
 
-    return opfsBackend;
+    selected = opfsBackend;
+    return selected;
 }
 
-export default { select, blobPath };
+// Text of a file in the OS core ('core/<version>/…'), wherever this boot
+// keeps it. Used by the \Windows mirror to read the builtin app manifests.
+async function readCoreText(ref) {
+    const backend = selected || opfsBackend;
+    return backend.readCoreText(ref);
+}
+
+export default { select, blobPath, readCoreText, isLive: liveMode };

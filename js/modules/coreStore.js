@@ -3,7 +3,8 @@
 // The operating system itself lives in the Origin Private File System, in
 // w12/core/<version>/… — the service worker unpacks the core bundle there
 // and serves it over the site URLs. Those bytes are the single source of
-// truth for what the OS runs.
+// truth for what the OS runs. A Live session (see index.html) has no OPFS
+// copy: it runs the core the site ships, and the mirror points there.
 //
 // This module brings that core into the virtual filesystem:
 //
@@ -22,7 +23,7 @@
 // builtin app folders are managed by the OS: they are refreshed at every
 // boot and cannot be uninstalled.
 import FileSystem from './fileSystem.js';
-import OpfsClient from './opfsClient.js';
+import FsStorage from './fsStorage.js';
 import { notifyTreeChanged } from './treeNotify.js';
 
 // Where the read-only mirror lives in the virtual filesystem.
@@ -32,9 +33,9 @@ const TREE_ROOT = ['Windows'];
 // installed for all users, because a builtin app IS installed for all users.
 const APPS_ROOT = ['Program Files'];
 
-// The core manifest is served by the service worker out of OPFS, so it always
-// describes the core that is actually running — not a version some other
-// worker may have installed in the meantime.
+// The core manifest describes the core that is actually running: the service
+// worker serves it out of OPFS — not a version some other worker may have
+// installed in the meantime — and a Live session reads the site's copy.
 const MANIFEST_URL = new URL('../../core-manifest.json', import.meta.url).href;
 
 let info = null;
@@ -95,10 +96,12 @@ function sync(version, paths, sizes) {
 
 // The manifest of a builtin app, read from the core. It is written into the
 // app folder as text, so the folder describes itself exactly like an
-// installed app's folder does.
+// installed app's folder does. The bytes come from wherever this boot keeps
+// the core: OPFS normally, the site itself in a Live session.
 async function readCoreManifest(version, id) {
     try {
-        const text = await OpfsClient.readText(`w12/core/${version}/js/apps/${id}/manifest.json`);
+        const text = await FsStorage.readCoreText('core/' + version + '/js/apps/' + id + '/manifest.json');
+        if (!text) return null;
         const manifest = JSON.parse(text);
         if (!manifest || typeof manifest !== 'object') return null;
         if (typeof manifest.id !== 'string' || typeof manifest.name !== 'string') return null;

@@ -586,7 +586,12 @@ const Settings = (() => {
     function renderStorageSettings(el) {
         let totalLocal = 0;
         try { totalLocal = FileSystem.serializedSize(); } catch (e) { totalLocal = 0; }
-        const diskCaption = `${formatBytes(totalLocal)} in the file index (OPFS is quota-based, no fixed ceiling)`;
+        // A Live session (see index.html) has no private file system, so the
+        // whole machine is in memory and nothing is saved.
+        const live = FileSystem.backendId() === 'memory';
+        const diskCaption = live
+            ? `${formatBytes(totalLocal)} in memory — this session is not saved`
+            : `${formatBytes(totalLocal)} in the file index (OPFS is quota-based, no fixed ceiling)`;
 
         const home = Users.home();
         const categories = [
@@ -605,12 +610,14 @@ const Settings = (() => {
             return { ...cat, ...m, bytes: m.local + m.blob };
         });
 
-        const diskSub = 'Backend: OPFS • files and media stored as real files';
+        const diskSub = live
+            ? 'Backend: memory (Live) • everything is erased on reload, restart or shutdown'
+            : 'Backend: OPFS • files and media stored as real files';
 
         el.innerHTML += `
             <div style="display:flex;flex-direction:column;gap:16px;">
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;">
-                    <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Virtual disk (OPFS)</div>
+                    <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Virtual disk (${live ? 'Live, in memory' : 'OPFS'})</div>
                     <div style="height:20px;background:rgba(255,255,255,0.06);border-radius:10px;overflow:hidden;margin-bottom:8px;">
                         <div class="storage-disk-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#0078D4,#00a8e8);border-radius:10px;"></div>
                     </div>
@@ -641,7 +648,9 @@ const Settings = (() => {
                 const quota = info.quota == null ? 'unknown' : formatBytes(info.quota);
                 const line = el.querySelector('.storage-disk-line');
                 if (line) {
-                    line.textContent = `Backend: OPFS • On-disk usage: ${usage} of ${quota}`;
+                    line.textContent = info.backend === 'memory'
+                        ? `Backend: memory (Live) • in use: ${formatBytes(info.usage || 0)} of ${formatBytes(info.quota || 0)}`
+                        : `Backend: OPFS • On-disk usage: ${usage} of ${quota}`;
                 }
                 const bar = el.querySelector('.storage-disk-bar');
                 if (bar && info.usage != null && info.quota) {

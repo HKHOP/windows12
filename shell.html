@@ -41,6 +41,9 @@
                 <button id="tray-network" type="button" aria-label="Network" title="Network"></button>
                 <svg id="tray-chevron" width="16" height="16" viewBox="0 0 24 24" fill="white" style="display:none;"><path d="M7 10l5 5 5-5z"/></svg>
             </div>
+            <!-- Live session marker (see index.html): the OS runs in memory,
+                 so nothing survives a reload. Hidden unless body.live-mode. -->
+            <div id="live-badge" title="Windows 12 is running in Live mode: the system runs in memory, and everything is erased when you reload the page, restart or shut down.">Live</div>
             <div id="clock"></div>
         </div>
     </div>

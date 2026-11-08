@@ -195,6 +195,29 @@
     pointer-events: none;
 }
 
+/* Live session badge: the OS is running in memory (see index.html), so the
+   user always knows nothing will be saved. The bootstrap sets body.live-mode
+   before the shell is injected. */
+#live-badge {
+    display: none;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 196, 87, 0.45);
+    background: rgba(255, 170, 0, 0.18);
+    color: #ffd166;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    line-height: 1.5;
+    user-select: none;
+    cursor: default;
+}
+
+body.live-mode #live-badge {
+    display: inline-flex;
+}
+
 #clock {
     font-size: 12px;
     color: var(--text-primary);

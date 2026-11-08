@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Windows 12">
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=15.15.16">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=15.16.0">
     <link rel="apple-touch-icon" href="favicon.svg">
     <title>Windows 12</title>
     <style>
@@ -52,7 +52,11 @@
     <!-- The bootstrap paints a black screen with a status line while the OS
          core is downloaded into the Origin Private File System. Once the core
          is installed the page reloads and this screen is replaced by the real
-         shell, which is served out of OPFS by the service worker. -->
+         shell, which is served out of OPFS by the service worker.
+
+         A browser that cannot host the OS that way can still run it as a Live
+         system (see run() below): the shell is read from the site itself and
+         the whole machine lives in memory, like a Live CD. -->
     <div id="boot-status">Starting Windows 12&hellip;</div>
 
     <script>
@@ -178,12 +182,98 @@
             var params;
             try { params = new URL(location.href).searchParams; } catch (e) { return false; }
             if (!params.has('wipe')) return false;
+            // Nothing was ever saved without private file storage, so there is
+            // nothing to clear: the boot just carries on.
+            if (!(navigator.storage && navigator.storage.getDirectory)) return false;
             params.delete('wipe');
             var clean = location.pathname + (params.toString() ? '?' + params.toString() : '');
             setStatus('Clearing the system files…');
             await wipeStorage();
             location.replace(clean);
             return true;
+        }
+
+        // --- Live mode ------------------------------------------------------
+        // A browser that cannot host the OS - no service worker, no Origin
+        // Private File System, no DecompressionStream to unpack the core, or
+        // no secure context - can still run it as a Live system. The shell and
+        // the builtin apps are loaded straight from the site and the whole
+        // machine lives in memory, like a Live CD: nothing is saved and the
+        // Store cannot install apps. The user is warned before it starts.
+
+        function capability() {
+            var probe = document.createElement('script');
+            var modules = ('noModule' in probe);
+            var worker = typeof navigator !== 'undefined'
+                && 'serviceWorker' in navigator && !!navigator.serviceWorker;
+            var opfs = typeof navigator !== 'undefined'
+                && !!navigator.storage && typeof navigator.storage.getDirectory === 'function';
+            var unpack = typeof DecompressionStream !== 'undefined';
+            var secure = typeof isSecureContext === 'undefined' ? true : !!isSecureContext;
+            var missing = [];
+            if (!worker) missing.push('service workers');
+            if (!opfs) missing.push('the private file system');
+            if (!unpack) missing.push('the built-in file decompressor');
+            if (!secure) missing.push('a secure (HTTPS) connection');
+            return {
+                modules: modules,
+                ok: modules && worker && opfs && unpack && secure,
+                missing: missing
+            };
+        }
+
+        function missingText(list) {
+            if (!list.length) return 'the features the OS needs';
+            if (list.length === 1) return list[0];
+            return list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1];
+        }
+
+        var LIVE_PROMPT = 'This browser cannot save Windows 12 on this device.\n\n'
+            + 'Windows 12 can still start as a Live system: the whole operating system '
+            + 'runs in memory, like a Live CD. Everything you create is erased when you '
+            + 'reload the page, restart or shut the system down, and apps cannot be '
+            + 'installed from the Store.\n\n'
+            + 'Start Windows 12 in Live mode?';
+
+        // Turns the page into a Live session. A page still controlled by a
+        // service worker would be served the OPFS copy of the OS (and the live
+        // session runs from the site itself), so the worker is dropped and the
+        // page reloaded once before the static boot. Returns true when the
+        // page is reloading.
+        async function enterLiveMode() {
+            window.__W12_LIVE__ = true;
+            document.body.classList.add('live-mode');
+            if (!('serviceWorker' in navigator)) return false;
+
+            var params = null;
+            try { params = new URL(location.href).searchParams; } catch (e) { params = null; }
+
+            try {
+                if (typeof navigator.serviceWorker.getRegistrations === 'function') {
+                    var regs = await navigator.serviceWorker.getRegistrations();
+                    for (var i = 0; i < regs.length; i++) await regs[i].unregister();
+                }
+            } catch (e) { /* nothing to unregister */ }
+
+            if (!navigator.serviceWorker.controller || !params) return false;
+            if (params.has('lr')) return false; // already reloaded once
+            params.set('live', '1');
+            params.set('lr', '1');
+            location.replace(location.pathname + '?' + params.toString());
+            return true;
+        }
+
+        // The Live boot: everything comes from the site, so the URLs the shell
+        // uses are the ones the browser already knows.
+        async function startLive() {
+            setStatus('Starting Windows 12 (Live)…', 'Running in memory - nothing is saved.');
+            try {
+                await startShell();
+            } catch (err) {
+                fail('Windows 12 could not start.',
+                     'The Live system could not be loaded from this server. '
+                     + String((err && err.message) || err));
+            }
         }
 
         // --- applying an update ---------------------------------------------
@@ -235,7 +325,7 @@
         }
 
         async function startShell() {
-            setStatus('Starting Windows 12…');
+            setStatus(window.__W12_LIVE__ ? 'Starting Windows 12 (Live)…' : 'Starting Windows 12…');
             var manifestResponse = await fetch('./core-manifest.json', { cache: 'no-store' });
             if (!manifestResponse.ok) throw new Error('core-manifest-missing');
             var manifest = await manifestResponse.json();
@@ -260,14 +350,33 @@
 
         async function run() {
             if (await maybeWipe()) return;
-            if (!('serviceWorker' in navigator)) {
+
+            var caps = capability();
+            if (!caps.modules) {
                 fail('Windows 12 needs a modern browser.',
-                     'This browser does not support service workers.');
+                     'This browser cannot run the OS: it does not support JavaScript modules.');
                 return;
             }
-            if (!navigator.storage || !navigator.storage.getDirectory) {
-                fail('Windows 12 needs a modern browser.',
-                     'This browser does not support the Origin Private File System.');
+
+            // ?live=1 forces a Live session (useful for trying it on a modern
+            // browser); it drops the service worker so the page is served by
+            // the site instead of the OPFS copy.
+            var forced = false;
+            try { forced = new URL(location.href).searchParams.has('live'); } catch (e) { forced = false; }
+
+            if (!caps.ok || forced) {
+                // This one dialog is the browser's own, on purpose: it runs
+                // before a single line of the OS is loaded, and there is no
+                // shell yet to draw a Windows dialog with. It is the warning
+                // that the session is a Live CD and nothing will be saved.
+                if (!forced && !window.confirm(LIVE_PROMPT)) {
+                    fail('Windows 12 needs a modern browser.',
+                         'This browser does not provide ' + missingText(caps.missing)
+                         + '. Reload this page and choose OK to run Windows 12 in Live mode.');
+                    return;
+                }
+                if (await enterLiveMode()) return;
+                await startLive();
                 return;
             }
 

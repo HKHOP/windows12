@@ -575,12 +575,40 @@ check('a controlled boot skips the slow serviceWorker.register wait', (() => {
 })());
 check('the bootstrap never asks for a refresh', (() => {
     const src = fs.readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
-    return !/\bconfirm\s*\(/.test(src);
+    // The single native dialog allowed in the bootstrap is the Live-mode
+    // warning (see AGENTS.md); an update must still never prompt.
+    const confirms = src.match(/\bconfirm\s*\(/g) || [];
+    return confirms.length === 1 && /window\.confirm\(LIVE_PROMPT\)/.test(src);
 })());
 check('the retired update service is gone', (() => {
     return !fs.existsSync(new URL('../../js/modules/updateService.js', import.meta.url))
         && !fs.existsSync(new URL('../../js/modules/windowsUpdate.js', import.meta.url));
 })());
+
+console.log('[live mode]');
+{
+    // The bootstrap offers an in-memory Live session to browsers that cannot
+    // host the OPFS core; that boot runs the builtin apps from the shipped
+    // folders, so their URLs must keep the app depth the shell modules use.
+    const { fileUrl, liveMode } = await import('../../js/modules/siteBase.js');
+    const normalUrl = fileUrl(['Program Files', 'notepad'], 'main.js');
+
+    globalThis.__W12_LIVE__ = true;
+    const live = liveMode();
+    const liveEntry = fileUrl(['Program Files', 'notepad'], 'main.js');
+    const liveIcon = fileUrl(['Program Files', 'notepad'], 'assets/icon.svg');
+    const liveUserApp = fileUrl(['users', 'default', 'AppData', 'Programs', 'demo'], 'main.js');
+    delete globalThis.__W12_LIVE__;
+
+    check('a normal boot serves an app folder from the virtual filesystem',
+        /\/js\/apps\/Program%20Files%2Fnotepad\/main\.js$/.test(normalUrl));
+    check('a Live session runs a builtin app from its shipped folder',
+        live
+        && /\/js\/apps\/notepad\/main\.js$/.test(liveEntry)
+        && /\/js\/apps\/notepad\/assets\/icon\.svg$/.test(liveIcon));
+    check('a Live session does not pretend a per-user folder is shipped',
+        /\/js\/apps\/users%2Fdefault%2FAppData%2FPrograms%2Fdemo\/main\.js$/.test(liveUserApp));
+}
 check('the worker no longer hands out pending updates', (() => {
     const src = fs.readFileSync(new URL('../../sw.js', import.meta.url), 'utf8');
     return !/pending-update/.test(src);

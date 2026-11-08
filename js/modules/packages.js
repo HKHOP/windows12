@@ -193,7 +193,9 @@ const Packages = (() => {
         for (const r of installed.values()) if (r.manifest) out[r.id] = r.manifest;
         return out;
     }
-    // Whether store packages run from the virtual filesystem (OPFS backend).
+    // Whether store packages run from the virtual filesystem (OPFS backend)
+    // that the service worker serves app URLs from. A Live session runs in
+    // memory and cannot host them.
     function vfsActive() { try { return FileSystem.backendId() === 'opfs'; } catch (e) { return false; } }
     function scopeOf(id) { const r = installed.get(id); return r ? r.scope : null; }
 
@@ -201,6 +203,7 @@ const Packages = (() => {
 
     function writeSession() {
         try {
+            if (!vfsActive()) return;
             if (OpfsClient.isDead && OpfsClient.isDead()) return;
             OpfsClient.writeFile('w12/session.json', JSON.stringify({ userId: userId() })).catch(() => {});
         } catch (e) { /* OPFS unavailable — SW host off anyway */ }
@@ -218,6 +221,19 @@ const Packages = (() => {
     function elevationDenied() {
         const err = new Error('Administrator approval is required to make system-wide changes.');
         err.elevationDenied = true;
+        return err;
+    }
+
+    // A Live session (see index.html) has no service worker to serve an
+    // installed app's files from, and nothing it wrote would survive a
+    // reload anyway. The built-in apps keep working; the Store does not.
+    function liveModeError() {
+        const err = pkgError(
+            'Windows 12 is running in Live mode, so apps cannot be installed. '
+            + 'The Store needs the browser\'s private file system to run an app '
+            + 'from, and this session is not saved anyway. The built-in apps are available.',
+            'live-mode');
+        err.liveMode = true;
         return err;
     }
 
@@ -629,6 +645,7 @@ const Packages = (() => {
     }
 
     async function installArchive(bytes, opts = {}) {
+        if (!vfsActive()) throw liveModeError();
         const inspection = opts.inspection || await inspectArchive(bytes);
         const man = inspection.manifest;
         const installer = inspection.installer;
@@ -855,6 +872,7 @@ const Packages = (() => {
     }
 
     async function install(source, opts = {}) {
+        if (!vfsActive()) throw liveModeError();
         const src = normalizeSource(source);
         if (!src) throw new Error('Unknown app source');
         const scope = opts.scope === 'system' ? 'system' : 'user';

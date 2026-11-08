@@ -12,7 +12,7 @@ A web-based OS simulation built with vanilla HTML, CSS, and JavaScript modules. 
 4. **Freeze app identity.** Never change an existing app's `id`, `uuid`, or manifest `entry` path; install records, file associations and settings are keyed by them. Adding/removing an app folder also requires `node scripts/build-registry.js`.
 5. **Release every change.** Every commit gets a new CHANGELOG.md version entry (never modify older entries), using only **Added**, **Removed**, **Changed**, **Fixed**. Bump `version.json`, run `node scripts/update-version.js` to refresh the `?v=` cache-busters in `index.html`, and commit code first, then the changelog/version sync, then push.
 6. **Verify before committing.** Run `node scripts/test/sdk.smoke.mjs` (no browser needed) and `node --check` on modified JS. Run `node scripts/build-registry.js` and confirm it produces no unexpected diff. **Do not run the browser smoke tests** (`scripts/test/boot.smoke.mjs`, `scripts/test/update.smoke.mjs`) or any other headless-browser script — the user tests the OS by hand and reports back, and browser runs are slow and unwanted. Say plainly in the handover what still needs a manual check (a narrow/mobile viewport, see *Scaling & overlay positioning* below), instead of testing it yourself.
-7. **No dead code or debug output.** Remove unused imports/files, `console.log`/`debugger`, commented-out experiments and temporary artifacts before finishing. No native `alert()`/`confirm()`/`prompt()` — not even in the bootstrap, which updates the core and reloads without asking.
+7. **No dead code or debug output.** Remove unused imports/files, `console.log`/`debugger`, commented-out experiments and temporary artifacts before finishing. No native `alert()`/`confirm()`/`prompt()` - not even in the bootstrap, which updates the core and reloads without asking. The one exception is the Live-mode warning in `index.html`: it must run before any OS code (and therefore `Popup`) exists.
 8. **Use the OS APIs, not raw DOM hacks.** Restore/focus/minimize through `WindowManager` (`focusWindow`, `setMinimized`, `closeWindow`, `isMinimized`, `isFocused`) — never reveal a window by writing `element.style.display` (it bypasses session and virtual-desktop visibility). Use `ContextMenu.show(clientX, clientY, items)` for menus; do not build your own coordinate-positioned menus.
 9. **Clean up what you bind.** Register global/document listeners once, not inside render loops. Per-window timers and listeners must be released when `window-closed` fires. Any Promise-based dialog must settle when its window is closed externally (`window-closed`), or callers hang.
 10. **Respect multi-user and persistence rules.** Never assume a single profile; use `Users.homeFor/appDataFor/userDataFor(id, …)` in code that can outlive a session switch. Persistent data goes through `FileSystem`/the SDK, never `localStorage`.
@@ -29,7 +29,7 @@ the operating system itself. Run them from the repository root:
 | Script | What it does |
 |--------|--------------|
 | `node scripts/build-registry.js` | validates the app manifests, writes `js/apps/registry.js` and the `sw.js` distribution map |
-| `node scripts/build-core.js` | writes `w12-core.pkg` — the OS core bundle the browser downloads |
+| `node scripts/build-core.js` | writes `w12-core.pkg` — the OS core bundle the browser downloads — and the `core-manifest.json` a Live session boots from |
 | `node scripts/build-packages.js` | writes `packages/<id>.w12pkg` — the store apps' archives |
 | `node scripts/update-version.js` | syncs the `?v=` cache-busters in `index.html` with `CHANGELOG.md` |
 | `node scripts/test/sdk.smoke.mjs` | the SDK suite (no browser needed) — **run this** |
@@ -186,8 +186,49 @@ browser  ──import /js/main.js──▶ sw.js (fetch)  ──read──▶─
   scripts alike, no elevation and no consent dialog. Only the core mirror
   itself may write there, and it does so as shell-owned work
   (`FSGuard.asShell`).
-- **OPFS is mandatory.** The localStorage + IndexedDB fallback is gone: a
-  browser without OPFS cannot run the OS, and the bootstrap says so.
+- **OPFS is the machine's disk, but it is no longer the only way to boot.**
+  A browser that cannot host the OS — no service worker, no OPFS, no
+  `DecompressionStream`, or no secure context — is offered a **Live session**
+  instead (see *Live mode* below): the bootstrap warns in a native confirm
+  dialog that nothing will be saved and then serves the OS from the site with
+  an in-memory filesystem. The localStorage + IndexedDB fallback is still
+  gone; there is no persistent second-class machine.
+
+### Live mode (the in-memory trial)
+
+Browsers that cannot host the OS still get a working machine, as a **Live
+CD**: everything runs in memory and a reload, restart or shutdown starts a
+fresh one.
+
+- **Who gets it.** `index.html` checks for JavaScript modules, service
+  workers, `navigator.storage.getDirectory()`, `DecompressionStream` and a
+  secure context. If any is missing — or when the page is opened with
+  `?live=1` (the manual test switch) — the bootstrap asks in a **native
+  `confirm()`** whether to start in Live mode. That dialog is the only
+  sanctioned native dialog in the project: it has to work before a single
+  line of the OS (and therefore `Popup`) is loaded.
+- **Nothing is saved.** `fsStorage.js` selects its `memory` backend: the tree
+  and the blobs live in a `Map` (soft ceiling 256 MB), `loadTree()` always
+  returns `null`, and `saveTree()` only measures the snapshot. The Storage
+  page says *Live, in memory* and the taskbar shows a **Live** badge
+  (`body.live-mode`, set by the bootstrap).
+- **The core is the site itself.** No service worker means nothing can serve
+  `/js/…` out of OPFS, so the bootstrap loads `shell.html`, the stylesheets
+  and `js/main.js` from the network and `coreStore` reads the core files from
+  the site (`FsStorage.readCoreText`). `siteBase.fileUrl()` maps a builtin
+  app folder (`\Program Files\<id>`) to its shipped URL (`/js/apps/<id>/…`),
+  which keeps the app depth — and therefore its relative imports — identical.
+  `core-manifest.json` is generated into the site root by `build-core.js` for
+  exactly this boot.
+- **What does not work.** Store installs are refused (`Packages.install`
+  throws an error flagged `liveMode`, the Store explains why): an installed
+  app's files would have to be served from the virtual filesystem, and a Live
+  session cannot host that. All builtin apps, accounts, the registry, File
+  Explorer, wallpapers and settings work normally — in memory.
+- **Entering Live mode drops the service worker** (and reloads once) when the
+  page is still controlled by one, so the static core is what runs. A Live
+  session does not register a worker, so a normal refresh afterwards boots
+  the installed core again.
 
 ### Modules
 - `js/modules/windowManager.js` - Core window management (create, drag, resize, maximize, minimize, close)
@@ -195,7 +236,7 @@ browser  ──import /js/main.js──▶ sw.js (fetch)  ──read──▶─
 - `js/modules/startMenu.js` - Start menu with pinned apps, search, recommended items
 - `js/modules/popup.js` - Popup/dialog API (info, warn, error, confirm, pick, textbox, forum)
 - `js/modules/backgroundApps.js` - Headless execution: background apps + launchable-nowhere services (manifest `background`/`service`), autostart, `background-apps-changed` event
-- `js/modules/fsStorage.js` - Filesystem persistence: OPFS only (tree snapshot + blob files); the capability probe throws when OPFS is missing
+- `js/modules/fsStorage.js` - Filesystem persistence: OPFS normally, an in-memory `memory` backend for a Live session (tree snapshot + blob files); the probe never blocks a boot
 - `js/modules/coreStore.js` - Mirrors the installed OS core from OPFS into the read-only `\Windows` tree, and materializes the builtin apps as app folders under `\Program Files`
 - `js/modules/registry.js` - The registry (HKLM/HKCU/HKCR/HKU/HKCC, keys, values, .reg import/export) and the app registrations the catalog is built from
 - `js/modules/siteBase.js` - The site base URL and the app URL scheme (`/js/apps/<encoded folder>/…`)
@@ -263,7 +304,7 @@ happens on a page refresh:
 - **Filesystem permission is enforced** (`js/modules/fsGuard.js`): apps freely access their own AppData folders; anything outside requires the manifest `filesystem` permission, or a runtime consent dialog for apps that don't declare it. Reads use `FSGuard.check` (injected via `FileSystem.setAccessChecker`); **mutations** additionally use `FSGuard.checkWrite` (injected via `FileSystem.setWriteChecker`), which is identical except that writes inside `/Program Files` require a per-app session elevation (a UAC prompt; reads stay allowed so File Explorer can browse) and writes inside `\Windows` are always refused. OS modules must wrap their FS access in `window._FSGuard.asShell(fn)` so shell writes aren't attributed to the focused app (the guard is a synchronous inc/dec, so wrap each *synchronous* FS call individually, not a whole async function); shell-context writes skip the elevation gate. Accessing `/system/users/**`, `system/programs data/permissions/**`, `system/programs data/display/**` or the recycle bin from app code is denied.
 - **App modules must not call `AppLoader`/`AppRegistry`/`AppMetadata`/`Packages`/`Users` user-dependent paths at module scope** (top-level). The registry <-> app import cycle leaves those bindings uninitialized during evaluation — only call them inside functions like `launch()`. This includes `Users.home()`/`Users.appData()` (current user isn't resolved until boot): store them as lazy functions (`const DATA_PATH = () => Users.appData(APP_ID)`).
 - **After changing an app**, bump its version, then run `node scripts/build-registry.js` and `node scripts/build-core.js`; for a changed store app also run `node scripts/build-packages.js` (rebuild only that package). Run `node scripts/build-registry.js` after adding/removing any app folder, and `node scripts/build-core.js` after **any** change to the core (`js/modules/`, `js/sdk/`, `js/workers/`, `css/`, `assets/`, `shell.html`, `js/main.js`, `js/apps/registry.js`, a builtin app) — otherwise the browser keeps running the code in the previous bundle.
-- **Never use native `alert()`, `confirm()`, or `prompt()`** — not even in `index.html`, which updates and reloads without asking. Inside the OS, always use the Popup API (`js/modules/popup.js`). All methods return Promises — use `.then()` or `await`. Available methods: `Popup.info()`, `Popup.warn()`, `Popup.error()`, `Popup.confirm()`, `Popup.pick()`, `Popup.textbox()`, `Popup.forum()`, `Popup.custom()`. Import it with `import Popup from '../modules/popup.js';`
+- **Never use native `alert()`, `confirm()`, or `prompt()`** - not even in `index.html`, which updates and reloads without asking. Inside the OS, always use the Popup API (`js/modules/popup.js`). All methods return Promises - use `.then()` or `await`. Available methods: `Popup.info()`, `Popup.warn()`, `Popup.error()`, `Popup.confirm()`, `Popup.pick()`, `Popup.textbox()`, `Popup.forum()`, `Popup.custom()`. Import it with `import Popup from '../modules/popup.js';` **The single exception** is the Live-mode warning in the bootstrap (`index.html`): it has to run before any OS code is loaded, so there is no `Popup` yet. Do not add a second one.
 - **For non-modal toasts use the Notifications API** (`js/modules/notifications.js`): `Notifications.info()`, `Notifications.action()` (buttons + `onAction`), `Notifications.forum()` (fields + `onSubmit`). Flags: `sticky`, `critical`, `silent`, `tag`. Methods return the id immediately; outcomes arrive via `onAction`/`onSubmit`/`onDismiss(reason)`. Import it with `import Notifications from '../modules/notifications.js';`
 - **The OS must work offline.** The whole OS is on disk in OPFS: the service worker serves the core and the installed packages from there, so the OS boots and runs with no network at all — even if the host is down. Only genuinely-online features are affected: the Store's package downloads, `CHANGELOG.md` (Settings > About), cross-origin `fetch`es (Weather, Copilot, peer pairing) and remote iframes (Browser). A refresh while offline keeps the installed core (the update check fails silently). Check connectivity with `import NetworkStatus from '../modules/networkStatus.js'` (`isOnline()`, `onChange(cb)`, `ensureOnline(feature)` → clean Popup + `false`, or `showError(feature)`) and fail with a readable connection error instead of hanging or crashing. The tray Wi-Fi indicator reflects `navigator.onLine` automatically.
 
@@ -312,6 +353,8 @@ Rules:
 - Commit order: 1) code changes 2) CHANGELOG.md + `version.json` + `index.html` 3) push.
 
 ## Running
-Serve `index.html` statically via any web server (e.g. GitHub Pages). The site only needs to serve `index.html`, `sw.js`, `w12-core.pkg`, `manifest.json`, `favicon.svg` and `packages/*.w12pkg` — everything else the OS needs is downloaded into OPFS on the first run.
+Serve `index.html` statically via any web server (e.g. GitHub Pages). The site only needs to serve `index.html`, `sw.js`, `w12-core.pkg`, `core-manifest.json`, `manifest.json`, `favicon.svg` and `packages/*.w12pkg` — everything else the OS needs is downloaded into OPFS on the first run.
 
 Requirements: a secure context (HTTPS or `localhost`), a browser with the Origin Private File System and `DecompressionStream` (Chrome 80+, Edge 80+, Firefox 113+, Safari 16.4+). `node scripts/test/boot.smoke.mjs` drives a headless browser through exactly this flow.
+
+A browser without those can still run the OS as a **Live session** (all in memory, see *Live mode*): that boot serves `shell.html`, `css/`, `js/` and the builtin app folders straight from the site, so a Live host must publish the source tree as well — which the repository already is. Append `?live=1` to the URL to try it on a modern browser (the bootstrap drops the service worker for that session).

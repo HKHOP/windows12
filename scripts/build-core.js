@@ -6,7 +6,8 @@
 // operating system needs at runtime:
 //
 //   shell.html          the desktop shell markup
-//   core-manifest.json  version + stylesheet list (generated)
+//   core-manifest.json  version + stylesheet list (generated; also written
+//                        to the site root, where a Live session reads it)
 //   css/**              the shell stylesheets
 //   js/main.js          the OS entry point
 //   js/modules/**       shell modules
@@ -275,6 +276,11 @@ function main() {
     const zip = buildZip(files);
     const hash = crypto.createHash('sha256').update(zip).digest('hex').slice(0, 16);
     fs.writeFileSync(OUT_FILE, zip);
+
+    // The manifest is also published next to the bundle. A normal boot reads
+    // it out of OPFS through the service worker; a Live session (see
+    // index.html) has no worker and reads this copy from the site instead.
+    fs.writeFileSync(path.join(ROOT, 'core-manifest.json'), manifestBytes);
 
     const rawBytes = files.reduce((n, f) => n + f.data.length, 0);
     writeSwBlock(version, hash, files.length, zip.length);

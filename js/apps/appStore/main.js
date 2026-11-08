@@ -703,6 +703,17 @@ const AppStore = (() => {
         }
 
         async function doInstall(appId, after) {
+            // A Live session cannot run an installed app — there is no service
+            // worker to serve its files from — and it saves nothing anyway.
+            let live = false;
+            try { live = !Packages.vfsActive(); } catch (e) { live = false; }
+            if (live) {
+                Popup.info('Windows 12 is running in Live mode',
+                    'Apps cannot be installed in a Live session. The system runs in memory, so an installed app would be gone at the next reload, and nothing would be able to run its files.\n\nThe built-in apps are available.');
+                after();
+                return;
+            }
+
             const consented = await Permissions.requestInstallConsent(appId);
             if (!consented) { after(); return; }
 
