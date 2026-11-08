@@ -3,7 +3,7 @@
   "id": "blackOpsZombies",
   "uuid": "9b4d1f9b-d713-4677-83cd-d94ffd47e846",
   "name": "Call of Duty: Black Ops Zombies",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "distribution": "store",
   "entry": "main.js",
   "associations": [],
