@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.16.1] - 2026-11-08
+
+### Added
+- **Meccha Chameleon** in the Microsoft Store — an embedded browser client for the wasm.rip port, with its own iframe window and the Reload / Open in Browser toolbar.
+
 ## [15.16.0] - 2026-11-08
 
 ### Added
