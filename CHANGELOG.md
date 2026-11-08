@@ -4,6 +4,11 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.16.4] - 2026-11-08
+
+### Changed
+- **Meccha Chameleon** and **Call of Duty: Black Ops Zombies**: store tile icons now use the original key art published by their hosts.
+
 ## [15.16.3] - 2026-11-08
 
 ### Changed
