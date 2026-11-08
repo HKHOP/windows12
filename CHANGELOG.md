@@ -4,6 +4,20 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.16.0] - 2026-11-08
+
+### Added
+- **Live mode (in-memory trial).** Browsers that cannot host the OS — no service worker, no Origin Private File System, no `DecompressionStream`, or no secure context — can now run Windows 12 anyway. The bootstrap warns in the browser's own dialog that the system runs *entirely in memory, like a Live CD*: everything is erased on reload, restart or shutdown, and the Store cannot install apps.
+- **Live storage backend.** `fsStorage.js` gained a `memory` backend (tree plus blobs in a `Map`, 256 MB soft ceiling, never a snapshot), chosen automatically for a Live boot and as the fallback when the OPFS probe fails instead of refusing to start.
+- **Live badge and storage wording.** The taskbar shows a **Live** badge, and Settings > System > Storage plus Media Player's storage info report *Live, in memory*.
+- **`?live=1` switch.** Forces a Live session on a modern browser for testing; the bootstrap drops the service worker for that session.
+- **Static core manifest.** `scripts/build-core.js` now also writes `core-manifest.json` to the site root — the file a Live boot reads, because no worker is there to serve the OPFS copy.
+
+### Changed
+- **The core is the site in Live mode.** `coreStore`/`fsStorage` read core files from the site, and `siteBase.fileUrl()` maps a builtin app's virtual folder (`\Program Files\<id>`) to its shipped URL (`/js/apps/<id>/…`), so the builtin apps keep their normal relative imports.
+- **Store installs are refused in a Live session** with an explanation: `Packages.install` throws an error flagged `liveMode`, and the Store explains before asking for consent.
+- **App versions.** Microsoft Store `1.3.1`, Settings `2.4.3`, Media Player `1.0.2`.
+
 ## [15.15.16] - 2026-11-07
 
 ### Fixed
