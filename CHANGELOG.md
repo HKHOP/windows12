@@ -4,6 +4,16 @@ All notable changes to Windows 12 will be documented in this file.
 
 Each version may only use the following sections: **Added**, **Removed**, **Changed**, **Fixed**. Never modify older entries.
 
+## [15.17.0] - 2026-11-12
+
+### Added
+- **Live mode: Store apps can now be installed and run.** Installing from the Microsoft Store (and from Package Installer) in a browser that cannot host the OS used to be refused; apps now unpack into the in-memory filesystem like any other machine, and a new `js/modules/liveModules.js` loader assembles their module graph from `blob:` URLs — import specifiers that stay inside the app are rewritten to the rewritten files' own `blob:` URLs, and specifiers that reach the shell (`../../modules/...`) resolve to the site's canonical URLs, so store code shares the shell's module instances. A missing file or a true circular import fails the launch with a readable error instead of hanging. Nothing survives a reload, as with the rest of a Live CD.
+- Installed apps keep their icons in a Live session: the icon is stashed as a `blob:` URL at install time and `AppIcons` uses it when there is no service worker to serve it.
+- The Store shows a one-line toast after an install in a Live session reminding the user that installs are kept in memory only.
+
+### Changed
+- The Microsoft Store no longer blocks installations in Live mode; Store updates and reinstalls of installed apps work there too.
+
 ## [15.16.6] - 2026-11-08
 
 ### Changed
