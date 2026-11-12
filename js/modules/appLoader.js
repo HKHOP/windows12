@@ -25,7 +25,8 @@ import { APP_MANIFESTS } from '../apps/registry.js';
 import Packages from './packages.js';
 import Registry from './registry.js';
 import FileSystem from './fileSystem.js';
-import { fileUrl } from './siteBase.js';
+import { fileUrl, liveMode } from './siteBase.js';
+import { importLiveApp, releaseLiveApp } from './liveModules.js';
 
 const AppLoader = (() => {
     // Built lazily (not at module scope): the registry <-> app module import
@@ -45,6 +46,17 @@ const AppLoader = (() => {
     function shell(fn) {
         const g = window._FSGuard;
         return g ? g.asShell(fn)() : fn();
+    }
+
+    // A folder that belongs to the OS core (a builtin app, materialized at
+    // boot and marked as such). In a Live session those run from the site;
+    // any other folder is an install and can only be reached through the
+    // in-memory module loader (liveModules.js).
+    function isBuiltinFolder(parts) {
+        try {
+            const node = shell(() => FileSystem.getNode(parts));
+            return !!(node && node.builtin === true);
+        } catch (e) { return false; }
     }
 
     // The key of a folder: its path, normalized.
@@ -256,9 +268,16 @@ const AppLoader = (() => {
         if (loading.has(key)) return loading.get(key);
 
         const p = (async () => {
-            const url = new URL(fileUrl(parts, man.entry || 'main.js'));
-            url.searchParams.set('w12', encodeURIComponent(stamp));
-            const mod = await import(url.href);
+            let mod;
+            if (liveMode() && !isBuiltinFolder(parts)) {
+                // Installed from the Store into a Live session: the files live
+                // in memory, so the module graph is assembled from blob URLs.
+                mod = await importLiveApp(parts, man);
+            } else {
+                const url = new URL(fileUrl(parts, man.entry || 'main.js'));
+                url.searchParams.set('w12', encodeURIComponent(stamp));
+                mod = await import(url.href);
+            }
             const app = mod && (mod.default || mod);
             loaded.set(key, { app, stamp, id: man.id });
             AppRegistry.register(man.id, app);
@@ -369,6 +388,10 @@ const AppLoader = (() => {
         const folder = folderFor(id);
         const key = folder ? folderKey(folder) : null;
         if (key) loaded.delete(key);
+        // Release the Live session's blob URLs only when the folder is gone
+        // (an uninstall). An install/update keeps the same folder, and the
+        // icon stash made for it must survive the 'apps-changed' event.
+        if (folder && !shell(() => FileSystem.itemExists(folder))) releaseLiveApp(folder);
         try { AppRegistry.unregister(id); } catch (e) { /* not registered */ }
     }
 

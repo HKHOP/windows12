@@ -11,6 +11,9 @@
 // stays inline so the catalog can be read synchronously); that keeps the
 // tree snapshot lean. The service worker serves /js/apps/<id>/… straight
 // from this layout (see sw.js), so installed store apps execute from disk.
+// In a Live session there is no worker: the files live in memory and
+// liveModules.js assembles the app's module graph from blob: URLs instead.
+// Everything an install writes is gone when the session ends.
 //
 // Nothing here imports appLoader (that would be a cycle); appLoader reads
 // this module's catalog instead.
@@ -21,6 +24,7 @@ import OpfsClient from './opfsClient.js';
 import Zip from './zip.js';
 import Registry from './registry.js';
 import { notifyTreeChanged } from './treeNotify.js';
+import { stashLiveIcon } from './liveModules.js';
 import { APP_MANIFESTS } from '../apps/registry.js';
 import { normalizeConfig, DESTINATIONS } from './shortcutConfig.js';
 
@@ -195,7 +199,8 @@ const Packages = (() => {
     }
     // Whether store packages run from the virtual filesystem (OPFS backend)
     // that the service worker serves app URLs from. A Live session runs in
-    // memory and cannot host them.
+    // memory: apps install into it all the same (liveModules.js serves their
+    // code as blob: URLs), only nothing survives a reload.
     function vfsActive() { try { return FileSystem.backendId() === 'opfs'; } catch (e) { return false; } }
     function scopeOf(id) { const r = installed.get(id); return r ? r.scope : null; }
 
@@ -221,19 +226,6 @@ const Packages = (() => {
     function elevationDenied() {
         const err = new Error('Administrator approval is required to make system-wide changes.');
         err.elevationDenied = true;
-        return err;
-    }
-
-    // A Live session (see index.html) has no service worker to serve an
-    // installed app's files from, and nothing it wrote would survive a
-    // reload anyway. The built-in apps keep working; the Store does not.
-    function liveModeError() {
-        const err = pkgError(
-            'Windows 12 is running in Live mode, so apps cannot be installed. '
-            + 'The Store needs the browser\'s private file system to run an app '
-            + 'from, and this session is not saved anyway. The built-in apps are available.',
-            'live-mode');
-        err.liveMode = true;
         return err;
     }
 
@@ -645,7 +637,6 @@ const Packages = (() => {
     }
 
     async function installArchive(bytes, opts = {}) {
-        if (!vfsActive()) throw liveModeError();
         const inspection = opts.inspection || await inspectArchive(bytes);
         const man = inspection.manifest;
         const installer = inspection.installer;
@@ -698,6 +689,8 @@ const Packages = (() => {
             }
 
             report(0.05, 'Preparing');
+            const iconNorm = lower(String(man.icon || 'assets/icon.svg'));
+            let pendingIcon = null;
             let done = 0;
             for (const file of files) {
                 if (opts.isCancelled && opts.isCancelled()) throw cancellationError();
@@ -724,6 +717,11 @@ const Packages = (() => {
                     const blob = new Blob([data], { type: mimeOf(fileName) });
                     const ok = await sh(() => FileSystem.writeFileBlob(dir, fileName, blob, extOf(fileName)));
                     if (!ok) throw pkgError(`Could not write "${file.path}" to the virtual filesystem.`, 'write-failed');
+                    if (lower(file.path) === iconNorm) {
+                        // A Live session cannot serve the icon from the
+                        // in-memory filesystem; keep it as a blob URL.
+                        pendingIcon = { blob, path: man.icon || 'assets/icon.svg' };
+                    }
                 }
                 done++;
                 report(0.08 + 0.72 * (done / files.length), 'Installing files');
@@ -781,6 +779,10 @@ const Packages = (() => {
             if (backedUp) sh(() => FileSystem.permanentDelete([...backupParent, target[target.length - 1]]));
             sh(() => FileSystem.permanentDelete(stagingParent));
             stagingParent = null;
+
+            if (pendingIcon) {
+                try { stashLiveIcon(target, pendingIcon.path, pendingIcon.blob); } catch (e) { /* icons are best-effort */ }
+            }
 
             await FileSystem.flushAsync();
             scan(uid);
@@ -872,7 +874,6 @@ const Packages = (() => {
     }
 
     async function install(source, opts = {}) {
-        if (!vfsActive()) throw liveModeError();
         const src = normalizeSource(source);
         if (!src) throw new Error('Unknown app source');
         const scope = opts.scope === 'system' ? 'system' : 'user';

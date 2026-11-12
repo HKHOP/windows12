@@ -42,7 +42,10 @@ export function fileUrl(folderPath, relative) {
     // Live session: nothing is served out of the virtual filesystem, so a
     // builtin app runs from the folder it shipped in (js/apps/<id>/…). The
     // URL keeps the app depth, so the app's own relative imports still reach
-    // the shell modules at their canonical URLs.
+    // the shell modules at their canonical URLs. An app installed from the
+    // Store in a Live session is not served from here: its code is loaded
+    // through liveModules.js (blob: URLs assembled from the in-memory
+    // filesystem).
     if (liveMode() && parts.length === 2 && parts[0] === 'Program Files') {
         return new URL('js/apps/' + [encodeURIComponent(parts[1])].concat(rel).join('/'), SITE_BASE).href;
     }

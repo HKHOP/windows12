@@ -5,7 +5,8 @@
 // table below remains for shell-only glyphs that are not apps (e.g. the
 // Windows Update badge) and as a safety net.
 import { APP_MANIFESTS } from '../apps/registry.js';
-import SITE_BASE, { fileUrl } from './siteBase.js';
+import SITE_BASE, { fileUrl, liveMode } from './siteBase.js';
+import { iconUrl as liveIconUrl } from './liveModules.js';
 
 const AppIcons = (() => {
     const icons = {
@@ -133,6 +134,12 @@ const AppIcons = (() => {
     // The URL of a file inside an app folder. The folder is the app's
     // handle, so the URL shows where the app lives.
     function folderUrl(folder, relative) {
+        // A Live session cannot serve a file out of the in-memory filesystem:
+        // an app that was installed from the Store keeps its icon as a blob URL.
+        if (liveMode()) {
+            const live = liveIconUrl(folder, relative);
+            if (live) return live;
+        }
         return fileUrl(folder, relative);
     }
 

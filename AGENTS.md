@@ -220,11 +220,19 @@ fresh one.
   which keeps the app depth — and therefore its relative imports — identical.
   `core-manifest.json` is generated into the site root by `build-core.js` for
   exactly this boot.
-- **What does not work.** Store installs are refused (`Packages.install`
-  throws an error flagged `liveMode`, the Store explains why): an installed
-  app's files would have to be served from the virtual filesystem, and a Live
-  session cannot host that. All builtin apps, accounts, the registry, File
-  Explorer, wallpapers and settings work normally — in memory.
+- **Store apps install and run in memory.** `Packages.install` works in a
+  Live session (user scope as usual; system scope still asks for
+  administrator approval): the files are unpacked into the in-memory
+  filesystem like any install, and `js/modules/liveModules.js` turns the app
+  folder into an ES-module graph by rewriting each file's import specifiers
+  to `blob:` URLs (specifiers that stay inside the app folder become the
+  rewritten files' own `blob:` URLs; specifiers that point at the shell
+  become the site's canonical URLs, so the app shares the shell's module
+  instances). Errors are descriptive — a missing file or a true circular
+  import fails the launch with a readable message. Everything a Live install
+  writes is gone on reload, like the rest of the machine. An installed
+  app's icon is kept as a `blob:` URL (`AppIcons` uses it when no service
+  worker can serve the file).
 - **Entering Live mode drops the service worker** (and reloads once) when the
   page is still controlled by one, so the static core is what runs. A Live
   session does not register a worker, so a normal refresh afterwards boots
@@ -248,8 +256,9 @@ fresh one.
 - `js/modules/lockScreen.js` - Lock / Switch user / Sign out / Sleep / Restart / Shut down (Start > Power, `WIN+L`); reuses the UAC secure-desktop idea via `body.locked`
 - `js/modules/uac.js` - User Account Control: modal elevation prompt for privileged actions (admin consent, or an administrator credential prompt for standard users); entry point `UAC.request({ name, message })`, also on `window._UAC`
 - `js/modules/fsGuard.js` - Filesystem access policy (`check`) + write policy (`checkWrite`: `/Program Files` writes require a session elevation; the `\Windows` OS core is refused outright)
-- `js/modules/packages.js` - Package service: scans installed package folders, downloads/unpacks `.w12pkg` archives into the vFS (system `/Program Files/<id>/` or per-user `~/AppData/Programs/<id>/`), uninstall, session pointer for the service worker; system-scope install/uninstall require UAC elevation
-- `js/modules/appLoader.js` - App catalog + **lazy** module loader: metadata from the registry + installed package manifests; `ensureLoaded`/`launch` are async (`import()` on first launch), `getModule` is sync (loaded-or-null)
+- `js/modules/packages.js` - Package service: scans installed package folders, downloads/unpacks `.w12pkg` archives into the vFS (system `/Program Files/<id>/` or per-user `~/AppData/Programs/<id>/`), uninstall, session pointer for the service worker; system-scope install/uninstall require UAC elevation; installs also work in a Live session (in memory)
+- `js/modules/liveModules.js` - Live-session module loader: turns an app folder in the in-memory filesystem into an ES-module graph (import specifiers rewritten to `blob:` URLs; shell imports resolve to the site's canonical URLs); keeps installed apps' icons reachable as `blob:` URLs
+- `js/modules/appLoader.js` - App catalog + **lazy** module loader: metadata from the registry + installed package manifests; `ensureLoaded`/`launch` are async (`import()` on first launch), `getModule` is sync (loaded-or-null); in a Live session non-builtin folders load through `liveModules.js` instead of the served URL
 - `js/modules/networkStatus.js` - Device connectivity (`navigator.onLine` + `online`/`offline` events): paints the tray Wi-Fi indicator, opens the network flyout, and exposes `isOnline()` / `onChange(cb)` / `ensureOnline(feature)` / `showError(feature)` (also `window._NetworkStatus`) so online-only features fail with a clean connection error
 - `js/modules/tray.js` - App system-tray icons: notification-area icons registered by background-capable apps (click / double-click / right-click, context menu, tooltip, live icon + badge), scoped per session; public surface is the SDK `Tray` namespace (`app.tray`, see `js/sdk/tray.js`); also `window._Tray`
 - `sw.js` - Service worker (registered by the `index.html` bootstrap, never by `js/main.js`): downloads and unpacks the core bundle into OPFS, serves the OS core and installed packages out of OPFS, keeps the tiny shell cached for offline reloads

@@ -7,6 +7,8 @@ import Packages from '../../modules/packages.js';
 import Permissions from '../../modules/permissions.js';
 import Popup from '../../modules/popup.js';
 import CrashMonitor from '../../modules/crashMonitor.js';
+import Notifications from '../../modules/notifications.js';
+import { liveMode } from '../../modules/siteBase.js';
 
 const AppStore = (() => {
     const icon = AppIcons.get('appStore');
@@ -703,17 +705,6 @@ const AppStore = (() => {
         }
 
         async function doInstall(appId, after) {
-            // A Live session cannot run an installed app — there is no service
-            // worker to serve its files from — and it saves nothing anyway.
-            let live = false;
-            try { live = !Packages.vfsActive(); } catch (e) { live = false; }
-            if (live) {
-                Popup.info('Windows 12 is running in Live mode',
-                    'Apps cannot be installed in a Live session. The system runs in memory, so an installed app would be gone at the next reload, and nothing would be able to run its files.\n\nThe built-in apps are available.');
-                after();
-                return;
-            }
-
             const consented = await Permissions.requestInstallConsent(appId);
             if (!consented) { after(); return; }
 
@@ -738,6 +729,13 @@ const AppStore = (() => {
                 return;
             }
             overlay.remove();
+            // In a Live session the install lives in memory only: say so, so
+            // the missing apps after a reload are not a surprise.
+            if (liveMode()) {
+                Notifications.info('Installed in Live mode',
+                    `${(appDetails[appId] && appDetails[appId].name) || appId} is installed in memory and will be removed when this Live session ends.`,
+                    { appId: 'appStore' });
+            }
             after();
         }
 
